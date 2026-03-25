@@ -1,3 +1,5 @@
+import { generateMiniAppLink } from "@teleforge/core";
+
 import type { TelegramInlineKeyboardButton } from "../router/types.js";
 
 export interface MiniAppButtonOptions {
@@ -28,24 +30,17 @@ export function createMiniAppButton(options: MiniAppButtonOptions): TelegramInli
     throw new Error("Mini App buttons require non-empty text.");
   }
 
-  const url = new URL(options.webAppUrl);
-
-  if (options.startPayload) {
-    url.searchParams.set("tgWebAppStartParam", options.startPayload);
-  }
-
-  if (options.requestWriteAccess) {
-    url.searchParams.set("tfRequestWriteAccess", "1");
-  }
-
-  if (typeof options.stayInChat === "boolean") {
-    url.searchParams.set("tfStayInChat", options.stayInChat ? "1" : "0");
-  }
-
   return {
     text: options.text,
     web_app: {
-      url: url.toString()
+      url: options.startPayload
+        ? generateMiniAppLink({
+            requestWriteAccess: options.requestWriteAccess,
+            startPayload: options.startPayload,
+            stayInChat: options.stayInChat,
+            webAppUrl: options.webAppUrl
+          })
+        : options.webAppUrl
     }
   };
 }

@@ -18,10 +18,59 @@ const routeCapabilitiesSchema = z
   })
   .strict();
 
+const launchEntryPointSchema = z.union([
+  z
+    .object({
+      startParam: z.string().min(1).optional(),
+      type: z.literal("miniapp")
+    })
+    .strict(),
+  z
+    .object({
+      command: z.string().min(1),
+      type: z.literal("bot_command")
+    })
+    .strict(),
+  z
+    .object({
+      text: z.string().min(1),
+      type: z.literal("bot_button")
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("deep_link"),
+      url: z.string().url()
+    })
+    .strict()
+]);
+
+const routeCoordinationSchema = z
+  .object({
+    entryPoints: z.array(launchEntryPointSchema).min(1),
+    flow: z
+      .object({
+        entryStep: z.string().min(1),
+        flowId: z.string().min(1),
+        requestWriteAccess: z.boolean().optional()
+      })
+      .strict()
+      .optional(),
+    returnToChat: z
+      .object({
+        stayInChat: z.boolean().optional(),
+        text: z.string().min(1)
+      })
+      .strict()
+      .optional()
+  })
+  .strict();
+
 const routeSchema = z
   .object({
     capabilities: routeCapabilitiesSchema.optional(),
     component: z.string().min(1).optional(),
+    coordination: routeCoordinationSchema.optional(),
     description: z.string().min(1).optional(),
     guards: z.array(z.string().min(1)).optional(),
     launchModes: z.array(launchModeSchema).optional(),

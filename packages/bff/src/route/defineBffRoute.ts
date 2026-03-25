@@ -13,6 +13,14 @@ export function defineBffRoute<TInput, TOutput>(
   return {
     config: Object.freeze({
       ...config,
+      ...(config.coordination
+        ? {
+            coordination: {
+              ...config.coordination,
+              entryPoints: [...config.coordination.entryPoints]
+            }
+          }
+        : {}),
       ...(config.launchModes ? { launchModes: [...config.launchModes] } : {}),
       ...(config.middlewares ? { middlewares: [...config.middlewares] } : {}),
       ...(config.permissions ? { permissions: [...config.permissions] } : {})

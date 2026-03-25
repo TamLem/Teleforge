@@ -37,6 +37,29 @@ export type { EventErrorCode } from "./events/errors.js";
 export type { ApiEventTransport } from "./events/transports/api.js";
 export type { BotEventTransport } from "./events/transports/bot.js";
 export type { MiniAppEventTransport } from "./events/transports/miniapp.js";
+export {
+  SIGNED_FLOW_CONTEXT_PREFIX,
+  attachRouteCoordination,
+  createSignedFlowContext,
+  decodeSignedFlowContext,
+  defineCoordinatedRoute,
+  generateMiniAppLink,
+  getRouteCoordination,
+  inferStateKeyFromFlowContext,
+  normalizeRouteCoordination,
+  verifySignedFlowContext
+} from "./coordination/index.js";
+export type {
+  CoordinatedRouteLike,
+  FlowContext,
+  LaunchEntryPoint,
+  MiniAppLinkFlowOptions,
+  MiniAppLinkOptions,
+  MiniAppLinkStartPayloadOptions,
+  ReturnToChatMetadata,
+  RouteCoordinationMetadata,
+  RouteFlowMetadata
+} from "./coordination/index.js";
 export { detectCapabilities, detectLaunchMode } from "./launch/detector.js";
 export { parseInitData, parseInitDataUnsafe } from "./launch/initData.js";
 export { parseLaunchContext } from "./launch/parser.js";

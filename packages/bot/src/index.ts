@@ -13,6 +13,7 @@ export { handleMiniAppReturn, initiateCoordinatedFlow } from "./coordination/sta
 export {
   createFlowCallback,
   createMiniAppButton,
+  generateMiniAppLink,
   createSignedPayload,
   extractFlowContext,
   handleFlowCallback,
@@ -28,6 +29,7 @@ export type {
   FlowContext,
   FlowContextSource,
   FlowInitOptions,
+  MiniAppLinkOptions,
   FlowResult,
   MessageTemplate,
   MiniAppButtonOptions

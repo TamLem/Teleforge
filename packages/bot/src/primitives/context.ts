@@ -1,25 +1,15 @@
 import {
-  SIGNED_PAYLOAD_PREFIX,
-  decodeBase64Url,
-  encodeBase64Url,
-  hmacTag,
-  isRecord,
-  parseJsonRecord,
-  stableSerializeRecord,
-  verifySignature
-} from "./shared.js";
+  SIGNED_FLOW_CONTEXT_PREFIX,
+  createSignedFlowContext,
+  verifySignedFlowContext
+} from "@teleforge/core";
+
+import { isRecord, parseJsonRecord } from "./shared.js";
 
 import type { TelegramMessage, TelegramUpdate, TelegramWebAppData } from "../router/types.js";
+import type { FlowContext as CoreFlowContext } from "@teleforge/core";
 
-export interface FlowContext {
-  flowId: string;
-  originMessageId?: number;
-  payload: Record<string, unknown>;
-  requestWriteAccess?: boolean;
-  returnText?: string;
-  stayInChat?: boolean;
-  stepId?: string;
-}
+export type FlowContext = CoreFlowContext;
 
 export type FlowContextSource = TelegramMessage | TelegramUpdate | TelegramWebAppData | string;
 
@@ -32,11 +22,7 @@ export type FlowContextSource = TelegramMessage | TelegramUpdate | TelegramWebAp
  * ```
  */
 export function createSignedPayload(data: Record<string, unknown>, secret: string): string {
-  const serialized = stableSerializeRecord(data);
-  const payload = encodeBase64Url(serialized);
-  const signature = encodeBase64Url(hmacTag(payload, secret));
-
-  return `${SIGNED_PAYLOAD_PREFIX}.${payload}.${signature}`;
+  return createSignedFlowContext(data as FlowContext, secret);
 }
 
 /**
@@ -74,26 +60,8 @@ export function extractFlowContext(source: FlowContextSource, secret: string): F
   };
 }
 
-export function verifySignedPayload(
-  signedPayload: string,
-  secret: string
-): Record<string, unknown> | null {
-  const [prefix, payload, signature] = signedPayload.split(".");
-
-  if (prefix !== SIGNED_PAYLOAD_PREFIX || !payload || !signature) {
-    return null;
-  }
-
-  if (!verifySignature(payload, signature, secret)) {
-    return null;
-  }
-
-  try {
-    const decoded = decodeBase64Url(payload).toString("utf8");
-    return parseJsonRecord(decoded);
-  } catch {
-    return null;
-  }
+export function verifySignedPayload(signedPayload: string, secret: string): FlowContext | null {
+  return verifySignedFlowContext(signedPayload, secret);
 }
 
 function isFlowContextRecord(value: Record<string, unknown>): value is Record<string, unknown> & {
@@ -128,7 +96,7 @@ function extractSignedPayloadCandidate(value: string | undefined): string | null
     return null;
   }
 
-  if (value.startsWith(`${SIGNED_PAYLOAD_PREFIX}.`)) {
+  if (value.startsWith(`${SIGNED_FLOW_CONTEXT_PREFIX}.`)) {
     return value;
   }
 

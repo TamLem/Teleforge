@@ -22,6 +22,12 @@ export type {
   WebAppUser
 } from "./launch/types.js";
 export { validateLaunchAgainstManifest } from "./launch/validator.js";
+export {
+  attachRouteCoordination,
+  defineCoordinatedRoute,
+  getRouteCoordination,
+  normalizeRouteCoordination
+} from "./coordination/route.js";
 export type {
   RouteDefinition,
   TeleforgeManifest,
@@ -29,6 +35,14 @@ export type {
   TeleforgeRouteCapability,
   TeleforgeRuntime
 } from "./manifest/types.js";
+export type {
+  CoordinatedRouteLike,
+  FlowContext,
+  LaunchEntryPoint,
+  ReturnToChatMetadata,
+  RouteCoordinationMetadata,
+  RouteFlowMetadata
+} from "./coordination/types.js";
 export type { FlowStateResolver, ResumeFlowError, ResumeFlowResult } from "./storage/resume.js";
 export type { UserFlowState } from "./storage/types.js";
 export type {

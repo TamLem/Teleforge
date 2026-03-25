@@ -1,3 +1,5 @@
+import type { RouteCoordinationMetadata } from "../coordination/types.js";
+
 /**
  * Describes the runtime behavior and framework wiring for a Teleforge application.
  */
@@ -28,6 +30,7 @@ export interface TeleforgeRouteCapability {
 export interface RouteDefinition {
   capabilities?: TeleforgeRouteCapability;
   component?: string;
+  coordination?: RouteCoordinationMetadata;
   description?: string;
   guards?: string[];
   launchModes?: string[];
