@@ -6,6 +6,17 @@ import { createIdentityAdapter, createMemorySessionAdapter } from "../helpers/se
 
 test("createBffConfig returns a validated immutable config with bound adapters", () => {
   const session = createMemorySessionAdapter();
+  const users = {
+    config: {
+      baseUrl: "https://services.example.com"
+    },
+    async invoke() {
+      return {
+        ok: true
+      };
+    },
+    name: "users"
+  };
   const config = createBffConfig({
     adapters: {
       session
@@ -16,6 +27,9 @@ test("createBffConfig returns a validated immutable config with bound adapters",
     },
     jwt: {
       secret: "teleforge-jwt-secret"
+    },
+    services: {
+      users
     }
   });
 
@@ -24,9 +38,13 @@ test("createBffConfig returns a validated immutable config with bound adapters",
   assert.equal(config.features.sessions, true);
   assert.equal(config.identity.strategy, "telegram-id");
   assert.equal(config.identity.autoCreate, true);
+  assert.equal(config.services.users, users);
   assert.equal(config.validate(), true);
   assert.equal(Object.isFrozen(config.options), true);
   assert.throws(() => {
     config.options.botToken = "mutated";
+  });
+  assert.throws(() => {
+    config.services.users = null;
   });
 });

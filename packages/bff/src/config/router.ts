@@ -1,3 +1,5 @@
+import { invokeAdapter } from "../adapters/invoke.js";
+import { ServiceAdapterRegistry } from "../adapters/registry.js";
 import { buildBffResponse, buildRouteResponse } from "../completion/helpers.js";
 import { createBffRequestContext } from "../context/create.js";
 import { BffError, serializeErrorResponse } from "../errors/base.js";
@@ -14,9 +16,12 @@ import type { BffRouteConfig, BffRouteDefinition } from "../route/types.js";
 
 export class ConfiguredBffRouter<TAppUser extends AppUser = AppUser> {
   private readonly registry = new BffRouteRegistry();
+  private readonly services: ServiceAdapterRegistry;
   private builtInsMounted = false;
 
-  constructor(private readonly config: BffConfig<TAppUser>) {}
+  constructor(private readonly config: BffConfig<TAppUser>) {
+    this.services = new ServiceAdapterRegistry(Object.values(config.services));
+  }
 
   add<TInput, TOutput>(
     route: BffRouteConfig<TInput, TOutput> | BffRouteDefinition<TInput, TOutput>
@@ -61,7 +66,18 @@ export class ConfiguredBffRouter<TAppUser extends AppUser = AppUser> {
 
         const input = await parseRequestInput(request, context);
         const result = await executeBffRoute(match.route, context, input, {
-          ...(this.config.adapters.cache ? { cacheStore: this.config.adapters.cache } : {})
+          ...(this.config.adapters.cache ? { cacheStore: this.config.adapters.cache } : {}),
+          invokeService: (service, serviceContext, serviceInput) =>
+            invokeAdapter(
+              this.services,
+              service.name,
+              service.operation,
+              serviceInput,
+              serviceContext,
+              {
+                timeout: match.route.config.timeoutMs
+              }
+            )
         });
         const responseBody = this.config.features.completion
           ? buildRouteResponse(match.route, context, result)

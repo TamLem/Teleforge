@@ -6,6 +6,8 @@ import { runMiddlewares } from "../middleware/compose.js";
 import { enforceLaunchModes } from "../middleware/launchMode.js";
 import { withExecutionTimeout } from "../middleware/timeout.js";
 
+import { normalizeRouteServiceConfig, toLegacyProxyConfig } from "./service.js";
+
 import type { BffExecutionOptions, BffRouteDefinition } from "./types.js";
 import type { BffRequestContext } from "../context/types.js";
 
@@ -23,9 +25,11 @@ export async function executeBffRoute<TInput, TOutput>(
       return await route.config.handler(context, input);
     }
 
-    if (!options.invokeProxy) {
+    const serviceConfig = normalizeRouteServiceConfig(route.config);
+
+    if (!serviceConfig) {
       throw BffError.fromCode(BffErrorCodes.INTERNAL_ERROR, {
-        message: `No proxy invoker was provided for ${route.config.method} ${route.config.path}.`,
+        message: `No service configuration was provided for ${route.config.method} ${route.config.path}.`,
         meta: {
           method: route.config.method,
           path: route.config.path
@@ -33,14 +37,38 @@ export async function executeBffRoute<TInput, TOutput>(
       });
     }
 
-    const proxyInput = route.config.proxy.transform?.request
-      ? route.config.proxy.transform.request(context, input)
+    const serviceInput = serviceConfig.transformInput
+      ? serviceConfig.transformInput(context, input)
       : input;
-    const proxyOutput = await options.invokeProxy(route.config.proxy, context, proxyInput);
 
-    return route.config.proxy.transform?.response
-      ? route.config.proxy.transform.response(context, proxyOutput)
-      : (proxyOutput as TOutput);
+    if (options.invokeService) {
+      const serviceOutput = await options.invokeService(serviceConfig, context, serviceInput);
+
+      return serviceConfig.transformOutput
+        ? serviceConfig.transformOutput(context, serviceOutput)
+        : (serviceOutput as TOutput);
+    }
+
+    if (options.invokeProxy) {
+      const serviceOutput = await options.invokeProxy(
+        toLegacyProxyConfig(serviceConfig),
+        context,
+        serviceInput
+      );
+
+      return serviceConfig.transformOutput
+        ? serviceConfig.transformOutput(context, serviceOutput)
+        : (serviceOutput as TOutput);
+    }
+
+    throw BffError.fromCode(BffErrorCodes.INTERNAL_ERROR, {
+      message: `No service invoker was provided for ${route.config.method} ${route.config.path}.`,
+      meta: {
+        method: route.config.method,
+        path: route.config.path,
+        service: serviceConfig.name
+      }
+    });
   };
 
   const cacheKey = `${route.config.method}:${route.config.path}:${JSON.stringify(input ?? null)}`;

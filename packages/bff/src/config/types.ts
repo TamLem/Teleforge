@@ -1,3 +1,4 @@
+import type { ServiceAdapter, ServiceMap } from "../adapters/types.js";
 import type { AppUser, IdentityAdapter, IdentityResolutionOptions } from "../identity/types.js";
 import type { BffCacheStore } from "../route/types.js";
 import type { BffRouteConfig, BffRouteDefinition } from "../route/types.js";
@@ -41,6 +42,7 @@ export interface BffConfigOptions<TAppUser extends AppUser = AppUser> {
     refreshTokenExpiry?: number;
     secret: string;
   };
+  services?: ServiceMap;
   validation?: {
     allowedLaunchModes?: readonly LaunchMode[];
     strictInitData?: boolean;
@@ -57,6 +59,7 @@ export interface BffConfig<TAppUser extends AppUser = AppUser> {
   readonly identity: Readonly<BffIdentityConfig<TAppUser>>;
   readonly jwt: Readonly<BffJwtConfig | null>;
   readonly options: Readonly<BffResolvedConfigOptions<TAppUser>>;
+  readonly services: Readonly<ServiceMap>;
   readonly validation: Readonly<BffValidationConfig>;
   createRouter(): BffRouter;
   validate(): true;
@@ -71,6 +74,7 @@ export interface BffResolvedConfigOptions<TAppUser extends AppUser = AppUser> {
   features: BffFeatureFlags;
   identity: BffIdentityConfig<TAppUser>;
   jwt: BffJwtConfig | null;
+  services: ServiceMap;
   validation: BffValidationConfig;
 }
 
@@ -84,3 +88,4 @@ export interface BffRouter {
 }
 
 export type BffCacheAdapter = BffCacheStore;
+export type BffServiceAdapter = ServiceAdapter;

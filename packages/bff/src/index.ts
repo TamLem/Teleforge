@@ -24,6 +24,20 @@ export type {
   CompletionEnvelope,
   CompletionResolver
 } from "./completion/types.js";
+export { HttpServiceAdapter, createRestAdapter } from "./adapters/http.js";
+export { invokeAdapter } from "./adapters/invoke.js";
+export { ServiceAdapterRegistry } from "./adapters/registry.js";
+export type {
+  BffServiceRouteConfig,
+  HealthStatus,
+  HttpRetryPolicy,
+  HttpServiceAdapterConfig,
+  HttpServiceOperation,
+  InvokeAdapterOptions,
+  ServiceAdapter,
+  ServiceContext,
+  ServiceMap
+} from "./adapters/types.js";
 export { createBffConfig } from "./config/create.js";
 export { ConfiguredBffRouter } from "./config/router.js";
 export { normalizeBffConfigOptions, validateBffConfigOptions } from "./config/validate.js";
@@ -36,6 +50,7 @@ export type {
   BffJwtConfig,
   BffResolvedConfigOptions,
   BffRouter,
+  BffServiceAdapter,
   BffValidationConfig
 } from "./config/types.js";
 export {
@@ -102,6 +117,7 @@ export { executeBffRoute } from "./route/execute.js";
 export { BffRouteError } from "./route/errors.js";
 export { defineBffRoute } from "./route/defineBffRoute.js";
 export { BffRouteRegistry } from "./route/registry.js";
+export { normalizeRouteServiceConfig, toLegacyProxyConfig } from "./route/service.js";
 export { validateBffRouteConfig } from "./route/validation.js";
 export type {
   BffAuthMode,

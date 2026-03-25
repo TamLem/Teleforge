@@ -1,3 +1,4 @@
+import type { BffServiceRouteConfig } from "../adapters/types.js";
 import type { CompletionResolver } from "../completion/types.js";
 import type { BffRequestContext } from "../context/types.js";
 import type { BffErrorCode } from "../errors/codes.js";
@@ -54,15 +55,24 @@ interface BffRouteBaseConfig<TOutput> {
 interface BffRouteHandlerConfig<TInput, TOutput> extends BffRouteBaseConfig<TOutput> {
   handler: BffHandler<TInput, TOutput>;
   proxy?: never;
+  service?: never;
+}
+
+interface BffRouteServiceConfig<TInput, TOutput> extends BffRouteBaseConfig<TOutput> {
+  handler?: never;
+  proxy?: never;
+  service: BffServiceRouteConfig<TInput, TOutput>;
 }
 
 interface BffRouteProxyConfig<TInput, TOutput> extends BffRouteBaseConfig<TOutput> {
   handler?: never;
+  service?: never;
   proxy: ProxyConfig<TInput, TOutput>;
 }
 
 export type BffRouteConfig<TInput, TOutput> =
   | BffRouteHandlerConfig<TInput, TOutput>
+  | BffRouteServiceConfig<TInput, TOutput>
   | BffRouteProxyConfig<TInput, TOutput>;
 
 export interface BffRouteDefinition<TInput = unknown, TOutput = unknown> {
@@ -78,6 +88,11 @@ export interface BffRouteMatch<TInput = unknown, TOutput = unknown> {
 
 export interface BffExecutionOptions<TInput = unknown, TOutput = unknown> {
   cacheStore?: BffCacheStore;
+  invokeService?: (
+    service: BffServiceRouteConfig<TInput, TOutput>,
+    context: BffRequestContext,
+    input: unknown
+  ) => Promise<unknown> | unknown;
   invokeProxy?: (
     proxy: ProxyConfig<TInput, TOutput>,
     context: BffRequestContext,

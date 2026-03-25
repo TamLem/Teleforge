@@ -10,24 +10,27 @@ export function validateBffRouteConfig<TInput, TOutput>(
   config: {
     handler?: unknown;
     proxy?: unknown;
+    service?: unknown;
   } & Partial<BffRouteConfig<TInput, TOutput>>
 ) {
   const hasHandler = typeof config.handler === "function";
+  const hasService = Boolean(config.service);
   const hasProxy = Boolean(config.proxy);
+  const configuredHandlers = [hasHandler, hasService, hasProxy].filter(Boolean).length;
 
-  if (!hasHandler && !hasProxy) {
+  if (configuredHandlers === 0) {
     throw new BffRouteError(
       "MISSING_HANDLER",
       500,
-      "BFF routes must declare exactly one of `handler` or `proxy`."
+      "BFF routes must declare exactly one of `handler`, `service`, or `proxy`."
     );
   }
 
-  if (hasHandler && hasProxy) {
+  if (configuredHandlers > 1) {
     throw new BffRouteError(
       "DUPLICATE_HANDLER",
       500,
-      "BFF routes cannot declare both `handler` and `proxy`."
+      "BFF routes cannot declare more than one of `handler`, `service`, or `proxy`."
     );
   }
 

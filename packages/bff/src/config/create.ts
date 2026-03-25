@@ -18,6 +18,9 @@ export function createBffConfig<TAppUser extends AppUser = AppUser>(
     identity: deepFreeze(normalized.identity),
     jwt: deepFreeze(normalized.jwt),
     options: deepFreeze(normalized),
+    services: deepFreeze({
+      ...normalized.services
+    }),
     validation: deepFreeze(normalized.validation),
     createRouter() {
       return new ConfiguredBffRouter(config);

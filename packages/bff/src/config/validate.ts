@@ -34,6 +34,9 @@ export function normalizeBffConfigOptions<TAppUser extends AppUser>(
           secret: options.jwt.secret
         }
       : null,
+    services: {
+      ...(options.services ?? {})
+    },
     validation: {
       ...(options.validation?.allowedLaunchModes
         ? { allowedLaunchModes: [...options.validation.allowedLaunchModes] }
@@ -101,6 +104,33 @@ export function validateBffConfigOptions<TAppUser extends AppUser>(
       message: "jwt.refreshTokenExpiry must be a positive number.",
       path: "jwt.refreshTokenExpiry"
     });
+  }
+
+  for (const [name, service] of Object.entries(options.services ?? {})) {
+    if (!service) {
+      fields.push({
+        code: "required",
+        message: `services.${name} is required.`,
+        path: `services.${name}`
+      });
+      continue;
+    }
+
+    if (service.name !== name) {
+      fields.push({
+        code: "invalid",
+        message: `services.${name}.name must match the registry key.`,
+        path: `services.${name}.name`
+      });
+    }
+
+    if (typeof service.invoke !== "function") {
+      fields.push({
+        code: "required",
+        message: `services.${name}.invoke must be a function.`,
+        path: `services.${name}.invoke`
+      });
+    }
   }
 
   if (fields.length > 0) {
