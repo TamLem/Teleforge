@@ -1,6 +1,8 @@
+import { execFile } from "node:child_process";
 import { X509Certificate } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 
 import { loadProjectEnv } from "../env.js";
 import { loadManifest, type TeleforgeManifest } from "../manifest.js";
@@ -32,8 +34,11 @@ export interface DoctorRunResult {
 
 export interface RunDoctorChecksOptions {
   cwd: string;
+  execFileImpl?: ExecFileImpl;
   fetchImpl?: typeof fetch;
   fix: boolean;
+  nodeVersion?: string;
+  userAgent?: string;
 }
 
 interface ManifestState {
@@ -42,13 +47,38 @@ interface ManifestState {
   manifestPath: string;
 }
 
+type ExecFileImpl = (
+  file: string,
+  args?: string[],
+  options?: {
+    cwd?: string;
+  }
+) => Promise<{ stderr: string; stdout: string }>;
+
+interface PackageManifestSummary {
+  filePath: string;
+  packages: Map<string, string>;
+}
+
+const execFileAsync = promisify(execFile);
+
 export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<DoctorRunResult> {
   const fixes = options.fix ? await applyDoctorFixes(options.cwd) : [];
   const env = await loadProjectEnv(options.cwd);
   const manifestState = await loadManifestState(options.cwd);
   const checks: DoctorCheck[] = [];
   const publicUrl = resolvePublicUrl(env, manifestState.manifest);
+  const execRunner = options.execFileImpl ?? defaultExecFileImpl;
 
+  checks.push(checkNodeVersion(options.nodeVersion ?? process.version));
+  checks.push(
+    await checkPackageManager({
+      cwd: options.cwd,
+      userAgent: options.userAgent ?? process.env.npm_config_user_agent
+    })
+  );
+  checks.push(await checkGitAvailability(options.cwd, execRunner));
+  checks.push(await checkTeleforgeDependencies(options.cwd, manifestState.manifest));
   checks.push(await checkEnvFile(options.cwd, fixes));
   checks.push(await checkManifestConsistency(options.cwd, manifestState));
   checks.push(checkBotToken(env, manifestState.manifest));
@@ -79,6 +109,219 @@ export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<
     fixes,
     status: summary.error > 0 ? "error" : summary.warn > 0 ? "warn" : "pass",
     summary
+  };
+}
+
+function checkNodeVersion(version: string): DoctorCheck {
+  const major = Number.parseInt(version.replace(/^v/, "").split(".")[0] ?? "", 10);
+
+  if (!Number.isFinite(major)) {
+    return {
+      category: "Environment",
+      message: `Unable to parse Node.js version: ${version}`,
+      name: "node_version",
+      remediation: "Install Node.js 20 LTS or newer before using Teleforge.",
+      status: "warn"
+    };
+  }
+
+  if (major < 18) {
+    return {
+      category: "Environment",
+      message: `Node.js ${version} is too old. Teleforge requires Node.js 18 or newer.`,
+      name: "node_version",
+      remediation: "Upgrade with `nvm install 20 && nvm use 20` or install Node.js 20 LTS.",
+      status: "error"
+    };
+  }
+
+  if (major < 20) {
+    return {
+      category: "Environment",
+      message: `Node.js ${version} is supported, but Node.js 20 LTS or newer is recommended.`,
+      name: "node_version",
+      remediation: "Upgrade with `nvm install 20 && nvm use 20` when convenient.",
+      status: "warn"
+    };
+  }
+
+  return {
+    category: "Environment",
+    message: `Node.js ${version} detected.`,
+    name: "node_version",
+    status: "pass"
+  };
+}
+
+async function checkPackageManager(options: {
+  cwd: string;
+  userAgent?: string;
+}): Promise<DoctorCheck> {
+  const lockfiles = await findPresentLockfiles(options.cwd);
+  const packageJson = await readJsonFileIfExists(path.join(options.cwd, "package.json"));
+  const packageManagerField =
+    isRecord(packageJson) && typeof packageJson.packageManager === "string"
+      ? packageJson.packageManager
+      : undefined;
+  const manager = detectPackageManager({
+    lockfiles,
+    packageManagerField,
+    userAgent: options.userAgent
+  });
+
+  if (lockfiles.length > 1) {
+    return {
+      category: "Environment",
+      details: [`Detected lockfiles: ${lockfiles.join(", ")}`],
+      message: "Multiple package-manager lockfiles detected.",
+      name: "package_manager",
+      remediation: "Keep a single lockfile in the project root to avoid inconsistent installs.",
+      status: "warn"
+    };
+  }
+
+  if (!manager) {
+    return {
+      category: "Environment",
+      message: "Package manager could not be determined.",
+      name: "package_manager",
+      remediation:
+        "Add a root package.json with a `packageManager` field and commit a lockfile. pnpm is recommended.",
+      status: "warn"
+    };
+  }
+
+  const details = [
+    packageManagerField ? `packageManager: ${packageManagerField}` : undefined,
+    options.userAgent ? `user agent: ${options.userAgent}` : undefined,
+    lockfiles.length === 1 ? `lockfile: ${lockfiles[0]}` : undefined
+  ].filter((detail): detail is string => Boolean(detail));
+
+  if (manager !== "pnpm") {
+    return {
+      category: "Environment",
+      details,
+      message: `Detected ${manager}. Teleforge works best with pnpm.`,
+      name: "package_manager",
+      remediation: "Prefer pnpm and commit pnpm-lock.yaml for consistent workspace installs.",
+      status: "warn"
+    };
+  }
+
+  if (!lockfiles.includes("pnpm-lock.yaml")) {
+    return {
+      category: "Environment",
+      details,
+      message: "pnpm was detected but pnpm-lock.yaml is missing.",
+      name: "package_manager",
+      remediation: "Run `pnpm install` and commit pnpm-lock.yaml.",
+      status: "warn"
+    };
+  }
+
+  return {
+    category: "Environment",
+    details,
+    message: "pnpm detected with a committed lockfile.",
+    name: "package_manager",
+    status: "pass"
+  };
+}
+
+async function checkGitAvailability(cwd: string, execFileImpl: ExecFileImpl): Promise<DoctorCheck> {
+  try {
+    const { stdout } = await execFileImpl("git", ["--version"], { cwd });
+    return {
+      category: "Environment",
+      details: [stdout.trim()],
+      message: "Git is available.",
+      name: "git_available",
+      status: "pass"
+    };
+  } catch (error) {
+    return {
+      category: "Environment",
+      details: [formatErrorMessage(error)],
+      message: "Git is not available in PATH.",
+      name: "git_available",
+      remediation:
+        "Install Git and confirm `git --version` succeeds before using repository workflows.",
+      status: "warn"
+    };
+  }
+}
+
+async function checkTeleforgeDependencies(
+  cwd: string,
+  manifest: TeleforgeManifest | undefined
+): Promise<DoctorCheck> {
+  const packageFiles = await loadPackageManifestSummaries(cwd);
+  const requiredPackages = determineRequiredTeleforgePackages(manifest);
+  const discoveredPackages = new Map<string, Set<string>>();
+
+  for (const packageFile of packageFiles) {
+    for (const [name, version] of packageFile.packages) {
+      const versions = discoveredPackages.get(name) ?? new Set<string>();
+      versions.add(version);
+      discoveredPackages.set(name, versions);
+    }
+  }
+
+  const missingPackages = requiredPackages.filter((name) => !discoveredPackages.has(name));
+  if (missingPackages.length > 0) {
+    return {
+      category: "Environment",
+      details: missingPackages.map((name) => `Missing ${name}`),
+      message: "Required @teleforge packages are missing from package.json.",
+      name: "teleforge_dependencies",
+      remediation:
+        "Install the missing @teleforge packages in your workspace or app package before continuing.",
+      status: "error"
+    };
+  }
+
+  const majorVersions = new Set<number>();
+  const versionDetails: string[] = [];
+  for (const [name, versions] of discoveredPackages) {
+    const sortedVersions = [...versions].sort();
+    versionDetails.push(`${name}: ${sortedVersions.join(", ")}`);
+    for (const version of sortedVersions) {
+      const major = extractMajorVersion(version);
+      if (typeof major === "number") {
+        majorVersions.add(major);
+      }
+    }
+  }
+
+  if (majorVersions.size > 1) {
+    return {
+      category: "Environment",
+      details: versionDetails,
+      message: "Conflicting major versions detected across @teleforge dependencies.",
+      name: "teleforge_dependencies",
+      remediation:
+        "Align all @teleforge dependencies to the same major version before running Teleforge.",
+      status: "error"
+    };
+  }
+
+  if (versionDetails.length === 0) {
+    return {
+      category: "Environment",
+      message: "No @teleforge dependencies were found in the project package manifests.",
+      name: "teleforge_dependencies",
+      remediation:
+        "Install the Teleforge packages referenced by your app, such as @teleforge/core and @teleforge/web.",
+      status: "error"
+    };
+  }
+
+  return {
+    category: "Environment",
+    details: versionDetails,
+    message: "Teleforge dependencies are present and version-aligned.",
+    name: "teleforge_dependencies",
+    status: "pass"
   };
 }
 
@@ -511,6 +754,162 @@ function trimToUndefined(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+async function findPresentLockfiles(cwd: string): Promise<string[]> {
+  const candidates = ["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lockb"];
+  const present: string[] = [];
+
+  for (const candidate of candidates) {
+    if (await pathExists(path.join(cwd, candidate))) {
+      present.push(candidate);
+    }
+  }
+
+  return present;
+}
+
+function detectPackageManager(options: {
+  lockfiles: string[];
+  packageManagerField?: string;
+  userAgent?: string;
+}): "bun" | "npm" | "pnpm" | "yarn" | undefined {
+  const packageManager = trimToUndefined(options.packageManagerField)?.split("@")[0];
+  if (packageManager === "pnpm" || packageManager === "npm" || packageManager === "yarn") {
+    return packageManager;
+  }
+
+  if (packageManager === "bun") {
+    return "bun";
+  }
+
+  const userAgent = trimToUndefined(options.userAgent);
+  if (userAgent) {
+    if (userAgent.startsWith("pnpm/")) {
+      return "pnpm";
+    }
+    if (userAgent.startsWith("npm/")) {
+      return "npm";
+    }
+    if (userAgent.startsWith("yarn/")) {
+      return "yarn";
+    }
+    if (userAgent.startsWith("bun/")) {
+      return "bun";
+    }
+  }
+
+  if (options.lockfiles.includes("pnpm-lock.yaml")) {
+    return "pnpm";
+  }
+  if (options.lockfiles.includes("package-lock.json")) {
+    return "npm";
+  }
+  if (options.lockfiles.includes("yarn.lock")) {
+    return "yarn";
+  }
+  if (options.lockfiles.includes("bun.lockb")) {
+    return "bun";
+  }
+
+  return undefined;
+}
+
+async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifestSummary[]> {
+  const packageJsonPaths = new Set<string>([path.join(cwd, "package.json")]);
+
+  for (const directory of ["apps", "packages"]) {
+    const directoryPath = path.join(cwd, directory);
+    if (!(await pathExists(directoryPath))) {
+      continue;
+    }
+
+    const entries = await readdir(directoryPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      packageJsonPaths.add(path.join(directoryPath, entry.name, "package.json"));
+    }
+  }
+
+  const manifests: PackageManifestSummary[] = [];
+  for (const packageJsonPath of packageJsonPaths) {
+    const packageJson = await readJsonFileIfExists(packageJsonPath);
+    if (!isRecord(packageJson)) {
+      continue;
+    }
+
+    const packages = new Map<string, string>();
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies"
+    ]) {
+      const section = packageJson[field];
+      if (!isRecord(section)) {
+        continue;
+      }
+
+      for (const [name, version] of Object.entries(section)) {
+        if (!name.startsWith("@teleforge/") || typeof version !== "string") {
+          continue;
+        }
+        packages.set(name, version);
+      }
+    }
+
+    if (packages.size > 0) {
+      manifests.push({
+        filePath: packageJsonPath,
+        packages
+      });
+    }
+  }
+
+  return manifests;
+}
+
+function determineRequiredTeleforgePackages(manifest: TeleforgeManifest | undefined): string[] {
+  const required = new Set<string>(["@teleforge/core", "@teleforge/web"]);
+
+  if (manifest?.bot) {
+    required.add("@teleforge/bot");
+  }
+
+  if (manifest?.runtime.mode === "bff") {
+    required.add("@teleforge/bff");
+  }
+
+  return [...required];
+}
+
+function extractMajorVersion(version: string): number | undefined {
+  let normalized = version.trim();
+  if (normalized.startsWith("workspace:")) {
+    normalized = normalized.slice("workspace:".length);
+  }
+
+  const match = normalized.match(/(\d+)(?:\.\d+)?(?:\.\d+)?/);
+  if (!match) {
+    return undefined;
+  }
+
+  const major = Number.parseInt(match[1], 10);
+  return Number.isFinite(major) ? major : undefined;
+}
+
+async function readJsonFileIfExists(filePath: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
@@ -565,4 +964,14 @@ function formatErrorMessage(error: unknown): string {
   }
 
   return String(error);
+}
+
+async function defaultExecFileImpl(
+  file: string,
+  args: string[] = [],
+  options?: { cwd?: string }
+): Promise<{ stderr: string; stdout: string }> {
+  return execFileAsync(file, args, {
+    cwd: options?.cwd
+  });
 }
