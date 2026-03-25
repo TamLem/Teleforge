@@ -1,3 +1,4 @@
+import type { AppUser, IdentityCacheEntry, ResolvedIdentity } from "../identity/types.js";
 import type { LaunchMode, WebAppUser } from "@teleforge/core";
 
 export type BffAuthType = "none" | "session" | "telegram";
@@ -42,7 +43,14 @@ export interface BffResponseState {
   status: number;
 }
 
+export interface BffIdentityState {
+  promise: Promise<ResolvedIdentity | null> | null;
+  value: ResolvedIdentity | null;
+}
+
 export interface BffRequestContext {
+  _identityState: BffIdentityState;
+  _resolutionCache: Map<string, IdentityCacheEntry>;
   auth: BffAuthState;
   body: unknown;
   chatInstance: string | null;
@@ -50,6 +58,7 @@ export interface BffRequestContext {
   header: (name: string) => string | null;
   headers: Headers;
   id: string;
+  identity: ResolvedIdentity | null;
   initDataRaw: string | null;
   json: <T>() => Promise<T>;
   launchMode: LaunchMode;
@@ -66,3 +75,5 @@ export interface BffRequestContext {
   toResponse: () => Response;
   arrayBuffer: () => Promise<ArrayBuffer>;
 }
+
+export type { AppUser };

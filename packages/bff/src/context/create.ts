@@ -15,8 +15,15 @@ export async function createBffRequestContext(
   const parsedInitData = await parseBffInitData(request, options);
   const bodyParser = createBodyParser(request);
   const response = createResponseState();
+  const identityState = {
+    promise: null,
+    value: null
+  };
+  const resolutionCache = new Map();
 
   const context: BffRequestContext = Object.freeze({
+    _identityState: identityState,
+    _resolutionCache: resolutionCache,
     arrayBuffer: bodyParser.arrayBuffer,
     auth: Object.freeze({
       sessionId: null,
@@ -33,6 +40,9 @@ export async function createBffRequestContext(
     },
     headers: new Headers(request.headers),
     id: createRequestId(options.generateRequestId),
+    get identity() {
+      return identityState.value;
+    },
     initDataRaw: parsedInitData.initDataRaw,
     json: bodyParser.json,
     launchMode: parsedInitData.launchMode,

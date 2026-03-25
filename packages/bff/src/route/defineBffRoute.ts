@@ -14,6 +14,7 @@ export function defineBffRoute<TInput, TOutput>(
     config: Object.freeze({
       ...config,
       ...(config.launchModes ? { launchModes: [...config.launchModes] } : {}),
+      ...(config.middlewares ? { middlewares: [...config.middlewares] } : {}),
       ...(config.permissions ? { permissions: [...config.permissions] } : {})
     }) as Readonly<BffRouteConfig<TInput, TOutput>>
   };

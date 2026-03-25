@@ -1,5 +1,6 @@
 import { enforceBffAuth } from "../middleware/auth.js";
 import { runWithCache } from "../middleware/cache.js";
+import { runMiddlewares } from "../middleware/compose.js";
 import { enforceLaunchModes } from "../middleware/launchMode.js";
 import { withExecutionTimeout } from "../middleware/timeout.js";
 
@@ -15,7 +16,7 @@ export async function executeBffRoute<TInput, TOutput>(
   enforceBffAuth(route.config.auth, context);
   enforceLaunchModes(route.config.launchModes, context);
 
-  const execute = async () => {
+  const executeHandler = async () => {
     if ("handler" in route.config && route.config.handler) {
       return await route.config.handler(context, input);
     }
@@ -38,7 +39,11 @@ export async function executeBffRoute<TInput, TOutput>(
 
   const cacheKey = `${route.config.method}:${route.config.path}:${JSON.stringify(input ?? null)}`;
 
-  return await runWithCache(options.cacheStore, route.config.cache, cacheKey, () =>
-    withExecutionTimeout(execute, route.config.timeoutMs)
-  );
+  const execute = async () =>
+    await withExecutionTimeout(
+      () => runWithCache(options.cacheStore, route.config.cache, cacheKey, executeHandler),
+      route.config.timeoutMs
+    );
+
+  return await runMiddlewares(route.config.middlewares, context, execute);
 }

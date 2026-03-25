@@ -8,6 +8,10 @@ export type BffRouteErrorCode =
   | "LAUNCH_MODE_NOT_ALLOWED"
   | "MISSING_HANDLER"
   | "UNAUTHENTICATED";
+export type BffMiddleware = (
+  context: BffRequestContext,
+  next: () => Promise<unknown>
+) => Promise<unknown> | unknown;
 
 export interface CachePolicy {
   key?: string;
@@ -34,6 +38,7 @@ interface BffRouteBaseConfig {
   cache?: CachePolicy;
   launchModes?: readonly LaunchMode[];
   method: BffRouteMethod;
+  middlewares?: readonly BffMiddleware[];
   path: string;
   permissions?: readonly string[];
   timeoutMs?: number;
