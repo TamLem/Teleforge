@@ -12,10 +12,13 @@ npm install -D @teleforge/devtools
 
 ```bash
 teleforge dev
+teleforge dev --open
 teleforge dev:https
 teleforge mock
 teleforge doctor
 ```
+
+`teleforge dev` now injects the Telegram WebApp mock overlay by default for local browser testing, and `--open` launches the resolved dev URL automatically.
 
 ## Mock Profiles
 

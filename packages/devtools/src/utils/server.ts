@@ -9,7 +9,7 @@ import process from "node:process";
 import httpProxy from "http-proxy";
 
 import { ensureCertificates } from "./certs.js";
-import { loadProjectEnv, validateRequiredEnv } from "./env.js";
+import { inspectProjectEnv, validateRequiredEnv } from "./env.js";
 import { loadManifest, type TeleforgeManifest } from "./manifest.js";
 import { findAvailablePort, waitForPort } from "./ports.js";
 import {
@@ -31,6 +31,7 @@ export interface ManagedDevContext {
   env: NodeJS.ProcessEnv;
   externalPort: number;
   frameworkLabel: string;
+  loadedEnvFiles: string[];
   manifest: TeleforgeManifest;
   requestedPort: number;
   tunnelUrl?: string;
@@ -116,7 +117,8 @@ async function restartRuntime(
 
 async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeHandle> {
   const { manifest } = await loadManifest(options.flags.cwd);
-  const env = await loadProjectEnv(options.flags.cwd);
+  const projectEnv = await inspectProjectEnv(options.flags.cwd);
+  const env = projectEnv.env;
   const missing = validateRequiredEnv(env, options.requiredEnv ?? []);
 
   if (missing.length > 0) {
@@ -181,6 +183,7 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
     env,
     externalPort,
     frameworkLabel: manifest.runtime.webFramework === "vite" ? "Vite" : "Next.js",
+    loadedEnvFiles: projectEnv.loadedFiles,
     manifest,
     requestedPort,
     tunnelUrl: tunnel?.url,

@@ -50,6 +50,16 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (arg === "--open") {
+      flags.open = true;
+      continue;
+    }
+
+    if (arg === "--no-open") {
+      flags.open = false;
+      continue;
+    }
+
     if (arg === "--port") {
       flags.port = rest[index + 1] ?? "";
       index += 1;
@@ -200,6 +210,7 @@ Usage:
 
 Options:
   --port <number>  Override the external dev port
+  --open           Open the dev URL in the default browser
   --https          Enable HTTPS (default)
   --no-https       Disable HTTPS proxying
   --tunnel         Enable a webhook tunnel
@@ -223,6 +234,8 @@ Options:
 function toDevFlags(flags: Record<string, string | boolean>): Omit<DevCommandFlags, "cwd"> {
   const portValue = flags.port;
   return {
+    mock: typeof flags.mock === "boolean" ? flags.mock : true,
+    open: typeof flags.open === "boolean" ? flags.open : false,
     port:
       typeof portValue === "string" && portValue.length > 0
         ? Number.parseInt(portValue, 10)
