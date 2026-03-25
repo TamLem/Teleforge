@@ -11,6 +11,12 @@ export {
   type LaunchModeBoundaryProps
 } from "./components/LaunchModeBoundary.js";
 export { MainButton, type MainButtonProps } from "./components/MainButton.js";
+export {
+  SettingsItem,
+  type SettingsItemProps,
+  type SettingsItemVariant
+} from "./components/SettingsItem.js";
+export { SettingsSection, type SettingsSectionProps } from "./components/SettingsSection.js";
 export { TgButton, type TgButtonProps } from "./components/TgButton.js";
 export { TgCard, type TgCardProps } from "./components/TgCard.js";
 export { TgInput, type TgInputProps } from "./components/TgInput.js";
