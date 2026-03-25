@@ -24,6 +24,37 @@ export type {
   IdentityStrategy,
   ResolvedIdentity
 } from "./identity/types.js";
+export { createSessionRoutes } from "./routes/session.js";
+export { BffSessionError } from "./session/errors.js";
+export { createSessionExchangeHandler } from "./session/exchange.js";
+export { withSessionValidation } from "./session/middleware.js";
+export { createSessionRefreshHandler } from "./session/refresh.js";
+export { createSessionRevokeHandler } from "./session/revoke.js";
+export {
+  createAccessToken,
+  createRefreshToken,
+  getAccessTokenTtlSeconds,
+  getRefreshTokenTtlSeconds,
+  hashRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken
+} from "./session/token.js";
+export { getBearerToken, hydrateSessionContext, validateSession } from "./session/validate.js";
+export type {
+  BffSessionErrorCode,
+  CreateSessionInput,
+  ExchangeInput,
+  ExchangeOutput,
+  RefreshInput,
+  RevokeInput,
+  RevokeOutput,
+  SessionAdapter,
+  SessionClaims,
+  SessionConfig,
+  SessionRecord,
+  SessionRouteOptions,
+  SessionValidationOptions
+} from "./session/types.js";
 export type { BffClientShape, InferBffRouteInput, InferBffRouteOutput } from "./client/types.js";
 export { enforceBffAuth } from "./middleware/auth.js";
 export { runMiddlewares } from "./middleware/compose.js";

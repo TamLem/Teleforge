@@ -12,6 +12,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
+    },
+    "./routes": {
+      "types": "./dist/routes.d.ts",
+      "import": "./dist/routes.js",
+      "require": "./dist/routes.cjs",
+      "default": "./dist/routes.js"
     }
   },
   "files": [
@@ -24,7 +30,7 @@
     "format": "prettier --check .",
     "lint": "eslint . --ext .ts,.mjs",
     "prepublishOnly": "pnpm run build",
-    "test": "pnpm run build && node --test test/*.mjs test/context/*.mjs test/identity/*.mjs test/route/*.mjs test/middleware/*.mjs"
+    "test": "pnpm run build && node --test test/*.mjs test/context/*.mjs test/identity/*.mjs test/route/*.mjs test/middleware/*.mjs test/session/*.mjs"
   },
   "dependencies": {
     "@teleforge/core": "workspace:1.0.0"

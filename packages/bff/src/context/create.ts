@@ -15,6 +15,11 @@ export async function createBffRequestContext(
   const parsedInitData = await parseBffInitData(request, options);
   const bodyParser = createBodyParser(request);
   const response = createResponseState();
+  const authState = {
+    sessionId: null,
+    type: parsedInitData.authType,
+    user: parsedInitData.telegramUser
+  };
   const identityState = {
     promise: null,
     value: null
@@ -22,14 +27,15 @@ export async function createBffRequestContext(
   const resolutionCache = new Map();
 
   const context: BffRequestContext = Object.freeze({
+    _authState: authState,
     _identityState: identityState,
     _resolutionCache: resolutionCache,
     arrayBuffer: bodyParser.arrayBuffer,
-    auth: Object.freeze({
-      sessionId: null,
-      type: parsedInitData.authType,
-      user: parsedInitData.telegramUser
-    }),
+    get auth() {
+      return Object.freeze({
+        ...authState
+      });
+    },
     get body() {
       return bodyParser.getCachedBody();
     },

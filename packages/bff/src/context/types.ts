@@ -49,6 +49,7 @@ export interface BffIdentityState {
 }
 
 export interface BffRequestContext {
+  _authState: BffAuthState;
   _identityState: BffIdentityState;
   _resolutionCache: Map<string, IdentityCacheEntry>;
   auth: BffAuthState;
