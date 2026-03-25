@@ -4,6 +4,7 @@
  * and event publishing.
  */
 export { ManifestValidationError } from "./errors/ManifestValidationError.js";
+export { EventErrorCodes, TeleforgeEventError } from "./events/errors.js";
 export { TeleforgeEventBus, type TeleforgeEventBusOptions } from "./events/bus.js";
 export {
   createEventBus,
@@ -11,16 +12,31 @@ export {
   resetGlobalEventBus,
   type CreateEventBusOptions
 } from "./events/index.js";
+export { eventSerializer } from "./events/serializer.js";
 export type {
+  ApiEventSource,
+  BotEventSource,
   EventBus,
   EventHandler,
+  EventPayload,
+  EventRequestOptions,
   EventType,
+  EventSourceInput,
+  EmitEventOptions,
+  LegacyTeleforgeEventSource,
+  MiniAppEventSource,
+  SystemEventSource,
   TeleforgeEvent,
   TeleforgeEventInput,
   TeleforgeEventSource,
+  TeleforgeEventMap,
   TelemetryCollector
 } from "./events/types.js";
-export { EventTypes, createEvent, createOrderEvent } from "./events/types.js";
+export { EventTypes, createEvent, createOrderEvent, normalizeEventSource } from "./events/types.js";
+export type { EventErrorCode } from "./events/errors.js";
+export type { ApiEventTransport } from "./events/transports/api.js";
+export type { BotEventTransport } from "./events/transports/bot.js";
+export type { MiniAppEventTransport } from "./events/transports/miniapp.js";
 export { detectCapabilities, detectLaunchMode } from "./launch/detector.js";
 export { parseInitData, parseInitDataUnsafe } from "./launch/initData.js";
 export { parseLaunchContext } from "./launch/parser.js";
