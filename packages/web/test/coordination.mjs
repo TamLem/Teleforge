@@ -229,9 +229,11 @@ function createMockMainButton() {
 function createSignedFlowContext() {
   const payload = Buffer.from(
     JSON.stringify({
+      flowId: "task-shop-browse",
       payload: {
         stateKey: "flow:test-state"
-      }
+      },
+      stepId: "checkout"
     }),
     "utf8"
   ).toString("base64url");

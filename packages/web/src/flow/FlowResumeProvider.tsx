@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLaunch } from "../hooks/useLaunch.js";
 import { hasWindow } from "../utils/ssr.js";
 
-import { FlowStateContext } from "./context.js";
+import { FlowStateContext, type FlowStateCommitOptions, type FlowStateStatus } from "./context.js";
 import { parseResumeParam } from "./parseResumeParam.js";
 import { resumeFlow } from "./resumeFlow.js";
 
@@ -43,7 +43,7 @@ export function FlowResumeProvider({
   const [flowState, setFlowState] = useState<UserFlowState | null>(null);
   const [indicatorVisible, setIndicatorVisible] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
-  const [status, setStatus] = useState<"error" | "idle" | "resumed" | "resuming">("idle");
+  const [status, setStatus] = useState<FlowStateStatus>("idle");
   const attemptedFlowRef = useRef<string | null>(null);
   const errorRef = useRef<ResumeFlowError | null>(error);
   const onFreshStartRef = useRef(onFreshStart);
@@ -95,19 +95,22 @@ export function FlowResumeProvider({
     consumeResumeParam();
 
     if (!result.success) {
-      setError(result.error);
-      setFlowState(result.flowState ?? null);
-      setIndicatorVisible(false);
-      setRedirectTo(null);
-      setStatus("error");
+      commitFlowState(result.flowState ?? null, {
+        error: result.error,
+        indicatorVisible: false,
+        redirectTo: null,
+        status: "error"
+      });
+      setFlowId(targetFlowId);
       return result;
     }
 
-    setError(null);
-    setFlowState(result.flowState);
-    setRedirectTo(result.redirectTo);
-    setStatus("resumed");
-    setIndicatorVisible(true);
+    commitFlowState(result.flowState, {
+      error: null,
+      indicatorVisible: true,
+      redirectTo: result.redirectTo,
+      status: "resumed"
+    });
     scheduleIndicatorDismiss(timeoutRef, setIndicatorVisible, indicatorDurationMs);
     onResumeRef.current?.(result);
 
@@ -120,12 +123,13 @@ export function FlowResumeProvider({
       timeoutRef.current = null;
     }
 
-    setError(null);
+    commitFlowState(null, {
+      error: null,
+      indicatorVisible: false,
+      redirectTo: null,
+      status: "idle"
+    });
     setFlowId(null);
-    setFlowState(null);
-    setIndicatorVisible(false);
-    setRedirectTo(null);
-    setStatus("idle");
   }
 
   function freshStart() {
@@ -146,6 +150,15 @@ export function FlowResumeProvider({
     return performResume(nextFlowId);
   }
 
+  function commitFlowState(state: UserFlowState | null, options: FlowStateCommitOptions = {}) {
+    setError(options.error ?? null);
+    setFlowId(state?.flowId ?? flowId);
+    setFlowState(state);
+    setIndicatorVisible(options.indicatorVisible ?? false);
+    setRedirectTo(options.redirectTo ?? null);
+    setStatus(options.status ?? (state ? "resumed" : "idle"));
+  }
+
   return (
     <FlowStateContext.Provider
       value={{
@@ -158,6 +171,7 @@ export function FlowResumeProvider({
         isResuming: status === "resuming",
         redirectTo,
         resume,
+        setFlowState: commitFlowState,
         status
       }}
     >

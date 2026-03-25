@@ -2,6 +2,15 @@ import { createContext } from "react";
 
 import type { ResumeFlowError, ResumeFlowResult, UserFlowState } from "@teleforge/core";
 
+export type FlowStateStatus = "error" | "idle" | "resumed" | "resuming";
+
+export interface FlowStateCommitOptions {
+  error?: ResumeFlowError | null;
+  indicatorVisible?: boolean;
+  redirectTo?: string | null;
+  status?: FlowStateStatus;
+}
+
 export interface FlowStateContextValue {
   clear: () => void;
   error: ResumeFlowError | null;
@@ -12,7 +21,8 @@ export interface FlowStateContextValue {
   isResuming: boolean;
   redirectTo: string | null;
   resume: (flowId?: string) => Promise<ResumeFlowResult | null>;
-  status: "error" | "idle" | "resumed" | "resuming";
+  setFlowState: (state: UserFlowState | null, options?: FlowStateCommitOptions) => void;
+  status: FlowStateStatus;
 }
 
 export const FlowStateContext = createContext<FlowStateContextValue | null>(null);

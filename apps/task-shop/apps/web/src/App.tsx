@@ -1,10 +1,9 @@
 import { AppShell, TgButton, TgText } from "@teleforge/ui";
 import {
+  CoordinationProvider,
   ExpiredFlowView,
-  FlowResumeProvider,
   ResumeIndicator,
-  useFlowState,
-  useLaunch
+  useFlowState
 } from "@teleforge/web";
 import { useEffect, useState } from "react";
 
@@ -21,6 +20,8 @@ import { CartPage } from "./pages/CartPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { HomePage } from "./pages/HomePage";
 import { SuccessPage } from "./pages/SuccessPage";
+
+import type { OrderPayload } from "@task-shop/types";
 
 const knownRoutes: TaskShopRoute[] = ["/", "/cart", "/checkout", "/success"];
 
@@ -52,13 +53,30 @@ export default function App() {
   };
 
   return (
-    <FlowResumeProvider
+    <CoordinationProvider
+      currentRoute={route}
+      flowSnapshot={{
+        items: cart.items,
+        lastOrder: cart.lastOrder
+      }}
       onFreshStart={handleFreshStart}
       onResume={(result) => {
         cart.hydrateSnapshot(getTaskShopResumeSnapshot(result.flowState));
         navigate(result.redirectTo as TaskShopRoute, { replace: true });
       }}
+      persistFlowState={({ payload, route, userId }) =>
+        persistTaskShopFlowState({
+          items: Array.isArray(payload.items) ? payload.items : [],
+          lastOrder:
+            payload.lastOrder && typeof payload.lastOrder === "object"
+              ? (payload.lastOrder as OrderPayload)
+              : null,
+          route: resolveRoute(route),
+          userId
+        })
+      }
       resolveRoute={resolveTaskShopResumeRoute}
+      resolveStepState={(currentRoute) => routeToStep(resolveRoute(currentRoute))}
       resolver={flowResolver}
     >
       <TaskShopShell
@@ -67,7 +85,7 @@ export default function App() {
         navigate={navigate}
         route={route}
       />
-    </FlowResumeProvider>
+    </CoordinationProvider>
   );
 }
 
@@ -83,26 +101,10 @@ function TaskShopShell({
   route: TaskShopRoute;
 }) {
   const flowState = useFlowState();
-  const launch = useLaunch();
   const completedSnapshot =
     flowState.error === "completed" && flowState.flowState
       ? getTaskShopResumeSnapshot(flowState.flowState)
       : null;
-
-  useEffect(() => {
-    const userId = launch.user ? String(launch.user.id) : (flowState.flowState?.userId ?? null);
-
-    if (!userId) {
-      return;
-    }
-
-    persistTaskShopFlowState({
-      items: cart.items,
-      lastOrder: cart.lastOrder,
-      route,
-      userId
-    });
-  }, [cart.items, cart.lastOrder, flowState.flowState?.userId, launch.user, route]);
 
   return (
     <AppShell
@@ -192,3 +194,16 @@ const routeTitles: Record<TaskShopRoute, string> = {
   "/checkout": "Checkout",
   "/success": "Success"
 };
+
+function routeToStep(route: TaskShopRoute) {
+  switch (route) {
+    case "/":
+      return "catalog";
+    case "/cart":
+      return "cart";
+    case "/checkout":
+      return "checkout";
+    case "/success":
+      return "completed";
+  }
+}

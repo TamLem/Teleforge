@@ -1,8 +1,6 @@
 import { getTelegramWebApp, hasWindow } from "../utils/ssr.js";
 
-interface FlowPayloadShape {
-  payload?: Record<string, unknown>;
-}
+import type { FlowContext } from "@teleforge/core/browser";
 
 export function getLaunchFlowContext(): string | null {
   if (!hasWindow()) {
@@ -19,25 +17,40 @@ export function getLaunchFlowContext(): string | null {
   return getTelegramWebApp()?.initDataUnsafe?.start_param ?? null;
 }
 
-export function inferStateKey(flowContext: string | null): string | null {
+export function parseFlowContext(flowContext: string | null): FlowContext | null {
   if (!flowContext) {
     return null;
   }
 
-  const [, payload] = flowContext.split(".");
+  const [prefix, payload] = flowContext.split(".");
 
-  if (!payload) {
+  if (prefix !== "tfp1" || !payload) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(decodeBase64Url(payload)) as FlowPayloadShape;
-    const stateKey = parsed.payload?.stateKey;
+    const parsed = JSON.parse(decodeBase64Url(payload)) as Record<string, unknown>;
 
-    return typeof stateKey === "string" ? stateKey : null;
+    if (
+      typeof parsed.flowId !== "string" ||
+      typeof parsed.payload !== "object" ||
+      parsed.payload === null ||
+      Array.isArray(parsed.payload)
+    ) {
+      return null;
+    }
+
+    return parsed as FlowContext;
   } catch {
     return null;
   }
+}
+
+export function inferStateKey(flowContext: string | null): string | null {
+  const parsed = parseFlowContext(flowContext);
+  const stateKey = parsed?.payload.stateKey;
+
+  return typeof stateKey === "string" ? stateKey : null;
 }
 
 function decodeBase64Url(value: string): string {

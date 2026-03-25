@@ -9,13 +9,32 @@ export {
   returnToChat,
   type ReturnToChatOptions
 } from "./coordination/return.js";
+export { CoordinationProvider, type CoordinationProviderProps } from "./coordination/provider.js";
+export type { CoordinationNavigateOptions, PersistFlowStateInput } from "./coordination/context.js";
+export {
+  useFlowCoordination,
+  useFlowNavigation,
+  useLaunchCoordination,
+  useReturnToChat,
+  type NavigateToRouteOptions,
+  type NavigateToStepOptions,
+  type ReturnToChatHookOptions,
+  type UseFlowCoordinationReturn,
+  type UseFlowNavigationReturn,
+  type UseLaunchCoordinationReturn,
+  type UseReturnToChatReturn
+} from "./coordination/hooks.js";
 export { ExpiredFlowView, type ExpiredFlowViewProps } from "./flow/ExpiredFlowView.js";
 export { FlowResumeProvider, type FlowResumeProviderProps } from "./flow/FlowResumeProvider.js";
 export { ResumeIndicator, type ResumeIndicatorProps } from "./flow/ResumeIndicator.js";
 export { parseResumeParam } from "./flow/parseResumeParam.js";
 export { resumeFlow, type ResumeFlowOptions } from "./flow/resumeFlow.js";
 export { useFlowState } from "./flow/useFlowState.js";
-export type { FlowStateContextValue } from "./flow/context.js";
+export type {
+  FlowStateCommitOptions,
+  FlowStateContextValue,
+  FlowStateStatus
+} from "./flow/context.js";
 export {
   transmitResult,
   type TransmitConfig,
