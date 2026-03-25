@@ -1,4 +1,5 @@
 import type { ServiceAdapter, ServiceMap } from "../adapters/types.js";
+import type { SessionSecurityEventSink } from "../events/security.js";
 import type { AppUser, IdentityAdapter, IdentityResolutionOptions } from "../identity/types.js";
 import type { BffCacheStore } from "../route/types.js";
 import type { BffRouteConfig, BffRouteDefinition } from "../route/types.js";
@@ -35,6 +36,7 @@ export interface BffConfigOptions<TAppUser extends AppUser = AppUser> {
     session?: SessionAdapter;
   };
   botToken: string;
+  events?: SessionSecurityEventSink | null;
   features?: Partial<BffFeatureFlags>;
   identity: BffIdentityConfig<TAppUser>;
   jwt?: {
@@ -55,6 +57,7 @@ export interface BffConfig<TAppUser extends AppUser = AppUser> {
     identity: IdentityAdapter<TAppUser>;
     session?: SessionAdapter;
   }>;
+  readonly events: SessionSecurityEventSink | null;
   readonly features: Readonly<BffFeatureFlags>;
   readonly identity: Readonly<BffIdentityConfig<TAppUser>>;
   readonly jwt: Readonly<BffJwtConfig | null>;
@@ -71,6 +74,7 @@ export interface BffResolvedConfigOptions<TAppUser extends AppUser = AppUser> {
     session?: SessionAdapter;
   };
   botToken: string;
+  events: SessionSecurityEventSink | null;
   features: BffFeatureFlags;
   identity: BffIdentityConfig<TAppUser>;
   jwt: BffJwtConfig | null;

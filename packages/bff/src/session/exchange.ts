@@ -33,16 +33,19 @@ export function createSessionExchangeHandler<TAppUser extends AppUser = AppUser>
     const sessionId = createSessionId();
     const accessTokenTtlSeconds = getAccessTokenTtlSeconds(options.accessTokenTtlSeconds);
     const refreshTokenTtlSeconds = getRefreshTokenTtlSeconds(options.refreshTokenTtlSeconds);
+    const issuedAt = Date.now();
     const refreshTokenSecret = await createRefreshToken();
     const refreshToken = `${sessionId}.${refreshTokenSecret}`;
     const refreshTokenHash = await hashRefreshToken(refreshToken);
-    const refreshTokenExpiresAt = Date.now() + refreshTokenTtlSeconds * 1000;
+    const refreshTokenExpiresAt = issuedAt + refreshTokenTtlSeconds * 1000;
 
     await options.adapter.createSession({
       deviceInfo: input?.deviceInfo,
       id: sessionId,
+      refreshTokenFamilyId: sessionId,
       refreshTokenExpiresAt,
       refreshTokenHash,
+      refreshTokenIssuedAt: issuedAt,
       telegramUserId: identity.telegramUserId,
       userId: identity.appUserId
     });

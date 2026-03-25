@@ -14,6 +14,7 @@ export function createBffConfig<TAppUser extends AppUser = AppUser>(
       identity: normalized.identity.adapter,
       ...(normalized.adapters.session ? { session: normalized.adapters.session } : {})
     }),
+    events: normalized.events,
     features: deepFreeze(normalized.features),
     identity: deepFreeze(normalized.identity),
     jwt: deepFreeze(normalized.jwt),

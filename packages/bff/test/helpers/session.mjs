@@ -7,14 +7,29 @@ export function createMemorySessionAdapter() {
 
   return {
     async createSession(input) {
+      const issuedAt = input.refreshTokenIssuedAt ?? Date.now();
+      const refreshTokenFamilyId = input.refreshTokenFamilyId ?? input.id;
+      const refreshToken = createRefreshTokenRecord({
+        expiresAt: input.refreshTokenExpiresAt,
+        familyId: refreshTokenFamilyId,
+        hash: input.refreshTokenHash,
+        issuedAt,
+        sequence: 0
+      });
       const record = {
-        createdAt: Date.now(),
+        compromisedAt: null,
+        createdAt: issuedAt,
         id: input.id,
+        refreshTokenFamilyId,
         refreshTokenExpiresAt: input.refreshTokenExpiresAt,
         refreshTokenHash: input.refreshTokenHash,
+        refreshTokenSequence: refreshToken.sequence,
+        refreshTokens: {
+          [refreshToken.hash]: refreshToken
+        },
         revokedAt: null,
         telegramUserId: input.telegramUserId,
-        updatedAt: Date.now(),
+        updatedAt: issuedAt,
         userId: input.userId,
         ...(input.deviceInfo ? { deviceInfo: input.deviceInfo } : {})
       };
@@ -42,20 +57,77 @@ export function createMemorySessionAdapter() {
         session.updatedAt = Date.now();
       }
     },
-    async rotateRefreshToken(sessionId, refreshTokenHash, refreshTokenExpiresAt) {
+    async revokeTokenFamily(familyId) {
+      for (const session of sessions.values()) {
+        if (session.refreshTokenFamilyId === familyId) {
+          session.compromisedAt = Date.now();
+          session.revokedAt = Date.now();
+          session.updatedAt = Date.now();
+        }
+      }
+    },
+    async rotateRefreshToken(sessionId, input) {
       const session = sessions.get(sessionId);
 
       if (!session) {
         throw new Error(`Missing session ${sessionId}`);
       }
 
-      session.refreshTokenExpiresAt = refreshTokenExpiresAt;
-      session.refreshTokenHash = refreshTokenHash;
-      session.updatedAt = Date.now();
+      const currentToken = session.refreshTokens[input.currentRefreshTokenHash];
 
-      return session;
+      if (!currentToken) {
+        return {
+          session,
+          status: "invalid"
+        };
+      }
+
+      if (currentToken.usedAt !== null) {
+        return {
+          detectedAt: input.rotatedAt,
+          familyId: session.refreshTokenFamilyId,
+          session,
+          status: "reused",
+          token: currentToken
+        };
+      }
+
+      currentToken.replacedBy = input.nextRefreshTokenHash;
+      currentToken.usedAt = input.rotatedAt;
+
+      const nextToken = createRefreshTokenRecord({
+        expiresAt: input.nextRefreshTokenExpiresAt,
+        familyId: session.refreshTokenFamilyId,
+        hash: input.nextRefreshTokenHash,
+        issuedAt: input.rotatedAt,
+        sequence: currentToken.sequence + 1
+      });
+
+      session.refreshTokenExpiresAt = input.nextRefreshTokenExpiresAt;
+      session.refreshTokenHash = input.nextRefreshTokenHash;
+      session.refreshTokenSequence = nextToken.sequence;
+      session.refreshTokens[nextToken.hash] = nextToken;
+      session.updatedAt = input.rotatedAt;
+
+      return {
+        previousToken: currentToken,
+        session,
+        status: "rotated"
+      };
     },
     sessions
+  };
+}
+
+function createRefreshTokenRecord({ expiresAt, familyId, hash, issuedAt, sequence }) {
+  return {
+    expiresAt,
+    familyId,
+    hash,
+    issuedAt,
+    replacedBy: null,
+    sequence,
+    usedAt: null
   };
 }
 

@@ -120,6 +120,7 @@ export class ConfiguredBffRouter<TAppUser extends AppUser = AppUser> {
     if (this.config.features.sessions && this.config.adapters.session && this.config.jwt) {
       const routes = createSessionRoutes({
         adapter: this.config.adapters.session,
+        securityEvents: this.config.events,
         identity: this.config.identity,
         secret: this.config.jwt.secret,
         accessTokenTtlSeconds: this.config.jwt.accessTokenExpiry,

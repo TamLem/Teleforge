@@ -17,6 +17,7 @@ export function normalizeBffConfigOptions<TAppUser extends AppUser>(
       ...(options.adapters?.session ? { session: options.adapters.session } : {})
     },
     botToken: options.botToken,
+    events: options.events ?? null,
     features: {
       completion: options.features?.completion ?? true,
       requestLogging: options.features?.requestLogging ?? false,

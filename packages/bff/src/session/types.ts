@@ -1,10 +1,25 @@
 import type { BffErrorCode } from "../errors/codes.js";
+import type { SessionSecurityEventSink } from "../events/security.js";
 import type { AppUser, IdentityResolutionOptions, ResolvedIdentity } from "../identity/types.js";
 
 export type BffSessionErrorCode = Extract<
   BffErrorCode,
-  "REFRESH_TOKEN_INVALID" | "SESSION_REVOKED" | "TOKEN_EXPIRED" | "TOKEN_INVALID"
+  | "REFRESH_TOKEN_INVALID"
+  | "REFRESH_TOKEN_REUSED"
+  | "SESSION_REVOKED"
+  | "TOKEN_EXPIRED"
+  | "TOKEN_INVALID"
 >;
+
+export interface RefreshTokenRecord {
+  expiresAt: number;
+  familyId: string;
+  hash: string;
+  issuedAt: number;
+  replacedBy: string | null;
+  sequence: number;
+  usedAt: number | null;
+}
 
 export interface SessionClaims {
   exp: number;
@@ -18,40 +33,72 @@ export interface SessionClaims {
 export interface CreateSessionInput {
   deviceInfo?: Record<string, unknown>;
   id: string;
+  refreshTokenFamilyId?: string;
   refreshTokenExpiresAt: number;
   refreshTokenHash: string;
+  refreshTokenIssuedAt?: number;
   telegramUserId: number;
   userId: string;
 }
 
 export interface SessionRecord {
   createdAt: number;
+  compromisedAt: number | null;
   deviceInfo?: Record<string, unknown>;
   id: string;
+  refreshTokenFamilyId: string;
   refreshTokenExpiresAt: number;
   refreshTokenHash: string;
+  refreshTokenSequence: number;
+  refreshTokens: Record<string, RefreshTokenRecord>;
   revokedAt: number | null;
   telegramUserId: number;
   updatedAt: number;
   userId: string;
 }
 
+export interface RotateRefreshTokenInput {
+  currentRefreshTokenHash: string;
+  nextRefreshTokenExpiresAt: number;
+  nextRefreshTokenHash: string;
+  rotatedAt: number;
+}
+
+export type RotateRefreshTokenResult =
+  | {
+      previousToken: RefreshTokenRecord;
+      session: SessionRecord;
+      status: "rotated";
+    }
+  | {
+      detectedAt: number;
+      familyId: string;
+      session: SessionRecord;
+      status: "reused";
+      token: RefreshTokenRecord;
+    }
+  | {
+      session: SessionRecord;
+      status: "invalid";
+    };
+
 export interface SessionAdapter {
   createSession: (input: CreateSessionInput) => Promise<SessionRecord> | SessionRecord;
   getSession: (sessionId: string) => Promise<SessionRecord | null> | SessionRecord | null;
   revokeAllUserSessions: (userId: string) => Promise<void> | void;
   revokeSession: (sessionId: string) => Promise<void> | void;
+  revokeTokenFamily: (familyId: string) => Promise<void> | void;
   rotateRefreshToken: (
     sessionId: string,
-    refreshTokenHash: string,
-    refreshTokenExpiresAt: number
-  ) => Promise<SessionRecord> | SessionRecord;
+    input: RotateRefreshTokenInput
+  ) => Promise<RotateRefreshTokenResult> | RotateRefreshTokenResult;
 }
 
 export interface SessionConfig {
   accessTokenTtlSeconds?: number;
   adapter: SessionAdapter;
   refreshTokenTtlSeconds?: number;
+  securityEvents?: SessionSecurityEventSink | null;
   secret: string;
 }
 

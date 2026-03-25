@@ -53,6 +53,12 @@ export type {
   BffServiceAdapter,
   BffValidationConfig
 } from "./config/types.js";
+export { emitRefreshTokenReuseDetected, SessionSecurityEventTypes } from "./events/security.js";
+export type {
+  SessionRefreshTokenReuseDetectedEvent,
+  SessionSecurityEvent,
+  SessionSecurityEventSink
+} from "./events/security.js";
 export {
   BffError,
   BffErrorCodes,
@@ -96,6 +102,9 @@ export type {
   BffSessionErrorCode,
   CreateSessionInput,
   ExchangeInput,
+  RefreshTokenRecord,
+  RotateRefreshTokenInput,
+  RotateRefreshTokenResult,
   ExchangeOutput,
   RefreshInput,
   RevokeInput,

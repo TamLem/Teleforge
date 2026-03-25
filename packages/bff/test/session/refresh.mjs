@@ -6,6 +6,7 @@ import {
   createAccessToken,
   createSessionRoutes,
   executeBffRoute,
+  hashRefreshToken,
   verifyAccessToken
 } from "../../dist/index.js";
 import {
@@ -31,10 +32,16 @@ test("session refresh rotates the refresh token and returns a new access token p
   const refreshed = await executeBffRoute(routes.refresh, context, {
     refreshToken: exchange.refreshToken
   });
+  const record = adapter.sessions.values().next().value;
+  const previousHash = await hashRefreshToken(exchange.refreshToken);
+  const nextHash = await hashRefreshToken(refreshed.refreshToken);
 
   assert.notEqual(refreshed.refreshToken, exchange.refreshToken);
   assert.equal(refreshed.identity.appUserId, "app_user_1");
   assert.equal(adapter.sessions.size, 1);
+  assert.equal(record.refreshTokens[previousHash].usedAt !== null, true);
+  assert.equal(record.refreshTokens[previousHash].replacedBy, nextHash);
+  assert.equal(record.refreshTokens[nextHash].sequence, 1);
 });
 
 test("verifyAccessToken surfaces TOKEN_EXPIRED for expired access tokens", async () => {
