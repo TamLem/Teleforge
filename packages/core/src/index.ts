@@ -42,23 +42,40 @@ export {
   attachRouteCoordination,
   createSignedFlowContext,
   decodeSignedFlowContext,
+  defineCoordinationConfig,
   defineCoordinatedRoute,
+  flowCoordination,
   generateMiniAppLink,
   getRouteCoordination,
   inferStateKeyFromFlowContext,
   normalizeRouteCoordination,
+  routeCoordination,
+  validateCoordinationConfig,
   verifySignedFlowContext
 } from "./coordination/index.js";
 export type {
+  ButtonMapping,
+  CommandMapping,
+  CoordinationConfig,
+  CoordinationDefaults,
   CoordinatedRouteLike,
+  DeepLinkMapping,
+  FlowDefinition,
+  FlowEntry,
   FlowContext,
   LaunchEntryPoint,
   MiniAppLinkFlowOptions,
   MiniAppLinkOptions,
   MiniAppLinkStartPayloadOptions,
+  ResolvedCoordinationConfig,
+  ResolvedRouteCoordinationConfig,
   ReturnToChatMetadata,
+  RouteCoordinationConfig,
+  RouteEntry,
   RouteCoordinationMetadata,
-  RouteFlowMetadata
+  RouteFlowMetadata,
+  ValidationError,
+  ValidationResult
 } from "./coordination/index.js";
 export { detectCapabilities, detectLaunchMode } from "./launch/detector.js";
 export { parseInitData, parseInitDataUnsafe } from "./launch/initData.js";

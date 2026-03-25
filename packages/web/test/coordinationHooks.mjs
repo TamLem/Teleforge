@@ -77,40 +77,75 @@ test("CoordinationProvider persists flow snapshots and useFlowNavigation preserv
   let navigation;
   const persisted = [];
   const navigated = [];
-  const manifest = {
-    bot: {
-      tokenEnv: "BOT_TOKEN",
-      username: "sample_bot",
-      webhook: {
-        path: "/api/webhook",
-        secretEnv: "WEBHOOK_SECRET"
+  const config = {
+    defaults: {
+      expiryMinutes: 30,
+      persistence: "session"
+    },
+    entryPoints: {
+      buttons: {},
+      commands: {},
+      deepLinks: {}
+    },
+    flows: {
+      "task-shop-browse": {
+        defaultStep: "catalog",
+        finalStep: "completed",
+        id: "task-shop-browse",
+        steps: ["catalog", "checkout", "completed"]
       }
     },
-    id: "sample-app",
-    miniApp: {
-      capabilities: [],
-      defaultMode: "inline",
-      entryPoint: "apps/web/src/main.tsx",
-      launchModes: ["inline"]
+    resolveEntryPoint() {
+      return undefined;
     },
-    name: "Sample App",
-    routes: [
-      {
-        coordination: {
+    resolveFlow(flowId) {
+      return this.flows[flowId];
+    },
+    resolveRoute(path) {
+      if (path !== "/checkout") {
+        return undefined;
+      }
+
+      return {
+        entryPoints: [{ command: "start", type: "bot_command" }],
+        flowId: "task-shop-browse",
+        metadata: {
           entryPoints: [{ command: "start", type: "bot_command" }],
           flow: {
             entryStep: "catalog",
             flowId: "task-shop-browse"
           }
         },
-        path: "/checkout"
-      }
-    ],
-    runtime: {
-      mode: "spa",
-      webFramework: "vite"
+        path: "/checkout",
+        stepRoutes: {
+          catalog: "/",
+          checkout: "/checkout",
+          completed: "/success"
+        }
+      };
     },
-    version: "1.0.0"
+    resolveStep(path) {
+      return path === "/checkout" ? "checkout" : undefined;
+    },
+    resolveStepRoute(flowId, stepId) {
+      if (flowId !== "task-shop-browse") {
+        return undefined;
+      }
+
+      return (
+        {
+          catalog: "/",
+          checkout: "/checkout",
+          completed: "/success"
+        }[stepId] ?? undefined
+      );
+    },
+    routes: {},
+    validation: {
+      errors: [],
+      valid: true,
+      warnings: []
+    }
   };
 
   globalThis.window = createMockWindow({
@@ -129,11 +164,11 @@ test("CoordinationProvider persists flow snapshots and useFlowNavigation preserv
       React.createElement(
         CoordinationProvider,
         {
+          config,
           currentRoute: "/checkout",
           flowSnapshot: {
             items: [{ id: "task-001", quantity: 2 }]
           },
-          manifest,
           navigate(route) {
             navigated.push(route);
           },
@@ -151,12 +186,6 @@ test("CoordinationProvider persists flow snapshots and useFlowNavigation preserv
           },
           resolveRoute(state) {
             return state.stepId === "checkout" ? "/checkout" : `/${state.stepId}`;
-          },
-          resolveStepState(route) {
-            return route === "/checkout" ? "checkout" : "catalog";
-          },
-          resolveStepRoute(stepId) {
-            return stepId === "catalog" ? "/" : `/${stepId}`;
           },
           resolver: async () => ({
             createdAt: Date.now(),

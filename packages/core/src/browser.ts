@@ -23,11 +23,17 @@ export type {
 } from "./launch/types.js";
 export { validateLaunchAgainstManifest } from "./launch/validator.js";
 export {
+  defineCoordinationConfig,
+  flowCoordination,
+  routeCoordination
+} from "./coordination/config.js";
+export {
   attachRouteCoordination,
   defineCoordinatedRoute,
   getRouteCoordination,
   normalizeRouteCoordination
 } from "./coordination/route.js";
+export { validateCoordinationConfig } from "./coordination/validate.js";
 export type {
   RouteDefinition,
   TeleforgeManifest,
@@ -36,6 +42,19 @@ export type {
   TeleforgeRuntime
 } from "./manifest/types.js";
 export type {
+  ButtonMapping,
+  CommandMapping,
+  CoordinationConfig,
+  CoordinationDefaults,
+  DeepLinkMapping,
+  FlowDefinition,
+  FlowEntry,
+  ResolvedCoordinationConfig,
+  ResolvedRouteCoordinationConfig,
+  RouteCoordinationConfig,
+  RouteEntry
+} from "./coordination/config.js";
+export type {
   CoordinatedRouteLike,
   FlowContext,
   LaunchEntryPoint,
@@ -43,6 +62,7 @@ export type {
   RouteCoordinationMetadata,
   RouteFlowMetadata
 } from "./coordination/types.js";
+export type { ValidationError, ValidationResult } from "./coordination/validate.js";
 export type { FlowStateResolver, ResumeFlowError, ResumeFlowResult } from "./storage/resume.js";
 export type { UserFlowState } from "./storage/types.js";
 export type {

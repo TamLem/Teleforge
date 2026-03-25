@@ -5,6 +5,7 @@ export {
   verifySignedFlowContext,
   SIGNED_FLOW_CONTEXT_PREFIX
 } from "./codec.js";
+export { defineCoordinationConfig, flowCoordination, routeCoordination } from "./config.js";
 export { generateMiniAppLink } from "./links.js";
 export {
   attachRouteCoordination,
@@ -23,3 +24,18 @@ export type {
   RouteCoordinationMetadata,
   RouteFlowMetadata
 } from "./types.js";
+export type {
+  ButtonMapping,
+  CommandMapping,
+  CoordinationConfig,
+  CoordinationDefaults,
+  DeepLinkMapping,
+  FlowDefinition,
+  FlowEntry,
+  ResolvedCoordinationConfig,
+  ResolvedRouteCoordinationConfig,
+  RouteCoordinationConfig,
+  RouteEntry
+} from "./config.js";
+export type { ValidationError, ValidationResult } from "./validate.js";
+export { validateCoordinationConfig } from "./validate.js";

@@ -12,11 +12,16 @@ import {
   type PersistFlowStateInput
 } from "./context.js";
 
-import type { TeleforgeManifest, UserFlowState } from "@teleforge/core/browser";
+import type {
+  ResolvedCoordinationConfig,
+  TeleforgeManifest,
+  UserFlowState
+} from "@teleforge/core/browser";
 
 export interface CoordinationProviderProps extends FlowResumeProviderProps {
   children: React.ReactNode;
   currentRoute?: string | null;
+  config?: ResolvedCoordinationConfig;
   flowSnapshot?: Record<string, unknown>;
   manifest?: TeleforgeManifest;
   navigate?: (route: string, options?: { replace?: boolean }) => void;
@@ -31,6 +36,7 @@ export interface CoordinationProviderProps extends FlowResumeProviderProps {
 interface CoordinationBridgeProps {
   children: React.ReactNode;
   currentRoute?: string | null;
+  config?: ResolvedCoordinationConfig;
   flowSnapshot: Record<string, unknown>;
   manifest?: TeleforgeManifest;
   navigate?: (route: string, options?: { replace?: boolean }) => void;
@@ -45,6 +51,7 @@ interface CoordinationBridgeProps {
 export function CoordinationProvider({
   children,
   currentRoute,
+  config,
   flowSnapshot = {},
   manifest,
   navigate,
@@ -58,6 +65,7 @@ export function CoordinationProvider({
     <FlowResumeProvider {...flowResumeProps}>
       <CoordinationBridge
         currentRoute={currentRoute}
+        config={config}
         flowSnapshot={flowSnapshot}
         manifest={manifest}
         navigate={navigate}
@@ -75,6 +83,7 @@ export function CoordinationProvider({
 function CoordinationBridge({
   children,
   currentRoute,
+  config,
   flowSnapshot,
   manifest,
   navigate,
@@ -91,6 +100,9 @@ function CoordinationBridge({
   const userId = launch.user ? String(launch.user.id) : (flow.flowState?.userId ?? null);
   const stepId =
     (resolvedCurrentRoute ? resolveStepState?.(resolvedCurrentRoute, flow.flowState) : null) ??
+    (resolvedCurrentRoute
+      ? config?.resolveStep(resolvedCurrentRoute, flowId ?? undefined)
+      : null) ??
     flow.flowState?.stepId ??
     null;
 
@@ -145,6 +157,7 @@ function CoordinationBridge({
 
   const value = useMemo<CoordinationContextValue>(
     () => ({
+      config,
       currentRoute: resolvedCurrentRoute,
       flowSnapshot,
       navigate: navigate ?? defaultNavigate,
@@ -154,6 +167,7 @@ function CoordinationBridge({
       resolveStepState
     }),
     [
+      config,
       flowSnapshot,
       navigate,
       persistFlowState,

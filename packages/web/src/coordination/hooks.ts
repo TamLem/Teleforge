@@ -259,6 +259,12 @@ export function useFlowNavigation(): UseFlowNavigationReturn {
       const targetRoute =
         options.route ??
         context?.resolveStepRoute?.(stepId, flow.flowState) ??
+        (flow.flowState?.flowId
+          ? context?.config?.resolveStepRoute(flow.flowState.flowId, stepId)
+          : undefined) ??
+        (launchCoordination.flowId
+          ? context?.config?.resolveStepRoute(launchCoordination.flowId, stepId)
+          : undefined) ??
         defaultResolveStepRoute(stepId);
       const userId = launch.user ? String(launch.user.id) : (flow.flowState?.userId ?? null);
       const flowId = flow.flowId ?? flow.flowState?.flowId ?? launchCoordination.flowId;
@@ -379,6 +385,11 @@ function resolveRouteCoordination(
 
   if (resolved) {
     return resolved;
+  }
+
+  const fromConfig = context?.config?.resolveRoute(route)?.metadata;
+  if (fromConfig) {
+    return fromConfig;
   }
 
   return manifest?.routes.find((entry) => entry.path === route)?.coordination ?? null;

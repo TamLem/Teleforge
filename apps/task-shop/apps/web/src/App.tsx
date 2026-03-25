@@ -7,6 +7,7 @@ import {
 } from "@teleforge/web";
 import { useEffect, useState } from "react";
 
+import { taskShopCoordination } from "./coordination";
 import {
   clearTaskShopFlowState,
   createTaskShopFlowResolver,
@@ -54,6 +55,7 @@ export default function App() {
 
   return (
     <CoordinationProvider
+      config={taskShopCoordination}
       currentRoute={route}
       flowSnapshot={{
         items: cart.items,
@@ -75,8 +77,10 @@ export default function App() {
           userId
         })
       }
-      resolveRoute={resolveTaskShopResumeRoute}
-      resolveStepState={(currentRoute) => routeToStep(resolveRoute(currentRoute))}
+      resolveRoute={(state) =>
+        taskShopCoordination.resolveStepRoute(state.flowId, state.stepId) ??
+        resolveTaskShopResumeRoute(state)
+      }
       resolver={flowResolver}
     >
       <TaskShopShell
@@ -194,16 +198,3 @@ const routeTitles: Record<TaskShopRoute, string> = {
   "/checkout": "Checkout",
   "/success": "Success"
 };
-
-function routeToStep(route: TaskShopRoute) {
-  switch (route) {
-    case "/":
-      return "catalog";
-    case "/cart":
-      return "cart";
-    case "/checkout":
-      return "checkout";
-    case "/success":
-      return "completed";
-  }
-}

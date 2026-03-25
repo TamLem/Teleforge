@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 
 import type {
+  ResolvedCoordinationConfig,
   RouteCoordinationMetadata,
   TeleforgeManifest,
   UserFlowState
@@ -20,6 +21,7 @@ export interface CoordinationNavigateOptions {
 }
 
 export interface CoordinationContextValue {
+  config?: ResolvedCoordinationConfig;
   currentRoute: string | null;
   flowSnapshot: Record<string, unknown>;
   navigate: (route: string, options?: CoordinationNavigateOptions) => void;
