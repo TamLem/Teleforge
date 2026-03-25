@@ -67,3 +67,9 @@ Browser-focused consumers can avoid the Node-only manifest and HMAC helpers by i
 ```ts
 import { parseLaunchContext } from "@teleforge/core/browser";
 ```
+
+## Validation Runtimes
+
+- `validateInitDataEd25519()` uses WebCrypto and is intended to work anywhere `globalThis.crypto.subtle` supports Ed25519, including modern browsers and edge-style runtimes.
+- `validateInitDataBotToken()` is Node-only because it relies on `node:crypto` HMAC helpers and a bot token that should stay server-side.
+- Teleforge BFF prefers Ed25519 when `publicKey + botId` are configured. If only `botToken` is configured in a non-Node runtime, the BFF throws `RUNTIME_UNSUPPORTED_VALIDATION` rather than silently skipping validation.

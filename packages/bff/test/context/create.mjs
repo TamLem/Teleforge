@@ -75,6 +75,30 @@ test("createBffRequestContext requires botId for Ed25519 validation", async () =
   );
 });
 
+test("createBffRequestContext rejects bot-token validation in non-Node runtimes", async () => {
+  const originalProcess = globalThis.process;
+  const request = new Request("https://example.com/api/profile", {
+    headers: {
+      "x-telegram-init-data": "auth_date=1710000000&hash=deadbeef"
+    }
+  });
+
+  try {
+    Reflect.deleteProperty(globalThis, "process");
+
+    await assert.rejects(
+      () =>
+        createBffRequestContext(request, {
+          botToken: "12345:token",
+          validateInitData: true
+        }),
+      (error) => error instanceof BffContextError && error.code === "RUNTIME_UNSUPPORTED_VALIDATION"
+    );
+  } finally {
+    globalThis.process = originalProcess;
+  }
+});
+
 test("createBffRequestContext generates unique request IDs", async () => {
   const ids = new Set();
 
