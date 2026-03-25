@@ -36,6 +36,15 @@ export type {
 } from "./primitives/index.js";
 export type { BotRuntime } from "./runtime.js";
 export { createBotRuntime } from "./runtime.js";
+export { expressAdapter } from "./webhook/adapters/express.js";
+export { fastifyAdapter } from "./webhook/adapters/fastify.js";
+export { nodeHttpAdapter } from "./webhook/adapters/node.js";
+export {
+  createWebhookHandler,
+  detectUpdateType,
+  normalizeHeaders,
+  parseWebhookBody
+} from "./webhook/handler.js";
 export { BotRouter, type BotRouterOptions } from "./router/router.js";
 export {
   createCommandContext,
@@ -69,6 +78,19 @@ export type {
   WebAppDataHandler,
   WebAppHandler
 } from "./router/types.js";
+export type {
+  ExpressLikeRequest,
+  ExpressLikeResponse,
+  ExpressWebhookHandler,
+  FastifyLikeReply,
+  FastifyLikeRequest,
+  FastifyWebhookHandler,
+  WebhookConfig,
+  WebhookHandler,
+  WebhookRequest,
+  WebhookResult,
+  WebhookUpdate
+} from "./webhook/types.js";
 export type { EventPayload, FormPayload, OrderPayload } from "./types/payloads.js";
 export { isEventPayload, isFormPayload, isOrderPayload } from "./types/payloads.js";
 export { normalizeCommandName, parseCommand, type ParsedCommand } from "./utils/parse.js";
