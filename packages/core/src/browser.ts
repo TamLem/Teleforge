@@ -29,6 +29,8 @@ export type {
   TeleforgeRouteCapability,
   TeleforgeRuntime
 } from "./manifest/types.js";
+export type { FlowStateResolver, ResumeFlowError, ResumeFlowResult } from "./storage/resume.js";
+export type { UserFlowState } from "./storage/types.js";
 export type {
   Ed25519ValidationOptions,
   ValidateInitDataFailure,

@@ -2,6 +2,7 @@ export { MemoryStorageAdapter } from "./adapters/memory.js";
 export { decryptState, encryptState } from "./crypto.js";
 export { createFlowStorage, createStorage, type FlowStorageOptions } from "./factory.js";
 export { UserFlowStateManager } from "./manager.js";
+export type { FlowStateResolver, ResumeFlowError, ResumeFlowResult } from "./resume.js";
 export type {
   EncryptedState,
   StorageAdapter,

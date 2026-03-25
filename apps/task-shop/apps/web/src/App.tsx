@@ -1,19 +1,33 @@
 import { AppShell, TgButton, TgText } from "@teleforge/ui";
+import {
+  ExpiredFlowView,
+  FlowResumeProvider,
+  ResumeIndicator,
+  useFlowState,
+  useLaunch
+} from "@teleforge/web";
 import { useEffect, useState } from "react";
 
+import {
+  clearTaskShopFlowState,
+  createTaskShopFlowResolver,
+  getTaskShopResumeSnapshot,
+  persistTaskShopFlowState,
+  resolveTaskShopResumeRoute,
+  type TaskShopRoute
+} from "./flowResume";
 import { useCart } from "./hooks/useCart";
 import { CartPage } from "./pages/CartPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { HomePage } from "./pages/HomePage";
 import { SuccessPage } from "./pages/SuccessPage";
 
-type RoutePath = "/" | "/cart" | "/checkout" | "/success";
-
-const knownRoutes: RoutePath[] = ["/", "/cart", "/checkout", "/success"];
+const knownRoutes: TaskShopRoute[] = ["/", "/cart", "/checkout", "/success"];
 
 export default function App() {
   const cart = useCart();
-  const [route, setRoute] = useState<RoutePath>(() => resolveRoute(window.location.pathname));
+  const [route, setRoute] = useState<TaskShopRoute>(() => resolveRoute(window.location.pathname));
+  const flowResolver = createTaskShopFlowResolver();
 
   useEffect(() => {
     const handlePopState = () => setRoute(resolveRoute(window.location.pathname));
@@ -21,10 +35,74 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const navigate = (pathname: RoutePath) => {
-    window.history.pushState({}, "", pathname);
+  const navigate = (pathname: TaskShopRoute, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      window.history.replaceState({}, "", pathname);
+    } else {
+      window.history.pushState({}, "", pathname);
+    }
+
     setRoute(pathname);
   };
+
+  const handleFreshStart = () => {
+    clearTaskShopFlowState();
+    cart.resetSession();
+    navigate("/", { replace: true });
+  };
+
+  return (
+    <FlowResumeProvider
+      onFreshStart={handleFreshStart}
+      onResume={(result) => {
+        cart.hydrateSnapshot(getTaskShopResumeSnapshot(result.flowState));
+        navigate(result.redirectTo as TaskShopRoute, { replace: true });
+      }}
+      resolveRoute={resolveTaskShopResumeRoute}
+      resolver={flowResolver}
+    >
+      <TaskShopShell
+        cart={cart}
+        handleFreshStart={handleFreshStart}
+        navigate={navigate}
+        route={route}
+      />
+    </FlowResumeProvider>
+  );
+}
+
+function TaskShopShell({
+  cart,
+  handleFreshStart,
+  navigate,
+  route
+}: {
+  cart: ReturnType<typeof useCart>;
+  handleFreshStart: () => void;
+  navigate: (pathname: TaskShopRoute, options?: { replace?: boolean }) => void;
+  route: TaskShopRoute;
+}) {
+  const flowState = useFlowState();
+  const launch = useLaunch();
+  const completedSnapshot =
+    flowState.error === "completed" && flowState.flowState
+      ? getTaskShopResumeSnapshot(flowState.flowState)
+      : null;
+
+  useEffect(() => {
+    const userId = launch.user ? String(launch.user.id) : (flowState.flowState?.userId ?? null);
+
+    if (!userId) {
+      return;
+    }
+
+    persistTaskShopFlowState({
+      items: cart.items,
+      lastOrder: cart.lastOrder,
+      route,
+      userId
+    });
+  }, [cart.items, cart.lastOrder, flowState.flowState?.userId, launch.user, route]);
 
   return (
     <AppShell
@@ -39,6 +117,21 @@ export default function App() {
       }}
     >
       <div className="task-shop-shell">
+        <ResumeIndicator />
+        {flowState.status === "error" ? (
+          <ExpiredFlowView error={flowState.error} onFreshStart={handleFreshStart} />
+        ) : null}
+        {completedSnapshot?.lastOrder ? (
+          <section className="cart-banner">
+            <div>
+              <TgText variant="subtitle">Completed order</TgText>
+              <TgText variant="hint">
+                {completedSnapshot.lastOrder.items.length} item(s) ·{" "}
+                {completedSnapshot.lastOrder.total} {completedSnapshot.lastOrder.currency}
+              </TgText>
+            </div>
+          </section>
+        ) : null}
         <nav className="toolbar">
           {knownRoutes.map((path) => (
             <button
@@ -89,11 +182,11 @@ export default function App() {
   );
 }
 
-function resolveRoute(pathname: string): RoutePath {
-  return knownRoutes.includes(pathname as RoutePath) ? (pathname as RoutePath) : "/";
+function resolveRoute(pathname: string): TaskShopRoute {
+  return knownRoutes.includes(pathname as TaskShopRoute) ? (pathname as TaskShopRoute) : "/";
 }
 
-const routeTitles: Record<RoutePath, string> = {
+const routeTitles: Record<TaskShopRoute, string> = {
   "/": "Task Shop",
   "/cart": "Cart",
   "/checkout": "Checkout",

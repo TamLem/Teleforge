@@ -68,6 +68,9 @@ export {
 } from "./storage/index.js";
 export type {
   EncryptedState,
+  FlowStateResolver,
+  ResumeFlowError,
+  ResumeFlowResult,
   StorageAdapter,
   StorageBackend,
   StorageOptions,

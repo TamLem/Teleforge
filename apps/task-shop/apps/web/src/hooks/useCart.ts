@@ -55,6 +55,10 @@ export function useCart() {
       setItems([]);
     },
     count,
+    hydrateSnapshot(snapshot: { items?: CartItem[]; lastOrder?: OrderPayload | null } | null) {
+      setItems(Array.isArray(snapshot?.items) ? structuredClone(snapshot.items) : []);
+      setLastOrder(snapshot?.lastOrder ? structuredClone(snapshot.lastOrder) : null);
+    },
     items,
     lastOrder,
     removeItem(taskId: string) {
@@ -76,6 +80,10 @@ export function useCart() {
           ];
         })
       );
+    },
+    resetSession() {
+      setItems([]);
+      setLastOrder(null);
     },
     total
   };
