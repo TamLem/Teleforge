@@ -30,7 +30,7 @@
     "format": "prettier --check .",
     "lint": "eslint . --ext .ts,.mjs",
     "prepublishOnly": "pnpm run build",
-    "test": "pnpm run build && node --test test/*.mjs test/completion/*.mjs test/context/*.mjs test/errors/*.mjs test/identity/*.mjs test/route/*.mjs test/middleware/*.mjs test/session/*.mjs"
+    "test": "pnpm run build && node --test test/*.mjs test/completion/*.mjs test/config/*.mjs test/context/*.mjs test/errors/*.mjs test/identity/*.mjs test/route/*.mjs test/middleware/*.mjs test/session/*.mjs"
   },
   "dependencies": {
     "@teleforge/core": "workspace:1.0.0"

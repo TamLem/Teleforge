@@ -24,6 +24,20 @@ export type {
   CompletionEnvelope,
   CompletionResolver
 } from "./completion/types.js";
+export { createBffConfig } from "./config/create.js";
+export { ConfiguredBffRouter } from "./config/router.js";
+export { normalizeBffConfigOptions, validateBffConfigOptions } from "./config/validate.js";
+export type {
+  BffCacheAdapter,
+  BffConfig,
+  BffConfigOptions,
+  BffFeatureFlags,
+  BffIdentityConfig,
+  BffJwtConfig,
+  BffResolvedConfigOptions,
+  BffRouter,
+  BffValidationConfig
+} from "./config/types.js";
 export {
   BffError,
   BffErrorCodes,
