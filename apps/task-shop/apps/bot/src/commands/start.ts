@@ -1,7 +1,11 @@
-import { sendFlowInit, templates, type BotCommandDefinition } from "@teleforge/bot";
+import { initiateCoordinatedFlow, templates } from "@teleforge/bot";
+
+import type { BotCommandDefinition } from "@teleforge/bot";
+import type { UserFlowStateManager } from "@teleforge/core";
 
 export function createStartCommand(
   miniAppUrl: string,
+  flowStateManager: UserFlowStateManager,
   coordinationSecret = "task-shop-preview-secret"
 ): BotCommandDefinition {
   return {
@@ -13,14 +17,16 @@ export function createStartCommand(
         "Welcome to Task Shop. Browse Teleforge-flavored tasks and check out from the Mini App."
       );
 
-      await sendFlowInit(
+      await initiateCoordinatedFlow(
         context.bot ?? {
           sendMessage: (_chatId, text, options) => context.reply(text, options)
         },
+        flowStateManager,
         {
           buttonText: "Open Task Shop",
           chatId: context.chat.id,
           flowId: "task-shop-browse",
+          initialStep: "catalog",
           payload: {
             entry: "start-command"
           },
@@ -30,6 +36,7 @@ export function createStartCommand(
           stayInChat: true,
           stepId: "catalog",
           text: template.text,
+          userId: String(context.user.id),
           webAppUrl: miniAppUrl
         }
       );

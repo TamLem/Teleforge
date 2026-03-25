@@ -2,17 +2,22 @@ import "dotenv/config";
 import { createBotRuntime, type TelegramUpdate } from "@teleforge/bot";
 
 import { createStartCommand } from "./commands/start.js";
-import { tasksCommand } from "./commands/tasks.js";
-import { orderCompletedHandler } from "./handlers/orderCompleted.js";
+import { createTasksCommand } from "./commands/tasks.js";
+import { createTaskShopFlowStateManager } from "./flowState.js";
+import { createOrderCompletedHandler } from "./handlers/orderCompleted.js";
 import { createPollingBot, createPreviewBot } from "./telegram.js";
 
 const miniAppUrl = process.env.MINI_APP_URL ?? "https://example.ngrok.app";
 const coordinationSecret = process.env.COORDINATION_SECRET ?? "task-shop-preview-secret";
+const flowStateManager = createTaskShopFlowStateManager();
 
 async function main() {
   const runtime = createBotRuntime();
-  runtime.registerCommands([createStartCommand(miniAppUrl, coordinationSecret), tasksCommand]);
-  runtime.router.onWebAppData(orderCompletedHandler);
+  runtime.registerCommands([
+    createStartCommand(miniAppUrl, flowStateManager, coordinationSecret),
+    createTasksCommand(flowStateManager)
+  ]);
+  runtime.router.onWebAppData(createOrderCompletedHandler(flowStateManager));
 
   const token = process.env.BOT_TOKEN;
 

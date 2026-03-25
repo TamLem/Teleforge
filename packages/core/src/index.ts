@@ -57,6 +57,22 @@ export type {
   TeleforgeRouteCapability,
   TeleforgeRuntime
 } from "./manifest/types.js";
+export {
+  MemoryStorageAdapter,
+  UserFlowStateManager,
+  createFlowStorage,
+  createStorage,
+  decryptState,
+  encryptState,
+  type FlowStorageOptions
+} from "./storage/index.js";
+export type {
+  EncryptedState,
+  StorageAdapter,
+  StorageBackend,
+  StorageOptions,
+  UserFlowState
+} from "./storage/index.js";
 export type {
   Ed25519ValidationOptions,
   ValidateInitDataFailure,

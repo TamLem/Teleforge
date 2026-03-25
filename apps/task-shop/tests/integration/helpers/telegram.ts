@@ -1,8 +1,9 @@
 import { createBotRuntime, type TelegramMessage, type TelegramUpdate } from "@teleforge/bot";
 
 import { createStartCommand } from "../../../apps/bot/src/commands/start.ts";
-import { tasksCommand } from "../../../apps/bot/src/commands/tasks.ts";
-import { orderCompletedHandler } from "../../../apps/bot/src/handlers/orderCompleted.ts";
+import { createTasksCommand } from "../../../apps/bot/src/commands/tasks.ts";
+import { createTaskShopFlowStateManager } from "../../../apps/bot/src/flowState.ts";
+import { createOrderCompletedHandler } from "../../../apps/bot/src/handlers/orderCompleted.ts";
 
 export interface CapturedMessage extends TelegramMessage {
   options?: Record<string, unknown>;
@@ -13,12 +14,16 @@ export function createMockTelegramHarness(
   coordinationSecret = "task-shop-preview-secret"
 ) {
   const runtime = createBotRuntime();
+  const flowStateManager = createTaskShopFlowStateManager();
   const messages: CapturedMessage[] = [];
   let updateId = 0;
   let messageId = 100;
 
-  runtime.registerCommands([createStartCommand(miniAppUrl, coordinationSecret), tasksCommand]);
-  runtime.router.onWebAppData(orderCompletedHandler);
+  runtime.registerCommands([
+    createStartCommand(miniAppUrl, flowStateManager, coordinationSecret),
+    createTasksCommand(flowStateManager)
+  ]);
+  runtime.router.onWebAppData(createOrderCompletedHandler(flowStateManager));
   runtime.bindBot({
     async sendMessage(chatId, text, options = {}) {
       messageId += 1;

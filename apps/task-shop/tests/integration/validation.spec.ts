@@ -45,6 +45,19 @@ test("bot /tasks lists the mock task catalogue", async () => {
   assertMessageIncludes(message.text ?? "", "Deploy to Production");
 });
 
+test("bot persists coordinated flow state across /start and /tasks", async () => {
+  const harness = createMockTelegramHarness();
+
+  await harness.sendCommand("/start");
+  await harness.sendCommand("/tasks");
+
+  const messages = harness.getMessages();
+  const catalogue = messages.at(-1);
+  assert.ok(catalogue);
+  assertMessageIncludes(catalogue.text ?? "", "Resuming flow task-shop-browse");
+  assertMessageIncludes(catalogue.text ?? "", "State version: 1");
+});
+
 test("bot handles unknown commands gracefully", async () => {
   const harness = createMockTelegramHarness();
 
@@ -75,6 +88,29 @@ test("order payload produces a summary reply", async () => {
   assert.ok(summary);
   assertMessageIncludes(summary.text ?? "", "Task Shop order received");
   assertMessageIncludes(summary.text ?? "", "Build Mini App Scaffold x1");
+});
+
+test("order payload completes an active stored flow", async () => {
+  const harness = createMockTelegramHarness();
+
+  await harness.sendCommand("/start");
+  await harness.sendWebAppData({
+    currency: "Stars",
+    items: [
+      {
+        id: "task-001",
+        price: 10,
+        quantity: 1,
+        title: "Build Mini App Scaffold"
+      }
+    ],
+    total: 10,
+    type: "order_completed"
+  });
+
+  const summary = harness.getMessages().at(-2);
+  assert.ok(summary);
+  assertMessageIncludes(summary.text ?? "", "Completed flow: task-shop-browse");
 });
 
 test("order payload receives acknowledgment reply", async () => {
