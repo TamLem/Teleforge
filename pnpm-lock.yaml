@@ -60,6 +60,19 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.12.0)(yaml@2.8.3)
 
+  packages/bff:
+    dependencies:
+      '@teleforge/core':
+        specifier: workspace:1.0.0
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.12.0
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/bot:
     dependencies:
       '@teleforge/core':

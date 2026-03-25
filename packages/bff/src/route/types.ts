@@ -1,0 +1,79 @@
+import type { BffRequestContext } from "../context/types.js";
+import type { LaunchMode } from "@teleforge/core";
+
+export type BffAuthMode = "optional" | "public" | "required";
+export type BffRouteMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
+export type BffRouteErrorCode =
+  | "DUPLICATE_HANDLER"
+  | "LAUNCH_MODE_NOT_ALLOWED"
+  | "MISSING_HANDLER"
+  | "UNAUTHENTICATED";
+
+export interface CachePolicy {
+  key?: string;
+  maxAgeMs: number;
+  scope?: "private" | "public";
+}
+
+export type BffHandler<TInput, TOutput> = (
+  context: BffRequestContext,
+  input: TInput
+) => Promise<TOutput> | TOutput;
+
+export interface ProxyConfig<TInput, TOutput> {
+  action: string;
+  service: string;
+  transform?: {
+    request?: (context: BffRequestContext, input: TInput) => unknown;
+    response?: (context: BffRequestContext, output: unknown) => TOutput;
+  };
+}
+
+interface BffRouteBaseConfig {
+  auth: BffAuthMode;
+  cache?: CachePolicy;
+  launchModes?: readonly LaunchMode[];
+  method: BffRouteMethod;
+  path: string;
+  permissions?: readonly string[];
+  timeoutMs?: number;
+}
+
+interface BffRouteHandlerConfig<TInput, TOutput> extends BffRouteBaseConfig {
+  handler: BffHandler<TInput, TOutput>;
+  proxy?: never;
+}
+
+interface BffRouteProxyConfig<TInput, TOutput> extends BffRouteBaseConfig {
+  handler?: never;
+  proxy: ProxyConfig<TInput, TOutput>;
+}
+
+export type BffRouteConfig<TInput, TOutput> =
+  | BffRouteHandlerConfig<TInput, TOutput>
+  | BffRouteProxyConfig<TInput, TOutput>;
+
+export interface BffRouteDefinition<TInput = unknown, TOutput = unknown> {
+  _input?: TInput;
+  _output?: TOutput;
+  config: Readonly<BffRouteConfig<TInput, TOutput>>;
+}
+
+export interface BffRouteMatch<TInput = unknown, TOutput = unknown> {
+  params: Record<string, string>;
+  route: BffRouteDefinition<TInput, TOutput>;
+}
+
+export interface BffExecutionOptions<TInput = unknown, TOutput = unknown> {
+  cacheStore?: BffCacheStore;
+  invokeProxy?: (
+    proxy: ProxyConfig<TInput, TOutput>,
+    context: BffRequestContext,
+    input: unknown
+  ) => Promise<unknown> | unknown;
+}
+
+export interface BffCacheStore {
+  get: (key: string) => Promise<unknown | undefined> | unknown | undefined;
+  set: (key: string, value: unknown, ttlMs: number) => Promise<void> | void;
+}

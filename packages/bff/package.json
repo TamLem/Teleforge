@@ -1,0 +1,50 @@
+{
+  "name": "@teleforge/bff",
+  "version": "1.0.0",
+  "description": "Typed BFF route definitions and middleware for Teleforge.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "format": "prettier --check .",
+    "lint": "eslint . --ext .ts,.mjs",
+    "prepublishOnly": "pnpm run build",
+    "test": "pnpm run build && node --test test/*.mjs test/route/*.mjs test/middleware/*.mjs"
+  },
+  "dependencies": {
+    "@teleforge/core": "workspace:1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "telegram",
+    "bff",
+    "backend-for-frontend",
+    "routes",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}
