@@ -4,6 +4,7 @@ export interface ThemeColors {
   bgColor: string;
   buttonColor: string;
   buttonTextColor: string;
+  destructiveTextColor: string;
   hintColor: string;
   linkColor: string;
   secondaryBgColor: string;
@@ -15,6 +16,7 @@ export function useThemeColors(): ThemeColors {
     bgColor,
     buttonColor,
     buttonTextColor,
+    destructiveTextColor,
     hintColor,
     linkColor,
     secondaryBgColor,
@@ -25,6 +27,7 @@ export function useThemeColors(): ThemeColors {
     bgColor,
     buttonColor,
     buttonTextColor,
+    destructiveTextColor,
     hintColor,
     linkColor,
     secondaryBgColor,

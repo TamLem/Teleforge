@@ -9,6 +9,7 @@ export {
   LaunchModeBoundary,
   type LaunchModeBoundaryProps
 } from "./components/LaunchModeBoundary.js";
+export { MainButton, type MainButtonProps } from "./components/MainButton.js";
 export { TgButton, type TgButtonProps } from "./components/TgButton.js";
 export { TgCard, type TgCardProps } from "./components/TgCard.js";
 export { TgInput, type TgInputProps } from "./components/TgInput.js";
