@@ -23,7 +23,9 @@ export function createMockTelegramHarness(
     createStartCommand(miniAppUrl, flowStateManager, coordinationSecret),
     createTasksCommand(flowStateManager)
   ]);
-  runtime.router.onWebAppData(createOrderCompletedHandler(flowStateManager));
+  runtime.router.onWebAppData(
+    createOrderCompletedHandler(flowStateManager, coordinationSecret, miniAppUrl)
+  );
   runtime.bindBot({
     async sendMessage(chatId, text, options = {}) {
       messageId += 1;

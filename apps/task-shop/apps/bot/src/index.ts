@@ -17,7 +17,9 @@ async function main() {
     createStartCommand(miniAppUrl, flowStateManager, coordinationSecret),
     createTasksCommand(flowStateManager)
   ]);
-  runtime.router.onWebAppData(createOrderCompletedHandler(flowStateManager));
+  runtime.router.onWebAppData(
+    createOrderCompletedHandler(flowStateManager, coordinationSecret, miniAppUrl)
+  );
 
   const token = process.env.BOT_TOKEN;
 

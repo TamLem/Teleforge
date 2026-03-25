@@ -4,6 +4,17 @@
  */
 export { CapabilityGuard } from "./guards/CapabilityGuard.js";
 export {
+  cancelFlow,
+  completeFlow,
+  returnToChat,
+  type ReturnToChatOptions
+} from "./coordination/return.js";
+export {
+  transmitResult,
+  type TransmitConfig,
+  type TransmitResult
+} from "./coordination/transmit.js";
+export {
   ManifestProvider,
   type ManifestProviderProps,
   useManifest
@@ -15,8 +26,11 @@ export { withRouteGuard, type WithRouteGuardOptions } from "./guards/withRouteGu
 export { useTelegram, type UseTelegramReturn } from "./hooks/useTelegram.js";
 export { useLaunch, type UseLaunchCapabilities, type UseLaunchReturn } from "./hooks/useLaunch.js";
 export {
+  useCoordinatedMainButton,
   useMainButton,
+  type CoordinatedMainButtonOptions,
   type MainButtonOptions,
+  type UseCoordinatedMainButtonReturn,
   type UseMainButtonReturn
 } from "./hooks/useMainButton.js";
 export { useTheme, type UseThemeReturn } from "./hooks/useTheme.js";

@@ -1,11 +1,53 @@
+import {
+  createWebAppReplyOptions,
+  handleMiniAppReturnData,
+  type WebAppDataHandler
+} from "@teleforge/bot";
+
 import type { OrderPayload } from "@task-shop/types";
-import type { WebAppDataHandler } from "@teleforge/bot";
 import type { UserFlowStateManager } from "@teleforge/core";
 
 export function createOrderCompletedHandler(
-  flowStateManager: UserFlowStateManager
+  flowStateManager: UserFlowStateManager,
+  coordinationSecret: string,
+  miniAppUrl: string
 ): WebAppDataHandler {
   return async (context) => {
+    const consumed = await handleMiniAppReturnData(context, flowStateManager, coordinationSecret, {
+      async onCancel(state, reason) {
+        await context.reply(
+          [`Flow cancelled: ${state.flowId}`, ...(reason ? [reason] : [])].join("\n"),
+          createWebAppReplyOptions("Start New Task", miniAppUrl)
+        );
+      },
+      async onComplete(state, data) {
+        const order = isOrderPayload(data.order) ? data.order : null;
+
+        await context.reply(
+          [
+            "✅ Task Shop return received",
+            `Flow: ${state.flowId}`,
+            ...(order ? [`Tasks: ${order.items.map((item) => item.title).join(", ")}`] : []),
+            ...(order ? [`Total: ${order.total} Stars`] : [])
+          ].join("\n"),
+          createWebAppReplyOptions("Start New Task", miniAppUrl)
+        );
+      },
+      async onError(state, error) {
+        await context.reply(
+          [
+            "Mini App return failed",
+            ...(state ? [`Flow: ${state.flowId}`] : []),
+            error.message
+          ].join("\n")
+        );
+      }
+    });
+
+    if (consumed) {
+      return;
+    }
+
     if (!isOrderPayload(context.payload)) {
       await context.answer("Received Mini App data");
       return;

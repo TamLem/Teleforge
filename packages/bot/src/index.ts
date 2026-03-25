@@ -5,6 +5,10 @@
 export { createDefaultHelpHandler, createDefaultStartHandler } from "./handlers/commands.js";
 export { createWebAppReplyOptions } from "./handlers/webapp.js";
 export { createDefaultWebAppDataHandler, parseWebAppPayload } from "./handlers/webapp-data.js";
+export {
+  createDefaultReturnHandlers,
+  handleMiniAppReturnData
+} from "./coordination/handle-return.js";
 export { handleMiniAppReturn, initiateCoordinatedFlow } from "./coordination/state-bridge.js";
 export {
   createFlowCallback,
@@ -15,6 +19,7 @@ export {
   sendFlowInit,
   templates
 } from "./primitives/index.js";
+export type { MiniAppReturnData, ReturnHandlers } from "./coordination/handle-return.js";
 export type { CoordinatedFlowOptions } from "./coordination/state-bridge.js";
 export type {
   FlowCallbackData,

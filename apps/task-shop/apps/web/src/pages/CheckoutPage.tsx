@@ -1,5 +1,6 @@
 import { useEventPublisher } from "@teleforge/core/react";
 import { ExpandedOnly, TgButton, TgCard, TgText } from "@teleforge/ui";
+import { completeFlow, useCoordinatedMainButton } from "@teleforge/web";
 
 import type { CartItem, OrderPayload } from "@task-shop/types";
 
@@ -12,6 +13,47 @@ interface CheckoutPageProps {
 
 export function CheckoutPage({ completeOrder, items, navigate, total }: CheckoutPageProps) {
   const publishOrder = useEventPublisher();
+  const payload: OrderPayload = {
+    currency: "Stars",
+    items: items.map((item) => ({
+      id: item.id,
+      price: item.price,
+      quantity: item.quantity,
+      title: item.title
+    })),
+    total,
+    type: "order_completed"
+  };
+  const handleCheckout = async () => {
+    let returnedToChat = false;
+
+    try {
+      await completeFlow(
+        {
+          order: payload
+        },
+        {
+          returnMessage: "Task Shop order returned to chat."
+        }
+      );
+      returnedToChat = true;
+    } catch {
+      try {
+        publishOrder(payload);
+      } catch {
+        // Local browser previews may not have Telegram WebApp.sendData available.
+      }
+    }
+
+    completeOrder(payload);
+    navigate("/success");
+
+    return returnedToChat;
+  };
+
+  useCoordinatedMainButton("Return to Chat", handleCheckout, {
+    isVisible: items.length > 0
+  });
 
   if (items.length === 0) {
     return (
@@ -28,29 +70,6 @@ export function CheckoutPage({ completeOrder, items, navigate, total }: Checkout
       </TgCard>
     );
   }
-
-  const payload: OrderPayload = {
-    currency: "Stars",
-    items: items.map((item) => ({
-      id: item.id,
-      price: item.price,
-      quantity: item.quantity,
-      title: item.title
-    })),
-    total,
-    type: "order_completed"
-  };
-
-  const handleCheckout = () => {
-    try {
-      publishOrder(payload);
-    } catch {
-      // Local browser previews may not have Telegram WebApp.sendData available.
-    }
-
-    completeOrder(payload);
-    navigate("/success");
-  };
 
   return (
     <ExpandedOnly showExpandPrompt>
@@ -87,7 +106,7 @@ export function CheckoutPage({ completeOrder, items, navigate, total }: Checkout
                 <dd>{payload.total} Stars</dd>
               </div>
             </dl>
-            <TgButton onClick={handleCheckout} variant="primary">
+            <TgButton onClick={() => void handleCheckout()} variant="primary">
               Complete purchase
             </TgButton>
           </div>

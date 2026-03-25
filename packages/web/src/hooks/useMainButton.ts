@@ -32,6 +32,18 @@ export interface UseMainButtonReturn {
   textColor: string;
 }
 
+export interface CoordinatedMainButtonOptions {
+  closeAfterSend?: boolean;
+  isVisible?: boolean;
+}
+
+export interface UseCoordinatedMainButtonReturn {
+  closeAfterSend: boolean;
+  hide: () => void;
+  setProgress: (loading: boolean) => void;
+  show: () => void;
+}
+
 const defaultParams: MainButtonParams = {
   color: "",
   is_active: true,
@@ -106,6 +118,68 @@ export function useMainButton(options?: MainButtonOptions): UseMainButtonReturn 
     params,
     text: params.text ?? "",
     textColor: params.text_color ?? ""
+  };
+}
+
+/**
+ * Registers an async Main Button flow for coordinated Mini App completion actions.
+ */
+export function useCoordinatedMainButton(
+  text: string,
+  onClick: () => Promise<void>,
+  options: CoordinatedMainButtonOptions = {}
+): UseCoordinatedMainButtonReturn {
+  const {
+    hide,
+    hideProgress,
+    onClick: registerClick,
+    setText,
+    show,
+    showProgress
+  } = useMainButton({
+    isVisible: options.isVisible ?? true,
+    text
+  });
+  const clickRef = useRef(onClick);
+
+  clickRef.current = onClick;
+
+  useEffect(() => {
+    setText(text);
+
+    if (options.isVisible ?? true) {
+      show();
+    } else {
+      hide();
+    }
+  }, [hide, options.isVisible, setText, show, text]);
+
+  useEffect(() => {
+    const cleanup = registerClick(async () => {
+      showProgress();
+
+      try {
+        await clickRef.current();
+      } finally {
+        hideProgress();
+      }
+    });
+
+    return cleanup;
+  }, [hideProgress, registerClick, showProgress]);
+
+  return {
+    closeAfterSend: options.closeAfterSend ?? true,
+    hide,
+    setProgress(loading: boolean) {
+      if (loading) {
+        showProgress();
+        return;
+      }
+
+      hideProgress();
+    },
+    show
   };
 }
 

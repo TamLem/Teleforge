@@ -58,6 +58,48 @@ test("bot persists coordinated flow state across /start and /tasks", async () =>
   assertMessageIncludes(catalogue.text ?? "", "State version: 1");
 });
 
+test("bot handles coordinated Mini App return payloads end-to-end", async () => {
+  const harness = createMockTelegramHarness();
+
+  await harness.sendCommand("/start");
+
+  const startMessage = harness.getMessages()[0];
+  const buttonUrl = startMessage?.options?.reply_markup?.inline_keyboard?.[0]?.[0]?.web_app?.url;
+  assert.ok(buttonUrl);
+  const flowContext = new URL(buttonUrl).searchParams.get("tgWebAppStartParam");
+  assert.ok(flowContext);
+
+  await harness.sendWebAppData({
+    data: {
+      order: {
+        currency: "Stars",
+        items: [
+          {
+            id: "task-001",
+            price: 10,
+            quantity: 1,
+            title: "Build Mini App Scaffold"
+          }
+        ],
+        total: 10,
+        type: "order_completed"
+      }
+    },
+    flowContext,
+    result: "completed",
+    returnMessage: "Task Shop order returned to chat.",
+    stateKey: decodeStateKey(flowContext),
+    type: "miniapp_return"
+  });
+
+  const messages = harness.getMessages();
+  const summary = messages.at(-2);
+  assert.ok(summary);
+  assertMessageIncludes(summary.text ?? "", "Task Shop return received");
+  assertMessageIncludes(summary.text ?? "", "Flow: task-shop-browse");
+  assertWebAppButton(summary, "Start New Task");
+});
+
 test("bot handles unknown commands gracefully", async () => {
   const harness = createMockTelegramHarness();
 
@@ -264,3 +306,14 @@ test("Ed25519 validation rejects malformed public keys", async () => {
     valid: false
   });
 });
+
+function decodeStateKey(flowContext: string): string {
+  const [, payload] = flowContext.split(".");
+  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+    payload?: {
+      stateKey?: string;
+    };
+  };
+
+  return parsed.payload?.stateKey ?? "";
+}
