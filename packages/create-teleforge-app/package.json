@@ -1,0 +1,27 @@
+{
+  "name": "create-teleforge-app",
+  "version": "0.1.0",
+  "description": "Scaffold runnable Teleforge TypeScript projects.",
+  "type": "module",
+  "bin": {
+    "create-teleforge-app": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && node --test test/*.mjs"
+  },
+  "keywords": [
+    "teleforge",
+    "scaffold",
+    "cli",
+    "create"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}
