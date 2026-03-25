@@ -6,7 +6,8 @@
   "packageManager": "pnpm@10.15.0",
   "workspaces": [
     "packages/*",
-    "benchmark"
+    "benchmark",
+    "examples/*"
   ],
   "scripts": {
     "analyze": "pnpm build && pnpm --dir benchmark analyze",
