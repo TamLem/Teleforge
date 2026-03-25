@@ -1,10 +1,15 @@
 export {
-  createBffRequestContext,
+  type BffAuthState,
+  type BffAuthType,
+  type BffChatType,
+  type BffContextErrorCode,
   type BffRequestContext,
-  type BffRequestContextWithState,
   type BffResponseState,
-  type CreateBffRequestContextOptions
+  type BffContextOptions,
+  type CookieOptions
 } from "./context/types.js";
+export { BffContextError } from "./context/errors.js";
+export { createBffRequestContext } from "./context/create.js";
 export type { BffClientShape, InferBffRouteInput, InferBffRouteOutput } from "./client/types.js";
 export { enforceBffAuth } from "./middleware/auth.js";
 export { runWithCache } from "./middleware/cache.js";

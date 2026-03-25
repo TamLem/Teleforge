@@ -24,7 +24,7 @@
     "format": "prettier --check .",
     "lint": "eslint . --ext .ts,.mjs",
     "prepublishOnly": "pnpm run build",
-    "test": "pnpm run build && node --test test/*.mjs test/route/*.mjs test/middleware/*.mjs"
+    "test": "pnpm run build && node --test test/*.mjs test/context/*.mjs test/route/*.mjs test/middleware/*.mjs"
   },
   "dependencies": {
     "@teleforge/core": "workspace:1.0.0"

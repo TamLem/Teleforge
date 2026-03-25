@@ -1,62 +1,68 @@
 import type { LaunchMode, WebAppUser } from "@teleforge/core";
 
-export interface BffRequestContext {
-  headers: Headers;
-  initDataRaw?: string;
-  launchMode: LaunchMode;
-  method: string;
-  path: string;
-  searchParams: URLSearchParams;
-  setHeader: (name: string, value: string) => void;
-  setStatus: (code: number) => void;
-  telegramUser?: WebAppUser;
+export type BffAuthType = "none" | "session" | "telegram";
+export type BffChatType = "channel" | "group" | "private" | "sender" | "supergroup" | null;
+export type BffContextErrorCode =
+  | "INVALID_INIT_DATA"
+  | "MALFORMED_BODY"
+  | "MISSING_BOT_ID"
+  | "MISSING_REQUIRED_BODY"
+  | "MISSING_VALIDATION_CREDENTIALS"
+  | "RUNTIME_UNSUPPORTED_VALIDATION";
+
+export interface BffContextOptions {
+  botId?: number;
+  botToken?: string;
+  generateRequestId?: () => string;
+  publicKey?: string;
+  validateInitData: boolean;
 }
 
-export interface CreateBffRequestContextOptions {
-  headers?: Headers;
-  initDataRaw?: string;
-  launchMode?: LaunchMode;
-  method?: string;
+export interface CookieOptions {
+  domain?: string;
+  expires?: Date;
+  httpOnly?: boolean;
+  maxAge?: number;
   path?: string;
-  searchParams?: URLSearchParams;
-  status?: number;
-  telegramUser?: WebAppUser;
+  sameSite?: "lax" | "none" | "strict";
+  secure?: boolean;
+  value: string;
+}
+
+export interface BffAuthState {
+  sessionId: string | null;
+  type: BffAuthType;
+  user: WebAppUser | null;
 }
 
 export interface BffResponseState {
+  body: unknown;
+  cookies: Map<string, CookieOptions>;
   headers: Headers;
   status: number;
 }
 
-export interface BffRequestContextWithState {
-  context: BffRequestContext;
+export interface BffRequestContext {
+  auth: BffAuthState;
+  body: unknown;
+  chatInstance: string | null;
+  chatType: BffChatType;
+  header: (name: string) => string | null;
+  headers: Headers;
+  id: string;
+  initDataRaw: string | null;
+  json: <T>() => Promise<T>;
+  launchMode: LaunchMode;
+  method: string;
+  path: string;
   response: BffResponseState;
-}
-
-export function createBffRequestContext(
-  options: CreateBffRequestContextOptions = {}
-): BffRequestContextWithState {
-  const response: BffResponseState = {
-    headers: new Headers(),
-    status: options.status ?? 200
-  };
-
-  return {
-    context: {
-      headers: options.headers ?? new Headers(),
-      ...(options.initDataRaw ? { initDataRaw: options.initDataRaw } : {}),
-      launchMode: options.launchMode ?? "unknown",
-      method: options.method ?? "GET",
-      path: options.path ?? "/",
-      searchParams: options.searchParams ?? new URLSearchParams(),
-      setHeader(name: string, value: string) {
-        response.headers.set(name, value);
-      },
-      setStatus(code: number) {
-        response.status = code;
-      },
-      ...(options.telegramUser ? { telegramUser: options.telegramUser } : {})
-    },
-    response
-  };
+  searchParams: URLSearchParams;
+  setHeader: (name: string, value: string) => void;
+  setStatus: (code: number) => void;
+  startParam: string | null;
+  telegramUser: WebAppUser | null;
+  text: () => Promise<string>;
+  timestamp: number;
+  toResponse: () => Response;
+  arrayBuffer: () => Promise<ArrayBuffer>;
 }
