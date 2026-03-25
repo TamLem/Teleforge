@@ -1,3 +1,5 @@
+import { serializeErrorResponse } from "../errors/base.js";
+
 import type { BffResponseState, CookieOptions } from "./types.js";
 
 export function createResponseState(): BffResponseState {
@@ -9,7 +11,7 @@ export function createResponseState(): BffResponseState {
   };
 }
 
-export function responseFromState(response: BffResponseState): Response {
+export function responseFromState(response: BffResponseState, requestId = "unknown"): Response {
   const headers = new Headers(response.headers);
 
   for (const [name, cookie] of response.cookies.entries()) {
@@ -20,6 +22,19 @@ export function responseFromState(response: BffResponseState): Response {
     return new Response(null, {
       headers,
       status: response.status
+    });
+  }
+
+  if (response.body instanceof Error) {
+    const serialized = serializeErrorResponse(response.body, requestId);
+
+    if (!headers.has("content-type")) {
+      headers.set("content-type", "application/json; charset=utf-8");
+    }
+
+    return new Response(JSON.stringify(serialized.body), {
+      headers,
+      status: serialized.status
     });
   }
 

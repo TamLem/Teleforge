@@ -1,3 +1,6 @@
+import { BffError } from "../errors/base.js";
+import { BffErrorCodes } from "../errors/codes.js";
+
 import { BffSessionError } from "./errors.js";
 
 import type { SessionClaims } from "./types.js";
@@ -189,7 +192,12 @@ function getRandomBytes(length: number) {
   const crypto = globalThis.crypto;
 
   if (!crypto?.getRandomValues) {
-    throw new Error("Session token generation requires WebCrypto getRandomValues support.");
+    throw BffError.fromCode(BffErrorCodes.RUNTIME_UNSUPPORTED, {
+      message: "Session token generation requires WebCrypto getRandomValues support.",
+      meta: {
+        feature: "crypto.getRandomValues"
+      }
+    });
   }
 
   return crypto.getRandomValues(new Uint8Array(length));
@@ -199,7 +207,12 @@ function getSubtleCrypto() {
   const subtle = globalThis.crypto?.subtle;
 
   if (!subtle) {
-    throw new Error("Session token validation requires WebCrypto support.");
+    throw BffError.fromCode(BffErrorCodes.RUNTIME_UNSUPPORTED, {
+      message: "Session token validation requires WebCrypto support.",
+      meta: {
+        feature: "crypto.subtle"
+      }
+    });
   }
 
   return subtle;

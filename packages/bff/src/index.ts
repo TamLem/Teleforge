@@ -10,9 +10,18 @@ export {
 } from "./context/types.js";
 export { BffContextError } from "./context/errors.js";
 export { createBffRequestContext } from "./context/create.js";
+export {
+  BffError,
+  BffErrorCodes,
+  BffValidationError,
+  ensureBffError,
+  getStatusCodeForBffError,
+  serializeErrorResponse
+} from "./errors/index.js";
 export { BffIdentityError } from "./identity/errors.js";
 export { withIdentityResolution } from "./identity/middleware.js";
 export { resolveIdentity } from "./identity/resolve.js";
+export type { BffErrorCode, ErrorResponse, FieldError } from "./errors/index.js";
 export type {
   AppUser,
   BffIdentityErrorCode,

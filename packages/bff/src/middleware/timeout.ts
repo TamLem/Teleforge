@@ -1,3 +1,6 @@
+import { BffError } from "../errors/base.js";
+import { BffErrorCodes } from "../errors/codes.js";
+
 export async function withExecutionTimeout<T>(
   operation: () => Promise<T> | T,
   timeoutMs?: number
@@ -8,7 +11,14 @@ export async function withExecutionTimeout<T>(
 
   return await new Promise<T>((resolve, reject) => {
     const timeoutId = globalThis.setTimeout(() => {
-      reject(new Error(`BFF route timed out after ${timeoutMs}ms.`));
+      reject(
+        BffError.fromCode(BffErrorCodes.TIMEOUT, {
+          message: `BFF route timed out after ${timeoutMs}ms.`,
+          meta: {
+            timeoutMs
+          }
+        })
+      );
     }, timeoutMs);
 
     Promise.resolve(operation())

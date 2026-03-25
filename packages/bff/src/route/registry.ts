@@ -1,3 +1,5 @@
+import { BffRouteError } from "./errors.js";
+
 import type { BffRouteDefinition, BffRouteMatch, BffRouteMethod } from "./types.js";
 
 export class BffRouteRegistry {
@@ -36,8 +38,14 @@ export class BffRouteRegistry {
     );
 
     if (exists) {
-      throw new Error(
-        `A BFF route for ${route.config.method as BffRouteMethod} ${route.config.path} is already registered.`
+      throw new BffRouteError(
+        "DUPLICATE_ROUTE",
+        500,
+        `A BFF route for ${route.config.method as BffRouteMethod} ${route.config.path} is already registered.`,
+        {
+          method: route.config.method,
+          path: route.config.path
+        }
       );
     }
 

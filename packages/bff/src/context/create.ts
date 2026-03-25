@@ -67,7 +67,7 @@ export async function createBffRequestContext(
     text: bodyParser.text,
     timestamp: Date.now(),
     toResponse() {
-      return responseFromState(response);
+      return responseFromState(response, context.id);
     }
   });
 

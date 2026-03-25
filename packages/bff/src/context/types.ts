@@ -1,15 +1,18 @@
+import type { BffErrorCode } from "../errors/codes.js";
 import type { AppUser, IdentityCacheEntry, ResolvedIdentity } from "../identity/types.js";
 import type { LaunchMode, WebAppUser } from "@teleforge/core";
 
 export type BffAuthType = "none" | "session" | "telegram";
 export type BffChatType = "channel" | "group" | "private" | "sender" | "supergroup" | null;
-export type BffContextErrorCode =
+export type BffContextErrorCode = Extract<
+  BffErrorCode,
   | "INVALID_INIT_DATA"
   | "MALFORMED_BODY"
   | "MISSING_BOT_ID"
   | "MISSING_REQUIRED_BODY"
   | "MISSING_VALIDATION_CREDENTIALS"
-  | "RUNTIME_UNSUPPORTED_VALIDATION";
+  | "RUNTIME_UNSUPPORTED_VALIDATION"
+>;
 
 export interface BffContextOptions {
   botId?: number;

@@ -1,3 +1,6 @@
+import { BffError } from "../errors/base.js";
+import { BffErrorCodes } from "../errors/codes.js";
+
 import type { BffRequestContext } from "../context/types.js";
 import type { BffMiddleware } from "../route/types.js";
 
@@ -12,7 +15,13 @@ export async function runMiddlewares<T>(
 
   const dispatch = async (currentIndex: number): Promise<T> => {
     if (currentIndex <= index) {
-      throw new Error("BFF middleware next() called multiple times.");
+      throw BffError.fromCode(BffErrorCodes.MIDDLEWARE_ERROR, {
+        message: "BFF middleware next() called multiple times.",
+        meta: {
+          currentIndex,
+          lastIndex: index
+        }
+      });
     }
 
     index = currentIndex;

@@ -1,3 +1,5 @@
+import { BffError } from "../errors/base.js";
+import { BffErrorCodes } from "../errors/codes.js";
 import { enforceBffAuth } from "../middleware/auth.js";
 import { runWithCache } from "../middleware/cache.js";
 import { runMiddlewares } from "../middleware/compose.js";
@@ -22,9 +24,13 @@ export async function executeBffRoute<TInput, TOutput>(
     }
 
     if (!options.invokeProxy) {
-      throw new Error(
-        `No proxy invoker was provided for ${route.config.method} ${route.config.path}.`
-      );
+      throw BffError.fromCode(BffErrorCodes.INTERNAL_ERROR, {
+        message: `No proxy invoker was provided for ${route.config.method} ${route.config.path}.`,
+        meta: {
+          method: route.config.method,
+          path: route.config.path
+        }
+      });
     }
 
     const proxyInput = route.config.proxy.transform?.request

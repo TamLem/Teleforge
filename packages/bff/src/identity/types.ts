@@ -1,4 +1,5 @@
 import type { BffRequestContext } from "../context/types.js";
+import type { BffErrorCode } from "../errors/codes.js";
 import type { WebAppUser } from "@teleforge/core";
 
 export interface AppUser {
@@ -7,7 +8,10 @@ export interface AppUser {
 }
 
 export type IdentityStrategy = "custom" | "telegram-id" | "username";
-export type BffIdentityErrorCode = "IDENTITY_RESOLUTION_FAILED" | "IDENTITY_STRATEGY_INVALID";
+export type BffIdentityErrorCode = Extract<
+  BffErrorCode,
+  "IDENTITY_RESOLUTION_FAILED" | "IDENTITY_STRATEGY_INVALID"
+>;
 
 export interface ResolvedIdentity<TAppUser extends AppUser = AppUser> {
   appUser: TAppUser | null;

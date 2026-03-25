@@ -1,12 +1,19 @@
+import { BffError } from "../errors/base.js";
+
 import type { BffContextErrorCode } from "./types.js";
 
-export class BffContextError extends Error {
+export class BffContextError extends BffError {
   constructor(
-    public readonly code: BffContextErrorCode,
-    public readonly status: number,
-    message?: string
+    code: BffContextErrorCode,
+    status: number,
+    message?: string,
+    meta?: Record<string, unknown>
   ) {
-    super(message ?? code);
+    super(code, {
+      message: message ?? code,
+      meta,
+      statusCode: status
+    });
     this.name = "BffContextError";
   }
 }

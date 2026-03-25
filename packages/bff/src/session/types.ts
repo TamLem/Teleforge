@@ -1,10 +1,10 @@
+import type { BffErrorCode } from "../errors/codes.js";
 import type { AppUser, IdentityResolutionOptions, ResolvedIdentity } from "../identity/types.js";
 
-export type BffSessionErrorCode =
-  | "REFRESH_TOKEN_INVALID"
-  | "SESSION_REVOKED"
-  | "TOKEN_EXPIRED"
-  | "TOKEN_INVALID";
+export type BffSessionErrorCode = Extract<
+  BffErrorCode,
+  "REFRESH_TOKEN_INVALID" | "SESSION_REVOKED" | "TOKEN_EXPIRED" | "TOKEN_INVALID"
+>;
 
 export interface SessionClaims {
   exp: number;

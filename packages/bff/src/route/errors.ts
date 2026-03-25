@@ -1,12 +1,19 @@
+import { BffError } from "../errors/base.js";
+
 import type { BffRouteErrorCode } from "./types.js";
 
-export class BffRouteError extends Error {
+export class BffRouteError extends BffError {
   constructor(
-    public readonly code: BffRouteErrorCode,
-    public readonly status: number,
-    message?: string
+    code: BffRouteErrorCode,
+    status: number,
+    message?: string,
+    meta?: Record<string, unknown>
   ) {
-    super(message ?? code);
+    super(code, {
+      message: message ?? code,
+      meta,
+      statusCode: status
+    });
     this.name = "BffRouteError";
   }
 }
