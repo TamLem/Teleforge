@@ -1,0 +1,35 @@
+{
+  "name": "@teleforge/task-shop",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @task-shop/types build && pnpm --filter @task-shop/web build && pnpm --filter @task-shop/bot build",
+    "dev": "concurrently \"pnpm --filter @task-shop/bot dev\" \"pnpm --filter @task-shop/web dev\"",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "lint": "eslint . --ext .ts,.tsx,.mjs,.cjs",
+    "lint:fix": "eslint . --fix --ext .ts,.tsx,.mjs,.cjs",
+    "test": "pnpm run build && pnpm run test:integration",
+    "test:integration": "node --import tsx --test tests/integration/**/*.spec.ts"
+  },
+  "dependencies": {
+    "@task-shop/types": "workspace:*",
+    "@teleforge/bot": "link:../../packages/bot",
+    "@teleforge/core": "link:../../packages/core"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.31.0",
+    "@typescript-eslint/parser": "^8.31.0",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.0.1",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.5.3",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3"
+  }
+}

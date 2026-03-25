@@ -1,4 +1,5 @@
 import qrcodeTerminal from "qrcode-terminal";
+
 import { injectTelegramMock } from "../utils/mock.js";
 import { runManagedDevCommand, type SharedCommandFlags } from "../utils/server.js";
 import { type TunnelProvider } from "../utils/tunnel.js";
@@ -27,7 +28,9 @@ export async function runDevHttpsCommand(flags: DevHttpsCommandFlags): Promise<v
       console.log("✓ HTTPS certificates ready (.teleforge/certs)");
 
       if (context.externalPort !== context.requestedPort) {
-        console.log(`✓ Port ${context.requestedPort} unavailable, using ${context.externalPort} instead`);
+        console.log(
+          `✓ Port ${context.requestedPort} unavailable, using ${context.externalPort} instead`
+        );
       }
 
       console.log(`✓ ${context.frameworkLabel} dev server running on ${context.url}`);
@@ -59,7 +62,9 @@ export async function runDevHttpsCommand(flags: DevHttpsCommandFlags): Promise<v
             manifest: context.manifest,
             tunnelUrl: context.tunnelUrl
           });
-          console.log(result.status === "configured" ? `✓ ${result.message}` : `Warning: ${result.message}`);
+          console.log(
+            result.status === "configured" ? `✓ ${result.message}` : `Warning: ${result.message}`
+          );
           if (result.warning) {
             console.log(`Warning: ${result.warning}`);
           }

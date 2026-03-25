@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+
 import { useTelegram } from "./useTelegram.js";
+
 import type { ThemeParams, WebAppColorScheme } from "../types/webapp.js";
 
 const defaultThemeParams: Required<ThemeParams> = {
@@ -55,6 +57,10 @@ export interface UseThemeReturn {
   themeParams: Required<ThemeParams>;
 }
 
+/**
+ * Normalizes Telegram theme parameters into a stable object with convenience booleans and CSS
+ * custom properties ready to spread onto a container element.
+ */
 export function useTheme(): UseThemeReturn {
   const { colorScheme, themeParams } = useTelegram();
 

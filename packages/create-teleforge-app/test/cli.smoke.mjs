@@ -43,7 +43,15 @@ test("generates BFF scaffold", async () => {
   assert.equal(manifest.runtime.webFramework, "nextjs");
   assert.equal(manifest.runtime.apiRoutes, "apps/api/src/routes");
 
-  const nextPagePath = path.join(tmpRoot, projectName, "apps", "web", "app", "settings", "page.tsx");
+  const nextPagePath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "web",
+    "app",
+    "settings",
+    "page.tsx"
+  );
   const nextPage = await readFile(nextPagePath, "utf8");
   assert.match(nextPage, /SettingsPage/);
   assert.match(nextPage, /\.\.\/\.\.\/src\/pages\/Settings/);
@@ -55,5 +63,5 @@ test("generates BFF scaffold", async () => {
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
   assert.equal(rootPackage.devDependencies.tsx, "^4.19.2");
-  assert.equal(rootPackage.devDependencies["@teleforge/devtools"], "^0.1.0");
+  assert.equal(rootPackage.devDependencies["@teleforge/devtools"], "^1.0.0");
 });

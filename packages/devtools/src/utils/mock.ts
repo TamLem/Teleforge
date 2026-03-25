@@ -7,10 +7,7 @@ export function injectTelegramMock(html: string): string {
     return html;
   }
 
-  return html.replace(
-    "</body>",
-    `${mockOverlayMarkup()}\n</body>`
-  );
+  return html.replace("</body>", `${mockOverlayMarkup()}\n</body>`);
 }
 
 function mockOverlayMarkup(): string {

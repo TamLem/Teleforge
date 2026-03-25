@@ -11,18 +11,14 @@ const cliPath = path.join(packageRoot, "dist", "cli.js");
 test("mock server exposes state, profiles, events, and export endpoints", async () => {
   const tempHome = await mkdtemp(path.join(os.tmpdir(), "teleforge-mock-home-"));
   const port = 45671;
-  const child = spawn(
-    "node",
-    [cliPath, "mock", "--headless", "--port", String(port)],
-    {
-      cwd: packageRoot,
-      env: {
-        ...process.env,
-        TELEFORGE_HOME: tempHome
-      },
-      stdio: ["ignore", "pipe", "pipe"]
-    }
-  );
+  const child = spawn("node", [cliPath, "mock", "--headless", "--port", String(port)], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      TELEFORGE_HOME: tempHome
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 
   const cleanup = async () => {
     if (!child.killed) {
@@ -71,12 +67,10 @@ test("mock server exposes state, profiles, events, and export endpoints", async 
     }).then((response) => response.json());
     assert.equal(savedProfile.profileRef.name, "team-shared");
 
-    const profilesPayload = await fetch(`http://127.0.0.1:${port}/api/mock/profiles`).then((response) =>
-      response.json()
+    const profilesPayload = await fetch(`http://127.0.0.1:${port}/api/mock/profiles`).then(
+      (response) => response.json()
     );
-    assert.ok(
-      profilesPayload.profiles.some((profile) => profile.fileName === "team-shared.json")
-    );
+    assert.ok(profilesPayload.profiles.some((profile) => profile.fileName === "team-shared.json"));
 
     await fetch(`http://127.0.0.1:${port}/api/mock/events/trigger`, {
       method: "POST",
@@ -90,8 +84,8 @@ test("mock server exposes state, profiles, events, and export endpoints", async 
         }
       })
     });
-    const eventsPayload = await fetch(`http://127.0.0.1:${port}/api/mock/events/log`).then((response) =>
-      response.json()
+    const eventsPayload = await fetch(`http://127.0.0.1:${port}/api/mock/events/log`).then(
+      (response) => response.json()
     );
     assert.equal(eventsPayload.events[0].name, "mainButtonClicked");
 
@@ -111,18 +105,14 @@ test("mock server exposes state, profiles, events, and export endpoints", async 
 test("mock server serves the web ui for GET and HEAD requests when not headless", async () => {
   const tempHome = await mkdtemp(path.join(os.tmpdir(), "teleforge-mock-home-"));
   const port = 45672;
-  const child = spawn(
-    "node",
-    [cliPath, "mock", "--port", String(port)],
-    {
-      cwd: packageRoot,
-      env: {
-        ...process.env,
-        TELEFORGE_HOME: tempHome
-      },
-      stdio: ["ignore", "pipe", "pipe"]
-    }
-  );
+  const child = spawn("node", [cliPath, "mock", "--port", String(port)], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      TELEFORGE_HOME: tempHome
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 
   const cleanup = async () => {
     if (!child.killed) {
@@ -157,7 +147,9 @@ async function waitForServer(url) {
       if (response.ok) {
         return;
       }
-    } catch {}
+    } catch {
+      // Poll until the server is ready or the timeout elapses.
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 

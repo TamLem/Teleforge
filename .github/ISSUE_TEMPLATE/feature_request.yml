@@ -1,0 +1,29 @@
+name: "\u2728 Feature Request"
+description: Propose a new capability, API, or developer workflow improvement.
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What developer or product problem does this request solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe the API, workflow, or behavior you want to see.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: List other approaches you considered and why they fall short.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and Impact
+      description: Mention affected packages, migration risk, or whether this is breaking.

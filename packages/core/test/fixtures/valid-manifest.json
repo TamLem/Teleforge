@@ -1,0 +1,42 @@
+{
+  "$schema": "https://teleforge.dev/schemas/app-manifest.json",
+  "id": "sample-app",
+  "name": "Sample App",
+  "version": "1.0.0",
+  "runtime": {
+    "mode": "spa",
+    "webFramework": "vite",
+    "build": {
+      "outDir": "dist",
+      "basePath": "/"
+    }
+  },
+  "bot": {
+    "username": "sample_app_bot",
+    "tokenEnv": "BOT_TOKEN",
+    "webhook": {
+      "path": "/api/webhook",
+      "secretEnv": "WEBHOOK_SECRET"
+    }
+  },
+  "miniApp": {
+    "entryPoint": "apps/web/src/main.tsx",
+    "launchModes": ["inline", "compact", "fullscreen"],
+    "defaultMode": "inline",
+    "capabilities": ["write_access", "read_access"]
+  },
+  "routes": [
+    {
+      "path": "/",
+      "component": "pages/Home",
+      "launchModes": ["inline", "compact", "fullscreen"],
+      "guards": ["auth"]
+    }
+  ],
+  "permissions": [
+    {
+      "capability": "write_access",
+      "description": "Post messages on user's behalf"
+    }
+  ]
+}

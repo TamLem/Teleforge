@@ -124,10 +124,7 @@ export function refreshProfile(
     appContext: {
       version: stringOrDefault(input.appContext?.version, base.appContext.version),
       platform: platformOrDefault(input.appContext?.platform, base.appContext.platform),
-      colorScheme: colorSchemeOrDefault(
-        input.appContext?.colorScheme,
-        base.appContext.colorScheme
-      ),
+      colorScheme: colorSchemeOrDefault(input.appContext?.colorScheme, base.appContext.colorScheme),
       viewportHeight: numberOrDefault(
         input.appContext?.viewportHeight,
         base.appContext.viewportHeight
@@ -198,10 +195,7 @@ export function parseProfile(input: unknown, botToken = "mock-bot-token"): MockP
   return refreshProfile(input as PartialMockProfile, botToken);
 }
 
-export function parseExportFile(
-  input: unknown,
-  botToken = "mock-bot-token"
-): MockExportFile {
+export function parseExportFile(input: unknown, botToken = "mock-bot-token"): MockExportFile {
   if (!isRecord(input)) {
     throw new Error("Mock export file must be an object.");
   }
@@ -213,26 +207,23 @@ export function parseExportFile(
   return {
     $schema: "https://teleforge.dev/schemas/mock-profile.json",
     exported_at:
-      typeof input.exported_at === "string"
-        ? input.exported_at
-        : new Date().toISOString(),
+      typeof input.exported_at === "string" ? input.exported_at : new Date().toISOString(),
     profile: parseProfile(input.profile, botToken),
     version: "1.0"
   };
 }
 
 export function slugifyProfileName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "profile";
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "profile"
+  );
 }
 
-export function generateLaunchHash(
-  profile: MockProfile,
-  botToken = "mock-bot-token"
-): string {
+export function generateLaunchHash(profile: MockProfile, botToken = "mock-bot-token"): string {
   const fields: string[] = [];
   fields.push(`auth_date=${profile.launchParams.auth_date}`);
 
@@ -250,9 +241,7 @@ export function generateLaunchHash(
 
   fields.push(`user=${JSON.stringify(profile.user)}`);
 
-  return createHmac("sha256", botToken)
-    .update(fields.sort().join("\n"))
-    .digest("hex");
+  return createHmac("sha256", botToken).update(fields.sort().join("\n")).digest("hex");
 }
 
 function createBaseProfile(): MockProfile {
@@ -293,15 +282,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function stringOrDefault(value: unknown, fallback: string): string {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : fallback;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
 }
 
 function optionalString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function numberOrDefault(value: unknown, fallback: number): number {
@@ -322,9 +307,6 @@ function platformOrDefault(value: unknown, fallback: MockPlatform): MockPlatform
     : fallback;
 }
 
-function colorSchemeOrDefault(
-  value: unknown,
-  fallback: MockColorScheme
-): MockColorScheme {
+function colorSchemeOrDefault(value: unknown, fallback: MockColorScheme): MockColorScheme {
   return value === "light" || value === "dark" ? value : fallback;
 }

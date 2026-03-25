@@ -1,5 +1,6 @@
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+
 import { buildProjectFiles } from "./templates.js";
 
 export type GeneratorMode = "spa" | "bff";

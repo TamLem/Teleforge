@@ -1,23 +1,51 @@
 {
   "name": "@teleforge/web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "React hooks and types for Telegram WebApp integration.",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup --config tsup.config.ts",
+    "format": "prettier --check .",
+    "lint": "eslint . --ext .ts,.tsx,.mjs",
+    "prepublishOnly": "pnpm run build",
     "test": "pnpm run build && node --test test/*.mjs"
+  },
+  "dependencies": {
+    "@teleforge/core": "workspace:1.0.0"
   },
   "peerDependencies": {
     "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "react",
+    "webapp",
+    "hooks",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

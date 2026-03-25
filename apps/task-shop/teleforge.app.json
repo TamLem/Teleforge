@@ -1,0 +1,78 @@
+{
+  "$schema": "https://teleforge.dev/schemas/app-manifest.json",
+  "id": "task-shop",
+  "name": "Task Shop",
+  "version": "1.0.0",
+  "runtime": {
+    "mode": "spa",
+    "webFramework": "vite",
+    "build": {
+      "outDir": "dist",
+      "basePath": "/"
+    }
+  },
+  "bot": {
+    "username": "task_shop_bot",
+    "tokenEnv": "BOT_TOKEN",
+    "webhook": {
+      "path": "/api/webhook",
+      "secretEnv": "WEBHOOK_SECRET"
+    },
+    "commands": [
+      {
+        "command": "start",
+        "description": "Open the Task Shop Mini App",
+        "handler": "commands/start"
+      },
+      {
+        "command": "tasks",
+        "description": "List the available sample tasks",
+        "handler": "commands/tasks"
+      }
+    ]
+  },
+  "miniApp": {
+    "entryPoint": "apps/web/src/main.tsx",
+    "launchModes": ["inline", "compact", "fullscreen"],
+    "defaultMode": "inline",
+    "capabilities": ["read_access", "write_access", "payments"]
+  },
+  "routes": [
+    {
+      "path": "/",
+      "component": "pages/HomePage",
+      "launchModes": ["inline", "compact", "fullscreen"],
+      "title": "Browse Tasks"
+    },
+    {
+      "path": "/cart",
+      "component": "pages/CartPage",
+      "launchModes": ["inline", "compact", "fullscreen"],
+      "title": "Your Cart"
+    },
+    {
+      "path": "/checkout",
+      "component": "pages/CheckoutPage",
+      "launchModes": ["compact", "fullscreen"],
+      "title": "Checkout",
+      "guards": ["auth"],
+      "capabilities": {
+        "auth": true,
+        "launchMode": "compact",
+        "payments": true
+      }
+    },
+    {
+      "path": "/success",
+      "component": "pages/SuccessPage",
+      "launchModes": ["compact", "fullscreen"],
+      "title": "Order Confirmed"
+    }
+  ],
+  "permissions": [
+    {
+      "capability": "write_access",
+      "description": "Send order confirmations through the bot"
+    }
+  ]
+}

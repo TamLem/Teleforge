@@ -1,5 +1,6 @@
-import { accessSync, constants as fsConstants } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
+import { accessSync, constants as fsConstants } from "node:fs";
+
 import localtunnel from "localtunnel";
 
 export type TunnelProvider = "localtunnel" | "ngrok";
@@ -79,7 +80,9 @@ async function waitForNgrokUrl(child: ChildProcess): Promise<string> {
       const payload = (await response.json()) as {
         tunnels?: Array<{ public_url?: string }>;
       };
-      const publicUrl = payload.tunnels?.find((entry) => entry.public_url?.startsWith("https://"))?.public_url;
+      const publicUrl = payload.tunnels?.find((entry) =>
+        entry.public_url?.startsWith("https://")
+      )?.public_url;
       if (publicUrl) {
         return publicUrl;
       }

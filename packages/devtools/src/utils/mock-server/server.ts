@@ -1,17 +1,17 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+
+import { type MockProfileStorage } from "./storage.js";
 import {
   createDefaultProfile,
   createExportFile,
   mergeProfile,
   parseExportFile,
-  parseProfile,
   type MockEventLogEntry,
   type MockProfile,
   type PartialMockProfile
 } from "./types.js";
-import { type MockProfileStorage } from "./storage.js";
 import { createMockUiHtml } from "./ui.js";
 
 export interface StartMockServerOptions {
@@ -31,9 +31,7 @@ export interface MockServerHandle {
   url: string;
 }
 
-export async function startMockServer(
-  options: StartMockServerOptions
-): Promise<MockServerHandle> {
+export async function startMockServer(options: StartMockServerOptions): Promise<MockServerHandle> {
   let currentProfile = await resolveInitialProfile(options);
   const eventLog: MockEventLogEntry[] = [];
 
@@ -77,7 +75,11 @@ export async function startMockServer(
       }
 
       if (request.method === "POST" && pathname === "/state") {
-        currentProfile = mergeProfile(currentProfile, body as PartialMockProfile, process.env.BOT_TOKEN);
+        currentProfile = mergeProfile(
+          currentProfile,
+          body as PartialMockProfile,
+          process.env.BOT_TOKEN
+        );
         sendJson(response, 200, { eventLog, profile: currentProfile });
         return;
       }
@@ -88,7 +90,8 @@ export async function startMockServer(
       }
 
       if (request.method === "POST" && pathname === "/profiles") {
-        const explicitName = isRecord(body) && typeof body.name === "string" ? body.name : undefined;
+        const explicitName =
+          isRecord(body) && typeof body.name === "string" ? body.name : undefined;
         const profileRef = await options.storage.saveProfile(currentProfile, explicitName);
         currentProfile = {
           ...currentProfile,
@@ -212,11 +215,13 @@ async function resolveInitialProfile(options: StartMockServerOptions): Promise<M
 }
 
 function isUiRoute(pathname: string): boolean {
-  return pathname === "/" ||
+  return (
+    pathname === "/" ||
     pathname === "/user" ||
     pathname === "/launch" ||
     pathname === "/events" ||
-    pathname === "/export";
+    pathname === "/export"
+  );
 }
 
 function sendHtml(response: http.ServerResponse, html: string): void {
@@ -231,11 +236,7 @@ function sendHtml(response: http.ServerResponse, html: string): void {
   response.end(html);
 }
 
-function sendJson(
-  response: http.ServerResponse,
-  statusCode: number,
-  payload: unknown
-): void {
+function sendJson(response: http.ServerResponse, statusCode: number, payload: unknown): void {
   const body = JSON.stringify(payload, null, 2);
   response.writeHead(statusCode, {
     "content-length": Buffer.byteLength(body),

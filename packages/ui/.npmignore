@@ -1,0 +1,9 @@
+src/**
+!src/styles/variables.css
+test/
+tests/
+*.test.ts
+*.spec.ts
+tsconfig.json
+tsup.config.ts
+node_modules/

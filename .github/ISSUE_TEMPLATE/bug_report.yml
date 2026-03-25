@@ -1,0 +1,53 @@
+name: "\U0001F41B Bug Report"
+description: Report a reproducible problem in a Teleforge package, tool, or sample app.
+labels:
+  - bug
+  - triage
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the bug and the impact it has on your workflow or application.
+      placeholder: The webhook tunnel fails to configure when...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Provide the smallest set of steps needed to reproduce the problem.
+      placeholder: |
+        1. Run `pnpm --filter @teleforge/devtools test`
+        2. Open...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Explain what you expected to happen instead.
+    validations:
+      required: true
+  - type: input
+    id: package_version
+    attributes:
+      label: Package Version
+      description: Include the affected package and version when known.
+      placeholder: "@teleforge/core@1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Runtime Environment
+      description: Include Node.js, package manager, browser, or Telegram client details as needed.
+      placeholder: "Node.js 20.x, pnpm 10.x, Telegram Desktop"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Screenshots
+      description: Paste relevant output, stack traces, or screenshots. Remove secrets before sharing.

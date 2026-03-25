@@ -1,0 +1,50 @@
+{
+  "name": "@teleforge/bot",
+  "version": "1.0.0",
+  "description": "Telegram bot routing primitives for Teleforge.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "format": "prettier --check .",
+    "lint": "eslint . --ext .ts,.tsx,.mjs",
+    "prepublishOnly": "pnpm run build",
+    "test": "pnpm run build && node --test test/*.mjs test/primitives/*.mjs"
+  },
+  "dependencies": {
+    "@teleforge/core": "workspace:1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "mini-app",
+    "router",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,10 +1,42 @@
 {
-  "name": "teleforge-monorepo",
+  "name": "teleforge",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "Telegram-native full-stack framework.",
   "packageManager": "pnpm@10.15.0",
+  "workspaces": [
+    "packages/*",
+    "benchmark"
+  ],
   "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "analyze": "pnpm build && pnpm --dir benchmark analyze",
+    "bench": "pnpm --dir benchmark bench",
+    "bench:ci": "pnpm --dir benchmark bench:ci",
+    "build": "pnpm --filter '@teleforge/*' build && pnpm --filter create-teleforge-app build && pnpm --dir apps/task-shop build",
+    "changeset": "changeset",
+    "check": "pnpm lint && pnpm format && pnpm test && pnpm build",
+    "docs:build": "typedoc",
+    "docs:clean": "rm -rf docs/api",
+    "docs:serve": "pnpm exec serve docs/api --listen 4173",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "lint": "eslint . --ext .ts,.tsx,.js,.mjs,.cjs",
+    "lint:fix": "eslint . --fix --ext .ts,.tsx,.js,.mjs,.cjs",
+    "publish": "changeset publish",
+    "size": "pnpm --dir benchmark size",
+    "test": "pnpm --filter '@teleforge/*' test && pnpm --filter create-teleforge-app test && pnpm --dir apps/task-shop test",
+    "version": "changeset version"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.7",
+    "@typescript-eslint/eslint-plugin": "^8.31.0",
+    "@typescript-eslint/parser": "^8.31.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.5.3",
+    "serve": "^14.2.4",
+    "typedoc": "^0.28.14",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
   }
 }

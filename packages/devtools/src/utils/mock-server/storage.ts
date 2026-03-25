@@ -1,6 +1,7 @@
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+
 import {
   createDefaultProfile,
   createExportFile,
@@ -18,7 +19,10 @@ export interface MockProfileStorage {
   listProfiles(): Promise<Array<{ fileName: string; name: string }>>;
   loadProfile(name: string): Promise<MockProfile>;
   removeProfile(name: string): Promise<void>;
-  saveProfile(profile: MockProfile, explicitName?: string): Promise<{ fileName: string; name: string }>;
+  saveProfile(
+    profile: MockProfile,
+    explicitName?: string
+  ): Promise<{ fileName: string; name: string }>;
 }
 
 export async function createMockProfileStorage(

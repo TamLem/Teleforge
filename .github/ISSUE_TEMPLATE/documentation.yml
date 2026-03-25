@@ -1,0 +1,26 @@
+name: "\U0001F4DA Documentation"
+description: Report missing, confusing, or inaccurate documentation.
+labels:
+  - documentation
+  - triage
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Point to the README section, generated docs page, or file path that needs work.
+      placeholder: "packages/web/README.md or docs/api/functions/useTelegram.html"
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What Is Missing or Incorrect
+      description: Describe the gap, ambiguity, or incorrect information.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: Share the wording, example, or structure that would make the docs clearer.

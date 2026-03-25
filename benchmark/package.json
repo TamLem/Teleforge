@@ -1,0 +1,23 @@
+{
+  "name": "@teleforge/benchmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "analyze": "pnpm run size && pnpm run bench:ci && pnpm run memory && pnpm run memory:test && pnpm run report",
+    "baseline:write": "node ./scripts/report.mjs --write-baseline v1.0.0",
+    "bench": "node ./scripts/runtime.mjs",
+    "bench:ci": "node ./scripts/runtime.mjs --ci",
+    "memory": "node --expose-gc ./scripts/memory.mjs",
+    "memory:test": "NODE_OPTIONS=--expose-gc ./node_modules/vitest/vitest.mjs run memory/leak.test.mjs",
+    "report": "node ./scripts/report.mjs",
+    "size": "node ./scripts/size.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "gzip-size": "^7.0.0",
+    "react": "^18.3.1",
+    "react-test-renderer": "^18.3.1",
+    "tinybench": "^2.9.0",
+    "vitest": "^3.2.4"
+  }
+}

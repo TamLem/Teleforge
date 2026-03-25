@@ -1,4 +1,5 @@
 import process from "node:process";
+
 import { runDoctorChecks } from "../utils/doctor/checks.js";
 import { formatDoctorReport } from "../utils/doctor/formatters.js";
 
@@ -9,6 +10,10 @@ export interface DoctorCommandFlags {
   verbose: boolean;
 }
 
+/**
+ * Runs Teleforge environment diagnostics and prints either a human-readable report or structured
+ * JSON suitable for CI and automation.
+ */
 export async function runDoctorCommand(flags: DoctorCommandFlags): Promise<void> {
   const result = await runDoctorChecks({
     cwd: flags.cwd,

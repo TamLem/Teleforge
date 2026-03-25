@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-03-25T13:55:14.704Z",
+  "version": "v1.0.0",
+  "bundleSizes": {
+    "@teleforge/core": {
+      "gzipBytes": 19770,
+      "rawBytes": 76578
+    },
+    "@teleforge/core/browser": {
+      "gzipBytes": 3336,
+      "rawBytes": 8851
+    },
+    "@teleforge/web": {
+      "gzipBytes": 8475,
+      "rawBytes": 25842
+    },
+    "@teleforge/bot": {
+      "gzipBytes": 2137,
+      "rawBytes": 5238
+    },
+    "@teleforge/ui": {
+      "gzipBytes": 10240,
+      "rawBytes": 31124
+    },
+    "@teleforge/devtools": {
+      "gzipBytes": 135281,
+      "rawBytes": 485945
+    }
+  },
+  "memory": {
+    "eventCount": 100000,
+    "generatedAt": "2026-03-25T13:55:09.593Z",
+    "growthBytes": 79864,
+    "heapAfter": 5509920,
+    "heapBefore": 5430056,
+    "limitBytes": 10485760,
+    "passed": true
+  },
+  "runtime": {
+    "validateInitDataBotToken": {
+      "hz": 13464.20178422204,
+      "latencyMs": 0,
+      "meanMs": 0.07427102000000069,
+      "samples": 200
+    },
+    "validateInitDataEd25519": {
+      "hz": 3128.234692429308,
+      "latencyMs": 0,
+      "meanMs": 0.3196691099999998,
+      "samples": 200
+    },
+    "eventBus.emit": {
+      "hz": 337656.46156288957,
+      "latencyMs": 0,
+      "meanMs": 0.0029615899999998873,
+      "samples": 200
+    },
+    "eventBus.publishToBot.failure": {
+      "hz": 188887.55618223274,
+      "latencyMs": 0,
+      "meanMs": 0.005294155000000273,
+      "samples": 200
+    },
+    "useTelegram.render": {
+      "hz": 10417.22713518906,
+      "latencyMs": 0,
+      "meanMs": 0.09599483500000033,
+      "samples": 200
+    },
+    "useTheme.render": {
+      "hz": 14917.553664407673,
+      "latencyMs": 0,
+      "meanMs": 0.06703511999999946,
+      "samples": 200
+    },
+    "useLaunch.render": {
+      "hz": 17839.65839908468,
+      "latencyMs": 0,
+      "meanMs": 0.05605488500000135,
+      "samples": 200
+    },
+    "useMainButton.render": {
+      "hz": 20802.943699746334,
+      "latencyMs": 0,
+      "meanMs": 0.048070119999997586,
+      "samples": 200
+    }
+  },
+  "treeShaking": {
+    "@teleforge/web/useTelegram": {
+      "gzipBytes": 3935,
+      "rawBytes": 10177
+    }
+  }
+}

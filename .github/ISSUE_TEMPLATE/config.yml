@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "\U0001F4D6 API Documentation"
+    url: https://github.com/OWNER/REPO/tree/main/docs/api # TODO: Replace with canonical repository/docs URL.
+    about: Review the generated API reference before opening an issue.
+  - name: "\U0001F4AC Discussions"
+    url: https://github.com/OWNER/REPO/discussions # TODO: Replace with canonical discussions URL.
+    about: Ask questions, share ideas, or start broader product conversations.

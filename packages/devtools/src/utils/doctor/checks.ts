@@ -1,8 +1,10 @@
 import { X509Certificate } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+
 import { loadProjectEnv } from "../env.js";
 import { loadManifest, type TeleforgeManifest } from "../manifest.js";
+
 import { applyDoctorFixes, type DoctorFix } from "./fixes.js";
 
 export type DoctorCheckStatus = "pass" | "warn" | "error";
@@ -40,9 +42,7 @@ interface ManifestState {
   manifestPath: string;
 }
 
-export async function runDoctorChecks(
-  options: RunDoctorChecksOptions
-): Promise<DoctorRunResult> {
+export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<DoctorRunResult> {
   const fixes = options.fix ? await applyDoctorFixes(options.cwd) : [];
   const env = await loadProjectEnv(options.cwd);
   const manifestState = await loadManifestState(options.cwd);
@@ -186,7 +186,9 @@ async function checkManifestConsistency(
 
       const componentPath = await resolveRouteComponent(cwd, route.component);
       if (!componentPath) {
-        issues.push(`Route component not found for ${route.path ?? route.component}: ${route.component}`);
+        issues.push(
+          `Route component not found for ${route.path ?? route.component}: ${route.component}`
+        );
       }
     }
   }
@@ -253,7 +255,8 @@ function checkWebhookSecret(
       category: "Environment",
       message: "Webhook secret is not configured in the manifest.",
       name: "webhook_secret",
-      remediation: "Add bot.webhook.secretEnv if you want doctor to validate webhook secret configuration.",
+      remediation:
+        "Add bot.webhook.secretEnv if you want doctor to validate webhook secret configuration.",
       status: "warn"
     };
   }
@@ -281,12 +284,11 @@ function checkMiniAppUrl(publicUrl: string | undefined): DoctorCheck {
   if (!publicUrl) {
     return {
       category: "Configuration",
-      details: [
-        "No TELEFORGE_PUBLIC_URL env var or manifest.miniApp.url was found."
-      ],
+      details: ["No TELEFORGE_PUBLIC_URL env var or manifest.miniApp.url was found."],
       message: "Mini App URL not configured.",
       name: "mini_app_url",
-      remediation: "Set TELEFORGE_PUBLIC_URL=https://your-domain.com or add miniApp.url to teleforge.app.json.",
+      remediation:
+        "Set TELEFORGE_PUBLIC_URL=https://your-domain.com or add miniApp.url to teleforge.app.json.",
       status: "warn"
     };
   }
@@ -349,7 +351,8 @@ async function checkHttpsAvailability(cwd: string): Promise<DoctorCheck> {
       details: [error instanceof Error ? error.message : String(error)],
       message: "Local HTTPS certificate could not be parsed.",
       name: "https_availability",
-      remediation: "Delete the local cert files and rerun `teleforge dev:https` to regenerate them.",
+      remediation:
+        "Delete the local cert files and rerun `teleforge dev:https` to regenerate them.",
       status: "error"
     };
   }
@@ -437,12 +440,11 @@ function checkBotFatherSetup(
   if (!publicUrl) {
     return {
       category: "BotFather",
-      details: [
-        "Cannot verify /setmenubutton or /setwebhook readiness without a public URL."
-      ],
+      details: ["Cannot verify /setmenubutton or /setwebhook readiness without a public URL."],
       message: "BotFather Mini App URL not verified.",
       name: "botfather",
-      remediation: "Use `teleforge dev:https --tunnel` or deploy the app, then configure BotFather menu button settings.",
+      remediation:
+        "Use `teleforge dev:https --tunnel` or deploy the app, then configure BotFather menu button settings.",
       status: "warn"
     };
   }
@@ -459,10 +461,7 @@ function checkBotFatherSetup(
 
   return {
     category: "BotFather",
-    details: [
-      `Bot username: @${username}`,
-      `Menu button URL candidate: ${publicUrl}`
-    ],
+    details: [`Bot username: @${username}`, `Menu button URL candidate: ${publicUrl}`],
     message: "BotFather inputs are present for manual menu button configuration.",
     name: "botfather",
     status: "pass"

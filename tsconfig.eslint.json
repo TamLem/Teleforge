@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "packages/*/test/**/*.ts",
+    "packages/*/test/**/*.tsx",
+    "packages/*/tsup.config.ts",
+    "packages/create-teleforge-app/src/**/*.ts",
+    "apps/task-shop/apps/web/vite.config.ts",
+    "apps/task-shop/apps/**/*.ts",
+    "apps/task-shop/apps/**/*.tsx",
+    "apps/task-shop/packages/**/*.ts",
+    "apps/task-shop/packages/**/*.tsx",
+    "apps/task-shop/tests/**/*.ts",
+    "apps/task-shop/tests/**/*.tsx"
+  ]
+}

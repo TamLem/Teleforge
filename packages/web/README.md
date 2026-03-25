@@ -2,6 +2,12 @@
 
 React hooks and types for Telegram WebApp integration.
 
+## Installation
+
+```bash
+npm install @teleforge/web react
+```
+
 ## Exports
 
 ```ts

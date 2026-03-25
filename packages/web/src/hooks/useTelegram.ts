@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+
 import { getTelegramWebApp, isTeleforgeMockInstalled } from "../utils/ssr.js";
+
 import type {
   CloudStorage,
   HapticFeedback,
@@ -68,8 +70,10 @@ const noopCloudStorage: CloudStorage = {
   }
 };
 
-const serverSnapshot = createSnapshot(null);
-
+/**
+ * Exposes the current Telegram WebApp bridge with SSR-safe defaults, reactive viewport/theme
+ * state, and convenience wrappers around the SDK methods.
+ */
 export function useTelegram(): UseTelegramReturn {
   const [snapshot, setSnapshot] = useState<TelegramSnapshot>(() => getSnapshot());
   const tgRef = useRef<TelegramWebApp | null>(snapshot.tg);

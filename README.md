@@ -1,5 +1,7 @@
 # Teleforge Workspace
 
+[![API Documentation](https://img.shields.io/badge/API-Documentation-blue)](./docs/api/index.html)
+
 Product OS execution workspace for the Teleforge V1 toolchain.
 
 ## Packages
@@ -12,9 +14,19 @@ Product OS execution workspace for the Teleforge V1 toolchain.
 
 ```bash
 pnpm install
+pnpm docs:build
 pnpm build
 pnpm test
 ```
+
+## Documentation
+
+```bash
+pnpm docs:build
+pnpm docs:serve
+```
+
+The generated API reference is written to `docs/api/` and is rebuilt on demand rather than committed.
 
 ## Tooling Surface
 

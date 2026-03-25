@@ -7,10 +7,7 @@ const categoryOrder: DoctorCheck["category"][] = [
   "BotFather"
 ];
 
-export function formatDoctorReport(
-  result: DoctorRunResult,
-  options: { verbose: boolean }
-): string {
+export function formatDoctorReport(result: DoctorRunResult, options: { verbose: boolean }): string {
   const lines = [`Teleforge Doctor`, `Project: ${result.cwd}`, ""];
 
   for (const category of categoryOrder) {

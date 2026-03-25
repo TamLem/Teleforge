@@ -13,10 +13,7 @@ export async function loadProjectEnv(cwd: string): Promise<NodeJS.ProcessEnv> {
   };
 }
 
-export function validateRequiredEnv(
-  env: NodeJS.ProcessEnv,
-  keys: string[]
-): string[] {
+export function validateRequiredEnv(env: NodeJS.ProcessEnv, keys: string[]): string[] {
   return keys.filter((key) => {
     const value = env[key];
     return typeof value !== "string" || value.trim().length === 0;

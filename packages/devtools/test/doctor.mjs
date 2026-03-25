@@ -53,7 +53,7 @@ test("doctor --fix creates .env and formats the manifest", async () => {
   const manifest = await readFile(path.join(projectDir, "teleforge.app.json"), "utf8");
 
   assert.match(env, /BOT_TOKEN=your_bot_token_here/);
-  assert.match(manifest, /\n  "id": "doctor-fixture"/);
+  assert.match(manifest, /\n {2}"id": "doctor-fixture"/);
   assert.ok(result.fixes.some((fix) => fix.name === "create_env_file" && fix.applied));
   assert.ok(result.fixes.some((fix) => fix.name === "format_manifest" && fix.applied));
 });
@@ -98,6 +98,7 @@ async function createDoctorFixture(options = {}) {
       }
     },
     miniApp: {
+      capabilities: ["read_access"],
       entryPoint: "apps/web/src/main.tsx",
       launchModes: ["inline"],
       defaultMode: "inline"
@@ -109,28 +110,29 @@ async function createDoctorFixture(options = {}) {
       }
     ]
   };
-  const certificates = selfsigned.generate(
-    [{ name: "commonName", value: "localhost" }],
-    {
-      algorithm: "sha256",
-      days: 30,
-      keySize: 2048,
-      extensions: [
-        {
-          altNames: [
-            { type: 2, value: "localhost" },
-            { ip: "127.0.0.1", type: 7 }
-          ],
-          name: "subjectAltName"
-        }
-      ]
-    }
-  );
+  const certificates = selfsigned.generate([{ name: "commonName", value: "localhost" }], {
+    algorithm: "sha256",
+    days: 30,
+    keySize: 2048,
+    extensions: [
+      {
+        altNames: [
+          { type: 2, value: "localhost" },
+          { ip: "127.0.0.1", type: 7 }
+        ],
+        name: "subjectAltName"
+      }
+    ]
+  });
 
   await mkdir(path.join(tempRoot, "apps", "web", "src", "pages"), { recursive: true });
   await mkdir(path.join(tempRoot, ".teleforge", "certs"), { recursive: true });
   await writeFile(path.join(tempRoot, "apps", "web", "src", "main.tsx"), "export {};\n", "utf8");
-  await writeFile(path.join(tempRoot, "apps", "web", "src", "pages", "Home.tsx"), "export {};\n", "utf8");
+  await writeFile(
+    path.join(tempRoot, "apps", "web", "src", "pages", "Home.tsx"),
+    "export {};\n",
+    "utf8"
+  );
   await writeFile(
     path.join(tempRoot, ".env.example"),
     "BOT_TOKEN=your_bot_token_here\nWEBHOOK_SECRET=your_webhook_secret_here\n",

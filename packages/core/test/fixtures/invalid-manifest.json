@@ -1,0 +1,23 @@
+{
+  "id": "Invalid Id",
+  "name": "",
+  "version": "v1",
+  "runtime": {
+    "mode": "spa",
+    "webFramework": "nextjs"
+  },
+  "bot": {
+    "username": "bad",
+    "webhook": {
+      "path": "api/webhook",
+      "secretEnv": ""
+    }
+  },
+  "miniApp": {
+    "entryPoint": "",
+    "launchModes": [],
+    "defaultMode": "fullscreen",
+    "capabilities": []
+  },
+  "routes": []
+}

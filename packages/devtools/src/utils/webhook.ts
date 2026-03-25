@@ -48,19 +48,16 @@ export async function configureTelegramWebhook(
   const webhookUrl = `${options.tunnelUrl}${webhookPath}`;
 
   try {
-    const setWebhookResponse = await fetchImpl(
-      `https://api.telegram.org/bot${token}/setWebhook`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          url: webhookUrl,
-          ...(secretToken ? { secret_token: secretToken } : {})
-        })
-      }
-    );
+    const setWebhookResponse = await fetchImpl(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        url: webhookUrl,
+        ...(secretToken ? { secret_token: secretToken } : {})
+      })
+    });
     const setWebhookPayload = (await setWebhookResponse.json()) as {
       description?: string;
       ok?: boolean;
@@ -69,15 +66,11 @@ export async function configureTelegramWebhook(
     if (!setWebhookResponse.ok || !setWebhookPayload.ok) {
       return {
         status: "failed",
-        message:
-          setWebhookPayload.description ??
-          "Telegram Bot API rejected the webhook update."
+        message: setWebhookPayload.description ?? "Telegram Bot API rejected the webhook update."
       };
     }
 
-    const infoResponse = await fetchImpl(
-      `https://api.telegram.org/bot${token}/getWebhookInfo`
-    );
+    const infoResponse = await fetchImpl(`https://api.telegram.org/bot${token}/getWebhookInfo`);
     const infoPayload = (await infoResponse.json()) as {
       ok?: boolean;
       result?: { url?: string };

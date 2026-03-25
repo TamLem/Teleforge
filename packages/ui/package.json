@@ -1,0 +1,67 @@
+{
+  "name": "@teleforge/ui",
+  "version": "1.0.0",
+  "description": "UI primitives for Telegram Mini Apps.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js",
+      "require": "./dist/hooks/index.cjs",
+      "default": "./dist/hooks/index.js"
+    },
+    "./styles/variables.css": "./src/styles/variables.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "src/styles/variables.css"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "format": "prettier --check .",
+    "lint": "eslint . --ext .ts,.tsx,.mjs",
+    "prepublishOnly": "pnpm run build",
+    "test": "pnpm run build && node --test test/*.mjs"
+  },
+  "dependencies": {
+    "@teleforge/web": "workspace:1.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "react",
+    "ui",
+    "components",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/react-test-renderer": "^18.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-test-renderer": "^18.3.1",
+    "typescript": "^5.8.3"
+  }
+}

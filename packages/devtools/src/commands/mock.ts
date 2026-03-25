@@ -1,9 +1,6 @@
-import { findAvailablePort } from "../utils/ports.js";
-import {
-  createMockProfileStorage,
-  resolveTeleforgeHome
-} from "../utils/mock-server/storage.js";
 import { startMockServer } from "../utils/mock-server/server.js";
+import { createMockProfileStorage, resolveTeleforgeHome } from "../utils/mock-server/storage.js";
+import { findAvailablePort } from "../utils/ports.js";
 
 export interface MockCommandFlags {
   exportPath?: string;
@@ -14,6 +11,10 @@ export interface MockCommandFlags {
   saveProfileName?: string;
 }
 
+/**
+ * Starts the standalone Teleforge mock environment used to simulate Telegram WebApp state,
+ * profile storage, and event traffic during local development or CI.
+ */
 export async function runMockCommand(flags: MockCommandFlags): Promise<void> {
   const requestedPort = typeof flags.port === "number" && flags.port > 0 ? flags.port : 3456;
   const port = await findAvailablePort(requestedPort);

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 import process from "node:process";
+
 import { runDevCommand, type DevCommandFlags } from "./commands/dev.js";
 import { runDevHttpsCommand, type DevHttpsCommandFlags } from "./commands/devHttps.js";
 import { runDoctorCommand, type DoctorCommandFlags } from "./commands/doctor.js";
 import { runMockCommand, type MockCommandFlags } from "./commands/mock.js";
+
 import type { TunnelProvider } from "./utils/tunnel.js";
 
 interface ParsedArgs {
@@ -218,9 +220,7 @@ Options:
 `);
 }
 
-function toDevFlags(
-  flags: Record<string, string | boolean>
-): Omit<DevCommandFlags, "cwd"> {
+function toDevFlags(flags: Record<string, string | boolean>): Omit<DevCommandFlags, "cwd"> {
   const portValue = flags.port;
   return {
     port:
@@ -245,7 +245,10 @@ function toDevHttpsFlags(
         ? Number.parseInt(flags.port, 10)
         : undefined,
     qr: typeof flags.qr === "boolean" ? flags.qr : true,
-    subdomain: typeof flags.subdomain === "string" && flags.subdomain.length > 0 ? flags.subdomain : undefined,
+    subdomain:
+      typeof flags.subdomain === "string" && flags.subdomain.length > 0
+        ? flags.subdomain
+        : undefined,
     tunnel: typeof flags.tunnel === "boolean" ? flags.tunnel : true,
     tunnelProvider:
       tunnelProvider === "ngrok" || tunnelProvider === "localtunnel"
@@ -255,37 +258,25 @@ function toDevHttpsFlags(
   };
 }
 
-function toMockFlags(
-  flags: Record<string, string | boolean>
-): MockCommandFlags {
+function toMockFlags(flags: Record<string, string | boolean>): MockCommandFlags {
   return {
     exportPath:
-      typeof flags.export === "string" && flags.export.length > 0
-        ? flags.export
-        : undefined,
+      typeof flags.export === "string" && flags.export.length > 0 ? flags.export : undefined,
     headless: typeof flags.headless === "boolean" ? flags.headless : false,
     importPath:
-      typeof flags.import === "string" && flags.import.length > 0
-        ? flags.import
-        : undefined,
+      typeof flags.import === "string" && flags.import.length > 0 ? flags.import : undefined,
     port:
       typeof flags.port === "string" && flags.port.length > 0
         ? Number.parseInt(flags.port, 10)
         : undefined,
     profileName:
-      typeof flags.profile === "string" && flags.profile.length > 0
-        ? flags.profile
-        : undefined,
+      typeof flags.profile === "string" && flags.profile.length > 0 ? flags.profile : undefined,
     saveProfileName:
-      typeof flags.save === "string" && flags.save.length > 0
-        ? flags.save
-        : undefined
+      typeof flags.save === "string" && flags.save.length > 0 ? flags.save : undefined
   };
 }
 
-function toDoctorFlags(
-  flags: Record<string, string | boolean>
-): Omit<DoctorCommandFlags, "cwd"> {
+function toDoctorFlags(flags: Record<string, string | boolean>): Omit<DoctorCommandFlags, "cwd"> {
   return {
     fix: typeof flags.fix === "boolean" ? flags.fix : false,
     json: typeof flags.json === "boolean" ? flags.json : false,

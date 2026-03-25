@@ -1,0 +1,11 @@
+dist/
+node_modules/
+.teleforge/
+generated/
+docs/api/
+benchmark/results/
+coverage/
+*.tgz
+*.log
+**/*.d.ts
+**/*.d.cts

@@ -5,3 +5,5 @@ dist
 .env.local
 generated
 execution-progress.*.log
+docs/api
+benchmark/results

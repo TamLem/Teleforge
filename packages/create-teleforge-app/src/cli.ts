@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
+
 import { generateProject, type GeneratorMode, type PackageManager } from "./generator.js";
 
 interface CliOptions {
@@ -88,9 +89,7 @@ function parsePackageManager(value?: string): PackageManager {
     return value;
   }
 
-  throw new Error(
-    `Expected --package-manager to be "npm" or "pnpm", received "${value ?? ""}".`
-  );
+  throw new Error(`Expected --package-manager to be "npm" or "pnpm", received "${value ?? ""}".`);
 }
 
 function inferPackageManager(): PackageManager {
@@ -105,12 +104,16 @@ function printHelp(): void {
   output.write(`Options:\n`);
   output.write(`  -m, --mode <spa|bff>          Select the web runtime mode\n`);
   output.write(`  -p, --package-manager <tool>  Choose npm or pnpm for next-step commands\n`);
-  output.write(`  --overwrite                   Remove an existing target directory before generating\n`);
+  output.write(
+    `  --overwrite                   Remove an existing target directory before generating\n`
+  );
   output.write(`  -y, --yes                     Accept defaults without prompts\n`);
   output.write(`  -h, --help                    Show help\n`);
 }
 
-async function promptForMissing(options: CliOptions): Promise<Required<Pick<CliOptions, "targetDir" | "mode" | "packageManager">>> {
+async function promptForMissing(
+  options: CliOptions
+): Promise<Required<Pick<CliOptions, "targetDir" | "mode" | "packageManager">>> {
   if (options.yes) {
     if (!options.targetDir) {
       throw new Error("Project name is required when using --yes.");
@@ -124,27 +127,23 @@ async function promptForMissing(options: CliOptions): Promise<Required<Pick<CliO
   }
 
   if (!input.isTTY || !output.isTTY) {
-    throw new Error("Missing required arguments in a non-interactive terminal. Pass --mode and a project name.");
+    throw new Error(
+      "Missing required arguments in a non-interactive terminal. Pass --mode and a project name."
+    );
   }
 
   const prompt = createInterface({ input, output });
 
   try {
-    const targetDir =
-      options.targetDir?.trim() ||
-      (await prompt.question("Project name: ")).trim();
+    const targetDir = options.targetDir?.trim() || (await prompt.question("Project name: ")).trim();
 
     if (!targetDir) {
       throw new Error("Project name is required.");
     }
 
-    const mode =
-      options.mode ??
-      (await promptMode(prompt));
+    const mode = options.mode ?? (await promptMode(prompt));
 
-    const packageManager =
-      options.packageManager ??
-      inferPackageManager();
+    const packageManager = options.packageManager ?? inferPackageManager();
 
     return {
       targetDir,

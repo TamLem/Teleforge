@@ -1,0 +1,15 @@
+:root {
+  --tg-theme-accent-text-color: #2481cc;
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-destructive-text-color: #ff3b30;
+  --tg-theme-header-bg-color: #ffffff;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-secondary-bg-color: #f5f5f5;
+  --tg-theme-section-bg-color: #ffffff;
+  --tg-theme-section-header-text-color: #2481cc;
+  --tg-theme-subtitle-text-color: #6d6d71;
+  --tg-theme-text-color: #000000;
+}

@@ -1,0 +1,79 @@
+{
+  "name": "@teleforge/core",
+  "version": "1.0.0",
+  "description": "Foundation package for Teleforge: manifest, validation, and events.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "require": "./dist/browser.cjs",
+      "default": "./dist/browser.js"
+    },
+    "./validation/ed25519": {
+      "types": "./dist/validation/ed25519.d.ts",
+      "import": "./dist/validation/ed25519.js",
+      "require": "./dist/validation/ed25519.cjs",
+      "default": "./dist/validation/ed25519.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs",
+      "default": "./dist/react.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "format": "prettier --check .",
+    "lint": "eslint . --ext .ts,.tsx,.mjs",
+    "prepublishOnly": "pnpm run build",
+    "test": "pnpm run build && node --test test/*.mjs"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "bot",
+    "framework",
+    "typescript",
+    "validation"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "typescript": "^5.8.3"
+  }
+}

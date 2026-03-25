@@ -1,11 +1,13 @@
+import { spawn, type ChildProcess } from "node:child_process";
 import { accessSync, constants as fsConstants, watch } from "node:fs";
 import { stat } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
 import process from "node:process";
-import { spawn, type ChildProcess } from "node:child_process";
+
 import httpProxy from "http-proxy";
+
 import { ensureCertificates } from "./certs.js";
 import { loadProjectEnv, validateRequiredEnv } from "./env.js";
 import { loadManifest, type TeleforgeManifest } from "./manifest.js";
@@ -79,7 +81,10 @@ export async function runManagedDevCommand(options: ManagedDevCommandOptions): P
       await runtime.cleanup();
     };
 
-    const monitorRuntime = (activeRuntime: RuntimeHandle, rejectRun: (reason?: unknown) => void) => {
+    const monitorRuntime = (
+      activeRuntime: RuntimeHandle,
+      rejectRun: (reason?: unknown) => void
+    ) => {
       activeRuntime.child.once("exit", async (code) => {
         if (stopping || activeRuntime.disposing) {
           return;
@@ -120,7 +125,11 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
     );
   }
 
-  const requestedPort = resolveRequestedPort(options.flags.port, env.TELEFORGE_DEV_PORT, options.defaultPort);
+  const requestedPort = resolveRequestedPort(
+    options.flags.port,
+    env.TELEFORGE_DEV_PORT,
+    options.defaultPort
+  );
   const externalPort = await findAvailablePort(requestedPort);
   const childPort = await findAvailablePort(
     externalPort === requestedPort ? requestedPort + 1 : externalPort + 1
@@ -254,8 +263,7 @@ async function startProxyServer(options: {
         const headers = { ...proxyResponse.headers };
         const contentType = String(headers["content-type"] ?? "");
         const contentEncoding = String(headers["content-encoding"] ?? "");
-        const shouldTransform =
-          contentType.includes("text/html") && contentEncoding.length === 0;
+        const shouldTransform = contentType.includes("text/html") && contentEncoding.length === 0;
 
         const payload = shouldTransform
           ? Buffer.from(options.htmlTransformer?.(body.toString("utf8")) ?? body.toString("utf8"))

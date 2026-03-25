@@ -1,12 +1,6 @@
 export type WebAppColorScheme = "light" | "dark";
 
-export type TelegramPlatform =
-  | "ios"
-  | "android"
-  | "web"
-  | "macos"
-  | "desktop"
-  | "unknown";
+export type TelegramPlatform = "ios" | "android" | "web" | "macos" | "desktop" | "unknown";
 
 export type WebAppEvent =
   | "themeChanged"
@@ -75,19 +69,13 @@ export interface HapticFeedback {
 }
 
 export interface CloudStorage {
-  getItem(
-    key: string,
-    callback?: (error: Error | null, value: string | null) => void
-  ): void;
+  getItem(key: string, callback?: (error: Error | null, value: string | null) => void): void;
   getItems(
     keys: string[],
     callback?: (error: Error | null, values: Record<string, string>) => void
   ): void;
   removeItem(key: string, callback?: (error: Error | null, success: boolean) => void): void;
-  removeItems(
-    keys: string[],
-    callback?: (error: Error | null, success: boolean) => void
-  ): void;
+  removeItems(keys: string[], callback?: (error: Error | null, success: boolean) => void): void;
   setItem(
     key: string,
     value: string,
@@ -95,12 +83,33 @@ export interface CloudStorage {
   ): void;
 }
 
+export interface MainButtonParams {
+  color?: string;
+  has_shine_effect?: boolean;
+  is_active?: boolean;
+  is_progress_visible?: boolean;
+  is_visible?: boolean;
+  text?: string;
+  text_color?: string;
+}
+
 export interface MainButton {
+  color?: string;
+  disable(): void;
   hide(): void;
+  hideProgress(): void;
+  isActive?: boolean;
+  isProgressVisible?: boolean;
+  isVisible?: boolean;
   onClick(callback: () => void): void;
   offClick(callback: () => void): void;
-  setParams(params: Record<string, unknown>): void;
+  setParams(params: MainButtonParams): void;
+  setText(text: string): void;
   show(): void;
+  showProgress(leaveActive?: boolean): void;
+  text?: string;
+  textColor?: string;
+  enable(): void;
 }
 
 export interface BackButton {

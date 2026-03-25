@@ -2,6 +2,12 @@
 
 Local developer tooling for Teleforge.
 
+## Installation
+
+```bash
+npm install -D @teleforge/devtools
+```
+
 ## Commands
 
 ```bash
