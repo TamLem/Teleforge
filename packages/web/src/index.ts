@@ -52,6 +52,11 @@ export { withRouteGuard, type WithRouteGuardOptions } from "./guards/withRouteGu
 export { useTelegram, type UseTelegramReturn } from "./hooks/useTelegram.js";
 export { useLaunch, type UseLaunchCapabilities, type UseLaunchReturn } from "./hooks/useLaunch.js";
 export {
+  useBackButton,
+  type BackButtonOptions,
+  type UseBackButtonReturn
+} from "./hooks/useBackButton.js";
+export {
   useCoordinatedMainButton,
   useMainButton,
   type CoordinatedMainButtonOptions,
@@ -61,10 +66,11 @@ export {
 } from "./hooks/useMainButton.js";
 export { useTheme, type UseThemeReturn } from "./hooks/useTheme.js";
 export type {
+  BackButton,
   CloudStorage,
   HapticFeedback,
-  MainButton,
   MainButtonParams,
+  MainButton,
   PopupButton,
   PopupParams,
   TelegramPlatform,

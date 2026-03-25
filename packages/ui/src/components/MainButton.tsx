@@ -1,9 +1,11 @@
 import { useMainButton, useTelegram } from "@teleforge/web";
 import React, { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
 
 import { useThemeColors } from "../hooks/useThemeColors.js";
+
 import { TgSpinner } from "./TgSpinner.js";
+
+import type { CSSProperties } from "react";
 
 export interface MainButtonProps {
   className?: string;

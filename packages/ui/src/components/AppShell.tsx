@@ -1,6 +1,8 @@
 import { useMainButton, useTelegram, useTheme } from "@teleforge/web";
 import { useEffect } from "react";
 
+import { BackButton } from "./BackButton.js";
+
 import type { CSSProperties, ReactNode } from "react";
 
 export interface AppShellProps {
@@ -38,7 +40,7 @@ export function AppShell({
   style
 }: AppShellProps) {
   const { viewportStableHeight } = useTelegram();
-  const { bgColor, cssVariables, linkColor, secondaryBgColor, textColor } = useTheme();
+  const { bgColor, cssVariables, secondaryBgColor, textColor } = useTheme();
   const mainButtonApi = useMainButton(
     mainButton
       ? {
@@ -119,23 +121,7 @@ export function AppShell({
             padding: "12px 16px"
           }}
         >
-          {header.showBackButton ? (
-            <button
-              className="tf-back-btn"
-              onClick={header.onBackClick}
-              style={{
-                background: "none",
-                border: "none",
-                color: linkColor,
-                cursor: "pointer",
-                fontSize: "17px",
-                padding: "8px"
-              }}
-              type="button"
-            >
-              ←
-            </button>
-          ) : null}
+          {header.showBackButton ? <BackButton onClick={header.onBackClick ?? (() => {})} /> : null}
           <h1
             style={{
               flex: 1,

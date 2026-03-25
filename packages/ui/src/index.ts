@@ -3,6 +3,7 @@
  * Theme-aware React UI primitives for Teleforge Mini Apps.
  */
 export { AppShell, type AppShellProps } from "./components/AppShell.js";
+export { BackButton, type BackButtonProps } from "./components/BackButton.js";
 export {
   ExpandedOnly,
   FullscreenOnly,
