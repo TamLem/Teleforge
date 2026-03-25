@@ -1,3 +1,4 @@
+import type { CompletionResolver } from "../completion/types.js";
 import type { BffRequestContext } from "../context/types.js";
 import type { BffErrorCode } from "../errors/codes.js";
 import type { LaunchMode } from "@teleforge/core";
@@ -16,6 +17,7 @@ export type BffMiddleware = (
   context: BffRequestContext,
   next: () => Promise<unknown>
 ) => Promise<unknown> | unknown;
+export type BffCompletionConfig<TOutput> = CompletionResolver<TOutput>;
 
 export interface CachePolicy {
   key?: string;
@@ -37,9 +39,10 @@ export interface ProxyConfig<TInput, TOutput> {
   };
 }
 
-interface BffRouteBaseConfig {
+interface BffRouteBaseConfig<TOutput> {
   auth: BffAuthMode;
   cache?: CachePolicy;
+  completion?: CompletionResolver<TOutput>;
   launchModes?: readonly LaunchMode[];
   method: BffRouteMethod;
   middlewares?: readonly BffMiddleware[];
@@ -48,12 +51,12 @@ interface BffRouteBaseConfig {
   timeoutMs?: number;
 }
 
-interface BffRouteHandlerConfig<TInput, TOutput> extends BffRouteBaseConfig {
+interface BffRouteHandlerConfig<TInput, TOutput> extends BffRouteBaseConfig<TOutput> {
   handler: BffHandler<TInput, TOutput>;
   proxy?: never;
 }
 
-interface BffRouteProxyConfig<TInput, TOutput> extends BffRouteBaseConfig {
+interface BffRouteProxyConfig<TInput, TOutput> extends BffRouteBaseConfig<TOutput> {
   handler?: never;
   proxy: ProxyConfig<TInput, TOutput>;
 }

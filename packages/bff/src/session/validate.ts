@@ -3,9 +3,9 @@ import { BffRouteError } from "../route/errors.js";
 import { BffSessionError } from "./errors.js";
 import { verifyAccessToken } from "./token.js";
 
-import type { ResolvedIdentity } from "../identity/types.js";
 import type { SessionClaims, SessionValidationOptions } from "./types.js";
 import type { BffRequestContext } from "../context/types.js";
+import type { ResolvedIdentity } from "../identity/types.js";
 
 export async function validateSession(
   context: BffRequestContext,

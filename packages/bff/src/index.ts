@@ -11,6 +11,20 @@ export {
 export { BffContextError } from "./context/errors.js";
 export { createBffRequestContext } from "./context/create.js";
 export {
+  buildBffResponse,
+  buildRouteResponse,
+  resolveRouteCompletion,
+  withCompletion
+} from "./completion/helpers.js";
+export { withCompletionHandler } from "./completion/middleware.js";
+export { validateCompletionAction } from "./completion/validate.js";
+export type {
+  BffResponse,
+  CompletionAction,
+  CompletionEnvelope,
+  CompletionResolver
+} from "./completion/types.js";
+export {
   BffError,
   BffErrorCodes,
   BffValidationError,
@@ -78,6 +92,7 @@ export { validateBffRouteConfig } from "./route/validation.js";
 export type {
   BffAuthMode,
   BffCacheStore,
+  BffCompletionConfig,
   BffExecutionOptions,
   BffHandler,
   BffMiddleware,
