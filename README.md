@@ -8,8 +8,15 @@ Product OS execution workspace for the Teleforge V1 toolchain.
 
 If you are new to the repo, start here:
 
+- [Telegram Mini App Basics](./docs/telegram-basics.md)
 - [Getting Started](./docs/getting-started.md)
 - [Developer Guide](./docs/developer-guide.md)
+- [Build Your First Feature](./docs/first-feature.md)
+- [Flow Coordination](./docs/flow-coordination.md)
+- [BFF Mode Guide](./docs/bff-guide.md)
+- [Testing](./docs/testing.md)
+- [Deployment](./docs/deployment.md)
+- [Environment Variables](./docs/environment-variables.md)
 - [Architecture](./docs/architecture.md)
 - [Manifest Reference](./docs/manifest-reference.md)
 - [Troubleshooting](./docs/troubleshooting.md)

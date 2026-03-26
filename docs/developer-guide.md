@@ -10,6 +10,16 @@ It focuses on the implemented workflow in this repository:
 - build Mini App, bot, and BFF features with the shipped packages
 - validate and test before release
 
+Use this guide as the hub. The new step-by-step companions are:
+
+- [Telegram Mini App Basics](./telegram-basics.md)
+- [Build Your First Feature](./first-feature.md)
+- [Flow Coordination](./flow-coordination.md)
+- [BFF Mode Guide](./bff-guide.md)
+- [Testing](./testing.md)
+- [Deployment](./deployment.md)
+- [Environment Variables](./environment-variables.md)
+
 ## Who Teleforge Is For
 
 Teleforge is aimed at TypeScript developers who want a Telegram-native stack without assembling separate bot, Mini App, validation, and local-dev tooling by hand.
@@ -401,6 +411,24 @@ Use these pieces together:
 - `@teleforge/bot` for reply primitives and `web_app_data` handling
 
 The full reference implementation lives in [`apps/task-shop`](../apps/task-shop/README.md).
+
+If you want the annotated lifecycle instead of the short summary, read [Flow Coordination](./flow-coordination.md).
+
+## Testing and Deployment
+
+The short version:
+
+- use simulator-first local testing for most feature work
+- add bot and web smoke tests next to the scaffolded examples
+- use integration tests when a feature crosses chat and Mini App boundaries
+- move to real Telegram only for final behavior checks
+- deploy the Mini App on HTTPS and choose polling or webhook explicitly for production
+
+Read the dedicated guides for the practical details:
+
+- [Testing](./testing.md)
+- [Deployment](./deployment.md)
+- [Environment Variables](./environment-variables.md)
 
 ## Verification Commands
 

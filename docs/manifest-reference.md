@@ -218,6 +218,26 @@ Example:
 }
 ```
 
+### `bot.commands[].handler`
+
+The `handler` string is a **convention and metadata field**, not an automatic module loader.
+
+In the scaffold and repo examples, a value such as:
+
+```json
+"handler": "commands/start"
+```
+
+maps by convention to:
+
+- `apps/bot/src/commands/start.ts`
+
+You still import and register that command in your bot runtime yourself. In other words:
+
+- the manifest declares intended structure
+- your runtime code performs the actual registration
+- the scaffold follows the same naming convention so the mapping stays obvious
+
 ## `miniApp`
 
 Type:
@@ -285,6 +305,23 @@ Fields:
 | `coordination` | object | chat/Mini App coordination metadata |
 | `meta` | object | extra route metadata |
 | `ui` | object | route-level header/Main Button hints |
+
+### `routes[].component`
+
+Like bot handlers, the `component` string is a **convention and metadata field** in current Teleforge V1.
+
+In the scaffold and repo examples:
+
+- `component: "App"` conventionally maps to `apps/web/src/App.tsx`
+- `component: "pages/Home"` conventionally maps to `apps/web/src/pages/Home.tsx`
+- `component: "pages/CheckoutPage"` conventionally maps to `apps/web/src/pages/CheckoutPage.tsx`
+
+Teleforge does not auto-import these modules from the manifest today. Instead:
+
+- your app code performs the actual routing and imports
+- `teleforge doctor` uses the convention to verify that the referenced component file exists under `apps/web/src`
+
+That is why the manifest is still valuable even when the runtime wiring is manual: it remains the source of truth for route intent, launch-mode metadata, and expected file layout.
 
 ### `routes[].capabilities`
 

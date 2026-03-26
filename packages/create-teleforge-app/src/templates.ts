@@ -83,6 +83,20 @@ ${doctor}
 - \`apps/api\`: optional API and webhook placeholder routes
 - \`teleforge.app.json\`: App manifest
 
+## Read These Files First
+
+- \`teleforge.app.json\`: source of truth for commands, routes, launch modes, and capabilities
+- \`apps/bot/src/commands/start.ts\`: the first bot command users hit
+- \`apps/bot/src/runtime.ts\`: where bot commands are registered and the simulator bridge is exported
+- \`apps/web/src/App.tsx\` (${options.mode === "spa" ? "SPA router shell" : "client page composition"}) and \`apps/web/src/pages/*\`: where Mini App UI actually changes
+
+Manifest strings are conventions, not magic auto-imports:
+
+- \`handler: "commands/start"\` conventionally maps to \`apps/bot/src/commands/start.ts\`
+- \`component: "pages/Home"\` conventionally maps to \`apps/web/src/pages/Home.tsx\`
+
+You still import and register commands or pages in code yourself.
+
 ## Dev Workflow
 
 - \`${options.packageManager} run dev\`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and companion bot process

@@ -35,6 +35,15 @@ Generated apps also export `apps/bot/src/runtime.ts`, so `teleforge dev` can exe
 
 The generated `apps/api` files are placeholders. They do not make webhook mode active by themselves; webhook mode only makes sense once the primary web runtime actually serves `/api/webhook`.
 
+## Recommended Reading After Generation
+
+Inside this repo, the best follow-on docs are:
+
+- `docs/telegram-basics.md`
+- `docs/first-feature.md`
+- `docs/testing.md`
+- `docs/deployment.md`
+
 ## Verification
 
 ```bash

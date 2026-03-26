@@ -2,7 +2,7 @@
 
 This guide is the shortest path from clone to a working Teleforge app.
 
-If you want the broader framework model, read [Developer Guide](./developer-guide.md). If you want package boundaries and data flow, read [Architecture](./architecture.md).
+If you want the broader framework model, read [Developer Guide](./developer-guide.md). If you want package boundaries and data flow, read [Architecture](./architecture.md). If you are new to Telegram Mini Apps, read [Telegram Mini App Basics](./telegram-basics.md) first.
 
 ## Goal
 
@@ -11,6 +11,17 @@ By the end of this guide you should have:
 - a Teleforge app scaffolded or one of the repo examples running
 - a local Mini App open in the browser with the Telegram mock bridge
 - an optional live Telegram path through `/start`
+
+## Background: How Telegram Mini Apps Work
+
+Teleforge apps always have two connected surfaces:
+
+- a **bot chat**, where users send commands like `/start`
+- a **Mini App web view**, where your React app runs inside Telegram
+
+Telegram opens the Mini App inside its web view and passes launch context such as user identity and start parameters through the WebApp bridge. That launch payload is usually called `initData`. Teleforge wraps that bridge with hooks such as `useTelegram()` and `useLaunch()` so your app code can read the current user, platform, launch mode, and validation state without parsing raw Telegram fields by hand.
+
+When a Mini App needs to send something back to the bot, the normal Telegram mechanism is `web_app_data`. Teleforge supports that directly, and it also supports richer coordinated flows where a chat action opens a Mini App, the Mini App persists progress, and the result returns to chat in a structured way. If those terms are new, read [Telegram Mini App Basics](./telegram-basics.md) before continuing.
 
 ## Prerequisites
 
@@ -88,6 +99,7 @@ This gives you:
 - local mock-friendly development
 
 See [`examples/starter-app/README.md`](../examples/starter-app/README.md) for the example-specific details.
+When it is running, use the README's walkthrough section to map the working app back to real files.
 
 ### Option B: Full Reference App
 
@@ -284,6 +296,12 @@ The main packages are:
 
 ## Next Reading
 
+- [Telegram Mini App Basics](./telegram-basics.md)
+- [Build Your First Feature](./first-feature.md)
+- [Flow Coordination](./flow-coordination.md)
+- [Testing](./testing.md)
+- [Deployment](./deployment.md)
+- [Environment Variables](./environment-variables.md)
 - [Manifest Reference](./manifest-reference.md)
 - [Troubleshooting](./troubleshooting.md)
 - [Developer Guide](./developer-guide.md)
