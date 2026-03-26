@@ -101,6 +101,18 @@ pnpm install
 cp .env.example .env
 ```
 
+Generated workspaces expose a polling-first root workflow:
+
+```bash
+pnpm run dev
+pnpm run dev:public
+pnpm run doctor
+```
+
+- `pnpm run dev`: local browser development with the mock bridge plus the companion bot process
+- `pnpm run dev:public`: public HTTPS tunnel for real Telegram sessions
+- `pnpm run doctor`: manifest and environment diagnostics
+
 ### Run the Mini App Locally
 
 Use Teleforge devtools for the web surface:
@@ -126,6 +138,8 @@ Use `teleforge dev --public --live` when:
 - you want Telegram-facing behavior instead of the mock bridge
 
 Cloudflare Tunnel is the default tunnel provider for `teleforge dev --public --live`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`. `teleforge dev:https` remains available as a compatibility alias.
+
+Polling is the default bot delivery mode for the current scaffold and repo examples. Webhook mode is opt-in and should only be enabled when the primary web runtime actually serves `/api/webhook`.
 
 ### Use the Mock Environment
 

@@ -135,6 +135,7 @@ You should see:
 - `apps/web`, `apps/bot`, and `apps/api`
 - `teleforge.app.json`
 - `.env.example`
+- root scripts for `pnpm run dev`, `pnpm run dev:public`, and `pnpm run doctor`
 
 ## 3. Run Local Development
 
@@ -174,14 +175,14 @@ If you want to open the app in Telegram instead of only in the local browser:
 1. Open BotFather in Telegram.
 2. Create a bot and copy the token.
 3. Put the token in your `.env` as `BOT_TOKEN`.
-4. Set the app URL variables your example or app expects, such as `MINI_APP_URL`.
+4. Leave `MINI_APP_URL` blank unless you need to force a fixed override. During `teleforge dev`, Teleforge injects the resolved local or public URL into the companion bot automatically.
 
-At minimum, the bot configuration in `teleforge.app.json` must line up with your environment:
+For the polling-first scaffolds and repo examples, the minimum bot configuration in `teleforge.app.json` is:
 
 - `bot.username`
 - `bot.tokenEnv`
-- `bot.webhook.path`
-- `bot.webhook.secretEnv`
+
+`bot.webhook.path` and `bot.webhook.secretEnv` only matter when your primary web runtime actually serves `/api/webhook`. The current starter and Task Shop flows use polling, not webhook delivery.
 
 ## 5. Open in Telegram
 
@@ -197,8 +198,8 @@ Then open the Mini App through your bot entry point.
 
 Typical flow:
 
-1. Start the bot runtime.
-2. Start `teleforge dev --public --live`.
+1. From the workspace root, start `pnpm run dev:public` or `teleforge dev --public --live`.
+2. Wait for Teleforge to print the public URL and start the companion bot process.
 3. Send `/start` to your bot in Telegram.
 4. Tap the Mini App button or menu button.
 
@@ -215,6 +216,14 @@ This can be tested from:
 - mobile Telegram clients
 
 If the Mini App does not open, go to [Troubleshooting](./troubleshooting.md).
+
+### Webhook Note
+
+Webhook mode is optional and more constrained than the polling flow:
+
+- use it only when your primary web runtime serves `/api/webhook`
+- the shipped starter and Task Shop examples do not use webhook mode
+- the generated scaffold includes webhook placeholders, but that does not make webhook mode active by itself
 
 ## 6. Verify the First Run
 

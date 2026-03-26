@@ -80,6 +80,13 @@ ${doctor}
 - \`${options.packageManager} run dev:public\`: public HTTPS tunnel for real Telegram testing
 - \`${options.packageManager} run doctor\`: manifest and environment diagnostics
 
+## Bot Runtime
+
+- the scaffold runs the bot in polling mode by default
+- leave \`MINI_APP_URL\` blank unless you want to force a fixed override
+- \`dev\` and \`dev:public\` inject the resolved local or public URL into the companion bot automatically
+- the generated \`apps/api\` files are placeholders; webhook mode only makes sense once the primary web runtime actually serves \`/api/webhook\`
+
 ## Modes
 
 - \`/\`: available in inline, compact, and fullscreen launch modes
