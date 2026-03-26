@@ -492,6 +492,113 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
   }
 });
 
+test("dev simulator supports coordinated Mini App links built from relative simulator URLs", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-flow-links-"));
+  const projectRoot = path.join(tempRoot, "project");
+  const port = await getAvailablePort();
+
+  await cp(fixtureRoot, projectRoot, {
+    filter(source) {
+      return !source.split(path.sep).includes("node_modules");
+    },
+    recursive: true
+  });
+  await symlink(
+    workspaceNodeModules,
+    path.join(projectRoot, "node_modules"),
+    "dir"
+  );
+  await symlink(
+    path.join(fixtureRoot, "apps", "web", "node_modules"),
+    path.join(projectRoot, "apps", "web", "node_modules"),
+    "dir"
+  );
+  await writeFile(
+    path.join(projectRoot, "apps", "bot", "src", "runtime.ts"),
+    `import { createBotRuntime } from "@teleforge/bot";
+import { generateMiniAppLink } from "@teleforge/core";
+
+export function createDevBotRuntime(options = {}) {
+  const runtime = createBotRuntime();
+  runtime.registerCommands([
+    {
+      command: "start",
+      description: "Start the Mini App",
+      async handler(context) {
+        const miniAppUrl = generateMiniAppLink({
+          flowId: "coordinated-flow",
+          secret: "preview-secret",
+          stayInChat: true,
+          stepId: "catalog",
+          webAppUrl: options.miniAppUrl
+        });
+
+        await context.reply("Continue in the coordinated Mini App", {
+          reply_markup: {
+            inline_keyboard: [[{ text: "Open Flow", web_app: { url: miniAppUrl } }]]
+          }
+        });
+      }
+    }
+  ]);
+  return runtime;
+}
+`
+  );
+
+  let stdout = "";
+  let stderr = "";
+
+  const child = spawn("node", [cliPath, "dev", "--no-https", "--port", String(port)], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      TELEFORGE_HOME: path.join(tempRoot, "teleforge-home")
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  child.stdout.on("data", (chunk) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const cleanup = async () => {
+    if (!child.killed) {
+      child.kill("SIGTERM");
+    }
+    await waitForChildExit(child);
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    await rm(tempRoot, { force: true, recursive: true });
+  };
+
+  try {
+    await waitForServer(`http://127.0.0.1:${port}`);
+    await waitForOutput(() => stdout.includes("Simulator shell"), stdout, stderr);
+
+    const stateAfter = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/send`, {
+      body: JSON.stringify({
+        text: "/start"
+      }),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+
+    const lastEntry = stateAfter.transcript.at(-1);
+    assert.equal(lastEntry?.role, "bot");
+    assert.match(lastEntry?.text ?? "", /Continue in the coordinated Mini App/);
+    assert.equal(lastEntry?.buttons?.[0]?.kind, "web_app");
+    assert.match(lastEntry?.buttons?.[0]?.value ?? "", /^\/__teleforge\/app\/\?/);
+    assert.doesNotMatch(stderr, /Invalid URL/);
+  } finally {
+    await cleanup();
+  }
+});
+
 async function waitForServer(url) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15_000) {

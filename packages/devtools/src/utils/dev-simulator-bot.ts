@@ -90,7 +90,7 @@ export async function createSimulatorBotBridge(options: {
     env: {
       ...process.env,
       ...options.env,
-      TELEFORGE_SIMULATOR_APP_URL: options.appUrl,
+      TELEFORGE_SIMULATOR_APP_URL: toWorkerAppUrl(options.appUrl),
       TELEFORGE_SIMULATOR_BOT_ENTRY: entryPath
     },
     stdio: ["pipe", "pipe", "pipe"]
@@ -100,6 +100,15 @@ export async function createSimulatorBotBridge(options: {
   const bridge = new WorkerBackedSimulatorBotBridge(child);
   await bridge.getCommands();
   return bridge;
+}
+
+function toWorkerAppUrl(appUrl: string): string {
+  try {
+    return new URL(appUrl).toString();
+  } catch {
+    const normalizedPath = appUrl.startsWith("/") ? appUrl : `/${appUrl}`;
+    return new URL(normalizedPath, "https://teleforge-simulator.local").toString();
+  }
 }
 
 class WorkerBackedSimulatorBotBridge implements SimulatorBotBridge {

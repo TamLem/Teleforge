@@ -601,7 +601,7 @@ function flattenButtons(
         buttons.push({
           kind: "web_app",
           text: button.text,
-          value: button.web_app.url
+          value: normalizeSimulatorButtonUrl(button.web_app.url)
         });
         continue;
       }
@@ -617,6 +617,18 @@ function flattenButtons(
   }
 
   return buttons.length > 0 ? buttons : undefined;
+}
+
+function normalizeSimulatorButtonUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.origin === "https://teleforge-simulator.local") {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
 
 function createBuiltInFixtures(manifestName: string): SimulatorFixtureDefinition[] {
