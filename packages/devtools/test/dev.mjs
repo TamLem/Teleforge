@@ -121,6 +121,96 @@ test("help text advertises the --open flag", async () => {
   assert.match(stdout, /--open\s+Open the dev URL in the default browser/);
 });
 
+test("dev logs upstream app 500 responses for simulator app requests", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-upstream-error-"));
+  const projectRoot = path.join(tempRoot, "project");
+  const binRoot = path.join(tempRoot, "bin");
+  const port = await getAvailablePort();
+
+  await cp(fixtureRoot, projectRoot, {
+    filter(source) {
+      return !source.split(path.sep).includes("node_modules");
+    },
+    recursive: true
+  });
+  await mkdir(binRoot, { recursive: true });
+  await writeFile(
+    path.join(binRoot, "pnpm"),
+    `#!/bin/sh
+trap 'exit 0' TERM INT
+while :; do
+  sleep 1
+done
+`
+  );
+  await chmod(path.join(binRoot, "pnpm"), 0o755);
+  await mkdir(path.join(projectRoot, "node_modules", ".bin"), { recursive: true });
+  await writeFile(
+    path.join(projectRoot, "node_modules", ".bin", "vite"),
+    `#!/bin/sh
+port=5173
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--port" ]; then
+    port="$2"
+    shift 2
+    continue
+  fi
+  shift
+done
+exec node -e 'const http=require("node:http"); const port=Number(process.argv[1]); http.createServer((_req,res)=>{ res.statusCode=500; res.setHeader("content-type","text/plain; charset=utf-8"); res.end("broken app from fake vite"); }).listen(port,"127.0.0.1");' "$port"
+`
+  );
+  await chmod(path.join(projectRoot, "node_modules", ".bin", "vite"), 0o755);
+
+  let stdout = "";
+  let stderr = "";
+
+  const child = spawn("node", [cliPath, "dev", "--no-https", "--port", String(port)], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      PATH: `${binRoot}:${process.env.PATH ?? ""}`,
+      TELEFORGE_HOME: path.join(tempRoot, "teleforge-home")
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  child.stdout.on("data", (chunk) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const cleanup = async () => {
+    if (!child.killed) {
+      child.kill("SIGTERM");
+    }
+    await waitForChildExit(child);
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    await rm(tempRoot, { force: true, recursive: true });
+  };
+
+  try {
+    await waitForServer(`http://127.0.0.1:${port}`);
+    await waitForOutput(() => stdout.includes("Simulator shell"), stdout, stderr);
+
+    const response = await request(`http://127.0.0.1:${port}/__teleforge/app/`);
+    assert.equal(response.statusCode, 500);
+    assert.match(response.body, /broken app from fake vite/);
+
+    await waitForOutput(
+      () => stderr.includes("Upstream app responded with HTTP 500 for GET /__teleforge/app/"),
+      stdout,
+      stderr
+    );
+    assert.match(stderr, /\[teleforge:dev\] Upstream app responded with HTTP 500/);
+    assert.match(stderr, /broken app from fake vite/);
+  } finally {
+    await cleanup();
+  }
+});
+
 test("dev starts companion app services with the resolved Mini App URL", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-services-"));
   const projectRoot = path.join(tempRoot, "project");

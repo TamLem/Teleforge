@@ -398,6 +398,27 @@ async function startProxyServer(options: {
     ws: true
   });
 
+  proxy.on("error", (error, request, response) => {
+    const message =
+      error instanceof Error ? error.message : "Unexpected upstream proxy error.";
+    logDevServerError(
+      `Proxy request failed for ${formatRequestLabel(request as http.IncomingMessage)}.`,
+      message
+    );
+
+    if (
+      response &&
+      "writeHead" in response &&
+      typeof response.writeHead === "function" &&
+      !response.headersSent
+    ) {
+      response.writeHead(502, {
+        "content-type": "text/plain; charset=utf-8"
+      });
+      response.end("Teleforge could not reach the local app server. Check the terminal logs.");
+    }
+  });
+
   if (options.htmlTransformer) {
     proxy.on("proxyRes", (proxyResponse, _request, response) => {
       const chunks: Buffer[] = [];
@@ -406,6 +427,12 @@ async function startProxyServer(options: {
       });
       proxyResponse.on("end", () => {
         const body = Buffer.concat(chunks);
+        if ((proxyResponse.statusCode ?? 200) >= 500) {
+          logDevServerError(
+            `Upstream app responded with HTTP ${proxyResponse.statusCode ?? 500} for ${formatRequestLabel(_request)}.`,
+            summarizeUpstreamBody(body, proxyResponse.headers["content-type"])
+          );
+        }
         const headers = { ...proxyResponse.headers };
         const contentType = String(headers["content-type"] ?? "");
         const contentEncoding = String(headers["content-encoding"] ?? "");
@@ -442,6 +469,10 @@ async function startProxyServer(options: {
           }
         })
         .catch((error) => {
+          logDevServerError(
+            `Simulator request failed for ${formatRequestLabel(request)}.`,
+            error instanceof Error ? error.stack ?? error.message : String(error)
+          );
           response.statusCode = 500;
           response.end(
             error instanceof Error ? error.message : "Unexpected Teleforge dev server error."
@@ -462,6 +493,11 @@ async function startProxyServer(options: {
     response: http.ServerResponse<http.IncomingMessage>,
     proxyMountPath?: string
   ) => {
+    const telemetryRequest = request as typeof request & {
+      __teleforgeOriginalUrl?: string;
+    };
+    telemetryRequest.__teleforgeOriginalUrl ??= request.url;
+
     if (
       proxyMountPath &&
       typeof request.url === "string" &&
@@ -612,4 +648,40 @@ async function readFileSafe(filePath: string | undefined): Promise<string | unde
 
   const file = await import("node:fs/promises");
   return file.readFile(filePath, "utf8");
+}
+
+function formatRequestLabel(request: http.IncomingMessage): string {
+  const telemetryRequest = request as typeof request & {
+    __teleforgeOriginalUrl?: string;
+  };
+  return `${request.method ?? "GET"} ${telemetryRequest.__teleforgeOriginalUrl ?? request.url ?? "/"}`;
+}
+
+function summarizeUpstreamBody(
+  body: Buffer,
+  contentTypeHeader: string | string[] | undefined
+): string | undefined {
+  const contentType = String(Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : contentTypeHeader ?? "");
+  if (
+    !contentType.includes("text/") &&
+    !contentType.includes("application/json") &&
+    !contentType.includes("application/problem+json")
+  ) {
+    return undefined;
+  }
+
+  const preview = body
+    .toString("utf8")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
+
+  return preview.length > 0 ? preview : undefined;
+}
+
+function logDevServerError(summary: string, details?: string): void {
+  console.error(`[teleforge:dev] ${summary}`);
+  if (details) {
+    console.error(`[teleforge:dev] ${details}`);
+  }
 }

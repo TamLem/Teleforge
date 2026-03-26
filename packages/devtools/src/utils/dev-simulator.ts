@@ -1056,6 +1056,40 @@ function createSimulatorUiHtml(options: {
         ids.simulatorStatus.textContent = message;
       }
 
+      async function inspectAppFrameResponse() {
+        const frameUrl = ids.appFrame.getAttribute("src");
+        if (!frameUrl) {
+          return;
+        }
+
+        try {
+          const response = await fetch(frameUrl, {
+            headers: {
+              "x-teleforge-simulator-probe": "1"
+            }
+          });
+          if (response.status >= 500) {
+            const body = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 220);
+            setStatus(
+              "Mini App responded with HTTP " +
+                response.status +
+                ". Check terminal logs." +
+                (body ? " Preview: " + body : "")
+            );
+            return;
+          }
+
+          if (currentState) {
+            setStatus("Simulator ready.");
+          }
+        } catch (error) {
+          setStatus(
+            "Mini App probe failed: " +
+              (error instanceof Error ? error.message : String(error))
+          );
+        }
+      }
+
       function renderEvents(events) {
         ids.events.textContent = events.length === 0
           ? "Waiting for events…"
@@ -1213,6 +1247,9 @@ function createSimulatorUiHtml(options: {
           profile: payload.profile,
           type: "sync-profile"
         });
+        queueMicrotask(() => {
+          void inspectAppFrameResponse();
+        });
         return payload;
       }
 
@@ -1353,6 +1390,7 @@ function createSimulatorUiHtml(options: {
             type: "sync-profile"
           });
         }
+        void inspectAppFrameResponse();
       });
 
       loadState().catch((error) => {

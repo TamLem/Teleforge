@@ -96,6 +96,42 @@ If the issue is still unclear:
 teleforge doctor --verbose
 ```
 
+## Mini App Returns `500` Inside The Simulator
+
+Symptoms:
+
+- the simulator shell loads, but the embedded Mini App shows a server error
+- opening `/<app>` through the iframe fails while the simulator chrome still works
+- the failure used to feel silent because only the iframe was broken
+
+### What Teleforge Logs Now
+
+When the proxied Mini App responds with `5xx`, Teleforge logs:
+
+- the upstream request path
+- the HTTP status
+- a short response-body preview when the upstream returned text or JSON
+
+Look for terminal lines prefixed with:
+
+```text
+[teleforge:dev]
+```
+
+The simulator status panel also reports the failing HTTP status for the embedded app route.
+
+### Checks
+
+- open the embedded app route directly, usually `/__teleforge/app/`, and confirm whether it reproduces outside the iframe
+- inspect the terminal for `[teleforge:dev]` lines
+- check the underlying Vite or Next.js process output for the actual application error
+
+### Fixes
+
+- fix the upstream app error first; the simulator is only proxying it
+- if the route works directly but not in the simulator, confirm you are not relying on stale scenario state
+- reload the app after changing env or manifest values that affect the embedded route
+
 ## Manifest Validation Errors
 
 Symptoms:

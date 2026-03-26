@@ -139,6 +139,12 @@ The current simulator-first workflow is:
 - save a scenario when a flow becomes worth keeping
 - use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
 
+When the embedded Mini App itself fails, Teleforge now treats that as a first-class dev signal:
+
+- upstream app `5xx` responses are logged to the terminal with a `[teleforge:dev]` prefix
+- the simulator status panel reports the failing HTTP status for the iframe route
+- request-handler failures inside the simulator shell are also logged instead of only returning a bare `500`
+
 Use `teleforge dev --public --live` when:
 
 - you need HTTPS locally
@@ -176,6 +182,13 @@ export function createDevBotRuntime(options) {
 ```
 
 Without that file, the simulator still provides chat scaffolding, but only at the manifest level.
+
+Current simulator gaps that still remain after the latest local-dev work:
+
+- callback and `web_app_data` are covered, but broader Telegram interaction surfaces still need simulation
+- replay is currently single-action rather than full scenario-step playback
+- fixture support is generic today; app-specific fixture packs still need to be added where useful
+- deeper request/trace inspection is still lighter than a full debugger
 
 ### Diagnose Environment Issues
 

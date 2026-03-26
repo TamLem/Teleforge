@@ -40,6 +40,8 @@ The simulator is meant to cover most day-to-day local work:
 - save a scenario when you want a repeatable local regression case
 - use Replay Last to rerun the most recent command, callback, or `web_app_data` payload without retyping it
 
+If the embedded Mini App responds with `500`, Teleforge now logs the upstream request path and a short error-body preview to the terminal with a `[teleforge:dev]` prefix. The simulator status panel also reports the failing HTTP status so iframe-only failures are easier to spot.
+
 Use `teleforge dev --public --live` for Telegram-facing testing. If `cloudflared` is installed, Teleforge starts a quick tunnel against the resolved local HTTPS port and reuses the same companion-service behavior as `teleforge dev`. Use `--tunnel-provider localtunnel` or `--tunnel-provider ngrok` to force another provider. `teleforge dev:https` remains as a legacy alias for the same mode.
 
 Current workflow notes:
@@ -48,6 +50,15 @@ Current workflow notes:
 - `teleforge dev` and `teleforge dev --public --live` are intended to be run from the workspace root as the single local-dev command
 - `--webhook` should only be used when the primary web runtime actually serves `/api/webhook`
 - `teleforge mock` remains available as a standalone profile/state server, but `teleforge dev` is now the main day-to-day simulator surface
+
+## Remaining Simulator Items
+
+The current simulator covers the main local loop, but a few areas are still intentionally incomplete:
+
+- richer Telegram interaction coverage beyond commands, callbacks, and `web_app_data`
+- deeper trace tooling for bot/runtime messages and app-level network activity
+- app-specific named fixture packs beyond the built-in generic presets
+- more polished replay tooling for multi-step scripted flows instead of only the last action
 
 ## Mock Profiles
 
