@@ -223,6 +223,7 @@ export function createMockUiHtml(apiBasePath = "/api/mock"): string {
             <div class="form-grid">
               <label>Version<input id="app-version" /></label>
               <label>Platform<select id="platform"><option>ios</option><option>android</option><option>web</option><option>macos</option><option>tdesktop</option></select></label>
+              <label>Launch Mode<select id="launch-mode"><option>inline</option><option>compact</option><option>fullscreen</option><option>full</option></select></label>
               <label>Theme<select id="color-scheme"><option>light</option><option>dark</option></select></label>
               <label>Expanded<select id="expanded"><option value="true">true</option><option value="false">false</option></select></label>
               <label>Viewport Width<input id="viewport-width" type="number" /></label>
@@ -277,6 +278,7 @@ export function createMockUiHtml(apiBasePath = "/api/mock"): string {
         startapp: document.getElementById("startapp"),
         hash: document.getElementById("hash"),
         appVersion: document.getElementById("app-version"),
+        launchMode: document.getElementById("launch-mode"),
         platform: document.getElementById("platform"),
         colorScheme: document.getElementById("color-scheme"),
         expanded: document.getElementById("expanded"),
@@ -324,6 +326,7 @@ export function createMockUiHtml(apiBasePath = "/api/mock"): string {
         fields.startapp.value = profile.launchParams.startapp || "";
         fields.hash.value = profile.launchParams.hash || "";
         fields.appVersion.value = profile.appContext.version || "";
+        fields.launchMode.value = profile.appContext.launchMode || "inline";
         fields.platform.value = profile.appContext.platform || "ios";
         fields.colorScheme.value = profile.appContext.colorScheme || "light";
         fields.expanded.value = String(Boolean(profile.appContext.isExpanded));
@@ -337,7 +340,7 @@ export function createMockUiHtml(apiBasePath = "/api/mock"): string {
         ids.previewCard.style.minHeight = Math.max(220, Math.min(720, profile.appContext.viewportHeight)) + "px";
         ids.previewEyebrow.textContent = "Platform: " + profile.appContext.platform + " • v" + profile.appContext.version;
         ids.previewName.textContent = profile.user.first_name + (profile.user.username ? " (@" + profile.user.username + ")" : "");
-        ids.previewMeta.textContent = "Launch: " + (profile.launchParams.start_param || "none") + " • Expanded: " + profile.appContext.isExpanded;
+        ids.previewMeta.textContent = "Launch: " + profile.appContext.launchMode + " • Expanded: " + profile.appContext.isExpanded;
         ids.previewCopy.textContent = "Theme: " + profile.appContext.colorScheme + " • Premium: " + Boolean(profile.user.is_premium);
       }
 
@@ -362,6 +365,7 @@ export function createMockUiHtml(apiBasePath = "/api/mock"): string {
           },
           appContext: {
             version: fields.appVersion.value,
+            launchMode: fields.launchMode.value,
             platform: fields.platform.value,
             colorScheme: fields.colorScheme.value,
             isExpanded: fields.expanded.value === "true",

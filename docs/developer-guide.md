@@ -126,7 +126,7 @@ teleforge dev --public --live
 Use `teleforge dev` when:
 
 - you want fast local browser development
-- Teleforge's Telegram mock overlay is enough
+- you want the integrated Telegram simulator with chat plus the real Mini App
 - you do not need a Telegram-pasteable HTTPS URL yet
 
 If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default.
@@ -143,7 +143,7 @@ Polling is the default bot delivery mode for the current scaffold and repo examp
 
 ### Use the Mock Environment
 
-For standalone Telegram context simulation:
+For standalone Telegram context simulation or headless profile/state work:
 
 ```bash
 teleforge mock
@@ -155,6 +155,8 @@ teleforge mock
 - testing theme changes
 - simulating viewport and event changes
 - saving and sharing profiles in `~/.teleforge/profiles/`
+
+For most day-to-day local app development, prefer `teleforge dev`; it now hosts the primary simulator surface.
 
 ### Diagnose Environment Issues
 

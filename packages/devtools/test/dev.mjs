@@ -9,7 +9,7 @@ const packageRoot = process.cwd();
 const cliPath = path.join(packageRoot, "dist", "cli.js");
 const fixtureRoot = path.join(packageRoot, "..", "..", "generated", "spa-dev-check");
 
-test("dev injects the Telegram mock overlay, logs .env.local, and opens the browser once", async () => {
+test("dev serves the simulator shell, injects the Telegram mock bridge into the embedded app, and opens the browser once", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-command-"));
   const projectRoot = path.join(tempRoot, "project");
   const binRoot = path.join(tempRoot, "bin");
@@ -70,9 +70,18 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
     await waitForOutput(() => stdout.includes("Opened http://localhost:"), stdout, stderr);
 
     const html = await fetch(`http://127.0.0.1:${port}`).then((response) => response.text());
+    const appHtml = await fetch(`http://127.0.0.1:${port}/__teleforge/app/`).then((response) =>
+      response.text()
+    );
+    const statePayload = await fetch(`http://127.0.0.1:${port}/__teleforge/api/state`).then(
+      (response) => response.json()
+    );
     const openLog = await readFile(openLogPath, "utf8");
 
-    assert.match(html, /data-teleforge-mock="true"/);
+    assert.match(html, /Teleforge Simulator/);
+    assert.match(html, /__teleforge\/app\//);
+    assert.match(appHtml, /data-teleforge-mock="true"/);
+    assert.equal(statePayload.profile.appContext.launchMode, "inline");
     assert.match(stdout, /Loaded env overrides from \.env\.local/);
     assert.match(openLog, new RegExp(`http://localhost:${port}`));
   } finally {
@@ -164,6 +173,77 @@ done
     assert.match(stdout, /Companion services active: bot/);
     assert.doesNotMatch(log, /apps[/\\]api\|dev\|/);
     assert.match(log, new RegExp(`apps[/\\\\]bot\\|dev\\|http://localhost:${port}`));
+  } finally {
+    await cleanup();
+  }
+});
+
+test("dev simulator chat API supports /start transcript and app-open actions", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-chat-"));
+  const projectRoot = path.join(tempRoot, "project");
+  const port = 43129;
+
+  await cp(fixtureRoot, projectRoot, {
+    filter(source) {
+      return !source.split(path.sep).includes("node_modules");
+    },
+    recursive: true
+  });
+  await symlink(
+    path.join(fixtureRoot, "apps", "web", "node_modules"),
+    path.join(projectRoot, "apps", "web", "node_modules"),
+    "dir"
+  );
+
+  let stdout = "";
+  let stderr = "";
+
+  const child = spawn("node", [cliPath, "dev", "--no-https", "--port", String(port)], {
+    cwd: projectRoot,
+    env: {
+      ...process.env
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  child.stdout.on("data", (chunk) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const cleanup = async () => {
+    if (!child.killed) {
+      child.kill("SIGTERM");
+    }
+    await new Promise((resolve) => child.once("exit", resolve));
+    await rm(tempRoot, { force: true, recursive: true });
+  };
+
+  try {
+    await waitForServer(`http://127.0.0.1:${port}`);
+    await waitForOutput(() => stdout.includes("Simulator shell"), stdout, stderr);
+
+    const stateBefore = await fetch(`http://127.0.0.1:${port}/__teleforge/api/state`).then(
+      (response) => response.json()
+    );
+    assert.equal(stateBefore.transcript[0]?.role, "system");
+
+    const stateAfter = await fetch(`http://127.0.0.1:${port}/__teleforge/api/chat/send`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        text: "/start"
+      })
+    }).then((response) => response.json());
+
+    const lastEntry = stateAfter.transcript.at(-1);
+    assert.equal(lastEntry?.role, "bot");
+    assert.match(lastEntry?.text ?? "", /Welcome to Spa Dev Check!/);
+    assert.equal(lastEntry?.buttons?.[0]?.kind, "web_app");
+    assert.equal(lastEntry?.buttons?.[0]?.value, "/__teleforge/app/");
   } finally {
     await cleanup();
   }

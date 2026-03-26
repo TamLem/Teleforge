@@ -65,7 +65,7 @@ node packages/devtools/dist/cli.js mock
 node packages/devtools/dist/cli.js doctor
 ```
 
-`teleforge dev` is the primary local workflow. Add `--public --live` for Telegram-facing local testing; Cloudflare Tunnel is the default provider. `teleforge dev:https` remains as a legacy alias.
+`teleforge dev` is the primary local workflow and now opens a Telegram simulator with chat plus an embedded Mini App. Add `--public --live` for Telegram-facing local testing; Cloudflare Tunnel is the default provider. `teleforge dev:https` remains as a legacy alias.
 
 ### Web Hooks
 

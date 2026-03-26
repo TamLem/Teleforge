@@ -151,9 +151,9 @@ teleforge doctor
 
 Use them like this:
 
-- `teleforge dev`: fast local browser development with Teleforge's Telegram mock overlay and any companion `apps/bot` `dev` service
+- `teleforge dev`: local Telegram simulator with chat, embedded Mini App, Telegram-like state controls, and any companion `apps/bot` `dev` service
 - `teleforge dev --public --live`: HTTPS local development for Telegram-facing testing, using Cloudflare Tunnel by default when public reachability is needed
-- `teleforge mock`: standalone Telegram environment simulation
+- `teleforge mock`: standalone profile/state server for saved scenarios, headless CI, or manual mock-state editing
 - `teleforge doctor`: environment and manifest diagnostics
 
 For first-time local work:
@@ -165,9 +165,10 @@ teleforge dev --open
 You should see:
 
 - Teleforge validate `teleforge.app.json`
-- the app boot in a normal browser
+- the simulator shell boot in a normal browser
+- a chat pane and embedded Mini App frame
 - the companion bot dev process start when the workspace defines it
-- Telegram-like theme and viewport state injected by the mock bridge
+- Telegram-like theme, viewport, launch, and user state injected into the embedded app
 
 ## 4. Create a Telegram Bot
 

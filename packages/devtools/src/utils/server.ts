@@ -43,9 +43,14 @@ export interface ManagedDevContext {
 export interface ManagedDevCommandOptions {
   defaultPort: number;
   flags: SharedCommandFlags;
-  htmlTransformer?: (html: string) => string;
+  htmlTransformer?: (html: string, requestPath: string) => string;
   onStarted?: (context: ManagedDevContext) => Promise<void> | void;
+  requestHandler?: (
+    request: http.IncomingMessage,
+    response: http.ServerResponse<http.IncomingMessage>
+  ) => Promise<boolean> | boolean;
   requiredEnv?: string[];
+  proxyMountPath?: string;
   tunnelProvider?: TunnelProvider;
   subdomain?: string;
 }
@@ -171,7 +176,9 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
     externalPort,
     htmlTransformer: options.htmlTransformer,
     https: options.flags.https,
-    certificates
+    certificates,
+    proxyMountPath: options.proxyMountPath,
+    requestHandler: options.requestHandler
   });
 
   let tunnel: TunnelHandle | undefined;
@@ -375,9 +382,14 @@ function spawnFrameworkServer(options: {
 async function startProxyServer(options: {
   childPort: number;
   externalPort: number;
-  htmlTransformer?: (html: string) => string;
+  htmlTransformer?: (html: string, requestPath: string) => string;
   https: boolean;
   certificates?: { certPath: string; keyPath: string };
+  proxyMountPath?: string;
+  requestHandler?: (
+    request: http.IncomingMessage,
+    response: http.ServerResponse<http.IncomingMessage>
+  ) => Promise<boolean> | boolean;
 }): Promise<{ proxy: httpProxy; server: http.Server | https.Server; url: string }> {
   const proxy = httpProxy.createProxyServer({
     changeOrigin: true,
@@ -400,7 +412,10 @@ async function startProxyServer(options: {
         const shouldTransform = contentType.includes("text/html") && contentEncoding.length === 0;
 
         const payload = shouldTransform
-          ? Buffer.from(options.htmlTransformer?.(body.toString("utf8")) ?? body.toString("utf8"))
+          ? Buffer.from(
+              options.htmlTransformer?.(body.toString("utf8"), String(_request.url ?? "/")) ??
+                body.toString("utf8")
+            )
           : body;
 
         delete headers["content-length"];
@@ -418,6 +433,43 @@ async function startProxyServer(options: {
     request: http.IncomingMessage,
     response: http.ServerResponse<http.IncomingMessage>
   ) => {
+    const customHandlerResult = options.requestHandler?.(request, response);
+    if (customHandlerResult instanceof Promise) {
+      void customHandlerResult
+        .then((handled) => {
+          if (!handled) {
+            proxyRequest(request, response, options.proxyMountPath);
+          }
+        })
+        .catch((error) => {
+          response.statusCode = 500;
+          response.end(
+            error instanceof Error ? error.message : "Unexpected Teleforge dev server error."
+          );
+        });
+      return;
+    }
+
+    if (customHandlerResult) {
+      return;
+    }
+
+    proxyRequest(request, response, options.proxyMountPath);
+  };
+
+  const proxyRequest = (
+    request: http.IncomingMessage,
+    response: http.ServerResponse<http.IncomingMessage>,
+    proxyMountPath?: string
+  ) => {
+    if (
+      proxyMountPath &&
+      typeof request.url === "string" &&
+      request.url.startsWith(proxyMountPath)
+    ) {
+      const nextUrl = request.url.slice(proxyMountPath.length);
+      request.url = nextUrl.length > 0 ? nextUrl : "/";
+    }
     proxy.web(request, response);
   };
 

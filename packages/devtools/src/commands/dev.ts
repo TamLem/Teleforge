@@ -3,6 +3,7 @@ import path from "node:path";
 
 import qrcodeTerminal from "qrcode-terminal";
 
+import { createDevSimulator } from "../utils/dev-simulator.js";
 import { loadManifest } from "../utils/manifest.js";
 import { injectTelegramMock } from "../utils/mock.js";
 import { openBrowser } from "../utils/open.js";
@@ -25,10 +26,18 @@ export interface DevCommandFlags extends SharedCommandFlags {
  */
 export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   let browserOpened = false;
-  const manifest = flags.webhook ? (await loadManifest(flags.cwd)).manifest : undefined;
+  const loadedManifest =
+    flags.mock || flags.webhook ? (await loadManifest(flags.cwd)).manifest : undefined;
+  const manifest = flags.webhook ? loadedManifest : undefined;
   const webhookSupport =
     flags.webhook && manifest
       ? await resolveWebhookSupport(flags.cwd, manifest.runtime.webFramework)
+      : undefined;
+  const simulator =
+    flags.mock && loadedManifest
+      ? createDevSimulator({
+          manifest: loadedManifest
+        })
       : undefined;
 
   if (flags.webhook && (!flags.tunnel || !flags.https)) {
@@ -44,7 +53,19 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   await runManagedDevCommand({
     defaultPort: 3000,
     flags,
-    htmlTransformer: flags.mock ? injectTelegramMock : undefined,
+    htmlTransformer:
+      flags.mock && simulator
+        ? (html, requestPath) =>
+            injectTelegramMock(html, {
+              overlay: false,
+              profile:
+                simulator.appBasePath && requestPath.startsWith(simulator.appBasePath)
+                  ? simulator.getCurrentProfile()
+                  : undefined
+            })
+        : flags.mock
+          ? (html) => injectTelegramMock(html)
+          : undefined,
     onStarted: async (context) => {
       console.log(
         `✓ Validated teleforge.app.json (${context.manifest.runtime.mode.toUpperCase()} mode, ${context.manifest.runtime.webFramework})`
@@ -65,10 +86,12 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
         );
       }
 
-      console.log(`✓ ${context.frameworkLabel} dev server running on ${context.url}`);
+      console.log(
+        `✓ ${flags.mock ? "Simulator shell" : `${context.frameworkLabel} dev server`} running on ${context.url}`
+      );
 
       if (flags.mock) {
-        console.log("✓ Telegram WebApp mock overlay injected");
+        console.log("✓ Telegram simulator shell active");
       }
 
       if (context.companionServices.length > 0) {
@@ -126,6 +149,12 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
         console.log(`Warning: ${context.tunnelWarning}`);
       }
     },
+    proxyMountPath: simulator?.appBasePath,
+    requestHandler: simulator
+      ? (request, response) => {
+          return simulator.handleRequest(request, response);
+        }
+      : undefined,
     requiredEnv: [],
     subdomain: flags.subdomain,
     tunnelProvider: flags.tunnelProvider

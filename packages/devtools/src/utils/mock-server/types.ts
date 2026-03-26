@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 export type MockPlatform = "ios" | "android" | "web" | "macos" | "tdesktop";
 export type MockColorScheme = "light" | "dark";
+export type MockLaunchMode = "inline" | "compact" | "fullscreen" | "full";
 
 export interface MockProfile {
   version: "1.0";
@@ -27,6 +28,7 @@ export interface MockProfile {
     version: string;
     platform: MockPlatform;
     colorScheme: MockColorScheme;
+    launchMode: MockLaunchMode;
     viewportHeight: number;
     viewportWidth: number;
     isExpanded: boolean;
@@ -80,6 +82,7 @@ export function createDefaultProfile(botToken = "mock-bot-token"): MockProfile {
       version: "7.2",
       platform: "ios",
       colorScheme: "light",
+      launchMode: "inline",
       viewportHeight: 720,
       viewportWidth: 390,
       isExpanded: true
@@ -125,6 +128,7 @@ export function refreshProfile(
       version: stringOrDefault(input.appContext?.version, base.appContext.version),
       platform: platformOrDefault(input.appContext?.platform, base.appContext.platform),
       colorScheme: colorSchemeOrDefault(input.appContext?.colorScheme, base.appContext.colorScheme),
+      launchMode: launchModeOrDefault(input.appContext?.launchMode, base.appContext.launchMode),
       viewportHeight: numberOrDefault(
         input.appContext?.viewportHeight,
         base.appContext.viewportHeight
@@ -266,6 +270,7 @@ function createBaseProfile(): MockProfile {
       version: "7.2",
       platform: "ios",
       colorScheme: "light",
+      launchMode: "inline",
       viewportHeight: 720,
       viewportWidth: 390,
       isExpanded: true
@@ -309,4 +314,10 @@ function platformOrDefault(value: unknown, fallback: MockPlatform): MockPlatform
 
 function colorSchemeOrDefault(value: unknown, fallback: MockColorScheme): MockColorScheme {
   return value === "light" || value === "dark" ? value : fallback;
+}
+
+function launchModeOrDefault(value: unknown, fallback: MockLaunchMode): MockLaunchMode {
+  return value === "inline" || value === "compact" || value === "fullscreen" || value === "full"
+    ? value
+    : fallback;
 }
