@@ -6,8 +6,12 @@ Product OS execution workspace for the Teleforge V1 toolchain.
 
 ## Packages
 
+- `packages/core`: manifest schema, validation, launch parsing, events, and flow-state primitives
+- `packages/bot`: command routing, WebApp data handling, and webhook helpers
+- `packages/bff`: Telegram-aware BFF routes, adapters, context, and session/auth helpers
 - `packages/create-teleforge-app`: DX-002 scaffold generator
 - `packages/devtools`: `teleforge dev`, `teleforge dev:https`, `teleforge mock`, and `teleforge doctor`
+- `packages/ui`: Telegram-native React UI components
 - `packages/web`: React hooks and Telegram WebApp types for Mini Apps
 
 ## Common Commands
@@ -27,6 +31,7 @@ pnpm docs:serve
 ```
 
 The generated API reference is written to `docs/api/` and is rebuilt on demand rather than committed.
+It covers the current `@teleforge/core`, `web`, `bot`, `bff`, `ui`, and `devtools` public surfaces.
 
 ## Tooling Surface
 

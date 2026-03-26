@@ -73,3 +73,24 @@ import { parseLaunchContext } from "@teleforge/core/browser";
 - `validateInitDataEd25519()` uses WebCrypto and is intended to work anywhere `globalThis.crypto.subtle` supports Ed25519, including modern browsers and edge-style runtimes.
 - `validateInitDataBotToken()` is Node-only because it relies on `node:crypto` HMAC helpers and a bot token that should stay server-side.
 - Teleforge BFF prefers Ed25519 when `publicKey + botId` are configured. If only `botToken` is configured in a non-Node runtime, the BFF throws `RUNTIME_UNSUPPORTED_VALIDATION` rather than silently skipping validation.
+
+## Flow State Contract
+
+`UserFlowState` is the canonical V1 continuity contract exported by `@teleforge/core`:
+
+```ts
+interface UserFlowState {
+  flowId: string;
+  userId: string;
+  stepId: string;
+  payload: Record<string, unknown>;
+  createdAt: number;
+  expiresAt: number;
+  version: number;
+  chatId?: string;
+}
+```
+
+If you are reconciling older planning artifacts, `stepId` is the active step identifier and `payload` holds the resumable flow context.
+
+Teleforge V1 intentionally keeps this contract minimal. The runtime does not yet persist richer continuity fields such as `currentSurface`, `resumable`, `updatedAt`, `summary`, `pendingAction`, `returnRoute`, or `history`. Treat those as future contract extensions rather than part of the current storage API.

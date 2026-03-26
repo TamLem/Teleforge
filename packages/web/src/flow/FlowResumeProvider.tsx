@@ -51,7 +51,7 @@ export function FlowResumeProvider({
   const parseFlowIdRef = useRef(parseFlowId);
   const resolveRouteRef = useRef(resolveRoute);
   const resolverRef = useRef(resolver);
-  const timeoutRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
 
   errorRef.current = error;
   onFreshStartRef.current = onFreshStart;
@@ -199,7 +199,7 @@ function consumeResumeParam() {
 }
 
 function scheduleIndicatorDismiss(
-  timeoutRef: { current: number | null },
+  timeoutRef: { current: ReturnType<typeof globalThis.setTimeout> | null },
   setIndicatorVisible: (visible: boolean) => void,
   durationMs: number
 ) {

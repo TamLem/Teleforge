@@ -44,10 +44,21 @@ export function responseFromState(response: BffResponseState, requestId = "unkno
     response.body instanceof Blob ||
     response.body instanceof FormData ||
     response.body instanceof URLSearchParams ||
-    response.body instanceof ReadableStream ||
-    ArrayBuffer.isView(response.body)
+    response.body instanceof ReadableStream
   ) {
     return new Response(response.body, {
+      headers,
+      status: response.status
+    });
+  }
+
+  if (ArrayBuffer.isView(response.body)) {
+    const bytes = new Uint8Array(response.body.byteLength);
+    bytes.set(
+      new Uint8Array(response.body.buffer, response.body.byteOffset, response.body.byteLength)
+    );
+
+    return new Response(bytes, {
       headers,
       status: response.status
     });
