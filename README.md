@@ -65,6 +65,8 @@ node packages/devtools/dist/cli.js mock
 node packages/devtools/dist/cli.js doctor
 ```
 
+`teleforge dev:https` defaults to Cloudflare Tunnel for Telegram-facing local testing.
+
 ### Web Hooks
 
 ```ts

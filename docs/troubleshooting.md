@@ -87,6 +87,7 @@ Symptoms:
 - rerun `teleforge dev:https` to regenerate local certs if needed
 - remove broken local cert files and rerun the command if certificate generation is corrupted
 - make sure the public URL Telegram opens matches the current HTTPS/tunnel URL
+- if the default Cloudflare quick tunnel cannot start, confirm `cloudflared` is installed or switch providers with `--tunnel-provider localtunnel` or `--tunnel-provider ngrok`
 - if webhook flows are involved, verify `bot.webhook.path` and `bot.webhook.secretEnv`
 
 If the issue is still unclear:

@@ -20,6 +20,8 @@ teleforge doctor
 
 `teleforge dev` now injects the Telegram WebApp mock overlay by default for local browser testing, and `--open` launches the resolved dev URL automatically.
 
+`teleforge dev:https` defaults to Cloudflare Tunnel for Telegram-facing testing. If `cloudflared` is installed, Teleforge will start a quick tunnel against the resolved local HTTPS port. Use `--tunnel-provider localtunnel` or `--tunnel-provider ngrok` to force another provider.
+
 ## Mock Profiles
 
 `teleforge mock` stores saved profiles in `~/.teleforge/profiles/`.

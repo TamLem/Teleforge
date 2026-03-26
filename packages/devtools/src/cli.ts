@@ -217,8 +217,8 @@ Options:
   --qr             Render a terminal QR code
   --webhook        Auto-configure the bot webhook
   --mock           Inject the Telegram WebApp mock overlay
-  --subdomain      Request a tunnel subdomain
-  --tunnel-provider <provider>  Select localtunnel or ngrok
+  --subdomain      Request a tunnel subdomain when supported by the provider
+  --tunnel-provider <provider>  Select cloudflare, localtunnel, or ngrok
   --profile <name> Load a saved mock profile
   --save <name>    Save the current mock state as a profile
   --export <path>  Export the current mock state to JSON
@@ -264,9 +264,11 @@ function toDevHttpsFlags(
         : undefined,
     tunnel: typeof flags.tunnel === "boolean" ? flags.tunnel : true,
     tunnelProvider:
-      tunnelProvider === "ngrok" || tunnelProvider === "localtunnel"
+      tunnelProvider === "cloudflare" ||
+      tunnelProvider === "ngrok" ||
+      tunnelProvider === "localtunnel"
         ? (tunnelProvider as TunnelProvider)
-        : "localtunnel",
+        : "cloudflare",
     webhook: typeof flags.webhook === "boolean" ? flags.webhook : true
   };
 }

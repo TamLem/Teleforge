@@ -169,7 +169,7 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
         https: options.flags.https,
         // Tunnel the port we actually bound, not the user's requested default.
         port: externalPort,
-        provider: options.tunnelProvider ?? "localtunnel",
+        provider: options.tunnelProvider ?? "cloudflare",
         subdomain: options.subdomain
       } satisfies StartTunnelOptions);
     } catch (error) {

@@ -123,6 +123,8 @@ Use `teleforge dev:https` when:
 - you need a public tunnel for Telegram
 - you want webhook/bootstrap behavior closer to a live environment
 
+Cloudflare Tunnel is the default tunnel provider for `teleforge dev:https`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`.
+
 ### Use the Mock Environment
 
 For standalone Telegram context simulation:

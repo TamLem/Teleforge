@@ -150,7 +150,7 @@ teleforge doctor
 Use them like this:
 
 - `teleforge dev`: fast local browser development with Teleforge's Telegram mock overlay
-- `teleforge dev:https`: HTTPS local development for Telegram-facing testing
+- `teleforge dev:https`: HTTPS local development for Telegram-facing testing, using Cloudflare Tunnel by default when public reachability is needed
 - `teleforge mock`: standalone Telegram environment simulation
 - `teleforge doctor`: environment and manifest diagnostics
 
@@ -191,6 +191,8 @@ teleforge dev:https
 ```
 
 Then open the Mini App through your bot entry point.
+
+`teleforge dev:https` prefers Cloudflare Tunnel as the default public tunnel provider. Install `cloudflared` locally for the smoothest path. If you need provider-specific behavior, you can still pass `--tunnel-provider localtunnel` or `--tunnel-provider ngrok`.
 
 Typical flow:
 
