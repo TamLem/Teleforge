@@ -161,8 +161,8 @@ done
 
     const log = await readFile(serviceLogPath, "utf8");
 
-    assert.match(stdout, /Companion services active: api, bot|Companion services active: bot, api/);
-    assert.match(log, new RegExp(`apps[/\\\\]api\\|dev\\|http://localhost:${port}`));
+    assert.match(stdout, /Companion services active: bot/);
+    assert.doesNotMatch(log, /apps[/\\]api\|dev\|/);
     assert.match(log, new RegExp(`apps[/\\\\]bot\\|dev\\|http://localhost:${port}`));
   } finally {
     await cleanup();

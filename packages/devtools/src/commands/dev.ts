@@ -1,10 +1,22 @@
+import { stat } from "node:fs/promises";
+import path from "node:path";
+
+import qrcodeTerminal from "qrcode-terminal";
+
+import { loadManifest } from "../utils/manifest.js";
 import { injectTelegramMock } from "../utils/mock.js";
 import { openBrowser } from "../utils/open.js";
 import { runManagedDevCommand, type SharedCommandFlags } from "../utils/server.js";
+import { type TunnelProvider } from "../utils/tunnel.js";
+import { configureTelegramWebhook } from "../utils/webhook.js";
 
 export interface DevCommandFlags extends SharedCommandFlags {
   mock: boolean;
   open: boolean;
+  qr: boolean;
+  subdomain?: string;
+  tunnelProvider: TunnelProvider;
+  webhook: boolean;
 }
 
 /**
@@ -13,12 +25,27 @@ export interface DevCommandFlags extends SharedCommandFlags {
  */
 export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   let browserOpened = false;
+  const manifest = flags.webhook ? (await loadManifest(flags.cwd)).manifest : undefined;
+  const webhookSupport =
+    flags.webhook && manifest
+      ? await resolveWebhookSupport(flags.cwd, manifest.runtime.webFramework)
+      : undefined;
+
+  if (flags.webhook && (!flags.tunnel || !flags.https)) {
+    throw new Error(
+      "`teleforge dev --webhook` requires `--public` or explicit `--https --tunnel`."
+    );
+  }
+
+  if (flags.webhook && !webhookSupport?.supported) {
+    throw new Error(webhookSupport?.message ?? "Webhook mode is not supported by this workspace.");
+  }
 
   await runManagedDevCommand({
     defaultPort: 3000,
     flags,
     htmlTransformer: flags.mock ? injectTelegramMock : undefined,
-    onStarted(context) {
+    onStarted: async (context) => {
       console.log(
         `✓ Validated teleforge.app.json (${context.manifest.runtime.mode.toUpperCase()} mode, ${context.manifest.runtime.webFramework})`
       );
@@ -48,6 +75,36 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
         console.log(`✓ Companion services active: ${context.companionServices.join(", ")}`);
       }
 
+      if (context.tunnelUrl) {
+        console.log(`✓ Public tunnel active: ${context.tunnelUrl}`);
+      }
+
+      if (flags.qr) {
+        const qrTarget = context.tunnelUrl ?? context.url;
+        console.log("");
+        console.log("Scan with Telegram mobile to test:");
+        qrcodeTerminal.generate(qrTarget, { small: true });
+        console.log(qrTarget);
+      }
+
+      if (flags.webhook) {
+        if (context.tunnelUrl) {
+          const result = await configureTelegramWebhook({
+            env: context.env,
+            manifest: context.manifest,
+            tunnelUrl: context.tunnelUrl
+          });
+          console.log(
+            result.status === "configured" ? `✓ ${result.message}` : `Warning: ${result.message}`
+          );
+          if (result.warning) {
+            console.log(`Warning: ${result.warning}`);
+          }
+        } else {
+          console.log("Warning: Tunnel is unavailable, so webhook auto-configuration was skipped.");
+        }
+      }
+
       if (flags.open && !browserOpened) {
         browserOpened = true;
         void openBrowser(context.url)
@@ -64,16 +121,75 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
       console.log("");
       console.log("Ready for Telegram Mini App development!");
 
-      if (context.tunnelUrl) {
-        console.log("");
-        console.log(`Webhook tunnel active: ${context.tunnelUrl}/api/webhook`);
-      }
-
       if (context.tunnelWarning) {
         console.log("");
         console.log(`Warning: ${context.tunnelWarning}`);
       }
     },
-    requiredEnv: []
+    requiredEnv: [],
+    subdomain: flags.subdomain,
+    tunnelProvider: flags.tunnelProvider
   });
+}
+
+interface WebhookSupportResult {
+  message?: string;
+  supported: boolean;
+}
+
+async function resolveWebhookSupport(
+  cwd: string,
+  webFramework: "vite" | "nextjs" | "custom"
+): Promise<WebhookSupportResult> {
+  if (webFramework !== "nextjs") {
+    return {
+      message:
+        "Webhook mode currently requires a Next.js/BFF web runtime that serves /api/webhook through apps/web.",
+      supported: false
+    };
+  }
+
+  const webDirectory = path.join(cwd, "apps", "web");
+  const routeCandidates = [
+    path.join(webDirectory, "app", "api", "webhook", "route.ts"),
+    path.join(webDirectory, "app", "api", "webhook", "route.tsx"),
+    path.join(webDirectory, "app", "api", "webhook", "route.js"),
+    path.join(webDirectory, "app", "api", "webhook", "route.mjs"),
+    path.join(webDirectory, "pages", "api", "webhook.ts"),
+    path.join(webDirectory, "pages", "api", "webhook.tsx"),
+    path.join(webDirectory, "pages", "api", "webhook.js"),
+    path.join(webDirectory, "pages", "api", "webhook.mjs")
+  ];
+
+  try {
+    const webStats = await stat(webDirectory);
+    if (!webStats.isDirectory()) {
+      return {
+        message: "Webhook mode requires an apps/web workspace with a runnable /api/webhook route.",
+        supported: false
+      };
+    }
+  } catch {
+    return {
+      message: "Webhook mode requires an apps/web workspace with a runnable /api/webhook route.",
+      supported: false
+    };
+  }
+
+  for (const candidate of routeCandidates) {
+    try {
+      const routeStats = await stat(candidate);
+      if (routeStats.isFile()) {
+        return { supported: true };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return {
+    message:
+      "Webhook mode requires apps/web/app/api/webhook/route.* or apps/web/pages/api/webhook.* before enabling --webhook.",
+    supported: false
+  };
 }

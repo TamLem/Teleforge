@@ -66,7 +66,7 @@ Related docs:
 - [Developer Guide](./developer-guide.md)
 - [Manifest Reference](./manifest-reference.md)
 
-## `teleforge dev:https` or Local HTTPS Fails
+## `teleforge dev --public --live` or Local HTTPS Fails
 
 Symptoms:
 
@@ -80,11 +80,11 @@ Symptoms:
 2. Confirm your manifest is valid.
 3. Confirm local ports are free.
 4. Check that your app entry point exists.
-5. If you need Telegram-facing access, confirm you are using `teleforge dev:https`, not only `teleforge dev`.
+5. If you need Telegram-facing access, confirm you are using `teleforge dev --public --live`, not only `teleforge dev`.
 
 ### Fixes
 
-- rerun `teleforge dev:https` to regenerate local certs if needed
+- rerun `teleforge dev --public --live` to regenerate local certs if needed
 - remove broken local cert files and rerun the command if certificate generation is corrupted
 - make sure the public URL Telegram opens matches the current HTTPS/tunnel URL
 - if the default Cloudflare quick tunnel cannot start, confirm `cloudflared` is installed or switch providers with `--tunnel-provider localtunnel` or `--tunnel-provider ngrok`
@@ -183,7 +183,7 @@ Symptoms:
 ### Checklist
 
 - is the URL HTTPS and publicly reachable?
-- did you use `teleforge dev:https` rather than only `teleforge dev`?
+- did you use `teleforge dev --public --live` rather than only `teleforge dev`?
 - does the bot send the correct Mini App URL?
 - does `MINI_APP_URL` match the URL you expect Telegram to open?
 - is the bot command or button actually wired to the current app?
@@ -229,7 +229,7 @@ Symptoms:
 ### Fixes
 
 - verify core flows once in a real Telegram client
-- use `teleforge dev:https` for client-facing checks
+- use `teleforge dev --public --live` for client-facing checks
 - keep mock-only UI actions clearly separated from Telegram-native behavior
 
 ## When to Escalate From Docs to Code

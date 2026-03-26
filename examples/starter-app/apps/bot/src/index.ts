@@ -1,4 +1,8 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
+import https from "node:https";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   createBotRuntime,
@@ -6,10 +10,13 @@ import {
   type RegisteredCommand,
   type ReplyOptions,
   type TelegramMessage,
+  type TelegramReplyMarkup,
   type TelegramUpdate
 } from "@teleforge/bot";
 
-const miniAppUrl = process.env.MINI_APP_URL ?? "https://example.ngrok.app";
+loadStarterEnv();
+
+const miniAppUrl = readNonEmptyEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
 
 async function main() {
   const runtime = createBotRuntime();
@@ -27,8 +34,8 @@ async function main() {
     }
   ]);
 
-  const token = process.env.BOT_TOKEN;
-  if (!hasRealToken(token)) {
+  const token = readNonEmptyEnv("BOT_TOKEN");
+  if (!hasUsableToken(token)) {
     await runPreview(runtime);
     keepProcessAlive();
     return;
@@ -36,10 +43,13 @@ async function main() {
 
   const bot = createPollingBot(token);
   runtime.bindBot(bot);
-  await bot.setCommands(runtime.getCommands());
+  const commands = runtime.getCommands();
+  await bot.setCommands(commands);
 
   let offset: number | undefined;
-  console.log("[starter-app:bot] polling Telegram for updates");
+  console.log(
+    `[starter-app:bot] polling Telegram for updates (${commands.length} commands registered)`
+  );
 
   for (;;) {
     const updates = await bot.getUpdates(offset);
@@ -58,7 +68,7 @@ main().catch((error) => {
 
 async function runPreview(runtime: ReturnType<typeof createBotRuntime>) {
   runtime.bindBot({
-    async sendMessage(chatId, text, options) {
+    async sendMessage(chatId, text, options = {}) {
       const payload = {
         chatId,
         options,
@@ -98,19 +108,8 @@ async function runPreview(runtime: ReturnType<typeof createBotRuntime>) {
 
 function keepProcessAlive() {
   setInterval(() => {
-    // Keep preview mode alive so the root `pnpm dev` process keeps both services running.
+    // Keep preview mode alive so `teleforge dev` keeps both services running.
   }, 60_000);
-}
-
-function hasRealToken(value: string | undefined): value is string {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return (
-    normalized.length > 0 && !normalized.includes("your_") && !normalized.includes("placeholder")
-  );
 }
 
 interface PollingBot extends BotInstance {
@@ -133,12 +132,12 @@ function createPollingBot(token: string): PollingBot {
     async sendMessage(
       chatId: number,
       text: string,
-      options?: ReplyOptions
+      options: ReplyOptions = {}
     ): Promise<TelegramMessage> {
       return callTelegramApi<TelegramMessage>(apiBaseUrl, "sendMessage", {
         chat_id: chatId,
         text,
-        ...options
+        ...toTelegramSendMessageOptions(options)
       });
     },
     async setCommands(commands: RegisteredCommand[]) {
@@ -157,22 +156,158 @@ async function callTelegramApi<TResponse>(
   method: string,
   body: Record<string, unknown>
 ): Promise<TResponse> {
-  const response = await fetch(`${apiBaseUrl}/${method}`, {
-    body: JSON.stringify(body),
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
-  const payload = (await response.json()) as {
-    description?: string;
-    ok?: boolean;
-    result?: TResponse;
-  };
+  let lastError: unknown;
 
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.description ?? `Telegram API ${method} failed`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await postJson(`${apiBaseUrl}/${method}`, body);
+      const payload = JSON.parse(response.body) as {
+        description?: string;
+        ok?: boolean;
+        result?: TResponse;
+      };
+
+      if (response.statusCode < 200 || response.statusCode >= 300 || !payload.ok) {
+        throw new Error(payload.description ?? `Telegram API ${method} failed`);
+      }
+
+      return payload.result as TResponse;
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableTelegramNetworkError(error) || attempt === 3) {
+        break;
+      }
+
+      await sleep(attempt * 500);
+    }
   }
 
-  return payload.result as TResponse;
+  if (lastError instanceof Error) {
+    throw new Error(`Telegram API ${method} failed: ${lastError.message}`, { cause: lastError });
+  }
+
+  throw new Error(`Telegram API ${method} failed`);
+}
+
+function toTelegramSendMessageOptions(options: ReplyOptions): Record<string, unknown> {
+  return {
+    disable_web_page_preview: options.disable_web_page_preview,
+    parse_mode: options.parse_mode,
+    reply_markup: serializeReplyMarkup(options.reply_markup),
+    reply_to_message_id: options.reply_to_message_id
+  };
+}
+
+function serializeReplyMarkup(markup?: TelegramReplyMarkup): TelegramReplyMarkup | undefined {
+  return markup ? { inline_keyboard: markup.inline_keyboard } : undefined;
+}
+
+interface JsonResponse {
+  body: string;
+  statusCode: number;
+}
+
+function postJson(url: string, body: Record<string, unknown>): Promise<JsonResponse> {
+  const payload = JSON.stringify(body);
+  const target = new URL(url);
+  const timeoutSeconds = typeof body.timeout === "number" ? body.timeout : 0;
+  const timeoutMs = Math.max(10_000, (timeoutSeconds + 10) * 1_000);
+
+  return new Promise<JsonResponse>((resolve, reject) => {
+    const request = https.request(
+      {
+        family: 4,
+        headers: {
+          "content-length": Buffer.byteLength(payload),
+          "content-type": "application/json"
+        },
+        hostname: target.hostname,
+        method: "POST",
+        path: `${target.pathname}${target.search}`,
+        port: target.port ? Number(target.port) : 443
+      },
+      (response) => {
+        let responseBody = "";
+
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          responseBody += chunk;
+        });
+        response.on("end", () => {
+          resolve({
+            body: responseBody,
+            statusCode: response.statusCode ?? 0
+          });
+        });
+      }
+    );
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`Telegram API request timed out after ${timeoutMs}ms.`));
+    });
+    request.on("error", (error) => {
+      reject(error);
+    });
+    request.write(payload);
+    request.end();
+  });
+}
+
+function isRetryableTelegramNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const nodeError = error as Error & { code?: string };
+  return (
+    nodeError.code === "ECONNRESET" ||
+    nodeError.code === "ENETUNREACH" ||
+    nodeError.code === "ETIMEDOUT" ||
+    error.message.includes("timed out")
+  );
+}
+
+function sleep(timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, timeoutMs);
+  });
+}
+
+function loadStarterEnv() {
+  const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const envPaths = [resolve(workspaceRoot, ".env"), resolve(workspaceRoot, ".env.local")];
+
+  for (const envPath of envPaths) {
+    if (!existsSync(envPath)) {
+      continue;
+    }
+
+    loadDotenv({
+      override: envPath.endsWith(".env.local"),
+      path: envPath
+    });
+  }
+}
+
+function readNonEmptyEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function hasUsableToken(value: string | undefined): value is string {
+  if (!value) {
+    return false;
+  }
+
+  const trimmed = value.trim();
+  const normalized = trimmed.toLowerCase();
+  return (
+    trimmed.includes(":") && !normalized.includes("your_") && !normalized.includes("placeholder")
+  );
 }

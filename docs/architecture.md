@@ -326,7 +326,7 @@ The reference implementation for this lifecycle is `apps/task-shop`.
 It provides:
 
 - `teleforge dev` for local web development with Telegram mock injection
-- `teleforge dev:https` for HTTPS and tunnel-based Telegram testing
+- `teleforge dev --public --live` for HTTPS and tunnel-based Telegram testing
 - `teleforge mock` for standalone Telegram environment simulation
 - `teleforge doctor` for environment and manifest diagnostics
 

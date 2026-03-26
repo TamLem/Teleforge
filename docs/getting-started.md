@@ -142,15 +142,15 @@ Teleforge's main local-dev commands are:
 
 ```bash
 teleforge dev
-teleforge dev:https
+teleforge dev --public --live
 teleforge mock
 teleforge doctor
 ```
 
 Use them like this:
 
-- `teleforge dev`: fast local browser development with Teleforge's Telegram mock overlay and any companion `apps/*` `dev` services
-- `teleforge dev:https`: HTTPS local development for Telegram-facing testing, using Cloudflare Tunnel by default when public reachability is needed
+- `teleforge dev`: fast local browser development with Teleforge's Telegram mock overlay and any companion `apps/bot` `dev` service
+- `teleforge dev --public --live`: HTTPS local development for Telegram-facing testing, using Cloudflare Tunnel by default when public reachability is needed
 - `teleforge mock`: standalone Telegram environment simulation
 - `teleforge doctor`: environment and manifest diagnostics
 
@@ -164,7 +164,7 @@ You should see:
 
 - Teleforge validate `teleforge.app.json`
 - the app boot in a normal browser
-- companion bot/API dev processes start when the workspace defines them
+- the companion bot dev process start when the workspace defines it
 - Telegram-like theme and viewport state injected by the mock bridge
 
 ## 4. Create a Telegram Bot
@@ -185,20 +185,20 @@ At minimum, the bot configuration in `teleforge.app.json` must line up with your
 
 ## 5. Open in Telegram
 
-Use `teleforge dev:https` when you need a Telegram-openable URL:
+Use `teleforge dev --public --live` when you need a Telegram-openable URL:
 
 ```bash
-teleforge dev:https
+teleforge dev --public --live
 ```
 
 Then open the Mini App through your bot entry point.
 
-`teleforge dev:https` prefers Cloudflare Tunnel as the default public tunnel provider. Install `cloudflared` locally for the smoothest path. If you need provider-specific behavior, you can still pass `--tunnel-provider localtunnel` or `--tunnel-provider ngrok`.
+`teleforge dev --public --live` prefers Cloudflare Tunnel as the default public tunnel provider. Install `cloudflared` locally for the smoothest path. If you need provider-specific behavior, you can still pass `--tunnel-provider localtunnel` or `--tunnel-provider ngrok`. `teleforge dev:https` remains available as a compatibility alias.
 
 Typical flow:
 
 1. Start the bot runtime.
-2. Start `teleforge dev:https`.
+2. Start `teleforge dev --public --live`.
 3. Send `/start` to your bot in Telegram.
 4. Tap the Mini App button or menu button.
 

@@ -13,14 +13,14 @@ npm install -D @teleforge/devtools
 ```bash
 teleforge dev
 teleforge dev --open
-teleforge dev:https
+teleforge dev --public --live
 teleforge mock
 teleforge doctor
 ```
 
-`teleforge dev` now injects the Telegram WebApp mock overlay by default for local browser testing, launches companion `apps/*` services that expose a `dev` script, and `--open` launches the resolved dev URL automatically.
+`teleforge dev` is the primary local-development command. It injects the Telegram WebApp mock overlay by default for local browser testing, launches the companion `apps/bot` service when the workspace exposes a `dev` script, and `--open` launches the resolved dev URL automatically.
 
-`teleforge dev:https` defaults to Cloudflare Tunnel for Telegram-facing testing. If `cloudflared` is installed, Teleforge will start a quick tunnel against the resolved local HTTPS port and reuse the same companion-service behavior as `teleforge dev`. Use `--tunnel-provider localtunnel` or `--tunnel-provider ngrok` to force another provider.
+Use `teleforge dev --public --live` for Telegram-facing testing. If `cloudflared` is installed, Teleforge starts a quick tunnel against the resolved local HTTPS port and reuses the same companion-service behavior as `teleforge dev`. Use `--tunnel-provider localtunnel` or `--tunnel-provider ngrok` to force another provider. `teleforge dev:https` remains as a legacy alias for the same mode.
 
 ## Mock Profiles
 

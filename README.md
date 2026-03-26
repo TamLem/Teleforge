@@ -21,7 +21,7 @@ If you are new to the repo, start here:
 - `packages/bot`: command routing, WebApp data handling, and webhook helpers
 - `packages/bff`: Telegram-aware BFF routes, adapters, context, and session/auth helpers
 - `packages/create-teleforge-app`: DX-002 scaffold generator
-- `packages/devtools`: `teleforge dev`, `teleforge dev:https`, `teleforge mock`, and `teleforge doctor`
+- `packages/devtools`: `teleforge dev`, `teleforge mock`, and `teleforge doctor`
 - `packages/ui`: Telegram-native React UI components
 - `packages/web`: React hooks and Telegram WebApp types for Mini Apps
 
@@ -60,12 +60,12 @@ node packages/create-teleforge-app/dist/cli.js my-bff-app --mode bff
 
 ```bash
 node packages/devtools/dist/cli.js dev
-node packages/devtools/dist/cli.js dev:https
+node packages/devtools/dist/cli.js dev --public --live
 node packages/devtools/dist/cli.js mock
 node packages/devtools/dist/cli.js doctor
 ```
 
-`teleforge dev:https` defaults to Cloudflare Tunnel for Telegram-facing local testing.
+`teleforge dev` is the primary local workflow. Add `--public --live` for Telegram-facing local testing; Cloudflare Tunnel is the default provider. `teleforge dev:https` remains as a legacy alias.
 
 ### Web Hooks
 

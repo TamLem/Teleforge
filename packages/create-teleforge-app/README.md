@@ -20,7 +20,7 @@ Interactive mode is supported when `--mode` or the target directory is omitted.
 - `apps/api` starter routes and webhook placeholder
 - `teleforge.app.json`
 - `.env.example`
-- root workspace scripts for `teleforge dev`, `teleforge dev:https`, and `teleforge doctor`
+- root workspace scripts for `teleforge dev`, `teleforge dev --public --live`, and `teleforge doctor`
 
 ## Verification
 

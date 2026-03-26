@@ -108,7 +108,7 @@ Use Teleforge devtools for the web surface:
 ```bash
 teleforge dev
 teleforge dev --open
-teleforge dev:https
+teleforge dev --public --live
 ```
 
 Use `teleforge dev` when:
@@ -117,15 +117,15 @@ Use `teleforge dev` when:
 - Teleforge's Telegram mock overlay is enough
 - you do not need a Telegram-pasteable HTTPS URL yet
 
-If your workspace has companion `apps/*` packages with a `dev` script, Teleforge starts those alongside the Mini App so the local command covers more of the stack by default.
+If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default.
 
-Use `teleforge dev:https` when:
+Use `teleforge dev --public --live` when:
 
 - you need HTTPS locally
 - you need a public tunnel for Telegram
-- you want webhook/bootstrap behavior closer to a live environment
+- you want Telegram-facing behavior instead of the mock bridge
 
-Cloudflare Tunnel is the default tunnel provider for `teleforge dev:https`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`.
+Cloudflare Tunnel is the default tunnel provider for `teleforge dev --public --live`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`. `teleforge dev:https` remains available as a compatibility alias.
 
 ### Use the Mock Environment
 
@@ -215,7 +215,7 @@ Use BFF for Telegram-aware backend routes:
 Use devtools for local iteration and diagnostics:
 
 - `teleforge dev`
-- `teleforge dev:https`
+- `teleforge dev --public --live`
 - `teleforge mock`
 - `teleforge doctor`
 

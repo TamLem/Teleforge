@@ -77,6 +77,26 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (arg === "--public") {
+      flags.public = true;
+      continue;
+    }
+
+    if (arg === "--no-public") {
+      flags.public = false;
+      continue;
+    }
+
+    if (arg === "--live") {
+      flags.live = true;
+      continue;
+    }
+
+    if (arg === "--no-live") {
+      flags.live = false;
+      continue;
+    }
+
     if (arg === "--qr") {
       flags.qr = true;
       continue;
@@ -204,18 +224,20 @@ function printHelp(): void {
 
 Usage:
   teleforge dev [options]
-  teleforge dev:https [options]
+  teleforge dev:https [options]  Legacy alias for \`teleforge dev --public --live\`
   teleforge mock [options]
   teleforge doctor [options]
 
 Options:
   --port <number>  Override the external dev port
   --open           Open the dev URL in the default browser
-  --https          Enable HTTPS (default)
-  --no-https       Disable HTTPS proxying
-  --tunnel         Enable a webhook tunnel
+  --public         Expose the Mini App through HTTPS and a public tunnel
+  --live           Disable the Telegram mock overlay for real Telegram sessions
+  --https          Enable HTTPS explicitly
+  --no-https       Disable HTTPS proxying explicitly
+  --tunnel         Enable tunneling explicitly
   --qr             Render a terminal QR code
-  --webhook        Auto-configure the bot webhook
+  --webhook        Auto-configure the bot webhook when a local webhook service exists
   --mock           Inject the Telegram WebApp mock overlay
   --subdomain      Request a tunnel subdomain when supported by the provider
   --tunnel-provider <provider>  Select cloudflare, localtunnel, or ngrok
@@ -233,43 +255,39 @@ Options:
 
 function toDevFlags(flags: Record<string, string | boolean>): Omit<DevCommandFlags, "cwd"> {
   const portValue = flags.port;
+  const publicMode = typeof flags.public === "boolean" ? flags.public : false;
+  const liveMode = typeof flags.live === "boolean" ? flags.live : false;
+  const tunnelProvider = flags.tunnelProvider;
   return {
-    mock: typeof flags.mock === "boolean" ? flags.mock : true,
+    mock: typeof flags.mock === "boolean" ? flags.mock : liveMode ? false : true,
     open: typeof flags.open === "boolean" ? flags.open : false,
     port:
       typeof portValue === "string" && portValue.length > 0
         ? Number.parseInt(portValue, 10)
         : undefined,
-    https: typeof flags.https === "boolean" ? flags.https : true,
-    tunnel: typeof flags.tunnel === "boolean" ? flags.tunnel : false
-  };
-}
-
-function toDevHttpsFlags(
-  flags: Record<string, string | boolean>
-): Omit<DevHttpsCommandFlags, "cwd"> {
-  const tunnelProvider = flags.tunnelProvider;
-
-  return {
-    https: true,
-    mock: typeof flags.mock === "boolean" ? flags.mock : true,
-    port:
-      typeof flags.port === "string" && flags.port.length > 0
-        ? Number.parseInt(flags.port, 10)
-        : undefined,
-    qr: typeof flags.qr === "boolean" ? flags.qr : true,
+    https: publicMode ? true : typeof flags.https === "boolean" ? flags.https : false,
+    qr: typeof flags.qr === "boolean" ? flags.qr : publicMode,
     subdomain:
       typeof flags.subdomain === "string" && flags.subdomain.length > 0
         ? flags.subdomain
         : undefined,
-    tunnel: typeof flags.tunnel === "boolean" ? flags.tunnel : true,
+    tunnel: publicMode ? true : typeof flags.tunnel === "boolean" ? flags.tunnel : false,
     tunnelProvider:
       tunnelProvider === "cloudflare" ||
       tunnelProvider === "ngrok" ||
       tunnelProvider === "localtunnel"
         ? (tunnelProvider as TunnelProvider)
         : "cloudflare",
-    webhook: typeof flags.webhook === "boolean" ? flags.webhook : true
+    webhook: typeof flags.webhook === "boolean" ? flags.webhook : false
+  };
+}
+
+function toDevHttpsFlags(
+  flags: Record<string, string | boolean>
+): Omit<DevHttpsCommandFlags, "cwd"> {
+  return {
+    ...toDevFlags(flags),
+    open: typeof flags.open === "boolean" ? flags.open : false
   };
 }
 

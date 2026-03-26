@@ -297,6 +297,10 @@ async function discoverCompanionServices(cwd: string): Promise<CompanionServiceD
         continue;
       }
 
+      if (entry.name !== "bot") {
+        continue;
+      }
+
       const serviceDirectory = path.join(appsDirectory, entry.name);
       const manifestPath = path.join(serviceDirectory, "package.json");
 

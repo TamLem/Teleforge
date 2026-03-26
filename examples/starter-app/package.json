@@ -7,10 +7,9 @@
   "scripts": {
     "build:bot": "tsc -p apps/bot/tsconfig.json",
     "build:web": "cd apps/web && vite build",
-    "dev": "concurrently -k -n web,bot \"pnpm run dev:web\" \"pnpm run dev:bot\"",
+    "dev": "teleforge dev --open",
     "dev:bot": "tsx watch apps/bot/src/index.ts",
-    "dev:https": "concurrently -k -n web,bot \"teleforge dev:https\" \"pnpm run dev:bot\"",
-    "dev:web": "teleforge dev --no-https --open",
+    "dev:public": "teleforge dev --public --live",
     "doctor": "teleforge doctor"
   },
   "dependencies": {
@@ -28,7 +27,6 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",
-    "concurrently": "^9.1.2",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3",
     "vite": "^5.4.10"

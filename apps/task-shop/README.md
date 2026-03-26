@@ -38,7 +38,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-`pnpm dev` now runs `teleforge dev:https --no-webhook`, which starts the Vite Mini App, a public tunnel, and the companion bot process together. The Task Shop sample bot uses polling, so webhook auto-configuration stays off by default.
+`pnpm dev` now runs `teleforge dev --public --live`, which starts the Vite Mini App, a public tunnel, and the companion bot process together. The Task Shop sample bot uses polling, so webhook auto-configuration stays off by default.
 
 If you only want local browser development without a tunnel, use:
 
