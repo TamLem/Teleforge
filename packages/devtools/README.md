@@ -31,6 +31,7 @@ teleforge doctor
 - the companion `apps/bot` service when the workspace exposes a `dev` script
 
 `--open` launches the simulator automatically.
+The Mini App starts closed by default so the chat flow remains the primary entry path; use `/start`, a `web_app` button, or `Open App` to launch it. Pass `--autoload-app` when you want the iframe to boot immediately for UI-only iteration.
 
 If a workspace does not expose `apps/bot/src/runtime.ts`, the simulator falls back to manifest-driven chat behavior for `/start`, `/help`, and transcript-level Mini App opens.
 

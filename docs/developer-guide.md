@@ -133,11 +133,18 @@ If your workspace has a companion `apps/bot` package with a `dev` script, Telefo
 
 The current simulator-first workflow is:
 
+- land in a chat-first shell with the Mini App closed by default
 - use built-in fixtures to jump to known Telegram-like states quickly
 - drive commands, callbacks, and `web_app_data` from the chat pane
 - inspect the right-side debug panel for active scenario, latest event, and live profile state
 - save a scenario when a flow becomes worth keeping
 - use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
+
+When you want the old UI-first behavior for fast frontend iteration, use:
+
+```bash
+teleforge dev --autoload-app
+```
 
 When the embedded Mini App itself fails, Teleforge now treats that as a first-class dev signal:
 

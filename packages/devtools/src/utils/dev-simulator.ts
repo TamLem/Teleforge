@@ -20,6 +20,7 @@ import {
 import type { TeleforgeManifest } from "./manifest.js";
 
 export interface DevSimulatorOptions {
+  autoloadApp?: boolean;
   appBasePath?: string;
   cwd: string;
   env: NodeJS.ProcessEnv;
@@ -74,10 +75,12 @@ type SimulatorReplayAction =
 export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   const appBasePath = options.appBasePath ?? "/__teleforge/app";
   const apiBasePath = "/__teleforge/api";
+  const autoloadApp = options.autoloadApp ?? false;
   const botToken = options.env.BOT_TOKEN ?? process.env.BOT_TOKEN;
   const manifestCommands = options.manifest.bot.commands ?? [];
   const builtInFixtures = createBuiltInFixtures(options.manifest.name);
   let activeScenarioName: string | null = null;
+  let appOpen = autoloadApp;
   let currentProfile = createDefaultProfile(botToken);
   let lastAction: SimulatorReplayAction | null = null;
   let bridgePromise: Promise<SimulatorBotBridge | null> | undefined;
@@ -176,6 +179,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       }
 
       if (request.method === "POST" && pathname === "/chat/open-app") {
+        appOpen = true;
         lastAction = {
           at: new Date().toISOString(),
           kind: "open_app",
@@ -223,6 +227,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
 
       if (request.method === "POST" && pathname === "/chat/reset") {
         activeScenarioName = null;
+        appOpen = false;
         lastAction = null;
         transcript = [createResetTranscriptEntry(options.manifest.name)];
         sendJson(response, 200, await createStatePayload());
@@ -260,6 +265,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         const scenarioName = decodeURIComponent(pathname.replace("/scenarios/", ""));
         const scenario = await storage.loadScenario(scenarioName);
         activeScenarioName = scenario.name;
+        appOpen = false;
         lastAction = null;
         currentProfile = scenario.profile;
         transcript = scenario.transcript;
@@ -309,6 +315,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       },
       debug: {
         activeScenarioName,
+        appOpen,
         commandCount: commandHints.length,
         latestEvent: eventLog[0] ?? null,
         lastAction,
@@ -518,6 +525,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
 
   function applyFixture(fixture: SimulatorFixtureDefinition) {
     activeScenarioName = `Fixture: ${fixture.name}`;
+    appOpen = false;
     lastAction = null;
     currentProfile = mergeProfile(createDefaultProfile(botToken), fixture.patch, botToken);
     transcript = [
@@ -557,6 +565,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       return;
     }
 
+    appOpen = true;
     lastAction = {
       at: new Date().toISOString(),
       kind: "open_app",
@@ -851,6 +860,30 @@ function createSimulatorUiHtml(options: {
         border: 0;
         background: #ffffff;
       }
+      .app-stage {
+        display: grid;
+        gap: 0.9rem;
+      }
+      .app-empty {
+        min-height: 72vh;
+        border-radius: 18px;
+        border: 1px dashed rgba(19, 32, 51, 0.18);
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(238, 243, 248, 0.96));
+        color: #45556e;
+        padding: 2rem;
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+      .app-empty p {
+        max-width: 28rem;
+        line-height: 1.6;
+      }
+      .app-frame[hidden],
+      .app-empty[hidden] {
+        display: none;
+      }
       .controls {
         display: grid;
         gap: 0.85rem;
@@ -948,7 +981,19 @@ function createSimulatorUiHtml(options: {
             <div class="status" id="simulator-status">Loading simulator state…</div>
           </section>
           <section>
-            <iframe id="app-frame" class="app-frame" src="${options.appBasePath}/" title="Teleforge Mini App"></iframe>
+            <div class="app-stage">
+              <div id="app-empty" class="app-empty">
+                <p>Mini App idle. Send <code>/start</code>, click a <code>web_app</code> button, or use <strong>Open App</strong> when you want to launch the embedded app.</p>
+              </div>
+              <iframe
+                id="app-frame"
+                class="app-frame"
+                src="about:blank"
+                data-app-src="${options.appBasePath}/"
+                title="Teleforge Mini App"
+                hidden
+              ></iframe>
+            </div>
           </section>
         </section>
         <aside class="pane">
@@ -1017,6 +1062,7 @@ function createSimulatorUiHtml(options: {
 
       const ids = {
         appFrame: document.getElementById("app-frame"),
+        appEmpty: document.getElementById("app-empty"),
         appVersion: document.getElementById("app-version"),
         chatInput: document.getElementById("chat-input"),
         colorScheme: document.getElementById("color-scheme"),
@@ -1068,9 +1114,44 @@ function createSimulatorUiHtml(options: {
         ids.simulatorStatus.textContent = message;
       }
 
-      async function inspectAppFrameResponse() {
+      function getDefaultAppSrc() {
+        return ids.appFrame.dataset.appSrc || appBasePath + "/";
+      }
+
+      function getCurrentAppSrc() {
         const frameUrl = ids.appFrame.getAttribute("src");
-        if (!frameUrl) {
+        if (frameUrl && frameUrl !== "about:blank") {
+          return frameUrl;
+        }
+        return getDefaultAppSrc();
+      }
+
+      function setAppFrameSource(nextUrl) {
+        ids.appFrame.dataset.appSrc = nextUrl;
+        if (ids.appFrame.getAttribute("src") !== nextUrl) {
+          ids.appFrame.setAttribute("src", nextUrl);
+        }
+      }
+
+      function syncAppVisibility(appIsOpen) {
+        ids.appFrame.hidden = !appIsOpen;
+        ids.appEmpty.hidden = appIsOpen;
+
+        if (appIsOpen) {
+          setAppFrameSource(getDefaultAppSrc());
+          return;
+        }
+
+        ids.appFrame.setAttribute("src", "about:blank");
+      }
+
+      async function inspectAppFrameResponse() {
+        if (!currentState?.debug?.appOpen) {
+          return;
+        }
+
+        const frameUrl = ids.appFrame.getAttribute("src");
+        if (!frameUrl || frameUrl === "about:blank") {
           return;
         }
 
@@ -1117,6 +1198,7 @@ function createSimulatorUiHtml(options: {
         ids.debugSummary.textContent = [
           "Mode: " + (payload.chat?.mode || "manifest"),
           "Commands: " + String(debug.commandCount ?? payload.chat?.commandHints?.length ?? 0),
+          "Mini App Open: " + String(Boolean(debug.appOpen)),
           "Mini App URL: " + (debug.miniAppUrl || appBasePath + "/"),
           "Active Scenario: " + (debug.activeScenarioName || "None"),
           "Scenario Storage: " + (debug.scenarioStoragePath || "Unavailable"),
@@ -1209,7 +1291,7 @@ function createSimulatorUiHtml(options: {
               action.className = button.kind === "callback" ? "secondary" : "";
               action.addEventListener("click", async () => {
                 if (button.kind === "web_app") {
-                  ids.appFrame.src = button.value;
+                  setAppFrameSource(button.value);
                   await request("/chat/open-app", { method: "POST" }).then(renderState);
                   return;
                 }
@@ -1254,14 +1336,19 @@ function createSimulatorUiHtml(options: {
         renderDebug(payload);
         renderFixtures(payload.fixtures);
         renderScenarios(payload.scenarios);
-        setStatus("Simulator ready.");
-        postToApp({
-          profile: payload.profile,
-          type: "sync-profile"
-        });
-        queueMicrotask(() => {
-          void inspectAppFrameResponse();
-        });
+        syncAppVisibility(Boolean(payload.debug?.appOpen));
+        if (payload.debug?.appOpen) {
+          setStatus("Simulator ready.");
+          postToApp({
+            profile: payload.profile,
+            type: "sync-profile"
+          });
+          queueMicrotask(() => {
+            void inspectAppFrameResponse();
+          });
+        } else {
+          setStatus("Mini App idle. Use /start, a web_app button, or Open App to launch it.");
+        }
         return payload;
       }
 
@@ -1315,7 +1402,7 @@ function createSimulatorUiHtml(options: {
       });
 
       document.getElementById("open-app").addEventListener("click", async () => {
-        ids.appFrame.src = appBasePath + "/";
+        ids.appFrame.dataset.appSrc = appBasePath + "/";
         await request("/chat/open-app", { method: "POST" }).then(renderState);
       });
 
@@ -1361,7 +1448,12 @@ function createSimulatorUiHtml(options: {
       });
 
       document.getElementById("reload-app").addEventListener("click", () => {
-        ids.appFrame.src = appBasePath + "/";
+        ids.appFrame.dataset.appSrc = appBasePath + "/";
+        if (currentState?.debug?.appOpen) {
+          setAppFrameSource(appBasePath + "/");
+          return;
+        }
+        void request("/chat/open-app", { method: "POST" }).then(renderState);
       });
 
       document.querySelectorAll("[data-event]").forEach((button) => {
@@ -1396,6 +1488,9 @@ function createSimulatorUiHtml(options: {
       });
 
       ids.appFrame.addEventListener("load", () => {
+        if (!currentState?.debug?.appOpen) {
+          return;
+        }
         if (currentState?.profile) {
           postToApp({
             profile: currentState.profile,

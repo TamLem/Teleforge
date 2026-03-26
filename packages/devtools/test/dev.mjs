@@ -92,7 +92,9 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
     const openLog = await readFile(openLogPath, "utf8");
 
     assert.match(html, /Teleforge Simulator/);
-    assert.match(html, /__teleforge\/app\//);
+    assert.match(html, /Mini App idle\./);
+    assert.match(html, /src="about:blank"/);
+    assert.match(html, /data-app-src="\/__teleforge\/app\/"/);
     assert.match(appHtml, /data-teleforge-mock="true"/);
     assert.match(appHtml, /setText\(text\)/);
     assert.match(appHtml, /showProgress\(leaveActive = false\)/);
@@ -100,6 +102,7 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
     assert.match(appHtml, /disable\(\)/);
     assert.match(appHtml, /enable\(\)/);
     assert.equal(statePayload.profile.appContext.launchMode, "inline");
+    assert.equal(statePayload.debug.appOpen, false);
     assert.match(stdout, /Loaded env overrides from \.env\.local/);
     assert.match(openLog, new RegExp(`http://localhost:${port}`));
   } finally {
@@ -107,7 +110,7 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
   }
 });
 
-test("help text advertises the --open flag", async () => {
+test("help text advertises the dev convenience flags", async () => {
   const child = spawn("node", [cliPath], {
     cwd: packageRoot,
     stdio: ["ignore", "pipe", "pipe"]
@@ -124,6 +127,7 @@ test("help text advertises the --open flag", async () => {
   child.stderr?.destroy();
   assert.equal(exitCode, 0);
   assert.match(stdout, /--open\s+Open the dev URL in the default browser/);
+  assert.match(stdout, /--autoload-app\s+Load the Mini App iframe immediately on simulator startup/);
 });
 
 test("dev logs upstream app 500 responses for simulator app requests", async () => {
@@ -462,6 +466,15 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(replayEntry?.text, "Callback handled: task:confirm");
     assert.equal(replayState.debug.lastAction.kind, "callback");
 
+    const openedState = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/open-app`, {
+      body: JSON.stringify({}),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+    assert.equal(openedState.debug.appOpen, true);
+
     const savePayload = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/scenarios`, {
       body: JSON.stringify({
         name: "callback-flow"
@@ -482,13 +495,18 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     });
     assert.equal(resetState.transcript.length, 1);
     assert.equal(resetState.debug.activeScenarioName, null);
+    assert.equal(resetState.debug.appOpen, false);
     assert.equal(resetState.debug.lastAction, null);
 
     const loadedScenario = await requestJson(
       `http://127.0.0.1:${port}/__teleforge/api/scenarios/callback-flow.json`
     );
-    assert.equal(loadedScenario.state.transcript.at(-1)?.text, "Callback handled: task:confirm");
+    assert.equal(
+      loadedScenario.state.transcript.at(-1)?.text,
+      "Opened Mini App shell at /__teleforge/app/ using launch mode full."
+    );
     assert.equal(loadedScenario.state.debug.activeScenarioName, "callback-flow");
+    assert.equal(loadedScenario.state.debug.appOpen, false);
     assert.ok(
       loadedScenario.scenarios.some((scenario) => scenario.fileName === "callback-flow.json")
     );

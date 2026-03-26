@@ -12,6 +12,7 @@ import { type TunnelProvider } from "../utils/tunnel.js";
 import { configureTelegramWebhook } from "../utils/webhook.js";
 
 export interface DevCommandFlags extends SharedCommandFlags {
+  autoloadApp: boolean;
   mock: boolean;
   open: boolean;
   qr: boolean;
@@ -36,6 +37,7 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   const simulator =
     flags.mock && loadedManifest
       ? createDevSimulator({
+          autoloadApp: flags.autoloadApp,
           cwd: flags.cwd,
           env: process.env,
           manifest: loadedManifest

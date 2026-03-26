@@ -60,6 +60,16 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (arg === "--autoload-app") {
+      flags.autoloadApp = true;
+      continue;
+    }
+
+    if (arg === "--no-autoload-app") {
+      flags.autoloadApp = false;
+      continue;
+    }
+
     if (arg === "--port") {
       flags.port = rest[index + 1] ?? "";
       index += 1;
@@ -231,6 +241,7 @@ Usage:
 Options:
   --port <number>  Override the external dev port
   --open           Open the dev URL in the default browser
+  --autoload-app   Load the Mini App iframe immediately on simulator startup
   --public         Expose the Mini App through HTTPS and a public tunnel
   --live           Disable the Telegram mock overlay for real Telegram sessions
   --https          Enable HTTPS explicitly
@@ -259,6 +270,7 @@ function toDevFlags(flags: Record<string, string | boolean>): Omit<DevCommandFla
   const liveMode = typeof flags.live === "boolean" ? flags.live : false;
   const tunnelProvider = flags.tunnelProvider;
   return {
+    autoloadApp: typeof flags.autoloadApp === "boolean" ? flags.autoloadApp : false,
     mock: typeof flags.mock === "boolean" ? flags.mock : liveMode ? false : true,
     open: typeof flags.open === "boolean" ? flags.open : false,
     port:

@@ -166,7 +166,7 @@ You should see:
 
 - Teleforge validate `teleforge.app.json`
 - the simulator shell boot in a normal browser
-- a chat pane and embedded Mini App frame
+- a chat pane and an idle Mini App panel
 - real local bot command handling when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
 - inline keyboard callback buttons routed back as local `callback_query` updates
 - built-in fixtures for quick fresh-session, dark-mobile, and resume-flow setups
@@ -177,6 +177,12 @@ You should see:
 - saved scenarios available for reloading transcript plus Telegram state from `~/.teleforge/scenarios`
 
 If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to manifest-level `/start` and `/help` behavior.
+
+By default, the embedded Mini App stays closed until you send `/start`, click a `web_app` button, or press `Open App`. If you want the iframe to load immediately for UI work, run:
+
+```bash
+teleforge dev --open --autoload-app
+```
 
 Recommended local loop:
 
