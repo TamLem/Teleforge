@@ -6,6 +6,11 @@ import {
   type SimulatorBotBridge
 } from "./dev-simulator-bot.js";
 import {
+  createDevSimulatorScenarioStorage,
+  type DevSimulatorScenarioStorage,
+  type DevSimulatorTranscriptEntry
+} from "./dev-simulator-storage.js";
+import {
   createDefaultProfile,
   mergeProfile,
   type MockEventLogEntry,
@@ -31,17 +36,7 @@ export interface DevSimulator {
   ): Promise<boolean>;
 }
 
-interface SimulatorTranscriptEntry {
-  at: string;
-  buttons?: Array<{
-    kind: "callback" | "web_app";
-    text: string;
-    value: string;
-  }>;
-  id: string;
-  role: "bot" | "system" | "user";
-  text: string;
-}
+type SimulatorTranscriptEntry = DevSimulatorTranscriptEntry;
 
 export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   const appBasePath = options.appBasePath ?? "/__teleforge/app";
@@ -49,6 +44,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   const manifestCommands = options.manifest.bot.commands ?? [];
   let currentProfile = createDefaultProfile(process.env.BOT_TOKEN);
   let bridgePromise: Promise<SimulatorBotBridge | null> | undefined;
+  let scenarioStoragePromise: Promise<DevSimulatorScenarioStorage> | undefined;
   const eventLog: MockEventLogEntry[] = [];
   let transcript: SimulatorTranscriptEntry[] = [
     createTranscriptEntry(
@@ -166,6 +162,45 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         return true;
       }
 
+      if (request.method === "GET" && pathname === "/scenarios") {
+        const storage = await resolveScenarioStorage();
+        sendJson(response, 200, { scenarios: await storage.listScenarios() });
+        return true;
+      }
+
+      if (request.method === "POST" && pathname === "/scenarios") {
+        const storage = await resolveScenarioStorage();
+        const name = isRecord(body) && typeof body.name === "string" ? body.name.trim() : "";
+        const scenarioRef = await storage.saveScenario(
+          {
+            events: eventLog,
+            name: name || options.manifest.name,
+            profile: currentProfile,
+            transcript
+          },
+          name || undefined
+        );
+        sendJson(response, 201, {
+          scenarioRef,
+          scenarios: await storage.listScenarios()
+        });
+        return true;
+      }
+
+      if (request.method === "GET" && pathname.startsWith("/scenarios/")) {
+        const storage = await resolveScenarioStorage();
+        const scenarioName = decodeURIComponent(pathname.replace("/scenarios/", ""));
+        const scenario = await storage.loadScenario(scenarioName);
+        currentProfile = scenario.profile;
+        transcript = scenario.transcript;
+        eventLog.splice(0, eventLog.length, ...scenario.events.slice(0, 24));
+        sendJson(response, 200, {
+          scenarios: await storage.listScenarios(),
+          state: await createStatePayload()
+        });
+        return true;
+      }
+
       if (request.method === "POST" && pathname === "/events/trigger") {
         const name = isRecord(body) && typeof body.name === "string" ? body.name : "mockEvent";
         const entry: MockEventLogEntry = {
@@ -202,6 +237,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         name: options.manifest.name
       },
       profile: currentProfile,
+      scenarios: await (await resolveScenarioStorage()).listScenarios(),
       transcript
     };
   }
@@ -365,6 +401,14 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     }
 
     return bridgePromise;
+  }
+
+  async function resolveScenarioStorage(): Promise<DevSimulatorScenarioStorage> {
+    if (!scenarioStoragePromise) {
+      scenarioStoragePromise = createDevSimulatorScenarioStorage();
+    }
+
+    return scenarioStoragePromise;
   }
 }
 
@@ -645,6 +689,17 @@ function createSimulatorUiHtml(options: {
         </section>
         <aside class="pane">
           <section>
+            <h2>Scenarios</h2>
+            <div class="controls">
+              <label>Scenario Name<input id="scenario-name" placeholder="checkout-flow" /></label>
+              <div class="control-actions">
+                <button id="save-scenario" type="button">Save Scenario</button>
+                <button id="refresh-scenarios" class="secondary" type="button">Refresh</button>
+              </div>
+              <div id="scenarios" class="quick"></div>
+            </div>
+          </section>
+          <section>
             <h2>App Context</h2>
             <div class="controls">
               <div class="field-grid">
@@ -698,6 +753,8 @@ function createSimulatorUiHtml(options: {
         launchMode: document.getElementById("launch-mode"),
         platform: document.getElementById("platform"),
         queryId: document.getElementById("query-id"),
+        scenarioName: document.getElementById("scenario-name"),
+        scenarios: document.getElementById("scenarios"),
         simulatorStatus: document.getElementById("simulator-status"),
         startParam: document.getElementById("start-param"),
         startapp: document.getElementById("startapp"),
@@ -737,6 +794,32 @@ function createSimulatorUiHtml(options: {
         ids.events.textContent = events.length === 0
           ? "Waiting for events…"
           : events.map((entry) => "[" + entry.at + "] " + entry.name + ": " + JSON.stringify(entry.payload || {})).join("\\n");
+      }
+
+      function renderScenarios(scenarios) {
+        ids.scenarios.innerHTML = "";
+
+        if (!Array.isArray(scenarios) || scenarios.length === 0) {
+          const empty = document.createElement("p");
+          empty.textContent = "No saved scenarios yet.";
+          ids.scenarios.appendChild(empty);
+          return;
+        }
+
+        for (const scenario of scenarios) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "secondary";
+          button.textContent = scenario.name;
+          button.addEventListener("click", async () => {
+            const payload = await request("/scenarios/" + encodeURIComponent(scenario.fileName));
+            renderState(payload.state);
+            renderScenarios(payload.scenarios);
+            ids.scenarioName.value = scenario.name;
+            setStatus("Loaded scenario " + scenario.name + ".");
+          });
+          ids.scenarios.appendChild(button);
+        }
       }
 
       function renderTranscript(entries) {
@@ -798,6 +881,7 @@ function createSimulatorUiHtml(options: {
         renderProfile(payload.profile);
         renderTranscript(payload.transcript);
         renderEvents(payload.events);
+        renderScenarios(payload.scenarios);
         setStatus("Simulator ready.");
         postToApp({
           profile: payload.profile,
@@ -869,6 +953,22 @@ function createSimulatorUiHtml(options: {
           method: "POST",
           body: JSON.stringify({ data: ids.webAppData.value })
         }).then(renderState);
+      });
+
+      document.getElementById("save-scenario").addEventListener("click", async () => {
+        const payload = await request("/scenarios", {
+          method: "POST",
+          body: JSON.stringify({
+            name: ids.scenarioName.value
+          })
+        });
+        renderScenarios(payload.scenarios);
+        setStatus("Saved scenario " + payload.scenarioRef.name + ".");
+      });
+
+      document.getElementById("refresh-scenarios").addEventListener("click", async () => {
+        const payload = await request("/scenarios");
+        renderScenarios(payload.scenarios);
       });
 
       document.getElementById("apply-state").addEventListener("click", async () => {

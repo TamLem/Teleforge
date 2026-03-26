@@ -171,6 +171,7 @@ You should see:
 - inline keyboard callback buttons routed back as local `callback_query` updates
 - the companion bot dev process start when the workspace defines it
 - Telegram-like theme, viewport, launch, and user state injected into the embedded app
+- saved scenarios available for reloading transcript plus Telegram state from `~/.teleforge/scenarios`
 
 If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to manifest-level `/start` and `/help` behavior.
 

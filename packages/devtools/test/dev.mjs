@@ -59,6 +59,7 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
     env: {
       ...process.env,
       PATH: `${binRoot}:${process.env.PATH ?? ""}`,
+      TELEFORGE_HOME: path.join(tempRoot, "teleforge-home"),
       TELEFORGE_OPEN_LOG: openLogPath
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -164,6 +165,7 @@ done
     env: {
       ...process.env,
       PATH: `${binRoot}:${process.env.PATH ?? ""}`,
+      TELEFORGE_HOME: path.join(tempRoot, "teleforge-home"),
       TELEFORGE_SERVICE_LOG: serviceLogPath
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -273,7 +275,8 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
   const child = spawn("node", [cliPath, "dev", "--no-https", "--port", String(port)], {
     cwd: projectRoot,
     env: {
-      ...process.env
+      ...process.env,
+      TELEFORGE_HOME: path.join(tempRoot, "teleforge-home")
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -334,6 +337,34 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     const callbackEntry = callbackState.transcript.at(-1);
     assert.equal(callbackEntry?.role, "bot");
     assert.equal(callbackEntry?.text, "Callback handled: task:confirm");
+
+    const savePayload = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/scenarios`, {
+      body: JSON.stringify({
+        name: "callback-flow"
+      }),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+    assert.equal(savePayload.scenarioRef.fileName, "callback-flow.json");
+
+    const resetState = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/reset`, {
+      body: JSON.stringify({}),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+    assert.equal(resetState.transcript.length, 1);
+
+    const loadedScenario = await requestJson(
+      `http://127.0.0.1:${port}/__teleforge/api/scenarios/callback-flow.json`
+    );
+    assert.equal(loadedScenario.state.transcript.at(-1)?.text, "Callback handled: task:confirm");
+    assert.ok(
+      loadedScenario.scenarios.some((scenario) => scenario.fileName === "callback-flow.json")
+    );
   } finally {
     await cleanup();
   }
