@@ -22,6 +22,7 @@ teleforge doctor
 
 - a chat pane that executes the local bot runtime when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
 - an embedded frame running the real Mini App from `apps/web`
+- callback-query button simulation for inline keyboard flows
 - controls for Telegram-like user, launch, theme, viewport, and event state
 - the companion `apps/bot` service when the workspace exposes a `dev` script
 

@@ -2,6 +2,7 @@ import { createDefaultWebAppDataHandler } from "../handlers/webapp-data.js";
 import { normalizeCommandName, parseCommand } from "../utils/parse.js";
 
 import {
+  createCallbackQueryContext,
   createCommandContext,
   createUpdateContext,
   createWebAppContext,
@@ -10,6 +11,8 @@ import {
 
 import type {
   BotInstance,
+  CallbackQueryContext,
+  CallbackQueryHandler,
   CommandContext,
   CommandHandler,
   Middleware,
@@ -31,6 +34,8 @@ export class BotRouter {
   private bot: BotInstance | null;
 
   private commands = new Map<string, CommandHandler>();
+
+  private callbackQueryHandler?: CallbackQueryHandler;
 
   private helpHandler?: CommandHandler;
 
@@ -58,6 +63,11 @@ export class BotRouter {
 
     await this.runMiddleware(context, async () => {
       const message = context.message;
+      if (context.update.callback_query) {
+        await this.handleCallbackQuery(createCallbackQueryContext(context));
+        return;
+      }
+
       if (!message) {
         return;
       }
@@ -81,6 +91,10 @@ export class BotRouter {
 
   onHelp(handler: CommandHandler): void {
     this.helpHandler = handler;
+  }
+
+  onCallbackQuery(handler: CallbackQueryHandler): void {
+    this.callbackQueryHandler = handler;
   }
 
   onStart(handler: CommandHandler): void {
@@ -140,6 +154,15 @@ export class BotRouter {
     }
 
     await createDefaultWebAppDataHandler()(dataContext);
+  }
+
+  private async handleCallbackQuery(context: CallbackQueryContext): Promise<void> {
+    if (this.callbackQueryHandler) {
+      await this.callbackQueryHandler(context);
+      return;
+    }
+
+    await context.answer();
   }
 
   private async runMiddleware(

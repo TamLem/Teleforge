@@ -47,6 +47,7 @@ export {
 } from "./webhook/handler.js";
 export { BotRouter, type BotRouterOptions } from "./router/router.js";
 export {
+  createCallbackQueryContext,
   createCommandContext,
   createUpdateContext,
   createWebAppContext,
@@ -55,6 +56,8 @@ export {
 export type {
   BotCommandDefinition,
   BotInstance,
+  CallbackQueryContext,
+  CallbackQueryHandler,
   CommandContext,
   CommandHandler,
   CreateBotRuntimeOptions,
@@ -64,6 +67,7 @@ export type {
   NextFunction,
   RegisteredCommand,
   ReplyOptions,
+  TelegramCallbackAnswer,
   TelegramChat,
   TelegramCallbackQuery,
   TelegramInlineKeyboardButton,

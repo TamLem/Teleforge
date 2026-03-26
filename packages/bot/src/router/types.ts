@@ -28,6 +28,11 @@ export interface TelegramCallbackQuery {
   message?: TelegramMessage;
 }
 
+export interface TelegramCallbackAnswer {
+  callback_query_id?: string;
+  text?: string;
+}
+
 export interface TelegramInlineKeyboardButton {
   callback_data?: string;
   text: string;
@@ -65,6 +70,10 @@ export interface TelegramUpdate {
 }
 
 export interface BotInstance {
+  answerCallbackQuery?: (
+    callbackQueryId: string,
+    text?: string
+  ) => Promise<TelegramCallbackAnswer | void>;
   sendMessage(
     chatId: TelegramChat["id"],
     text: string,
@@ -110,7 +119,16 @@ export interface WebAppDataContext extends UpdateContext {
   user: TelegramUser | null;
 }
 
+export interface CallbackQueryContext extends UpdateContext {
+  answer: (text?: string) => Promise<TelegramCallbackAnswer | void>;
+  callbackQuery: TelegramCallbackQuery;
+  data: string;
+  message: TelegramMessage | null;
+  user: TelegramUser;
+}
+
 export type CommandHandler = (ctx: CommandContext) => Promise<void> | void;
+export type CallbackQueryHandler = (ctx: CallbackQueryContext) => Promise<void> | void;
 export type WebAppHandler = (ctx: WebAppContext) => Promise<void> | void;
 export type WebAppDataHandler = (ctx: WebAppDataContext) => Promise<void> | void;
 export type NextFunction = () => Promise<void>;

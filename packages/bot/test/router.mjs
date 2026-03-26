@@ -113,6 +113,55 @@ test("runs middleware in order and preserves shared state", async () => {
   assert.deepEqual(trace, ["mw1", "mw2"]);
 });
 
+test("dispatches callback_query updates to the dedicated callback handler", async () => {
+  const bot = createMockBot();
+  const router = new BotRouter({ bot });
+  const seen = [];
+
+  router.onCallbackQuery(async (context) => {
+    seen.push({
+      data: context.data,
+      messageId: context.message?.message_id ?? null,
+      userId: context.user.id
+    });
+    await context.answer("ack");
+  });
+
+  await router.handle({
+    callback_query: {
+      data: "task:confirm",
+      from: {
+        first_name: "Callback",
+        id: 7
+      },
+      id: "cb-1",
+      message: {
+        chat: {
+          id: 1,
+          type: "private"
+        },
+        message_id: 9,
+        text: "Pick an action"
+      }
+    },
+    update_id: 4
+  });
+
+  assert.deepEqual(seen, [
+    {
+      data: "task:confirm",
+      messageId: 9,
+      userId: 7
+    }
+  ]);
+  assert.deepEqual(bot.callbackAnswers, [
+    {
+      callbackQueryId: "cb-1",
+      text: "ack"
+    }
+  ]);
+});
+
 test("dispatches web_app_data updates to the web app handler", async () => {
   const bot = createMockBot();
   const router = new BotRouter({ bot });
@@ -375,7 +424,16 @@ test("createBotRuntime supports generated command objects and manifest metadata"
 
 function createMockBot() {
   return {
+    callbackAnswers: [],
     sent: [],
+    async answerCallbackQuery(callbackQueryId, text) {
+      const answer = {
+        callbackQueryId,
+        text
+      };
+      this.callbackAnswers.push(answer);
+      return answer;
+    },
     async sendMessage(chatId, text, options) {
       const message = {
         chat: {

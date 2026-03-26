@@ -8,6 +8,7 @@ import { createDefaultProfile, type MockProfile } from "./mock-server/types.js";
 
 export interface SimulatorBotBridge {
   cleanup(): Promise<void>;
+  sendCallbackData(data: string, profile: MockProfile): Promise<SimulatorBotResponse>;
   getCommands(): Promise<string[]>;
   sendCommand(text: string, profile: MockProfile): Promise<SimulatorBotResponse>;
   sendWebAppData(data: string, profile: MockProfile): Promise<SimulatorBotResponse>;
@@ -44,6 +45,12 @@ interface WorkerResponseEnvelope {
 }
 
 type WorkerRequest =
+  | {
+      data: string;
+      id: string;
+      profile: MockProfile;
+      type: "callback_data";
+    }
   | {
       id: string;
       profile: MockProfile;
@@ -160,6 +167,15 @@ class WorkerBackedSimulatorBotBridge implements SimulatorBotBridge {
       profile,
       text,
       type: "command"
+    });
+  }
+
+  async sendCallbackData(data: string, profile: MockProfile): Promise<SimulatorBotResponse> {
+    return this.request({
+      data,
+      id: this.createRequestId(),
+      profile,
+      type: "callback_data"
     });
   }
 

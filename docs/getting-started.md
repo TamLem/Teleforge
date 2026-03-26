@@ -168,6 +168,7 @@ You should see:
 - the simulator shell boot in a normal browser
 - a chat pane and embedded Mini App frame
 - real local bot command handling when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
+- inline keyboard callback buttons routed back as local `callback_query` updates
 - the companion bot dev process start when the workspace defines it
 - Telegram-like theme, viewport, launch, and user state injected into the embedded app
 

@@ -34,7 +34,7 @@ export interface DevSimulator {
 interface SimulatorTranscriptEntry {
   at: string;
   buttons?: Array<{
-    kind: "command" | "web_app";
+    kind: "callback" | "web_app";
     text: string;
     value: string;
   }>;
@@ -132,6 +132,18 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
             `Opened Mini App shell at ${appBasePath}/ using launch mode ${currentProfile.appContext.launchMode}.`
           )
         );
+        sendJson(response, 200, await createStatePayload());
+        return true;
+      }
+
+      if (request.method === "POST" && pathname === "/chat/callback") {
+        const data = isRecord(body) && typeof body.data === "string" ? body.data.trim() : "";
+        if (data.length === 0) {
+          sendJson(response, 400, { error: "Callback data is required." });
+          return true;
+        }
+
+        await handleCallbackData(data);
         sendJson(response, 200, await createStatePayload());
         return true;
       }
@@ -234,6 +246,32 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       createTranscriptEntry(
         "bot",
         "Simulator accepted the web_app_data payload. Bind a workspace bot adapter to execute app-specific handlers locally."
+      )
+    );
+  }
+
+  async function handleCallbackData(data: string) {
+    transcript = transcript.concat(createTranscriptEntry("user", `callback ${data}`));
+    appendEvent({
+      at: new Date().toISOString(),
+      id: createId(),
+      name: "callback_query",
+      payload: {
+        data
+      }
+    });
+
+    const bridge = await resolveBotBridge();
+    if (bridge) {
+      const result = await bridge.sendCallbackData(data, currentProfile);
+      transcript = transcript.concat(toTranscriptEntries(result.messages));
+      return;
+    }
+
+    transcript = transcript.concat(
+      createTranscriptEntry(
+        "bot",
+        "Simulator received callback data, but this workspace is using manifest-level chat fallback."
       )
     );
   }
@@ -367,7 +405,7 @@ function flattenButtons(
 
       if (button.callback_data) {
         buttons.push({
-          kind: "command",
+          kind: "callback",
           text: button.text,
           value: button.callback_data
         });
@@ -715,14 +753,19 @@ function createSimulatorUiHtml(options: {
               const action = document.createElement("button");
               action.type = "button";
               action.textContent = button.text;
-              action.className = button.kind === "command" ? "secondary" : "";
+              action.className = button.kind === "callback" ? "secondary" : "";
               action.addEventListener("click", async () => {
                 if (button.kind === "web_app") {
                   ids.appFrame.src = button.value;
                   await request("/chat/open-app", { method: "POST" }).then(renderState);
                   return;
                 }
-                ids.chatInput.value = button.value;
+                await request("/chat/callback", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    data: button.value
+                  })
+                }).then(renderState);
               });
               row.appendChild(action);
             }

@@ -3,8 +3,10 @@ import { createWebAppReplyOptions } from "../handlers/webapp.js";
 
 import type {
   BotInstance,
+  CallbackQueryContext,
   CommandContext,
   ReplyOptions,
+  TelegramCallbackQuery,
   TelegramMessage,
   TelegramUpdate,
   UpdateContext,
@@ -55,6 +57,28 @@ export function createCommandContext(
     chat: message.chat,
     command,
     message,
+    user
+  };
+}
+
+export function createCallbackQueryContext(context: UpdateContext): CallbackQueryContext {
+  const callbackQuery = requireCallbackQuery(context.update.callback_query);
+  const callbackData = callbackQuery.data ?? "";
+  const user = callbackQuery.from;
+
+  return {
+    ...context,
+    answer(text?: string) {
+      const activeBot = requireBot(context.bot);
+      if (!callbackQuery.id || !activeBot.answerCallbackQuery) {
+        return Promise.resolve();
+      }
+
+      return activeBot.answerCallbackQuery(callbackQuery.id, text);
+    },
+    callbackQuery,
+    data: callbackData,
+    message: callbackQuery.message ?? null,
     user
   };
 }
@@ -125,4 +149,14 @@ function requireUser(message: TelegramMessage): NonNullable<TelegramMessage["fro
   }
 
   return message.from;
+}
+
+function requireCallbackQuery(
+  callbackQuery: TelegramCallbackQuery | undefined
+): TelegramCallbackQuery {
+  if (!callbackQuery) {
+    throw new Error("Telegram update does not contain a callback query.");
+  }
+
+  return callbackQuery;
 }

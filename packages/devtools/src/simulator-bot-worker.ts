@@ -36,7 +36,22 @@ interface WorkerProfile {
 }
 
 interface TelegramUpdate {
-  message: {
+  callback_query?: {
+    data?: string;
+    from: TelegramUser;
+    id?: string;
+    message?: {
+      chat: {
+        id: number;
+        type: "private";
+      };
+      date?: number;
+      from?: TelegramUser;
+      message_id: number;
+      text?: string;
+    };
+  };
+  message?: {
     chat: {
       id: number;
       type: "private";
@@ -60,6 +75,12 @@ interface TelegramUser {
 }
 
 type WorkerRequest =
+  | {
+      data: string;
+      id: string;
+      profile: WorkerProfile;
+      type: "callback_data";
+    }
   | {
       id: string;
       profile: WorkerProfile;
@@ -146,6 +167,15 @@ async function main(): Promise<void> {
         inboundMessageId += 1;
         await runtime.handle(
           createCommandUpdate(request.text, request.profile, {
+            messageId: inboundMessageId,
+            updateId
+          })
+        );
+      } else if (request.type === "callback_data") {
+        updateId += 1;
+        inboundMessageId += 1;
+        await runtime.handle(
+          createCallbackUpdate(request.data, request.profile, {
             messageId: inboundMessageId,
             updateId
           })
@@ -241,6 +271,31 @@ function createWebAppDataUpdate(
       message_id: ids.messageId,
       web_app_data: {
         data
+      }
+    },
+    update_id: ids.updateId
+  };
+}
+
+function createCallbackUpdate(
+  data: string,
+  profile: WorkerProfile,
+  ids: { messageId: number; updateId: number }
+): TelegramUpdate {
+  return {
+    callback_query: {
+      data,
+      from: createUser(profile),
+      id: `callback-${ids.updateId}`,
+      message: {
+        chat: {
+          id: profile.user.id,
+          type: "private"
+        },
+        date: Math.floor(Date.now() / 1_000),
+        from: createUser(profile),
+        message_id: ids.messageId,
+        text: "Simulator callback action"
       }
     },
     update_id: ids.updateId

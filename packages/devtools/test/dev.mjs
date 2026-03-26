@@ -75,6 +75,8 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
       child.kill("SIGTERM");
     }
     await waitForChildExit(child);
+    child.stdout?.destroy();
+    child.stderr?.destroy();
     await rm(tempRoot, { force: true, recursive: true });
   };
 
@@ -83,13 +85,9 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
     await waitForOutput(() => stdout.includes(".env.local"), stdout, stderr);
     await waitForOutput(() => stdout.includes("Opened http://localhost:"), stdout, stderr);
 
-    const html = await fetch(`http://127.0.0.1:${port}`).then((response) => response.text());
-    const appHtml = await fetch(`http://127.0.0.1:${port}/__teleforge/app/`).then((response) =>
-      response.text()
-    );
-    const statePayload = await fetch(`http://127.0.0.1:${port}/__teleforge/api/state`).then(
-      (response) => response.json()
-    );
+    const html = await requestText(`http://127.0.0.1:${port}`);
+    const appHtml = await requestText(`http://127.0.0.1:${port}/__teleforge/app/`);
+    const statePayload = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/state`);
     const openLog = await readFile(openLogPath, "utf8");
 
     assert.match(html, /Teleforge Simulator/);
@@ -113,8 +111,11 @@ test("help text advertises the --open flag", async () => {
   child.stdout.on("data", (chunk) => {
     stdout += String(chunk);
   });
+  child.stderr.resume();
 
   const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+  child.stdout?.destroy();
+  child.stderr?.destroy();
   assert.equal(exitCode, 0);
   assert.match(stdout, /--open\s+Open the dev URL in the default browser/);
 });
@@ -179,6 +180,8 @@ done
       child.kill("SIGTERM");
     }
     await waitForChildExit(child);
+    child.stdout?.destroy();
+    child.stderr?.destroy();
     await rm(tempRoot, { force: true, recursive: true });
   };
 
@@ -229,14 +232,36 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
       command: "start",
       description: "Start the Mini App",
       async handler(context) {
-        await context.replyWithWebApp(
+        await context.reply(
           "Welcome to Spa Dev Check. Launch the Mini App to continue.",
-          "Open Spa Dev Check",
-          options.miniAppUrl ?? "https://example.test"
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: "Open Spa Dev Check",
+                    web_app: {
+                      url: options.miniAppUrl ?? "https://example.test"
+                    }
+                  }
+                ],
+                [
+                  {
+                    text: "Confirm from Chat",
+                    callback_data: "task:confirm"
+                  }
+                ]
+              ]
+            }
+          }
         );
       }
     }
   ]);
+  runtime.router.onCallbackQuery(async (context) => {
+    await context.answer("ack");
+    await context.reply("Callback handled: " + context.data);
+  });
   return runtime;
 }
 `
@@ -264,6 +289,8 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
       child.kill("SIGTERM");
     }
     await waitForChildExit(child);
+    child.stdout?.destroy();
+    child.stderr?.destroy();
     await rm(tempRoot, { force: true, recursive: true });
   };
 
@@ -271,21 +298,19 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     await waitForServer(`http://127.0.0.1:${port}`);
     await waitForOutput(() => stdout.includes("Simulator shell"), stdout, stderr);
 
-    const stateBefore = await fetch(`http://127.0.0.1:${port}/__teleforge/api/state`).then(
-      (response) => response.json()
-    );
+    const stateBefore = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/state`);
     assert.equal(stateBefore.transcript[0]?.role, "system");
     assert.equal(stateBefore.chat.mode, "workspace");
 
-    const stateAfter = await fetch(`http://127.0.0.1:${port}/__teleforge/api/chat/send`, {
-      method: "POST",
+    const stateAfter = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/send`, {
+      body: JSON.stringify({
+        text: "/start"
+      }),
       headers: {
         "content-type": "application/json"
       },
-      body: JSON.stringify({
-        text: "/start"
-      })
-    }).then((response) => response.json());
+      method: "POST"
+    });
 
     const lastEntry = stateAfter.transcript.at(-1);
     assert.equal(lastEntry?.role, "bot");
@@ -293,6 +318,22 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(lastEntry?.buttons?.[0]?.kind, "web_app");
     assert.equal(lastEntry?.buttons?.[0]?.value, "/__teleforge/app/");
     assert.equal(lastEntry?.buttons?.[0]?.text, "Open Spa Dev Check");
+    assert.equal(lastEntry?.buttons?.[1]?.kind, "callback");
+    assert.equal(lastEntry?.buttons?.[1]?.value, "task:confirm");
+
+    const callbackState = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/callback`, {
+      body: JSON.stringify({
+        data: "task:confirm"
+      }),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+
+    const callbackEntry = callbackState.transcript.at(-1);
+    assert.equal(callbackEntry?.role, "bot");
+    assert.equal(callbackEntry?.text, "Callback handled: task:confirm");
   } finally {
     await cleanup();
   }
@@ -302,8 +343,8 @@ async function waitForServer(url) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15_000) {
     try {
-      const response = await fetch(url);
-      if (response.ok) {
+      const response = await request(url);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return;
       }
     } catch {
@@ -374,5 +415,60 @@ async function getAvailablePort() {
         resolve(port);
       });
     });
+  });
+}
+
+async function requestJson(url, options = {}) {
+  const response = await request(url, options);
+  return JSON.parse(response.body);
+}
+
+async function requestText(url, options = {}) {
+  const response = await request(url, options);
+  return response.body;
+}
+
+async function request(url, options = {}) {
+  const target = new URL(url);
+  const payload = typeof options.body === "string" ? options.body : "";
+  const method = options.method ?? "GET";
+  const headers = {
+    connection: "close",
+    ...options.headers
+  };
+
+  if (payload.length > 0 && headers["content-length"] === undefined) {
+    headers["content-length"] = String(Buffer.byteLength(payload));
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        headers,
+        host: target.hostname,
+        method,
+        path: `${target.pathname}${target.search}`,
+        port: target.port ? Number(target.port) : 80
+      },
+      (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+        response.on("end", () => {
+          resolve({
+            body,
+            statusCode: response.statusCode ?? 0
+          });
+        });
+      }
+    );
+
+    req.on("error", reject);
+    if (payload.length > 0) {
+      req.write(payload);
+    }
+    req.end();
   });
 }
