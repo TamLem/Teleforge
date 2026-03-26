@@ -1,11 +1,16 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
 import { createBotRuntime, type TelegramUpdate } from "@teleforge/bot";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createStartCommand } from "./commands/start.js";
 import { createTasksCommand } from "./commands/tasks.js";
 import { createTaskShopFlowStateManager } from "./flowState.js";
 import { createOrderCompletedHandler } from "./handlers/orderCompleted.js";
 import { createPollingBot, createPreviewBot } from "./telegram.js";
+
+loadTaskShopEnv();
 
 const miniAppUrl = process.env.MINI_APP_URL ?? "https://example.ngrok.app";
 const coordinationSecret = process.env.COORDINATION_SECRET ?? "task-shop-preview-secret";
@@ -206,4 +211,23 @@ function isTruthyEnv(value: string | undefined): boolean {
 
   const normalized = value.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function loadTaskShopEnv() {
+  const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const envPaths = [
+    resolve(workspaceRoot, ".env"),
+    resolve(workspaceRoot, ".env.local")
+  ];
+
+  for (const envPath of envPaths) {
+    if (!existsSync(envPath)) {
+      continue;
+    }
+
+    loadDotenv({
+      override: envPath.endsWith(".env.local"),
+      path: envPath
+    });
+  }
 }
