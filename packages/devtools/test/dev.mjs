@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { chmod, cp, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -22,7 +23,7 @@ test("dev serves the simulator shell, injects the Telegram mock bridge into the 
   const projectRoot = path.join(tempRoot, "project");
   const binRoot = path.join(tempRoot, "bin");
   const openLogPath = path.join(tempRoot, "open.log");
-  const port = 43127;
+  const port = await getAvailablePort();
 
   await cp(fixtureRoot, projectRoot, {
     filter(source) {
@@ -73,7 +74,7 @@ printf '%s\n' "$1" >> "$TELEFORGE_OPEN_LOG"
     if (!child.killed) {
       child.kill("SIGTERM");
     }
-    await new Promise((resolve) => child.once("exit", resolve));
+    await waitForChildExit(child);
     await rm(tempRoot, { force: true, recursive: true });
   };
 
@@ -123,7 +124,7 @@ test("dev starts companion app services with the resolved Mini App URL", async (
   const projectRoot = path.join(tempRoot, "project");
   const binRoot = path.join(tempRoot, "bin");
   const serviceLogPath = path.join(tempRoot, "services.log");
-  const port = 43128;
+  const port = await getAvailablePort();
 
   await cp(fixtureRoot, projectRoot, {
     filter(source) {
@@ -177,7 +178,7 @@ done
     if (!child.killed) {
       child.kill("SIGTERM");
     }
-    await new Promise((resolve) => child.once("exit", resolve));
+    await waitForChildExit(child);
     await rm(tempRoot, { force: true, recursive: true });
   };
 
@@ -199,7 +200,7 @@ done
 test("dev simulator chat API supports /start transcript and app-open actions", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-chat-"));
   const projectRoot = path.join(tempRoot, "project");
-  const port = 43129;
+  const port = await getAvailablePort();
 
   await cp(fixtureRoot, projectRoot, {
     filter(source) {
@@ -262,7 +263,7 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     if (!child.killed) {
       child.kill("SIGTERM");
     }
-    await new Promise((resolve) => child.once("exit", resolve));
+    await waitForChildExit(child);
     await rm(tempRoot, { force: true, recursive: true });
   };
 
@@ -341,4 +342,37 @@ async function waitForFile(filePath) {
   }
 
   throw new Error(`Timed out waiting for ${filePath}`);
+}
+
+async function waitForChildExit(child) {
+  if (child.exitCode !== null) {
+    return;
+  }
+
+  await new Promise((resolve) => child.once("exit", resolve));
+}
+
+async function getAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close(() => {
+          reject(new Error("Could not resolve an ephemeral port."));
+        });
+        return;
+      }
+
+      const port = address.port;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(port);
+      });
+    });
+  });
 }
