@@ -31,11 +31,7 @@ test("dev serves the simulator shell, injects the Telegram mock bridge into the 
     },
     recursive: true
   });
-  await symlink(
-    workspaceNodeModules,
-    path.join(projectRoot, "node_modules"),
-    "dir"
-  );
+  await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
   await symlink(
     path.join(fixtureRoot, "apps", "web", "node_modules"),
     path.join(projectRoot, "apps", "web", "node_modules"),
@@ -127,7 +123,10 @@ test("help text advertises the dev convenience flags", async () => {
   child.stderr?.destroy();
   assert.equal(exitCode, 0);
   assert.match(stdout, /--open\s+Open the dev URL in the default browser/);
-  assert.match(stdout, /--autoload-app\s+Load the Mini App iframe immediately on simulator startup/);
+  assert.match(
+    stdout,
+    /--autoload-app\s+Load the Mini App iframe immediately on simulator startup/
+  );
 });
 
 test("dev logs upstream app 500 responses for simulator app requests", async () => {
@@ -233,11 +232,7 @@ test("dev starts companion app services with the resolved Mini App URL", async (
     },
     recursive: true
   });
-  await symlink(
-    workspaceNodeModules,
-    path.join(projectRoot, "node_modules"),
-    "dir"
-  );
+  await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
   await symlink(
     path.join(fixtureRoot, "apps", "web", "node_modules"),
     path.join(projectRoot, "apps", "web", "node_modules"),
@@ -312,11 +307,7 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
     },
     recursive: true
   });
-  await symlink(
-    workspaceNodeModules,
-    path.join(projectRoot, "node_modules"),
-    "dir"
-  );
+  await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
   await symlink(
     path.join(fixtureRoot, "apps", "web", "node_modules"),
     path.join(projectRoot, "apps", "web", "node_modules"),
@@ -432,22 +423,28 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
 
     const lastEntry = stateAfter.transcript.at(-1);
     assert.equal(lastEntry?.role, "bot");
-    assert.match(lastEntry?.text ?? "", /Welcome to Spa Dev Check\. Launch the Mini App to continue\./);
+    assert.match(
+      lastEntry?.text ?? "",
+      /Welcome to Spa Dev Check\. Launch the Mini App to continue\./
+    );
     assert.equal(lastEntry?.buttons?.[0]?.kind, "web_app");
     assert.equal(lastEntry?.buttons?.[0]?.value, "/__teleforge/app/");
     assert.equal(lastEntry?.buttons?.[0]?.text, "Open Spa Dev Check");
     assert.equal(lastEntry?.buttons?.[1]?.kind, "callback");
     assert.equal(lastEntry?.buttons?.[1]?.value, "task:confirm");
 
-    const callbackState = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/callback`, {
-      body: JSON.stringify({
-        data: "task:confirm"
-      }),
-      headers: {
-        "content-type": "application/json"
-      },
-      method: "POST"
-    });
+    const callbackState = await requestJson(
+      `http://127.0.0.1:${port}/__teleforge/api/chat/callback`,
+      {
+        body: JSON.stringify({
+          data: "task:confirm"
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
 
     const callbackEntry = callbackState.transcript.at(-1);
     assert.equal(callbackEntry?.role, "bot");
@@ -466,13 +463,16 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(replayEntry?.text, "Callback handled: task:confirm");
     assert.equal(replayState.debug.lastAction.kind, "callback");
 
-    const openedState = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/open-app`, {
-      body: JSON.stringify({}),
-      headers: {
-        "content-type": "application/json"
-      },
-      method: "POST"
-    });
+    const openedState = await requestJson(
+      `http://127.0.0.1:${port}/__teleforge/api/chat/open-app`,
+      {
+        body: JSON.stringify({}),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
     assert.equal(openedState.debug.appOpen, true);
 
     const savePayload = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/scenarios`, {

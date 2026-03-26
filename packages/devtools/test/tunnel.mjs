@@ -47,7 +47,9 @@ test("cloudflare quick tunnels receive the resolved HTTPS origin URL", async () 
   const spawnCalls = [];
 
   queueMicrotask(() => {
-    child.stderr.write("INF | Your quick Tunnel has been created! Visit it at https://demo.trycloudflare.com\n");
+    child.stderr.write(
+      "INF | Your quick Tunnel has been created! Visit it at https://demo.trycloudflare.com\n"
+    );
   });
 
   const handle = await startTunnel(
@@ -66,14 +68,7 @@ test("cloudflare quick tunnels receive the resolved HTTPS origin URL", async () 
 
   assert.deepEqual(spawnCalls, [
     {
-      args: [
-        "tunnel",
-        "--url",
-        "https://localhost:45124",
-        "--loglevel",
-        "info",
-        "--no-tls-verify"
-      ],
+      args: ["tunnel", "--url", "https://localhost:45124", "--loglevel", "info", "--no-tls-verify"],
       command: "cloudflared"
     }
   ]);

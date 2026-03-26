@@ -2,7 +2,12 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { resolveTeleforgeHome } from "./mock-server/storage.js";
-import { parseProfile, slugifyProfileName, type MockEventLogEntry, type MockProfile } from "./mock-server/types.js";
+import {
+  parseProfile,
+  slugifyProfileName,
+  type MockEventLogEntry,
+  type MockProfile
+} from "./mock-server/types.js";
 
 export interface DevSimulatorTranscriptEntry {
   at: string;
@@ -84,7 +89,11 @@ export async function createDevSimulatorScenarioStorage(
         ...scenario,
         name
       });
-      await writeFile(path.join(scenariosDir, fileName), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+      await writeFile(
+        path.join(scenariosDir, fileName),
+        `${JSON.stringify(payload, null, 2)}\n`,
+        "utf8"
+      );
       return {
         fileName,
         name
@@ -114,7 +123,10 @@ function parseScenarioFile(input: unknown): DevSimulatorScenario {
 
   return {
     events: normalizeEvents(input.state.events),
-    name: typeof input.name === "string" && input.name.trim().length > 0 ? input.name.trim() : "simulator-session",
+    name:
+      typeof input.name === "string" && input.name.trim().length > 0
+        ? input.name.trim()
+        : "simulator-session",
     profile: parseProfile(input.state.profile, process.env.BOT_TOKEN),
     transcript: normalizeTranscript(input.state.transcript)
   };
@@ -155,7 +167,7 @@ function normalizeTranscript(input: unknown): DevSimulatorTranscriptEntry[] {
       entry.role === "bot" || entry.role === "system" || entry.role === "user"
         ? entry.role
         : "system";
-    const buttons = Array.isArray(entry.buttons)
+    const buttons: DevSimulatorTranscriptEntry["buttons"] = Array.isArray(entry.buttons)
       ? entry.buttons.flatMap((button) => {
           if (
             !isRecord(button) ||
@@ -193,6 +205,6 @@ function resolveScenarioPath(scenariosDir: string, name: string): string {
   return path.join(scenariosDir, fileName);
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

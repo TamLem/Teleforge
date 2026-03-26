@@ -14,11 +14,7 @@ import {
   type TelegramUpdate
 } from "@teleforge/bot";
 
-import {
-  createStarterBotRuntime,
-  hasUsableToken,
-  readStarterBotConfig
-} from "./runtime.js";
+import { createStarterBotRuntime, hasUsableToken, readStarterBotConfig } from "./runtime.js";
 
 loadStarterEnv();
 

@@ -193,10 +193,7 @@ function describeWebAppData(data: string): string | undefined {
 
 function loadTaskShopEnv() {
   const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-  const envPaths = [
-    resolve(workspaceRoot, ".env"),
-    resolve(workspaceRoot, ".env.local")
-  ];
+  const envPaths = [resolve(workspaceRoot, ".env"), resolve(workspaceRoot, ".env.local")];
 
   for (const envPath of envPaths) {
     if (!existsSync(envPath)) {

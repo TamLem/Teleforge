@@ -4,30 +4,30 @@ This guide collects the environment variables mentioned across the Teleforge doc
 
 ## Common Variables
 
-| Variable | Purpose | Typical Usage |
-|---|---|---|
-| `BOT_TOKEN` | Telegram bot token | live polling or webhook bot runtime |
-| `MINI_APP_URL` | explicit Mini App URL override | bot-side `web_app` buttons when you do not want Teleforge to inject the current dev URL |
-| `WEBHOOK_SECRET` | Telegram webhook secret | webhook mode only |
-| `TELEFORGE_PUBLIC_URL` | explicit public URL for doctor/dev validation | deployment or doctor checks |
-| `TELEFORGE_DEV_PORT` | preferred local dev port | devtools local setup |
-| `TELEFORGE_DEV_HTTPS` | force HTTPS expectation in doctor/dev checks | local HTTPS checks |
+| Variable               | Purpose                                       | Typical Usage                                                                           |
+| ---------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `BOT_TOKEN`            | Telegram bot token                            | live polling or webhook bot runtime                                                     |
+| `MINI_APP_URL`         | explicit Mini App URL override                | bot-side `web_app` buttons when you do not want Teleforge to inject the current dev URL |
+| `WEBHOOK_SECRET`       | Telegram webhook secret                       | webhook mode only                                                                       |
+| `TELEFORGE_PUBLIC_URL` | explicit public URL for doctor/dev validation | deployment or doctor checks                                                             |
+| `TELEFORGE_DEV_PORT`   | preferred local dev port                      | devtools local setup                                                                    |
+| `TELEFORGE_DEV_HTTPS`  | force HTTPS expectation in doctor/dev checks  | local HTTPS checks                                                                      |
 
 ## Client Validation Variables
 
 These are used by the Task Shop sample for client-side Ed25519 validation:
 
-| Variable | Purpose |
-|---|---|
-| `VITE_TELEGRAM_BOT_ID` | Telegram bot ID used in public-key validation |
-| `VITE_TELEGRAM_PUBLIC_KEY` | Telegram environment public key |
+| Variable                   | Purpose                                       |
+| -------------------------- | --------------------------------------------- |
+| `VITE_TELEGRAM_BOT_ID`     | Telegram bot ID used in public-key validation |
+| `VITE_TELEGRAM_PUBLIC_KEY` | Telegram environment public key               |
 
 ## Scaffold Variables
 
 The scaffold also includes:
 
-| Variable | Purpose |
-|---|---|
+| Variable                | Purpose                                          |
+| ----------------------- | ------------------------------------------------ |
 | `TELEGRAM_BOT_USERNAME` | generated placeholder value for the bot username |
 
 In current Teleforge V1, bot username should still be treated as manifest-owned configuration through `teleforge.app.json`. The scaffold variable is informational unless your app code chooses to consume it.

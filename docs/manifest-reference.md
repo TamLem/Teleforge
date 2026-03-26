@@ -31,21 +31,21 @@ It is consumed by:
 
 The current top-level fields are:
 
-| Field | Type | Required | Purpose |
-|------|------|----------|---------|
-| `$schema` | `string` URL | no | optional schema URL for editors/tools |
-| `id` | `string` | yes | kebab-case app identifier |
-| `name` | `string` | yes | human-readable app name |
-| `version` | `string` semver | yes | manifest/app version |
-| `runtime` | object | yes | runtime mode and framework wiring |
-| `bot` | object | yes | Telegram bot metadata |
-| `miniApp` | object | yes | Mini App runtime metadata |
-| `routes` | array | yes | route declarations |
-| `build` | object | no | top-level build settings |
-| `dev` | object | no | local dev preferences |
-| `features` | object | no | feature capability flags |
-| `permissions` | array | no | declared app permissions |
-| `security` | object | no | validation/origin settings |
+| Field         | Type            | Required | Purpose                               |
+| ------------- | --------------- | -------- | ------------------------------------- |
+| `$schema`     | `string` URL    | no       | optional schema URL for editors/tools |
+| `id`          | `string`        | yes      | kebab-case app identifier             |
+| `name`        | `string`        | yes      | human-readable app name               |
+| `version`     | `string` semver | yes      | manifest/app version                  |
+| `runtime`     | object          | yes      | runtime mode and framework wiring     |
+| `bot`         | object          | yes      | Telegram bot metadata                 |
+| `miniApp`     | object          | yes      | Mini App runtime metadata             |
+| `routes`      | array           | yes      | route declarations                    |
+| `build`       | object          | no       | top-level build settings              |
+| `dev`         | object          | no       | local dev preferences                 |
+| `features`    | object          | no       | feature capability flags              |
+| `permissions` | array           | no       | declared app permissions              |
+| `security`    | object          | no       | validation/origin settings            |
 
 There is no top-level `bff.adapters[]` section in the current manifest schema. BFF adapters are configured in `@teleforge/bff` code, not in `teleforge.app.json`.
 
@@ -54,7 +54,7 @@ There is no top-level `bff.adapters[]` section in the current manifest schema. B
 Type:
 
 ```ts
-string
+string;
 ```
 
 Rules:
@@ -75,7 +75,7 @@ Example:
 Type:
 
 ```ts
-string
+string;
 ```
 
 Rules:
@@ -96,7 +96,7 @@ Example:
 Type:
 
 ```ts
-string
+string;
 ```
 
 Rules:
@@ -286,25 +286,25 @@ Example:
 Type:
 
 ```ts
-Array<RouteDefinition>
+Array<RouteDefinition>;
 ```
 
 Each route entry describes one addressable Mini App route.
 
 Fields:
 
-| Field | Type | Purpose |
-|------|------|---------|
-| `path` | `string` | route path, must start with `/` |
-| `component` | `string` | app component/module reference |
-| `title` | `string` | route title |
-| `description` | `string` | route description |
-| `launchModes` | `string[]` | allowed launch modes for this route |
-| `guards` | `string[]` | route-level guard labels |
-| `capabilities` | object | route capability requirements |
-| `coordination` | object | chat/Mini App coordination metadata |
-| `meta` | object | extra route metadata |
-| `ui` | object | route-level header/Main Button hints |
+| Field          | Type       | Purpose                              |
+| -------------- | ---------- | ------------------------------------ |
+| `path`         | `string`   | route path, must start with `/`      |
+| `component`    | `string`   | app component/module reference       |
+| `title`        | `string`   | route title                          |
+| `description`  | `string`   | route description                    |
+| `launchModes`  | `string[]` | allowed launch modes for this route  |
+| `guards`       | `string[]` | route-level guard labels             |
+| `capabilities` | object     | route capability requirements        |
+| `coordination` | object     | chat/Mini App coordination metadata  |
+| `meta`         | object     | extra route metadata                 |
+| `ui`           | object     | route-level header/Main Button hints |
 
 ### `routes[].component`
 
@@ -478,7 +478,7 @@ Array<{
   capability?: string;
   description?: string;
   scope?: string;
-}>
+}>;
 ```
 
 Rules:

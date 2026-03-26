@@ -399,8 +399,7 @@ async function startProxyServer(options: {
   });
 
   proxy.on("error", (error, request, response) => {
-    const message =
-      error instanceof Error ? error.message : "Unexpected upstream proxy error.";
+    const message = error instanceof Error ? error.message : "Unexpected upstream proxy error.";
     logDevServerError(
       `Proxy request failed for ${formatRequestLabel(request as http.IncomingMessage)}.`,
       message
@@ -471,7 +470,7 @@ async function startProxyServer(options: {
         .catch((error) => {
           logDevServerError(
             `Simulator request failed for ${formatRequestLabel(request)}.`,
-            error instanceof Error ? error.stack ?? error.message : String(error)
+            error instanceof Error ? (error.stack ?? error.message) : String(error)
           );
           response.statusCode = 500;
           response.end(
@@ -661,7 +660,9 @@ function summarizeUpstreamBody(
   body: Buffer,
   contentTypeHeader: string | string[] | undefined
 ): string | undefined {
-  const contentType = String(Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : contentTypeHeader ?? "");
+  const contentType = String(
+    Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : (contentTypeHeader ?? "")
+  );
   if (
     !contentType.includes("text/") &&
     !contentType.includes("application/json") &&
@@ -670,11 +671,7 @@ function summarizeUpstreamBody(
     return undefined;
   }
 
-  const preview = body
-    .toString("utf8")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 300);
+  const preview = body.toString("utf8").replace(/\s+/g, " ").trim().slice(0, 300);
 
   return preview.length > 0 ? preview : undefined;
 }

@@ -86,9 +86,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   let bridgePromise: Promise<SimulatorBotBridge | null> | undefined;
   let scenarioStoragePromise: Promise<DevSimulatorScenarioStorage> | undefined;
   const eventLog: MockEventLogEntry[] = [];
-  let transcript: SimulatorTranscriptEntry[] = [
-    createReadyTranscriptEntry(options.manifest.name)
-  ];
+  let transcript: SimulatorTranscriptEntry[] = [createReadyTranscriptEntry(options.manifest.name)];
 
   return {
     appBasePath,
@@ -128,11 +126,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       }
 
       if (request.method === "POST" && pathname === "/state") {
-        currentProfile = mergeProfile(
-          currentProfile,
-          body as PartialMockProfile,
-          botToken
-        );
+        currentProfile = mergeProfile(currentProfile, body as PartialMockProfile, botToken);
         appendEvent({
           at: new Date().toISOString(),
           id: createId(),
@@ -682,7 +676,8 @@ function createBuiltInFixtures(manifestName: string): SimulatorFixtureDefinition
       } as PartialMockProfile
     },
     {
-      description: "Seeds start parameters for a resumed Mini App entry and a wider desktop viewport.",
+      description:
+        "Seeds start parameters for a resumed Mini App entry and a wider desktop viewport.",
       id: "resume-flow",
       name: "Resume Flow",
       patch: {
@@ -1217,7 +1212,7 @@ function createSimulatorUiHtml(options: {
             }
           });
           if (response.status >= 500) {
-            const body = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 220);
+            const body = (await response.text()).replace(/\\s+/g, " ").trim().slice(0, 220);
             setStatus(
               "Mini App responded with HTTP " +
                 response.status +

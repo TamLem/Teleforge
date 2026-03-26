@@ -219,9 +219,7 @@ async function loadRuntime(): Promise<BotRuntime> {
     (typeof module.default === "function" ? module.default : undefined);
 
   if (!factory) {
-    throw new Error(
-      `Bot runtime module ${entryPath} must export createDevBotRuntime(options).`
-    );
+    throw new Error(`Bot runtime module ${entryPath} must export createDevBotRuntime(options).`);
   }
 
   const runtime = await factory({
