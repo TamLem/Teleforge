@@ -758,10 +758,15 @@ function createSimulatorUiHtml(options: {
       .lede { max-width: 70rem; line-height: 1.55; color: #45556e; }
       .shell {
         display: grid;
-        grid-template-columns: 360px minmax(420px, 1fr) 320px;
+        grid-template-columns: minmax(320px, 360px) minmax(420px, 1fr) minmax(300px, 340px) minmax(280px, 320px);
+        grid-template-areas: "chat app controls diagnostics";
         gap: 1rem;
         align-items: start;
       }
+      .pane-chat { grid-area: chat; }
+      .pane-app { grid-area: app; }
+      .pane-controls { grid-area: controls; }
+      .pane-diagnostics { grid-area: diagnostics; }
       .pane {
         background: rgba(255, 255, 255, 0.88);
         border-radius: 24px;
@@ -854,30 +859,46 @@ function createSimulatorUiHtml(options: {
         flex-wrap: wrap;
         gap: 0.5rem;
       }
+      .pane-app > section:last-child {
+        display: grid;
+        justify-items: center;
+      }
       .app-frame {
-        width: 100%;
-        min-height: 72vh;
-        border: 0;
+        width: min(100%, 402px);
+        height: min(78vh, 844px);
+        min-height: 680px;
+        border: 1px solid rgba(19, 32, 51, 0.1);
+        border-radius: 30px;
         background: #ffffff;
+        box-shadow:
+          0 24px 54px rgba(19, 32, 51, 0.14),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.68);
       }
       .app-stage {
         display: grid;
         gap: 0.9rem;
+        justify-items: center;
+        width: 100%;
       }
       .app-empty {
-        min-height: 72vh;
-        border-radius: 18px;
+        width: min(100%, 402px);
+        height: min(78vh, 844px);
+        min-height: 680px;
+        border-radius: 30px;
         border: 1px dashed rgba(19, 32, 51, 0.18);
         background:
           linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(238, 243, 248, 0.96));
         color: #45556e;
-        padding: 2rem;
+        padding: 2rem 1.6rem;
         display: grid;
         place-items: center;
         text-align: center;
+        box-shadow:
+          0 24px 54px rgba(19, 32, 51, 0.1),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.68);
       }
       .app-empty p {
-        max-width: 28rem;
+        max-width: 19rem;
         line-height: 1.6;
       }
       .app-frame[hidden],
@@ -925,12 +946,44 @@ function createSimulatorUiHtml(options: {
         background: rgba(17, 138, 178, 0.1);
         color: #0d5675;
       }
+      .pane-diagnostics .log {
+        max-height: 21rem;
+      }
+      @media (max-width: 1680px) {
+        .shell {
+          grid-template-columns: minmax(320px, 360px) minmax(400px, 1fr) minmax(300px, 360px);
+          grid-template-areas:
+            "chat app controls"
+            "chat app diagnostics";
+        }
+      }
       @media (max-width: 1320px) {
         .shell {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr);
+          grid-template-areas:
+            "chat app"
+            "controls diagnostics";
         }
-        .app-frame {
-          min-height: 60vh;
+        .app-frame,
+        .app-empty {
+          height: min(72vh, 820px);
+          min-height: 620px;
+        }
+      }
+      @media (max-width: 1040px) {
+        .shell {
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "chat"
+            "app"
+            "controls"
+            "diagnostics";
+        }
+        .app-frame,
+        .app-empty {
+          width: min(100%, 420px);
+          height: min(78vh, 820px);
+          min-height: 600px;
         }
       }
     </style>
@@ -942,12 +995,12 @@ function createSimulatorUiHtml(options: {
         <h1>${escapeHtml(options.manifestName)}</h1>
         <p class="lede">
           Local simulator for Telegram Mini App work. The left pane drives a lightweight chat transcript,
-          the center pane embeds the real app, and the right pane controls Telegram-like user, launch,
-          theme, viewport, and event state.
+          the center pane embeds a phone-sized Mini App, and the right-side columns handle simulator state,
+          events, and runtime diagnostics without leaving a single browser view.
         </p>
       </header>
       <div class="shell">
-        <section class="pane">
+        <section class="pane pane-chat">
           <section>
             <h2>Chat</h2>
             <div id="transcript" class="transcript"></div>
@@ -975,7 +1028,7 @@ function createSimulatorUiHtml(options: {
             </div>
           </section>
         </section>
-        <section class="pane">
+        <section class="pane pane-app">
           <section>
             <h2>Mini App</h2>
             <div class="status" id="simulator-status">Loading simulator state…</div>
@@ -996,7 +1049,7 @@ function createSimulatorUiHtml(options: {
             </div>
           </section>
         </section>
-        <aside class="pane">
+        <aside class="pane pane-controls">
           <section>
             <h2>Scenarios</h2>
             <div class="controls">
@@ -1034,6 +1087,8 @@ function createSimulatorUiHtml(options: {
               </div>
             </div>
           </section>
+        </aside>
+        <aside class="pane pane-diagnostics">
           <section>
             <h2>Events</h2>
             <div class="event-actions">
