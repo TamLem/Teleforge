@@ -36,6 +36,7 @@ interface DevSimulatorScenarioFile {
 }
 
 export interface DevSimulatorScenarioStorage {
+  describe(): { rootDir: string; scenariosDir: string };
   listScenarios(): Promise<Array<{ fileName: string; name: string }>>;
   loadScenario(name: string): Promise<DevSimulatorScenario>;
   saveScenario(
@@ -51,6 +52,12 @@ export async function createDevSimulatorScenarioStorage(
   await mkdir(scenariosDir, { recursive: true });
 
   return {
+    describe() {
+      return {
+        rootDir,
+        scenariosDir
+      };
+    },
     async listScenarios() {
       const entries = await readdir(scenariosDir);
       const names = entries.filter((entry) => entry.endsWith(".json")).sort();

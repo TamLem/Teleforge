@@ -23,6 +23,9 @@ teleforge doctor
 - a chat pane that executes the local bot runtime when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
 - an embedded frame running the real Mini App from `apps/web`
 - callback-query button simulation for inline keyboard flows
+- built-in fixtures for fast state resets such as fresh, dark-mobile, and resume-flow sessions
+- replay controls for the last chat, callback, or `web_app_data` action
+- a debug panel showing mode, active scenario, latest event, profile snapshot, and scenario storage path
 - saved simulator scenarios under `~/.teleforge/scenarios`
 - controls for Telegram-like user, launch, theme, viewport, and event state
 - the companion `apps/bot` service when the workspace exposes a `dev` script
@@ -30,6 +33,12 @@ teleforge doctor
 `--open` launches the simulator automatically.
 
 If a workspace does not expose `apps/bot/src/runtime.ts`, the simulator falls back to manifest-driven chat behavior for `/start`, `/help`, and transcript-level Mini App opens.
+
+The simulator is meant to cover most day-to-day local work:
+
+- apply a fixture when you want to jump to a known Telegram state quickly
+- save a scenario when you want a repeatable local regression case
+- use Replay Last to rerun the most recent command, callback, or `web_app_data` payload without retyping it
 
 Use `teleforge dev --public --live` for Telegram-facing testing. If `cloudflared` is installed, Teleforge starts a quick tunnel against the resolved local HTTPS port and reuses the same companion-service behavior as `teleforge dev`. Use `--tunnel-provider localtunnel` or `--tunnel-provider ngrok` to force another provider. `teleforge dev:https` remains as a legacy alias for the same mode.
 

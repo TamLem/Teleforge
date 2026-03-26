@@ -169,11 +169,22 @@ You should see:
 - a chat pane and embedded Mini App frame
 - real local bot command handling when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
 - inline keyboard callback buttons routed back as local `callback_query` updates
+- built-in fixtures for quick fresh-session, dark-mobile, and resume-flow setups
+- a Replay Last action for rerunning the most recent chat, callback, or `web_app_data` step
 - the companion bot dev process start when the workspace defines it
 - Telegram-like theme, viewport, launch, and user state injected into the embedded app
+- a debug panel showing the current mode, active scenario, latest event, and profile snapshot
 - saved scenarios available for reloading transcript plus Telegram state from `~/.teleforge/scenarios`
 
 If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to manifest-level `/start` and `/help` behavior.
+
+Recommended local loop:
+
+1. Start `teleforge dev --open`.
+2. Apply a built-in fixture to get close to the state you want.
+3. Drive the flow from the chat pane.
+4. Save the scenario once the state is useful.
+5. Reload that scenario later as a local regression case.
 
 ## 4. Create a Telegram Bot
 

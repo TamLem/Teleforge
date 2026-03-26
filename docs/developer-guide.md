@@ -131,6 +131,14 @@ Use `teleforge dev` when:
 
 If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default. When `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`, the simulator chat also executes that runtime directly for local `/start`, custom commands, `web_app_data`, and inline-keyboard `callback_query` flows. The same simulator can now save and reload full scenarios, including transcript and Telegram state, from `~/.teleforge/scenarios`.
 
+The current simulator-first workflow is:
+
+- use built-in fixtures to jump to known Telegram-like states quickly
+- drive commands, callbacks, and `web_app_data` from the chat pane
+- inspect the right-side debug panel for active scenario, latest event, and live profile state
+- save a scenario when a flow becomes worth keeping
+- use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
+
 Use `teleforge dev --public --live` when:
 
 - you need HTTPS locally

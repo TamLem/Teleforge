@@ -26,10 +26,12 @@ Interactive mode is supported when `--mode` or the target directory is omitted.
 
 The scaffold is polling-first by default:
 
-- `pnpm run dev`: local browser development with the Telegram mock bridge plus the companion bot process
+- `pnpm run dev`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and the companion bot process
 - `pnpm run dev:public`: public HTTPS tunnel for real Telegram testing
 - `pnpm test`: baseline bot and screen smoke tests
 - `pnpm run doctor`: manifest and environment diagnostics
+
+Generated apps also export `apps/bot/src/runtime.ts`, so `teleforge dev` can execute `/start`, `web_app_data`, and callback flows directly inside the simulator chat without Telegram.
 
 The generated `apps/api` files are placeholders. They do not make webhook mode active by themselves; webhook mode only makes sense once the primary web runtime actually serves `/api/webhook`.
 

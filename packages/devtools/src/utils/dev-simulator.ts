@@ -37,20 +37,54 @@ export interface DevSimulator {
 }
 
 type SimulatorTranscriptEntry = DevSimulatorTranscriptEntry;
+type SimulatorChatMode = "manifest" | "workspace";
+
+interface SimulatorFixtureDefinition {
+  description: string;
+  id: string;
+  name: string;
+  patch: PartialMockProfile;
+}
+
+type SimulatorReplayAction =
+  | {
+      at: string;
+      kind: "callback";
+      label: string;
+      value: string;
+    }
+  | {
+      at: string;
+      kind: "chat";
+      label: string;
+      value: string;
+    }
+  | {
+      at: string;
+      kind: "open_app";
+      label: string;
+    }
+  | {
+      at: string;
+      kind: "web_app_data";
+      label: string;
+      value: string;
+    };
 
 export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   const appBasePath = options.appBasePath ?? "/__teleforge/app";
   const apiBasePath = "/__teleforge/api";
+  const botToken = options.env.BOT_TOKEN ?? process.env.BOT_TOKEN;
   const manifestCommands = options.manifest.bot.commands ?? [];
-  let currentProfile = createDefaultProfile(process.env.BOT_TOKEN);
+  const builtInFixtures = createBuiltInFixtures(options.manifest.name);
+  let activeScenarioName: string | null = null;
+  let currentProfile = createDefaultProfile(botToken);
+  let lastAction: SimulatorReplayAction | null = null;
   let bridgePromise: Promise<SimulatorBotBridge | null> | undefined;
   let scenarioStoragePromise: Promise<DevSimulatorScenarioStorage> | undefined;
   const eventLog: MockEventLogEntry[] = [];
   let transcript: SimulatorTranscriptEntry[] = [
-    createTranscriptEntry(
-      "system",
-      `Simulator ready for ${options.manifest.name}. Send /start to open the Mini App or /help to inspect available commands.`
-    )
+    createReadyTranscriptEntry(options.manifest.name)
   ];
 
   return {
@@ -94,7 +128,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         currentProfile = mergeProfile(
           currentProfile,
           body as PartialMockProfile,
-          process.env.BOT_TOKEN
+          botToken
         );
         appendEvent({
           at: new Date().toISOString(),
@@ -105,6 +139,26 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
             launchMode: currentProfile.appContext.launchMode
           }
         });
+        sendJson(response, 200, await createStatePayload());
+        return true;
+      }
+
+      if (request.method === "GET" && pathname === "/fixtures") {
+        sendJson(response, 200, {
+          fixtures: builtInFixtures.map(toFixtureSummary)
+        });
+        return true;
+      }
+
+      if (request.method === "POST" && pathname.startsWith("/fixtures/")) {
+        const fixtureId = decodeURIComponent(pathname.replace("/fixtures/", ""));
+        const fixture = builtInFixtures.find((entry) => entry.id === fixtureId);
+        if (!fixture) {
+          sendJson(response, 404, { error: `Unknown simulator fixture: ${fixtureId}` });
+          return true;
+        }
+
+        applyFixture(fixture);
         sendJson(response, 200, await createStatePayload());
         return true;
       }
@@ -122,12 +176,28 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       }
 
       if (request.method === "POST" && pathname === "/chat/open-app") {
+        lastAction = {
+          at: new Date().toISOString(),
+          kind: "open_app",
+          label: "Open App"
+        };
         transcript = transcript.concat(
           createTranscriptEntry(
             "system",
             `Opened Mini App shell at ${appBasePath}/ using launch mode ${currentProfile.appContext.launchMode}.`
           )
         );
+        sendJson(response, 200, await createStatePayload());
+        return true;
+      }
+
+      if (request.method === "POST" && pathname === "/chat/replay") {
+        if (!lastAction) {
+          sendJson(response, 409, { error: "No simulator action has been recorded yet." });
+          return true;
+        }
+
+        await replayLastAction();
         sendJson(response, 200, await createStatePayload());
         return true;
       }
@@ -152,12 +222,9 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       }
 
       if (request.method === "POST" && pathname === "/chat/reset") {
-        transcript = [
-          createTranscriptEntry(
-            "system",
-            `Transcript reset for ${options.manifest.name}. Send /start to begin a new session.`
-          )
-        ];
+        activeScenarioName = null;
+        lastAction = null;
+        transcript = [createResetTranscriptEntry(options.manifest.name)];
         sendJson(response, 200, await createStatePayload());
         return true;
       }
@@ -180,6 +247,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
           },
           name || undefined
         );
+        activeScenarioName = scenarioRef.name;
         sendJson(response, 201, {
           scenarioRef,
           scenarios: await storage.listScenarios()
@@ -191,6 +259,8 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         const storage = await resolveScenarioStorage();
         const scenarioName = decodeURIComponent(pathname.replace("/scenarios/", ""));
         const scenario = await storage.loadScenario(scenarioName);
+        activeScenarioName = scenario.name;
+        lastAction = null;
         currentProfile = scenario.profile;
         transcript = scenario.transcript;
         eventLog.splice(0, eventLog.length, ...scenario.events.slice(0, 24));
@@ -226,23 +296,46 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
 
   async function createStatePayload() {
     const bridge = await resolveBotBridge();
+    const chatMode: SimulatorChatMode = bridge ? "workspace" : "manifest";
+    const commandHints = bridge
+      ? await bridge.getCommands()
+      : manifestCommands.map((command) => command.command);
+    const scenarioStorage = await resolveScenarioStorage();
+
     return {
       chat: {
-        commandHints: bridge ? await bridge.getCommands() : manifestCommands.map((command) => command.command),
-        mode: bridge ? "workspace" : "manifest"
+        commandHints,
+        mode: chatMode
+      },
+      debug: {
+        activeScenarioName,
+        commandCount: commandHints.length,
+        latestEvent: eventLog[0] ?? null,
+        lastAction,
+        miniAppUrl: `${appBasePath}/`,
+        mode: chatMode,
+        scenarioStoragePath: scenarioStorage.describe().scenariosDir,
+        transcriptEntries: transcript.length
       },
       events: eventLog,
+      fixtures: builtInFixtures.map(toFixtureSummary),
       manifest: {
         commands: manifestCommands,
         name: options.manifest.name
       },
       profile: currentProfile,
-      scenarios: await (await resolveScenarioStorage()).listScenarios(),
+      scenarios: await scenarioStorage.listScenarios(),
       transcript
     };
   }
 
   async function handleChatInput(text: string) {
+    lastAction = {
+      at: new Date().toISOString(),
+      kind: "chat",
+      label: text,
+      value: text
+    };
     transcript = transcript.concat(createTranscriptEntry("user", text));
 
     const bridge = await resolveBotBridge();
@@ -261,6 +354,12 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   }
 
   async function handleWebAppData(data: string) {
+    lastAction = {
+      at: new Date().toISOString(),
+      kind: "web_app_data",
+      label: `web_app_data ${data}`,
+      value: data
+    };
     transcript = transcript.concat(createTranscriptEntry("user", `web_app_data ${data}`));
     appendEvent({
       at: new Date().toISOString(),
@@ -287,6 +386,12 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   }
 
   async function handleCallbackData(data: string) {
+    lastAction = {
+      at: new Date().toISOString(),
+      kind: "callback",
+      label: `callback ${data}`,
+      value: data
+    };
     transcript = transcript.concat(createTranscriptEntry("user", `callback ${data}`));
     appendEvent({
       at: new Date().toISOString(),
@@ -410,6 +515,60 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
 
     return scenarioStoragePromise;
   }
+
+  function applyFixture(fixture: SimulatorFixtureDefinition) {
+    activeScenarioName = `Fixture: ${fixture.name}`;
+    lastAction = null;
+    currentProfile = mergeProfile(createDefaultProfile(botToken), fixture.patch, botToken);
+    transcript = [
+      createReadyTranscriptEntry(options.manifest.name),
+      createTranscriptEntry("system", `Applied fixture ${fixture.name}. ${fixture.description}`)
+    ];
+    eventLog.splice(0, eventLog.length);
+    appendEvent({
+      at: new Date().toISOString(),
+      id: createId(),
+      name: "fixtureApplied",
+      payload: {
+        fixtureId: fixture.id,
+        name: fixture.name
+      }
+    });
+  }
+
+  async function replayLastAction() {
+    const action = lastAction;
+    if (!action) {
+      return;
+    }
+
+    if (action.kind === "chat") {
+      await handleChatInput(action.value);
+      return;
+    }
+
+    if (action.kind === "callback") {
+      await handleCallbackData(action.value);
+      return;
+    }
+
+    if (action.kind === "web_app_data") {
+      await handleWebAppData(action.value);
+      return;
+    }
+
+    lastAction = {
+      at: new Date().toISOString(),
+      kind: "open_app",
+      label: "Open App"
+    };
+    transcript = transcript.concat(
+      createTranscriptEntry(
+        "system",
+        `Opened Mini App shell at ${appBasePath}/ using launch mode ${currentProfile.appContext.launchMode}.`
+      )
+    );
+  }
 }
 
 function toTranscriptEntries(messages: CapturedTelegramMessage[]): SimulatorTranscriptEntry[] {
@@ -458,6 +617,94 @@ function flattenButtons(
   }
 
   return buttons.length > 0 ? buttons : undefined;
+}
+
+function createBuiltInFixtures(manifestName: string): SimulatorFixtureDefinition[] {
+  return [
+    {
+      description: "Resets to the default inline iOS shell with a clean transcript.",
+      id: "fresh-session",
+      name: "Fresh Session",
+      patch: {
+        appContext: {
+          colorScheme: "light",
+          isExpanded: true,
+          launchMode: "inline",
+          platform: "ios",
+          viewportHeight: 720,
+          viewportWidth: 390
+        },
+        description: `Fresh simulator fixture for ${manifestName}`,
+        launchParams: {
+          query_id: "teleforge-query",
+          start_param: "welcome",
+          startapp: undefined
+        },
+        name: "Fresh Session"
+      } as PartialMockProfile
+    },
+    {
+      description: "Switches to a dark Android shell for visual QA and layout checks.",
+      id: "dark-mobile",
+      name: "Dark Mobile",
+      patch: {
+        appContext: {
+          colorScheme: "dark",
+          isExpanded: true,
+          launchMode: "fullscreen",
+          platform: "android",
+          viewportHeight: 844,
+          viewportWidth: 390
+        },
+        description: `Dark mobile simulator fixture for ${manifestName}`,
+        name: "Dark Mobile"
+      } as PartialMockProfile
+    },
+    {
+      description: "Seeds start parameters for a resumed Mini App entry and a wider desktop viewport.",
+      id: "resume-flow",
+      name: "Resume Flow",
+      patch: {
+        appContext: {
+          colorScheme: "light",
+          isExpanded: true,
+          launchMode: "full",
+          platform: "web",
+          viewportHeight: 900,
+          viewportWidth: 1440
+        },
+        description: `Resume-flow simulator fixture for ${manifestName}`,
+        launchParams: {
+          query_id: "teleforge-resume-query",
+          start_param: "resume-flow",
+          startapp: "resume-flow"
+        },
+        name: "Resume Flow"
+      } as PartialMockProfile
+    }
+  ];
+}
+
+function createReadyTranscriptEntry(manifestName: string): SimulatorTranscriptEntry {
+  return createTranscriptEntry(
+    "system",
+    `Simulator ready for ${manifestName}. Send /start to open the Mini App or /help to inspect available commands.`
+  );
+}
+
+function createResetTranscriptEntry(manifestName: string): SimulatorTranscriptEntry {
+  return createTranscriptEntry(
+    "system",
+    `Transcript reset for ${manifestName}. Send /start to begin a new session.`
+  );
+}
+
+function toFixtureSummary(fixture: SimulatorFixtureDefinition) {
+  return {
+    description: fixture.description,
+    id: fixture.id,
+    name: fixture.name
+  };
 }
 
 function createSimulatorUiHtml(options: {
@@ -623,6 +870,10 @@ function createSimulatorUiHtml(options: {
         white-space: pre-wrap;
         word-break: break-word;
       }
+      .hint {
+        font-size: 0.85rem;
+        color: #45556e;
+      }
       .status {
         padding: 0.75rem 0.9rem;
         border-radius: 14px;
@@ -665,6 +916,7 @@ function createSimulatorUiHtml(options: {
                 )
                 .join("")}
               <button type="button" class="secondary" id="open-app">Open App</button>
+              <button type="button" class="secondary" id="replay-last">Replay Last</button>
               <button type="button" class="secondary" id="reset-chat">Reset</button>
             </div>
             <div class="composer">
@@ -691,6 +943,8 @@ function createSimulatorUiHtml(options: {
           <section>
             <h2>Scenarios</h2>
             <div class="controls">
+              <p class="hint">Built-in fixtures reset the simulator into named local test states.</p>
+              <div id="fixtures" class="quick"></div>
               <label>Scenario Name<input id="scenario-name" placeholder="checkout-flow" /></label>
               <div class="control-actions">
                 <button id="save-scenario" type="button">Save Scenario</button>
@@ -733,6 +987,14 @@ function createSimulatorUiHtml(options: {
             </div>
             <div id="events" class="log">Waiting for events…</div>
           </section>
+          <section>
+            <h2>Debug</h2>
+            <div id="debug-summary" class="log">Loading debug state…</div>
+            <div class="controls">
+              <label>Last Action<div id="debug-last-action" class="log">No simulator actions yet.</div></label>
+              <label>Profile Snapshot<div id="debug-profile" class="log">Waiting for simulator state…</div></label>
+            </div>
+          </section>
         </aside>
       </div>
     </main>
@@ -746,9 +1008,13 @@ function createSimulatorUiHtml(options: {
         appVersion: document.getElementById("app-version"),
         chatInput: document.getElementById("chat-input"),
         colorScheme: document.getElementById("color-scheme"),
+        debugLastAction: document.getElementById("debug-last-action"),
+        debugProfile: document.getElementById("debug-profile"),
+        debugSummary: document.getElementById("debug-summary"),
         events: document.getElementById("events"),
         expanded: document.getElementById("expanded"),
         firstName: document.getElementById("first-name"),
+        fixtures: document.getElementById("fixtures"),
         hash: document.getElementById("hash"),
         launchMode: document.getElementById("launch-mode"),
         platform: document.getElementById("platform"),
@@ -794,6 +1060,64 @@ function createSimulatorUiHtml(options: {
         ids.events.textContent = events.length === 0
           ? "Waiting for events…"
           : events.map((entry) => "[" + entry.at + "] " + entry.name + ": " + JSON.stringify(entry.payload || {})).join("\\n");
+      }
+
+      function renderDebug(payload) {
+        const debug = payload.debug || {};
+        const latestEvent = debug.latestEvent
+          ? debug.latestEvent.name + " @ " + debug.latestEvent.at
+          : "No events yet";
+
+        ids.debugSummary.textContent = [
+          "Mode: " + (payload.chat?.mode || "manifest"),
+          "Commands: " + String(debug.commandCount ?? payload.chat?.commandHints?.length ?? 0),
+          "Mini App URL: " + (debug.miniAppUrl || appBasePath + "/"),
+          "Active Scenario: " + (debug.activeScenarioName || "None"),
+          "Scenario Storage: " + (debug.scenarioStoragePath || "Unavailable"),
+          "Transcript Entries: " + String(debug.transcriptEntries ?? payload.transcript?.length ?? 0),
+          "Latest Event: " + latestEvent
+        ].join("\\n");
+
+        ids.debugLastAction.textContent = debug.lastAction
+          ? JSON.stringify(debug.lastAction, null, 2)
+          : "No simulator actions yet.";
+        ids.debugProfile.textContent = JSON.stringify(
+          {
+            appContext: payload.profile?.appContext,
+            launchParams: payload.profile?.launchParams,
+            user: payload.profile?.user
+          },
+          null,
+          2
+        );
+      }
+
+      function renderFixtures(fixtures) {
+        ids.fixtures.innerHTML = "";
+
+        if (!Array.isArray(fixtures) || fixtures.length === 0) {
+          const empty = document.createElement("p");
+          empty.textContent = "No fixtures available.";
+          ids.fixtures.appendChild(empty);
+          return;
+        }
+
+        for (const fixture of fixtures) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "secondary";
+          button.textContent = fixture.name;
+          button.title = fixture.description || fixture.name;
+          button.addEventListener("click", async () => {
+            const payload = await request("/fixtures/" + encodeURIComponent(fixture.id), {
+              method: "POST",
+              body: JSON.stringify({})
+            });
+            renderState(payload);
+            setStatus("Applied fixture " + fixture.name + ".");
+          });
+          ids.fixtures.appendChild(button);
+        }
       }
 
       function renderScenarios(scenarios) {
@@ -881,6 +1205,8 @@ function createSimulatorUiHtml(options: {
         renderProfile(payload.profile);
         renderTranscript(payload.transcript);
         renderEvents(payload.events);
+        renderDebug(payload);
+        renderFixtures(payload.fixtures);
         renderScenarios(payload.scenarios);
         setStatus("Simulator ready.");
         postToApp({
@@ -942,6 +1268,13 @@ function createSimulatorUiHtml(options: {
       document.getElementById("open-app").addEventListener("click", async () => {
         ids.appFrame.src = appBasePath + "/";
         await request("/chat/open-app", { method: "POST" }).then(renderState);
+      });
+
+      document.getElementById("replay-last").addEventListener("click", async () => {
+        await request("/chat/replay", {
+          method: "POST",
+          body: JSON.stringify({})
+        }).then(renderState);
       });
 
       document.getElementById("reset-chat").addEventListener("click", async () => {

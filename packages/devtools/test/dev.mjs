@@ -304,6 +304,22 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     const stateBefore = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/state`);
     assert.equal(stateBefore.transcript[0]?.role, "system");
     assert.equal(stateBefore.chat.mode, "workspace");
+    assert.match(stateBefore.debug.scenarioStoragePath, /teleforge-home[\\/]scenarios$/);
+    assert.ok(stateBefore.fixtures.some((fixture) => fixture.id === "resume-flow"));
+
+    const fixtureState = await requestJson(
+      `http://127.0.0.1:${port}/__teleforge/api/fixtures/resume-flow`,
+      {
+        body: JSON.stringify({}),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+    assert.equal(fixtureState.profile.launchParams.startapp, "resume-flow");
+    assert.equal(fixtureState.profile.appContext.launchMode, "full");
+    assert.equal(fixtureState.debug.activeScenarioName, "Fixture: Resume Flow");
 
     const stateAfter = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/send`, {
       body: JSON.stringify({
@@ -337,6 +353,19 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     const callbackEntry = callbackState.transcript.at(-1);
     assert.equal(callbackEntry?.role, "bot");
     assert.equal(callbackEntry?.text, "Callback handled: task:confirm");
+    assert.equal(callbackState.debug.lastAction.kind, "callback");
+    assert.equal(callbackState.debug.latestEvent.name, "callback_query");
+
+    const replayState = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/chat/replay`, {
+      body: JSON.stringify({}),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+    const replayEntry = replayState.transcript.at(-1);
+    assert.equal(replayEntry?.text, "Callback handled: task:confirm");
+    assert.equal(replayState.debug.lastAction.kind, "callback");
 
     const savePayload = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/scenarios`, {
       body: JSON.stringify({
@@ -357,11 +386,14 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
       method: "POST"
     });
     assert.equal(resetState.transcript.length, 1);
+    assert.equal(resetState.debug.activeScenarioName, null);
+    assert.equal(resetState.debug.lastAction, null);
 
     const loadedScenario = await requestJson(
       `http://127.0.0.1:${port}/__teleforge/api/scenarios/callback-flow.json`
     );
     assert.equal(loadedScenario.state.transcript.at(-1)?.text, "Callback handled: task:confirm");
+    assert.equal(loadedScenario.state.debug.activeScenarioName, "callback-flow");
     assert.ok(
       loadedScenario.scenarios.some((scenario) => scenario.fileName === "callback-flow.json")
     );

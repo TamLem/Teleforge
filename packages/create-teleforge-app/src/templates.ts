@@ -85,7 +85,7 @@ ${doctor}
 
 ## Dev Workflow
 
-- \`${options.packageManager} run dev\`: local browser development with Teleforge's mock bridge and companion bot process
+- \`${options.packageManager} run dev\`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and companion bot process
 - \`${options.packageManager} run dev:public\`: public HTTPS tunnel for real Telegram testing
 - \`${options.packageManager} test\`: baseline bot and screen smoke tests
 - \`${options.packageManager} run doctor\`: manifest and environment diagnostics
@@ -94,6 +94,8 @@ ${doctor}
 
 - the scaffold runs the bot in polling mode by default
 - \`apps/bot/src/runtime.ts\` exports \`createDevBotRuntime()\`, so \`teleforge dev\` can execute bot commands inside the local simulator chat
+- use built-in simulator fixtures to jump into fresh-session, dark-mobile, or resume-flow states during local work
+- use Replay Last in the simulator to rerun the latest command, callback, or \`web_app_data\` payload while iterating
 - leave \`MINI_APP_URL\` blank unless you want to force a fixed override
 - \`dev\` and \`dev:public\` inject the resolved local or public URL into the companion bot automatically
 - the generated \`apps/api\` files are placeholders; webhook mode only makes sense once the primary web runtime actually serves \`/api/webhook\`
