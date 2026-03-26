@@ -12,8 +12,9 @@ import { createPollingBot, createPreviewBot } from "./telegram.js";
 
 loadTaskShopEnv();
 
-const miniAppUrl = process.env.MINI_APP_URL ?? "https://example.ngrok.app";
-const coordinationSecret = process.env.COORDINATION_SECRET ?? "task-shop-preview-secret";
+const miniAppUrl = readNonEmptyEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
+const coordinationSecret =
+  readNonEmptyEnv("COORDINATION_SECRET") ?? "task-shop-preview-secret";
 const flowStateManager = createTaskShopFlowStateManager();
 const pollDebug = isTruthyEnv(process.env.TASK_SHOP_POLL_DEBUG);
 
@@ -27,7 +28,7 @@ async function main() {
     createOrderCompletedHandler(flowStateManager, coordinationSecret, miniAppUrl)
   );
 
-  const token = process.env.BOT_TOKEN;
+  const token = readNonEmptyEnv("BOT_TOKEN");
 
   if (!token) {
     await runPreview(runtime);
@@ -211,6 +212,16 @@ function isTruthyEnv(value: string | undefined): boolean {
 
   const normalized = value.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function readNonEmptyEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function loadTaskShopEnv() {

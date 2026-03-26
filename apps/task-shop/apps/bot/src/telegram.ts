@@ -1,3 +1,5 @@
+import https from "node:https";
+
 import type {
   BotCommandDefinition,
   BotInstance,
@@ -82,21 +84,34 @@ export function createPreviewBot(log: (message: string) => void): BotInstance {
 }
 
 async function request<T>(url: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(url, {
-    body: JSON.stringify(body),
-    headers: {
-      "content-type": "application/json"
-    },
-    method: "POST"
-  });
+  const methodName = extractTelegramMethod(url);
+  let lastError: unknown;
 
-  const payload = (await response.json()) as TelegramApiResponse<T>;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await postJson(url, body);
+      const payload = JSON.parse(response.body) as TelegramApiResponse<T>;
 
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.description ?? `Telegram API request failed (${response.status}).`);
+      if (response.statusCode < 200 || response.statusCode >= 300 || !payload.ok) {
+        throw new Error(
+          payload.description ??
+            `Telegram API request failed (${response.statusCode}) while calling ${methodName}.`
+        );
+      }
+
+      return payload.result;
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableTelegramNetworkError(error) || attempt === 3) {
+        break;
+      }
+
+      await sleep(attempt * 500);
+    }
   }
 
-  return payload.result;
+  throw enrichTelegramError(lastError, methodName);
 }
 
 function toTelegramSendMessageOptions(options: ReplyOptions): Record<string, unknown> {
@@ -110,4 +125,89 @@ function toTelegramSendMessageOptions(options: ReplyOptions): Record<string, unk
 
 function serializeReplyMarkup(markup?: TelegramReplyMarkup): TelegramReplyMarkup | undefined {
   return markup ? { inline_keyboard: markup.inline_keyboard } : undefined;
+}
+
+interface JsonResponse {
+  body: string;
+  statusCode: number;
+}
+
+function postJson(url: string, body: Record<string, unknown>): Promise<JsonResponse> {
+  const payload = JSON.stringify(body);
+  const target = new URL(url);
+  const timeoutSeconds = typeof body.timeout === "number" ? body.timeout : 0;
+  const timeoutMs = Math.max(10_000, (timeoutSeconds + 10) * 1_000);
+
+  return new Promise<JsonResponse>((resolve, reject) => {
+    const request = https.request(
+      {
+        family: 4,
+        headers: {
+          "content-length": Buffer.byteLength(payload),
+          "content-type": "application/json"
+        },
+        hostname: target.hostname,
+        method: "POST",
+        path: `${target.pathname}${target.search}`,
+        port: target.port ? Number(target.port) : 443
+      },
+      (response) => {
+        let responseBody = "";
+
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          responseBody += chunk;
+        });
+        response.on("end", () => {
+          resolve({
+            body: responseBody,
+            statusCode: response.statusCode ?? 0
+          });
+        });
+      }
+    );
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`Telegram API request timed out after ${timeoutMs}ms.`));
+    });
+    request.on("error", (error) => {
+      reject(error);
+    });
+    request.write(payload);
+    request.end();
+  });
+}
+
+function extractTelegramMethod(url: string): string {
+  const pathname = new URL(url).pathname;
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.at(-1) ?? "unknown";
+}
+
+function isRetryableTelegramNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const nodeError = error as Error & { code?: string };
+  return (
+    nodeError.code === "ECONNRESET" ||
+    nodeError.code === "ENETUNREACH" ||
+    nodeError.code === "ETIMEDOUT" ||
+    error.message.includes("timed out")
+  );
+}
+
+function enrichTelegramError(error: unknown, methodName: string): Error {
+  if (error instanceof Error) {
+    return new Error(`Telegram API ${methodName} failed: ${error.message}`, { cause: error });
+  }
+
+  return new Error(`Telegram API ${methodName} failed with an unknown error.`);
+}
+
+function sleep(timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, timeoutMs);
+  });
 }
