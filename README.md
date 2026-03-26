@@ -1,8 +1,16 @@
 # Teleforge Workspace
 
-[![API Documentation](https://img.shields.io/badge/API-Documentation-blue)](./docs/api/index.html)
+[![Developer Docs](https://img.shields.io/badge/Docs-Developer_Guide-blue)](./docs/developer-guide.md)
 
 Product OS execution workspace for the Teleforge V1 toolchain.
+
+## Getting Started
+
+If you are new to the repo, start here:
+
+- [Developer Guide](./docs/developer-guide.md)
+- [Architecture](./docs/architecture.md)
+- [Documentation Index](./docs/README.md)
 
 ## Packages
 
@@ -30,7 +38,9 @@ pnpm docs:build
 pnpm docs:serve
 ```
 
-The generated API reference is written to `docs/api/` and is rebuilt on demand rather than committed.
+Narrative docs live in [`docs/`](./docs/README.md).
+
+Generated API reference is rebuilt into `docs/api/` on demand and linked from the documentation index.
 It covers the current `@teleforge/core`, `web`, `bot`, `bff`, `ui`, and `devtools` public surfaces.
 
 ## Tooling Surface
