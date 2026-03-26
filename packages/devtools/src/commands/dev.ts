@@ -22,7 +22,7 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
       console.log(
         `✓ Validated teleforge.app.json (${context.manifest.runtime.mode.toUpperCase()} mode, ${context.manifest.runtime.webFramework})`
       );
-      console.log("✓ Environment check passed (BOT_TOKEN, WEBHOOK_SECRET)");
+      console.log("✓ Project environment loaded");
 
       if (context.loadedEnvFiles.includes(".env.local")) {
         console.log("✓ Loaded env overrides from .env.local");
@@ -42,6 +42,10 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
 
       if (flags.mock) {
         console.log("✓ Telegram WebApp mock overlay injected");
+      }
+
+      if (context.companionServices.length > 0) {
+        console.log(`✓ Companion services active: ${context.companionServices.join(", ")}`);
       }
 
       if (flags.open && !browserOpened) {
@@ -70,6 +74,6 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
         console.log(`Warning: ${context.tunnelWarning}`);
       }
     },
-    requiredEnv: ["BOT_TOKEN", "WEBHOOK_SECRET"]
+    requiredEnv: []
   });
 }

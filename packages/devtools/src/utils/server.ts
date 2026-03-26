@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { accessSync, constants as fsConstants, watch } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
@@ -28,6 +28,7 @@ export interface SharedCommandFlags {
 
 export interface ManagedDevContext {
   childPort: number;
+  companionServices: string[];
   env: NodeJS.ProcessEnv;
   externalPort: number;
   frameworkLabel: string;
@@ -51,6 +52,7 @@ export interface ManagedDevCommandOptions {
 
 interface RuntimeHandle {
   child: ChildProcess;
+  companionServices: CompanionServiceHandle[];
   disposing: boolean;
   tunnel?: TunnelHandle;
   context: ManagedDevContext;
@@ -94,6 +96,18 @@ export async function runManagedDevCommand(options: ManagedDevCommandOptions): P
         await stop();
         rejectRun(new Error(`Dev server exited unexpectedly with code ${code ?? "unknown"}.`));
       });
+
+      for (const service of activeRuntime.companionServices) {
+        service.child.once("exit", (code) => {
+          if (stopping || activeRuntime.disposing) {
+            return;
+          }
+
+          console.log(
+            `Warning: Companion service ${service.label} exited with code ${code ?? "unknown"}.`
+          );
+        });
+      }
     };
 
     const handleSignal = async () => {
@@ -180,8 +194,16 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
     }
   }
 
+  const publicUrl = tunnel?.url ?? url;
+  const companionServices = await spawnCompanionServices({
+    cwd: options.flags.cwd,
+    env,
+    publicUrl
+  });
+
   const context: ManagedDevContext = {
     childPort,
+    companionServices: companionServices.map((service) => service.label),
     env,
     externalPort,
     frameworkLabel: manifest.runtime.webFramework === "vite" ? "Vite" : "Next.js",
@@ -197,6 +219,7 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
 
   const handle: RuntimeHandle = {
     child,
+    companionServices,
     disposing: false,
     tunnel,
     context,
@@ -209,6 +232,7 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
       if (tunnel) {
         await tunnel.cleanup();
       }
+      await Promise.all(companionServices.map((service) => service.cleanup()));
       if (!child.killed) {
         child.kill("SIGTERM");
         await onceExit(child, 5_000);
@@ -217,6 +241,107 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
   };
 
   return handle;
+}
+
+interface CompanionServiceDefinition {
+  cwd: string;
+  label: string;
+}
+
+interface CompanionServiceHandle extends CompanionServiceDefinition {
+  child: ChildProcess;
+  cleanup(): Promise<void>;
+}
+
+async function spawnCompanionServices(options: {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+  publicUrl: string;
+}): Promise<CompanionServiceHandle[]> {
+  const definitions = await discoverCompanionServices(options.cwd);
+  const handles: CompanionServiceHandle[] = [];
+
+  for (const definition of definitions) {
+    const child = spawn("pnpm", ["dev"], {
+      cwd: definition.cwd,
+      env: buildCompanionEnv(options.env, options.publicUrl),
+      stdio: "inherit"
+    });
+
+    handles.push({
+      ...definition,
+      child,
+      async cleanup() {
+        if (child.exitCode !== null || child.killed) {
+          return;
+        }
+
+        child.kill("SIGTERM");
+        await onceExit(child, 5_000);
+      }
+    });
+  }
+
+  return handles;
+}
+
+async function discoverCompanionServices(cwd: string): Promise<CompanionServiceDefinition[]> {
+  const appsDirectory = path.join(cwd, "apps");
+
+  try {
+    const entries = await readdir(appsDirectory, { withFileTypes: true });
+    const definitions: CompanionServiceDefinition[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name === "web") {
+        continue;
+      }
+
+      const serviceDirectory = path.join(appsDirectory, entry.name);
+      const manifestPath = path.join(serviceDirectory, "package.json");
+
+      try {
+        const packageJson = JSON.parse(await readFile(manifestPath, "utf8")) as {
+          scripts?: Record<string, string>;
+        };
+
+        if (!packageJson.scripts?.dev) {
+          continue;
+        }
+
+        definitions.push({
+          cwd: serviceDirectory,
+          label: entry.name
+        });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return definitions;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function buildCompanionEnv(env: NodeJS.ProcessEnv, publicUrl: string): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    ...env,
+    MINI_APP_URL: preferNonEmptyEnv(env.MINI_APP_URL, publicUrl),
+    TELEFORGE_PUBLIC_URL: publicUrl
+  };
+}
+
+function preferNonEmptyEnv(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : fallback;
 }
 
 function spawnFrameworkServer(options: {

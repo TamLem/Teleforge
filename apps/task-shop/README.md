@@ -32,10 +32,18 @@ pnpm install
 cp .env.example .env
 ```
 
-3. Start the bot and Mini App:
+3. Start the whole local stack:
 
 ```bash
 pnpm dev
+```
+
+`pnpm dev` now runs `teleforge dev:https --no-webhook`, which starts the Vite Mini App, a public tunnel, and the companion bot process together. The Task Shop sample bot uses polling, so webhook auto-configuration stays off by default.
+
+If you only want local browser development without a tunnel, use:
+
+```bash
+pnpm run dev:local
 ```
 
 If `BOT_TOKEN` is not configured, the bot stays in preview mode and logs simulated `/start`, `/tasks`, and order-handling output so the command wiring can still be inspected locally.
@@ -43,7 +51,7 @@ If `BOT_TOKEN` is not configured, the bot stays in preview mode and logs simulat
 ## Environment
 
 - `BOT_TOKEN`: Telegram bot token for live polling
-- `MINI_APP_URL`: public Mini App URL used in the `/start` button
+- `MINI_APP_URL`: optional override for the `/start` button URL. When omitted, Teleforge injects the current local or tunneled dev URL.
 - `VITE_TELEGRAM_BOT_ID`: bot ID for Ed25519 initData verification in the client
 - `VITE_TELEGRAM_PUBLIC_KEY`: Telegram environment public key for Ed25519 verification
 

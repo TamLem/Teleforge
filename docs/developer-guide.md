@@ -117,6 +117,8 @@ Use `teleforge dev` when:
 - Teleforge's Telegram mock overlay is enough
 - you do not need a Telegram-pasteable HTTPS URL yet
 
+If your workspace has companion `apps/*` packages with a `dev` script, Teleforge starts those alongside the Mini App so the local command covers more of the stack by default.
+
 Use `teleforge dev:https` when:
 
 - you need HTTPS locally

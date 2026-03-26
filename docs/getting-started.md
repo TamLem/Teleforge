@@ -149,7 +149,7 @@ teleforge doctor
 
 Use them like this:
 
-- `teleforge dev`: fast local browser development with Teleforge's Telegram mock overlay
+- `teleforge dev`: fast local browser development with Teleforge's Telegram mock overlay and any companion `apps/*` `dev` services
 - `teleforge dev:https`: HTTPS local development for Telegram-facing testing, using Cloudflare Tunnel by default when public reachability is needed
 - `teleforge mock`: standalone Telegram environment simulation
 - `teleforge doctor`: environment and manifest diagnostics
@@ -164,6 +164,7 @@ You should see:
 
 - Teleforge validate `teleforge.app.json`
 - the app boot in a normal browser
+- companion bot/API dev processes start when the workspace defines them
 - Telegram-like theme and viewport state injected by the mock bridge
 
 ## 4. Create a Telegram Bot

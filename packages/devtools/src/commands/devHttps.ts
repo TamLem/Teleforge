@@ -47,6 +47,10 @@ export async function runDevHttpsCommand(flags: DevHttpsCommandFlags): Promise<v
         console.log("✓ Telegram WebApp mock overlay injected");
       }
 
+      if (context.companionServices.length > 0) {
+        console.log(`✓ Companion services active: ${context.companionServices.join(", ")}`);
+      }
+
       if (flags.qr) {
         const qrTarget = context.tunnelUrl ?? context.url;
         console.log("");

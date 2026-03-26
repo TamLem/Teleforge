@@ -96,6 +96,79 @@ test("help text advertises the --open flag", async () => {
   assert.match(stdout, /--open\s+Open the dev URL in the default browser/);
 });
 
+test("dev starts companion app services with the resolved Mini App URL", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-services-"));
+  const projectRoot = path.join(tempRoot, "project");
+  const binRoot = path.join(tempRoot, "bin");
+  const serviceLogPath = path.join(tempRoot, "services.log");
+  const port = 43128;
+
+  await cp(fixtureRoot, projectRoot, {
+    filter(source) {
+      return !source.split(path.sep).includes("node_modules");
+    },
+    recursive: true
+  });
+  await symlink(
+    path.join(fixtureRoot, "apps", "web", "node_modules"),
+    path.join(projectRoot, "apps", "web", "node_modules"),
+    "dir"
+  );
+  await mkdir(binRoot, { recursive: true });
+  await writeFile(
+    path.join(binRoot, "pnpm"),
+    `#!/bin/sh
+printf '%s|%s|%s\\n' "$PWD" "$*" "$MINI_APP_URL" >> "$TELEFORGE_SERVICE_LOG"
+trap 'exit 0' TERM INT
+while :; do
+  sleep 1
+done
+`
+  );
+  await chmod(path.join(binRoot, "pnpm"), 0o755);
+
+  let stdout = "";
+  let stderr = "";
+
+  const child = spawn("node", [cliPath, "dev", "--no-https", "--port", String(port)], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      PATH: `${binRoot}:${process.env.PATH ?? ""}`,
+      TELEFORGE_SERVICE_LOG: serviceLogPath
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  child.stdout.on("data", (chunk) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const cleanup = async () => {
+    if (!child.killed) {
+      child.kill("SIGTERM");
+    }
+    await new Promise((resolve) => child.once("exit", resolve));
+    await rm(tempRoot, { force: true, recursive: true });
+  };
+
+  try {
+    await waitForServer(`http://127.0.0.1:${port}`);
+    await waitForOutput(() => stdout.includes("Companion services active:"), stdout, stderr);
+    await waitForFile(serviceLogPath);
+
+    const log = await readFile(serviceLogPath, "utf8");
+
+    assert.match(stdout, /Companion services active: api, bot|Companion services active: bot, api/);
+    assert.match(log, new RegExp(`apps[/\\\\]api\\|dev\\|http://localhost:${port}`));
+    assert.match(log, new RegExp(`apps[/\\\\]bot\\|dev\\|http://localhost:${port}`));
+  } finally {
+    await cleanup();
+  }
+});
+
 async function waitForServer(url) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15_000) {
@@ -123,4 +196,21 @@ async function waitForOutput(predicate, stdout, stderr) {
   }
 
   throw new Error(`Timed out waiting for expected output.\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`);
+}
+
+async function waitForFile(filePath) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 10_000) {
+    try {
+      const contents = await readFile(filePath, "utf8");
+      if (contents.length > 0) {
+        return;
+      }
+    } catch {
+      // Poll until the file is created.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error(`Timed out waiting for ${filePath}`);
 }

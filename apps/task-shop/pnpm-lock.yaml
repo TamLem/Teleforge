@@ -18,6 +18,9 @@ importers:
         specifier: link:../../packages/core
         version: link:../../packages/core
     devDependencies:
+      '@teleforge/devtools':
+        specifier: link:../../packages/devtools
+        version: link:../../packages/devtools
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.0
@@ -54,6 +57,9 @@ importers:
       '@teleforge/bot':
         specifier: link:../../../../packages/bot
         version: link:../../../../packages/bot
+      '@teleforge/core':
+        specifier: link:../../../../packages/core
+        version: link:../../../../packages/core
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1

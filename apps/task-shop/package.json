@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "build": "pnpm --filter @task-shop/types build && pnpm --filter @task-shop/web build && pnpm --filter @task-shop/bot build",
-    "dev": "concurrently \"pnpm --filter @task-shop/bot dev\" \"pnpm --filter @task-shop/web dev\"",
+    "dev": "teleforge dev:https --no-webhook",
+    "dev:local": "teleforge dev --open",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "lint": "eslint . --ext .ts,.tsx,.mjs,.cjs",
@@ -22,6 +23,7 @@
     "@teleforge/core": "link:../../packages/core"
   },
   "devDependencies": {
+    "@teleforge/devtools": "link:../../packages/devtools",
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
     "@types/node": "^24.0.0",
