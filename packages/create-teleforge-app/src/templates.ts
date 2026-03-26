@@ -32,6 +32,7 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
     "apps/bot/package.json": generatedBotPackageJson(),
     "apps/bot/src/commands/start.ts": botStartCommandTs(options.appName),
     "apps/bot/src/index.ts": botIndexTs(),
+    "apps/bot/test/start.test.ts": botStartTestTs(options.appName),
     "apps/bot/tsconfig.json": botTsconfig(),
     ...generatedWebFiles(options)
   };
@@ -42,6 +43,7 @@ function generatedReadme(options: BuildProjectFilesOptions): string {
   const run = `${options.packageManager} run dev`;
   const runPublic = `${options.packageManager} run dev:public`;
   const doctor = `${options.packageManager} run doctor`;
+  const runTests = `${options.packageManager} test`;
 
   return `# ${options.appName}
 
@@ -61,6 +63,12 @@ For a Telegram-openable URL:
 ${runPublic}
 \`\`\`
 
+Run the baseline scaffold tests with:
+
+\`\`\`bash
+${runTests}
+\`\`\`
+
 Check setup health with:
 
 \`\`\`bash
@@ -78,6 +86,7 @@ ${doctor}
 
 - \`${options.packageManager} run dev\`: local browser development with Teleforge's mock bridge and companion bot process
 - \`${options.packageManager} run dev:public\`: public HTTPS tunnel for real Telegram testing
+- \`${options.packageManager} test\`: baseline bot and screen smoke tests
 - \`${options.packageManager} run doctor\`: manifest and environment diagnostics
 
 ## Bot Runtime
@@ -103,7 +112,8 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
     scripts: {
       dev: "teleforge dev",
       "dev:public": "teleforge dev --public --live",
-      doctor: "teleforge doctor"
+      doctor: "teleforge doctor",
+      test: "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
     },
     dependencies: {
       ...teleforgeDependencies,
@@ -634,6 +644,30 @@ function botStartCommandTs(appName: string): string {
 `;
 }
 
+function botStartTestTs(appName: string): string {
+  return `import assert from "node:assert/strict";
+import test from "node:test";
+
+import { createStartCommand } from "../src/commands/start.ts";
+
+test("/start replies with a Mini App button", async () => {
+  const replies: Array<{ buttonLabel: string; text: string; url: string }> = [];
+  const command = createStartCommand("https://example.test");
+
+  await command.handler({
+    replyWithWebApp: async (text: string, buttonLabel: string, url: string) => {
+      replies.push({ buttonLabel, text, url });
+    }
+  });
+
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0]?.buttonLabel, "Open ${appName}");
+  assert.equal(replies[0]?.url, "https://example.test");
+  assert.match(replies[0]?.text ?? "", /Welcome to ${appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/);
+});
+`;
+}
+
 function generatedWebFiles(options: BuildProjectFilesOptions): Record<string, string> {
   return options.mode === "spa" ? spaWebFiles(options) : bffWebFiles(options);
 }
@@ -668,6 +702,7 @@ function spaWebFiles(options: BuildProjectFilesOptions): Record<string, string> 
     "apps/web/src/pages/Home.tsx": homePageTsx(options.appName),
     "apps/web/src/pages/Settings.tsx": settingsPageTsx(),
     "apps/web/src/styles.css": webStylesCss(),
+    "apps/web/test/home.test.tsx": homePageTestTs(options.appName),
     "apps/web/tsconfig.json": stringifyJson({
       extends: "../../tsconfig.base.json",
       compilerOptions: {
@@ -712,6 +747,7 @@ function bffWebFiles(options: BuildProjectFilesOptions): Record<string, string> 
     "apps/web/src/main.tsx": nextEntryPointTs(),
     "apps/web/src/pages/Home.tsx": homePageTsx(options.appName),
     "apps/web/src/pages/Settings.tsx": settingsPageTsx(),
+    "apps/web/test/home.test.tsx": homePageTestTs(options.appName),
     "apps/web/tsconfig.json": stringifyJson({
       extends: "../../tsconfig.base.json",
       compilerOptions: {
@@ -896,6 +932,22 @@ export function SettingsPage() {
     </div>
   );
 }
+`;
+}
+
+function homePageTestTs(appName: string): string {
+  return `import assert from "node:assert/strict";
+import test from "node:test";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { HomePage } from "../src/pages/Home";
+
+test("home page renders the welcome screen", () => {
+  const html = renderToStaticMarkup(<HomePage />);
+
+  assert.match(html, /Welcome to ${appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/);
+  assert.match(html, /Route: \\//);
+});
 `;
 }
 

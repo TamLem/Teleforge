@@ -79,7 +79,7 @@ The generated workspace includes:
 - `apps/api`
 - `teleforge.app.json`
 - `.env.example`
-- root scripts for Teleforge development and diagnostics
+- root scripts for Teleforge development, diagnostics, and baseline tests
 
 If you want the smallest working example instead of a fresh scaffold, start with [`examples/starter-app`](../examples/starter-app/README.md). If you want the full reference flow, use [`apps/task-shop`](../apps/task-shop/README.md).
 

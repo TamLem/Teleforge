@@ -27,6 +27,21 @@ test("generates SPA scaffold", async () => {
   const webPackagePath = path.join(tmpRoot, projectName, "apps", "web", "package.json");
   const webPackage = JSON.parse(await readFile(webPackagePath, "utf8"));
   assert.equal(webPackage.scripts.dev, "vite");
+
+  const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
+  const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
+  assert.equal(
+    rootPackage.scripts.test,
+    "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
+  );
+
+  const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
+  const botTest = await readFile(botTestPath, "utf8");
+  assert.match(botTest, /replyWithWebApp/);
+
+  const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");
+  const webTest = await readFile(webTestPath, "utf8");
+  assert.match(webTest, /renderToStaticMarkup/);
 });
 
 test("generates BFF scaffold", async () => {
@@ -64,4 +79,16 @@ test("generates BFF scaffold", async () => {
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
   assert.equal(rootPackage.devDependencies.tsx, "^4.19.2");
   assert.equal(rootPackage.devDependencies["@teleforge/devtools"], "^1.0.0");
+  assert.equal(
+    rootPackage.scripts.test,
+    "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
+  );
+
+  const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
+  const botTest = await readFile(botTestPath, "utf8");
+  assert.match(botTest, /Open Sample Bff/);
+
+  const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");
+  const webTest = await readFile(webTestPath, "utf8");
+  assert.match(webTest, /Welcome to Sample Bff/);
 });

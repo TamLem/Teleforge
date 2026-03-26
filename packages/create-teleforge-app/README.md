@@ -28,6 +28,7 @@ The scaffold is polling-first by default:
 
 - `pnpm run dev`: local browser development with the Telegram mock bridge plus the companion bot process
 - `pnpm run dev:public`: public HTTPS tunnel for real Telegram testing
+- `pnpm test`: baseline bot and screen smoke tests
 - `pnpm run doctor`: manifest and environment diagnostics
 
 The generated `apps/api` files are placeholders. They do not make webhook mode active by themselves; webhook mode only makes sense once the primary web runtime actually serves `/api/webhook`.

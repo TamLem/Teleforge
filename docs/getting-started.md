@@ -136,6 +136,7 @@ You should see:
 - `teleforge.app.json`
 - `.env.example`
 - root scripts for `pnpm run dev`, `pnpm run dev:public`, and `pnpm run doctor`
+- baseline bot and web smoke tests behind `pnpm test`
 
 ## 3. Run Local Development
 
