@@ -7,6 +7,7 @@ export default defineConfig({
     cli: "src/cli.ts",
     index: "src/index.ts",
     "utils/doctor/checks": "src/utils/doctor/checks.ts",
+    "utils/tunnel": "src/utils/tunnel.ts",
     "utils/webhook": "src/utils/webhook.ts"
   },
   format: ["esm", "cjs"],

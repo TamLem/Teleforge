@@ -5,8 +5,10 @@ declare module "localtunnel" {
   }
 
   interface TunnelOptions {
+    allow_invalid_cert?: boolean;
     port: number;
     host?: string;
+    local_https?: boolean;
     subdomain?: string;
   }
 

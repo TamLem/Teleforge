@@ -6,6 +6,7 @@ import localtunnel from "localtunnel";
 export type TunnelProvider = "localtunnel" | "ngrok";
 
 export interface StartTunnelOptions {
+  https?: boolean;
   port: number;
   provider: TunnelProvider;
   subdomain?: string;
@@ -17,12 +18,22 @@ export interface TunnelHandle {
   cleanup(): Promise<void>;
 }
 
-export async function startTunnel(options: StartTunnelOptions): Promise<TunnelHandle> {
+interface StartTunnelDependencies {
+  createLocaltunnel?: typeof localtunnel;
+}
+
+export async function startTunnel(
+  options: StartTunnelOptions,
+  dependencies: StartTunnelDependencies = {}
+): Promise<TunnelHandle> {
   if (options.provider === "ngrok") {
     return startNgrokTunnel(options);
   }
 
-  const tunnel = await localtunnel({
+  const createLocaltunnel = dependencies.createLocaltunnel ?? localtunnel;
+  const tunnel = await createLocaltunnel({
+    allow_invalid_cert: options.https,
+    local_https: options.https,
     port: options.port,
     subdomain: options.subdomain
   });

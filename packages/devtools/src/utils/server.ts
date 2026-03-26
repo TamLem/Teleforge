@@ -166,6 +166,8 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
   if (options.flags.tunnel) {
     try {
       tunnel = await startTunnel({
+        https: options.flags.https,
+        // Tunnel the port we actually bound, not the user's requested default.
         port: externalPort,
         provider: options.tunnelProvider ?? "localtunnel",
         subdomain: options.subdomain
