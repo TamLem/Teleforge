@@ -32,6 +32,7 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
     "apps/bot/package.json": generatedBotPackageJson(),
     "apps/bot/src/commands/start.ts": botStartCommandTs(options.appName),
     "apps/bot/src/index.ts": botIndexTs(),
+    "apps/bot/src/runtime.ts": botRuntimeTs(),
     "apps/bot/test/start.test.ts": botStartTestTs(options.appName),
     "apps/bot/tsconfig.json": botTsconfig(),
     ...generatedWebFiles(options)
@@ -78,7 +79,7 @@ ${doctor}
 ## Structure
 
 - \`apps/web\`: Mini App surface (${options.mode === "spa" ? "Vite SPA" : "Next.js BFF web"})
-- \`apps/bot\`: Bot runtime and command handlers
+- \`apps/bot\`: Bot runtime, command handlers, and simulator bridge export in \`src/runtime.ts\`
 - \`apps/api\`: optional API and webhook placeholder routes
 - \`teleforge.app.json\`: App manifest
 
@@ -92,6 +93,7 @@ ${doctor}
 ## Bot Runtime
 
 - the scaffold runs the bot in polling mode by default
+- \`apps/bot/src/runtime.ts\` exports \`createDevBotRuntime()\`, so \`teleforge dev\` can execute bot commands inside the local simulator chat
 - leave \`MINI_APP_URL\` blank unless you want to force a fixed override
 - \`dev\` and \`dev:public\` inject the resolved local or public URL into the companion bot automatically
 - the generated \`apps/api\` files are placeholders; webhook mode only makes sense once the primary web runtime actually serves \`/api/webhook\`
@@ -330,7 +332,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  createBotRuntime,
+  type BotRuntime,
   type BotInstance,
   type RegisteredCommand,
   type ReplyOptions,
@@ -339,17 +341,16 @@ import {
   type TelegramUpdate
 } from "@teleforge/bot";
 
-import { createStartCommand } from "./commands/start.ts";
+import { createGeneratedBotRuntime, hasUsableToken, readGeneratedBotConfig } from "./runtime.ts";
 
 loadWorkspaceEnv();
 
-const miniAppUrl = readNonEmptyEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
+const botConfig = readGeneratedBotConfig();
 
 async function main() {
-  const runtime = createBotRuntime();
-  runtime.registerCommands([createStartCommand(miniAppUrl)]);
+  const runtime = createGeneratedBotRuntime(botConfig);
 
-  const token = readNonEmptyEnv("BOT_TOKEN");
+  const token = botConfig.token;
   if (!hasUsableToken(token)) {
     await runPreview(runtime);
     keepProcessAlive();
@@ -379,7 +380,7 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 
-async function runPreview(runtime: ReturnType<typeof createBotRuntime>) {
+async function runPreview(runtime: BotRuntime) {
   runtime.bindBot({
     async sendMessage(chatId, text, options = {}) {
       console.log(
@@ -601,8 +602,76 @@ function loadWorkspaceEnv() {
   }
 }
 
+`;
+}
+
+function botRuntimeTs(): string {
+  return `import { config as loadDotenv } from "dotenv";
+import { createBotRuntime, type BotRuntime } from "@teleforge/bot";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { createStartCommand } from "./commands/start.ts";
+
+export interface GeneratedBotRuntimeOptions {
+  miniAppUrl?: string;
+}
+
+export interface GeneratedBotConfig {
+  miniAppUrl: string;
+  token?: string;
+}
+
+loadWorkspaceEnv();
+
+export function createGeneratedBotRuntime(
+  options: GeneratedBotRuntimeOptions = {}
+): BotRuntime {
+  const config = readGeneratedBotConfig(options);
+  const runtime = createBotRuntime();
+
+  runtime.registerCommands([createStartCommand(config.miniAppUrl)]);
+  return runtime;
+}
+
+export function createDevBotRuntime(options: GeneratedBotRuntimeOptions = {}): BotRuntime {
+  return createGeneratedBotRuntime(options);
+}
+
+export function readGeneratedBotConfig(
+  options: GeneratedBotRuntimeOptions = {}
+): GeneratedBotConfig {
+  return {
+    miniAppUrl:
+      readNonEmptyEnvValue(options.miniAppUrl) ??
+      readNonEmptyEnv("MINI_APP_URL") ??
+      "https://example.ngrok.app",
+    token: readNonEmptyEnv("BOT_TOKEN")
+  };
+}
+
+function loadWorkspaceEnv() {
+  const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const envPaths = [resolve(workspaceRoot, ".env"), resolve(workspaceRoot, ".env.local")];
+
+  for (const envPath of envPaths) {
+    if (!existsSync(envPath)) {
+      continue;
+    }
+
+    loadDotenv({
+      override: envPath.endsWith(".env.local"),
+      path: envPath
+    });
+  }
+}
+
 function readNonEmptyEnv(name: string): string | undefined {
-  const value = process.env[name];
+  return readNonEmptyEnvValue(process.env[name]);
+}
+
+function readNonEmptyEnvValue(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -611,7 +680,7 @@ function readNonEmptyEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function hasUsableToken(value: string | undefined): value is string {
+export function hasUsableToken(value: string | undefined): value is string {
   if (!value) {
     return false;
   }

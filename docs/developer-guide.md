@@ -129,7 +129,7 @@ Use `teleforge dev` when:
 - you want the integrated Telegram simulator with chat plus the real Mini App
 - you do not need a Telegram-pasteable HTTPS URL yet
 
-If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default.
+If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default. When `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`, the simulator chat also executes that runtime directly for local `/start`, custom commands, and `web_app_data` flows.
 
 Use `teleforge dev --public --live` when:
 
@@ -157,6 +157,17 @@ teleforge mock
 - saving and sharing profiles in `~/.teleforge/profiles/`
 
 For most day-to-day local app development, prefer `teleforge dev`; it now hosts the primary simulator surface.
+
+To make the simulator run real bot logic instead of manifest fallbacks, expose this file in your app:
+
+```ts
+// apps/bot/src/runtime.ts
+export function createDevBotRuntime(options) {
+  return createMyBotRuntime(options);
+}
+```
+
+Without that file, the simulator still provides chat scaffolding, but only at the manifest level.
 
 ### Diagnose Environment Issues
 

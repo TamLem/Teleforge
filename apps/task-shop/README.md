@@ -11,7 +11,7 @@ Reference Teleforge sample app that exercises the full V1 stack with a simple ta
 
 ## Structure
 
-- `apps/bot`: Telegram long-polling bot runtime
+- `apps/bot`: Telegram long-polling bot runtime, plus `src/runtime.ts` for simulator chat execution
 - `apps/web`: Vite Mini App with browse, cart, checkout, and success routes
 - `packages/types`: shared task and order types
 - `teleforge.app.json`: manifest for the sample workspace
@@ -45,6 +45,8 @@ If you only want local browser development without a tunnel, use:
 ```bash
 pnpm run dev:local
 ```
+
+In local simulator mode, `teleforge dev` also executes `/start`, `/tasks`, and `web_app_data` through `apps/bot/src/runtime.ts`, so most bot-and-Mini-App flow work can happen without Telegram.
 
 If `BOT_TOKEN` is not configured, the bot stays in preview mode and logs simulated `/start`, `/tasks`, and order-handling output so the command wiring can still be inspected locally.
 

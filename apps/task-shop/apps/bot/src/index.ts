@@ -1,34 +1,20 @@
 import { config as loadDotenv } from "dotenv";
-import { createBotRuntime, type TelegramUpdate } from "@teleforge/bot";
+import type { BotRuntime, TelegramUpdate } from "@teleforge/bot";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createStartCommand } from "./commands/start.js";
-import { createTasksCommand } from "./commands/tasks.js";
-import { createTaskShopFlowStateManager } from "./flowState.js";
-import { createOrderCompletedHandler } from "./handlers/orderCompleted.js";
+import { createTaskShopBotRuntime, readTaskShopBotConfig } from "./runtime.js";
 import { createPollingBot, createPreviewBot } from "./telegram.js";
 
 loadTaskShopEnv();
 
-const miniAppUrl = readNonEmptyEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
-const coordinationSecret =
-  readNonEmptyEnv("COORDINATION_SECRET") ?? "task-shop-preview-secret";
-const flowStateManager = createTaskShopFlowStateManager();
-const pollDebug = isTruthyEnv(process.env.TASK_SHOP_POLL_DEBUG);
+const botConfig = readTaskShopBotConfig();
+const pollDebug = botConfig.pollDebug;
 
 async function main() {
-  const runtime = createBotRuntime();
-  runtime.registerCommands([
-    createStartCommand(miniAppUrl, flowStateManager, coordinationSecret),
-    createTasksCommand(flowStateManager)
-  ]);
-  runtime.router.onWebAppData(
-    createOrderCompletedHandler(flowStateManager, coordinationSecret, miniAppUrl)
-  );
-
-  const token = readNonEmptyEnv("BOT_TOKEN");
+  const runtime = createTaskShopBotRuntime(botConfig);
+  const token = botConfig.token;
 
   if (!token) {
     await runPreview(runtime);
@@ -48,7 +34,7 @@ async function main() {
 
   if (pollDebug) {
     console.log(`[task-shop:bot:poll] debug logging enabled`);
-    console.log(`[task-shop:bot:poll] Mini App URL: ${miniAppUrl}`);
+    console.log(`[task-shop:bot:poll] Mini App URL: ${botConfig.miniAppUrl}`);
   }
 
   for (;;) {
@@ -88,7 +74,7 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 
-async function runPreview(runtime: ReturnType<typeof createBotRuntime>) {
+async function runPreview(runtime: BotRuntime) {
   const bot = createPreviewBot((message) => {
     console.log("[task-shop:bot:preview]", message);
   });
@@ -203,25 +189,6 @@ function describeWebAppData(data: string): string | undefined {
   } catch {
     return "unparseable";
   }
-}
-
-function isTruthyEnv(value: string | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-function readNonEmptyEnv(name: string): string | undefined {
-  const value = process.env[name];
-  if (!value) {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function loadTaskShopEnv() {

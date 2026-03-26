@@ -1,6 +1,11 @@
 import http from "node:http";
 
 import {
+  createSimulatorBotBridge,
+  type CapturedTelegramMessage,
+  type SimulatorBotBridge
+} from "./dev-simulator-bot.js";
+import {
   createDefaultProfile,
   mergeProfile,
   type MockEventLogEntry,
@@ -11,11 +16,14 @@ import type { TeleforgeManifest } from "./manifest.js";
 
 export interface DevSimulatorOptions {
   appBasePath?: string;
+  cwd: string;
+  env: NodeJS.ProcessEnv;
   manifest: TeleforgeManifest;
 }
 
 export interface DevSimulator {
   appBasePath: string;
+  cleanup(): Promise<void>;
   getCurrentProfile(): MockProfile;
   handleRequest(
     request: http.IncomingMessage,
@@ -40,6 +48,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   const apiBasePath = "/__teleforge/api";
   const manifestCommands = options.manifest.bot.commands ?? [];
   let currentProfile = createDefaultProfile(process.env.BOT_TOKEN);
+  let bridgePromise: Promise<SimulatorBotBridge | null> | undefined;
   const eventLog: MockEventLogEntry[] = [];
   let transcript: SimulatorTranscriptEntry[] = [
     createTranscriptEntry(
@@ -50,6 +59,10 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
 
   return {
     appBasePath,
+    async cleanup() {
+      const bridge = await resolveBotBridge();
+      await bridge?.cleanup();
+    },
     getCurrentProfile() {
       return currentProfile;
     },
@@ -77,7 +90,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       const body = await readJsonBody(request);
 
       if (request.method === "GET" && pathname === "/state") {
-        sendJson(response, 200, createStatePayload());
+        sendJson(response, 200, await createStatePayload());
         return true;
       }
 
@@ -96,7 +109,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
             launchMode: currentProfile.appContext.launchMode
           }
         });
-        sendJson(response, 200, createStatePayload());
+        sendJson(response, 200, await createStatePayload());
         return true;
       }
 
@@ -107,8 +120,8 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
           return true;
         }
 
-        handleChatInput(text);
-        sendJson(response, 200, createStatePayload());
+        await handleChatInput(text);
+        sendJson(response, 200, await createStatePayload());
         return true;
       }
 
@@ -119,29 +132,14 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
             `Opened Mini App shell at ${appBasePath}/ using launch mode ${currentProfile.appContext.launchMode}.`
           )
         );
-        sendJson(response, 200, createStatePayload());
+        sendJson(response, 200, await createStatePayload());
         return true;
       }
 
       if (request.method === "POST" && pathname === "/chat/web-app-data") {
         const data = isRecord(body) && typeof body.data === "string" ? body.data.trim() : "{}";
-
-        transcript = transcript.concat(
-          createTranscriptEntry("user", `web_app_data ${data}`),
-          createTranscriptEntry(
-            "bot",
-            "Simulator accepted the web_app_data payload. Bind a workspace bot adapter to execute app-specific handlers locally."
-          )
-        );
-        appendEvent({
-          at: new Date().toISOString(),
-          id: createId(),
-          name: "web_app_data",
-          payload: {
-            data
-          }
-        });
-        sendJson(response, 200, createStatePayload());
+        await handleWebAppData(data);
+        sendJson(response, 200, await createStatePayload());
         return true;
       }
 
@@ -152,7 +150,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
             `Transcript reset for ${options.manifest.name}. Send /start to begin a new session.`
           )
         ];
-        sendJson(response, 200, createStatePayload());
+        sendJson(response, 200, await createStatePayload());
         return true;
       }
 
@@ -179,8 +177,13 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     }
   };
 
-  function createStatePayload() {
+  async function createStatePayload() {
+    const bridge = await resolveBotBridge();
     return {
+      chat: {
+        commandHints: bridge ? await bridge.getCommands() : manifestCommands.map((command) => command.command),
+        mode: bridge ? "workspace" : "manifest"
+      },
       events: eventLog,
       manifest: {
         commands: manifestCommands,
@@ -191,9 +194,51 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     };
   }
 
-  function handleChatInput(text: string) {
+  async function handleChatInput(text: string) {
     transcript = transcript.concat(createTranscriptEntry("user", text));
 
+    const bridge = await resolveBotBridge();
+    if (bridge) {
+      const result = await bridge.sendCommand(text, currentProfile);
+      transcript = transcript.concat(toTranscriptEntries(result.messages));
+      return;
+    }
+
+    handleManifestChatInput(text);
+  }
+
+  function appendEvent(entry: MockEventLogEntry) {
+    eventLog.unshift(entry);
+    eventLog.splice(24);
+  }
+
+  async function handleWebAppData(data: string) {
+    transcript = transcript.concat(createTranscriptEntry("user", `web_app_data ${data}`));
+    appendEvent({
+      at: new Date().toISOString(),
+      id: createId(),
+      name: "web_app_data",
+      payload: {
+        data
+      }
+    });
+
+    const bridge = await resolveBotBridge();
+    if (bridge) {
+      const result = await bridge.sendWebAppData(data, currentProfile);
+      transcript = transcript.concat(toTranscriptEntries(result.messages));
+      return;
+    }
+
+    transcript = transcript.concat(
+      createTranscriptEntry(
+        "bot",
+        "Simulator accepted the web_app_data payload. Bind a workspace bot adapter to execute app-specific handlers locally."
+      )
+    );
+  }
+
+  function handleManifestChatInput(text: string) {
     if (!text.startsWith("/")) {
       transcript = transcript.concat(
         createTranscriptEntry(
@@ -254,10 +299,83 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     );
   }
 
-  function appendEvent(entry: MockEventLogEntry) {
-    eventLog.unshift(entry);
-    eventLog.splice(24);
+  async function resolveBotBridge(): Promise<SimulatorBotBridge | null> {
+    if (!bridgePromise) {
+      bridgePromise = createSimulatorBotBridge({
+        appUrl: `${appBasePath}/`,
+        cwd: options.cwd,
+        env: options.env
+      }).catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "Workspace bot bridge failed to initialize.";
+        appendEvent({
+          at: new Date().toISOString(),
+          id: createId(),
+          name: "botBridgeError",
+          payload: {
+            message
+          }
+        });
+        transcript = transcript.concat(
+          createTranscriptEntry(
+            "system",
+            `Workspace bot bridge is unavailable. Falling back to manifest-level chat simulation.\n${message}`
+          )
+        );
+        return null;
+      });
+    }
+
+    return bridgePromise;
   }
+}
+
+function toTranscriptEntries(messages: CapturedTelegramMessage[]): SimulatorTranscriptEntry[] {
+  return messages.map((message) =>
+    createTranscriptEntry("bot", message.text ?? "", flattenButtons(message.options?.reply_markup))
+  );
+}
+
+function flattenButtons(
+  markup:
+    | {
+        inline_keyboard?: Array<
+          Array<{
+            callback_data?: string;
+            text: string;
+            url?: string;
+            web_app?: {
+              url: string;
+            };
+          }>
+        >;
+      }
+    | undefined
+): SimulatorTranscriptEntry["buttons"] {
+  const buttons: NonNullable<SimulatorTranscriptEntry["buttons"]> = [];
+
+  for (const row of markup?.inline_keyboard ?? []) {
+    for (const button of row) {
+      if (button.web_app?.url) {
+        buttons.push({
+          kind: "web_app",
+          text: button.text,
+          value: button.web_app.url
+        });
+        continue;
+      }
+
+      if (button.callback_data) {
+        buttons.push({
+          kind: "command",
+          text: button.text,
+          value: button.callback_data
+        });
+      }
+    }
+  }
+
+  return buttons.length > 0 ? buttons : undefined;
 }
 
 function createSimulatorUiHtml(options: {

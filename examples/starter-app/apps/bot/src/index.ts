@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  createBotRuntime,
+  type BotRuntime,
   type BotInstance,
   type RegisteredCommand,
   type ReplyOptions,
@@ -14,27 +14,20 @@ import {
   type TelegramUpdate
 } from "@teleforge/bot";
 
+import {
+  createStarterBotRuntime,
+  hasUsableToken,
+  readStarterBotConfig
+} from "./runtime.js";
+
 loadStarterEnv();
 
-const miniAppUrl = readNonEmptyEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
+const botConfig = readStarterBotConfig();
 
 async function main() {
-  const runtime = createBotRuntime();
-  runtime.registerCommands([
-    {
-      command: "start",
-      description: "Open the Starter App",
-      async handler(context) {
-        await context.replyWithWebApp(
-          "Starter App is ready. Open the Mini App to inspect Telegram theme, user data, and MainButton behavior.",
-          "Open Starter App",
-          miniAppUrl
-        );
-      }
-    }
-  ]);
+  const runtime = createStarterBotRuntime(botConfig);
 
-  const token = readNonEmptyEnv("BOT_TOKEN");
+  const token = botConfig.token;
   if (!hasUsableToken(token)) {
     await runPreview(runtime);
     keepProcessAlive();
@@ -66,7 +59,7 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 
-async function runPreview(runtime: ReturnType<typeof createBotRuntime>) {
+async function runPreview(runtime: BotRuntime) {
   runtime.bindBot({
     async sendMessage(chatId, text, options = {}) {
       const payload = {
@@ -288,26 +281,4 @@ function loadStarterEnv() {
       path: envPath
     });
   }
-}
-
-function readNonEmptyEnv(name: string): string | undefined {
-  const value = process.env[name];
-  if (!value) {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function hasUsableToken(value: string | undefined): value is string {
-  if (!value) {
-    return false;
-  }
-
-  const trimmed = value.trim();
-  const normalized = trimmed.toLowerCase();
-  return (
-    trimmed.includes(":") && !normalized.includes("your_") && !normalized.includes("placeholder")
-  );
 }

@@ -8,6 +8,14 @@ import { spawn } from "node:child_process";
 const packageRoot = process.cwd();
 const cliPath = path.join(packageRoot, "dist", "cli.js");
 const fixtureRoot = path.join(packageRoot, "..", "..", "generated", "spa-dev-check");
+const workspaceNodeModules = path.join(
+  packageRoot,
+  "..",
+  "..",
+  "examples",
+  "starter-app",
+  "node_modules"
+);
 
 test("dev serves the simulator shell, injects the Telegram mock bridge into the embedded app, and opens the browser once", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-command-"));
@@ -22,6 +30,11 @@ test("dev serves the simulator shell, injects the Telegram mock bridge into the 
     },
     recursive: true
   });
+  await symlink(
+    workspaceNodeModules,
+    path.join(projectRoot, "node_modules"),
+    "dir"
+  );
   await symlink(
     path.join(fixtureRoot, "apps", "web", "node_modules"),
     path.join(projectRoot, "apps", "web", "node_modules"),
@@ -119,6 +132,11 @@ test("dev starts companion app services with the resolved Mini App URL", async (
     recursive: true
   });
   await symlink(
+    workspaceNodeModules,
+    path.join(projectRoot, "node_modules"),
+    "dir"
+  );
+  await symlink(
     path.join(fixtureRoot, "apps", "web", "node_modules"),
     path.join(projectRoot, "apps", "web", "node_modules"),
     "dir"
@@ -190,9 +208,37 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
     recursive: true
   });
   await symlink(
+    workspaceNodeModules,
+    path.join(projectRoot, "node_modules"),
+    "dir"
+  );
+  await symlink(
     path.join(fixtureRoot, "apps", "web", "node_modules"),
     path.join(projectRoot, "apps", "web", "node_modules"),
     "dir"
+  );
+  await writeFile(
+    path.join(projectRoot, "apps", "bot", "src", "runtime.ts"),
+    `import { createBotRuntime } from "@teleforge/bot";
+
+export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
+  const runtime = createBotRuntime();
+  runtime.registerCommands([
+    {
+      command: "start",
+      description: "Start the Mini App",
+      async handler(context) {
+        await context.replyWithWebApp(
+          "Welcome to Spa Dev Check. Launch the Mini App to continue.",
+          "Open Spa Dev Check",
+          options.miniAppUrl ?? "https://example.test"
+        );
+      }
+    }
+  ]);
+  return runtime;
+}
+`
   );
 
   let stdout = "";
@@ -228,6 +274,7 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
       (response) => response.json()
     );
     assert.equal(stateBefore.transcript[0]?.role, "system");
+    assert.equal(stateBefore.chat.mode, "workspace");
 
     const stateAfter = await fetch(`http://127.0.0.1:${port}/__teleforge/api/chat/send`, {
       method: "POST",
@@ -241,9 +288,10 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
 
     const lastEntry = stateAfter.transcript.at(-1);
     assert.equal(lastEntry?.role, "bot");
-    assert.match(lastEntry?.text ?? "", /Welcome to Spa Dev Check!/);
+    assert.match(lastEntry?.text ?? "", /Welcome to Spa Dev Check\. Launch the Mini App to continue\./);
     assert.equal(lastEntry?.buttons?.[0]?.kind, "web_app");
     assert.equal(lastEntry?.buttons?.[0]?.value, "/__teleforge/app/");
+    assert.equal(lastEntry?.buttons?.[0]?.text, "Open Spa Dev Check");
   } finally {
     await cleanup();
   }

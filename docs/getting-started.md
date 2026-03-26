@@ -167,8 +167,11 @@ You should see:
 - Teleforge validate `teleforge.app.json`
 - the simulator shell boot in a normal browser
 - a chat pane and embedded Mini App frame
+- real local bot command handling when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
 - the companion bot dev process start when the workspace defines it
 - Telegram-like theme, viewport, launch, and user state injected into the embedded app
+
+If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to manifest-level `/start` and `/help` behavior.
 
 ## 4. Create a Telegram Bot
 

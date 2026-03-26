@@ -38,10 +38,11 @@ The root `pnpm build` step is required once because the example consumes the loc
 
 - `teleforge.app.json`: Teleforge manifest used by `teleforge dev` and `teleforge doctor`
 - `apps/web`: single-page Mini App
-- `apps/bot`: minimal `/start` bot runtime
+- `apps/bot`: minimal `/start` bot runtime, including `src/runtime.ts` for simulator chat execution
 
 ## Notes
 
 - The local browser flow uses the Teleforge mock bridge, so the theme toggle button works during local development without Telegram.
+- `teleforge dev` can execute the local `/start` handler inside the simulator chat because the sample exports `createDevBotRuntime()` from `apps/bot/src/runtime.ts`.
 - In real Telegram sessions, theme follows the Telegram client automatically.
 - When `MINI_APP_URL` is unset, Teleforge injects the current local or public dev URL into the companion bot process automatically.
