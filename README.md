@@ -8,8 +8,11 @@ Product OS execution workspace for the Teleforge V1 toolchain.
 
 If you are new to the repo, start here:
 
+- [Getting Started](./docs/getting-started.md)
 - [Developer Guide](./docs/developer-guide.md)
 - [Architecture](./docs/architecture.md)
+- [Manifest Reference](./docs/manifest-reference.md)
+- [Troubleshooting](./docs/troubleshooting.md)
 - [Documentation Index](./docs/README.md)
 
 ## Packages

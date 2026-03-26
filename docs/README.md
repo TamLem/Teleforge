@@ -9,8 +9,11 @@ Use the narrative docs first if you are trying to understand how the framework f
 
 ## Guides
 
+- [Getting Started](./getting-started.md): fastest path from clone to a working Teleforge app
 - [Developer Guide](./developer-guide.md): setup, runtime modes, daily workflow, and common implementation patterns
 - [Architecture](./architecture.md): package boundaries, runtime surfaces, manifest-driven behavior, and coordination flow
+- [Manifest Reference](./manifest-reference.md): complete `teleforge.app.json` field reference for the current schema
+- [Troubleshooting](./troubleshooting.md): common local-dev, validation, route, and BFF failures
 
 ## API Reference
 
