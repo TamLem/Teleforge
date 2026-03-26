@@ -83,9 +83,15 @@ export async function createSimulatorBotBridge(options: {
   if (!entryPath) {
     return null;
   }
+  const tsxImportPath = resolveTsxImport(options.cwd);
+  if (!tsxImportPath) {
+    throw new Error(
+      "Simulator bot runtime requires `tsx`. Install project dependencies before using workspace chat execution."
+    );
+  }
 
   const workerPath = fileURLToPath(new URL("./simulator-bot-worker.js", import.meta.url));
-  const child = spawn(process.execPath, ["--import", "tsx", workerPath], {
+  const child = spawn(process.execPath, ["--import", tsxImportPath, workerPath], {
     cwd: options.cwd,
     env: {
       ...process.env,
@@ -279,6 +285,22 @@ function resolveBotRuntimeEntry(cwd: string): string | null {
     path.join(cwd, "apps", "bot", "src", "runtime.mts"),
     path.join(cwd, "apps", "bot", "src", "runtime.js"),
     path.join(cwd, "apps", "bot", "src", "runtime.mjs")
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function resolveTsxImport(cwd: string): string | null {
+  const candidates = [
+    path.join(cwd, "node_modules", "tsx", "dist", "loader.mjs"),
+    path.join(cwd, "apps", "bot", "node_modules", "tsx", "dist", "loader.mjs"),
+    path.join(cwd, "..", "node_modules", "tsx", "dist", "loader.mjs")
   ];
 
   for (const candidate of candidates) {

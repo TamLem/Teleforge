@@ -130,12 +130,25 @@ function mockOverlayMarkup(options: TelegramMockInjectionOptions): string {
   const mainButton = {
     color: "#1769e0",
     isActive: true,
+    isProgressVisible: false,
     isVisible: false,
     text: "",
     textColor: "#ffffff",
     _clickHandlers: [],
+    disable() {
+      mainButton.isActive = false;
+      emitEvent("mainButtonChanged", snapshotMainButton());
+    },
+    enable() {
+      mainButton.isActive = true;
+      emitEvent("mainButtonChanged", snapshotMainButton());
+    },
     hide() {
       mainButton.isVisible = false;
+      emitEvent("mainButtonChanged", snapshotMainButton());
+    },
+    hideProgress() {
+      mainButton.isProgressVisible = false;
       emitEvent("mainButtonChanged", snapshotMainButton());
     },
     offClick(handler) {
@@ -150,11 +163,25 @@ function mockOverlayMarkup(options: TelegramMockInjectionOptions): string {
       if (typeof next.color === "string") mainButton.color = next.color;
       if (typeof next.text_color === "string") mainButton.textColor = next.text_color;
       if (typeof next.is_active === "boolean") mainButton.isActive = next.is_active;
+      if (typeof next.is_progress_visible === "boolean") mainButton.isProgressVisible = next.is_progress_visible;
       if (typeof next.is_visible === "boolean") mainButton.isVisible = next.is_visible;
       emitEvent("mainButtonChanged", snapshotMainButton());
     },
+    setText(text) {
+      if (typeof text === "string") {
+        mainButton.text = text;
+        emitEvent("mainButtonChanged", snapshotMainButton());
+      }
+    },
     show() {
       mainButton.isVisible = true;
+      emitEvent("mainButtonChanged", snapshotMainButton());
+    },
+    showProgress(leaveActive = false) {
+      mainButton.isProgressVisible = true;
+      if (!leaveActive) {
+        mainButton.isActive = false;
+      }
       emitEvent("mainButtonChanged", snapshotMainButton());
     }
   };
@@ -182,6 +209,7 @@ function mockOverlayMarkup(options: TelegramMockInjectionOptions): string {
     return {
       color: mainButton.color,
       isActive: mainButton.isActive,
+      isProgressVisible: mainButton.isProgressVisible,
       isVisible: mainButton.isVisible,
       text: mainButton.text,
       textColor: mainButton.textColor
