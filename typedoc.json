@@ -24,6 +24,11 @@
   "excludeProtected": true,
   "excludeInternal": true,
   "readme": "README.md",
+  "projectDocuments": [
+    "docs/*.md",
+    "examples/starter-app/README.md",
+    "apps/task-shop/README.md"
+  ],
   "categorizeByGroup": true,
   "groupOrder": ["Classes", "Functions", "Interfaces", "Type Aliases", "Variables", "*"],
   "sort": ["source-order", "alphabetical"],

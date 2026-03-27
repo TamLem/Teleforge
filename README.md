@@ -1,6 +1,6 @@
 # Teleforge Workspace
 
-[![Developer Docs](https://img.shields.io/badge/Docs-Developer_Guide-blue)](./docs/developer-guide.md)
+Start with the [Documentation Index](./docs/README.md) or jump straight to the [Developer Guide](./docs/developer-guide.md).
 
 Telegram-native full-stack framework for bots, Mini Apps, coordination flows, and local simulator-first development.
 
@@ -52,7 +52,7 @@ Teleforge release versioning is managed with Changesets, but package publishing 
 - `@teleforgex/bff`
 - `@teleforgex/devtools`
 
-The repository release workflow lives in [`.github/workflows/release.yml`](./.github/workflows/release.yml). On `main`, it:
+The repository release workflow lives in `.github/workflows/release.yml`. On `main`, it:
 
 1. installs dependencies
 2. runs `pnpm build`
@@ -85,7 +85,7 @@ TELEFORGE_NPM_OTP=123456 pnpm run publish
 
 Notes:
 
-- `pnpm run publish` uses [`scripts/release-publish.mjs`](./scripts/release-publish.mjs), not raw `changeset publish`
+- `pnpm run publish` uses `scripts/release-publish.mjs`, not raw `changeset publish`
 - the publish script skips versions that already exist on npm and does not attempt to publish example apps or the generator
 - CI still needs npm credentials configured outside the repo, typically `NPM_TOKEN` with bypass-2FA publishing enabled, or an equivalent trusted publishing setup
 - release commits should not include unrelated local-only files such as app-specific `.env` edits
