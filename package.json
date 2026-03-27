@@ -15,6 +15,7 @@
     "bench:ci": "pnpm --dir benchmark bench:ci",
     "build": "pnpm --filter '@teleforge/*' build && pnpm --filter create-teleforge-app build && pnpm --dir apps/task-shop build",
     "changeset": "changeset",
+    "changeset:publish": "changeset publish",
     "check": "pnpm lint && pnpm format && pnpm test && pnpm build",
     "docs:build": "typedoc",
     "docs:clean": "rm -rf docs/api",
@@ -23,7 +24,8 @@
     "format:fix": "prettier --write .",
     "lint": "eslint . --ext .ts,.tsx,.js,.mjs,.cjs",
     "lint:fix": "eslint . --fix --ext .ts,.tsx,.js,.mjs,.cjs",
-    "publish": "changeset publish",
+    "publish": "node scripts/release-publish.mjs",
+    "publish:dry-run": "node scripts/release-publish.mjs --dry-run",
     "size": "pnpm --dir benchmark size",
     "test": "pnpm --filter '@teleforge/*' test && pnpm --filter create-teleforge-app test && pnpm --dir apps/task-shop test",
     "version": "changeset version"

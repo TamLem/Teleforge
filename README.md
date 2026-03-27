@@ -41,6 +41,40 @@ pnpm build
 pnpm test
 ```
 
+## Production Release
+
+Teleforge release versioning is managed with Changesets, but package publishing is intentionally limited to the framework packages:
+
+- `@teleforge/core`
+- `@teleforge/web`
+- `@teleforge/ui`
+- `@teleforge/bot`
+- `@teleforge/bff`
+- `@teleforge/devtools`
+
+The repository release workflow lives in [`.github/workflows/release.yml`](./.github/workflows/release.yml). On `main`, it:
+
+1. installs dependencies
+2. runs `pnpm build`
+3. runs `pnpm test`
+4. runs `pnpm run publish:dry-run`
+5. uses Changesets to open the release PR or publish unpublished framework packages sequentially
+
+Local release commands:
+
+```bash
+pnpm run version
+pnpm run publish:dry-run
+pnpm run publish
+```
+
+Notes:
+
+- `pnpm run publish` uses [`scripts/release-publish.mjs`](./scripts/release-publish.mjs), not raw `changeset publish`
+- the publish script skips versions that already exist on npm and does not attempt to publish example apps or the generator
+- CI still needs npm credentials configured outside the repo, typically `NPM_TOKEN` with bypass-2FA publishing enabled, or an equivalent trusted publishing setup
+- release commits should not include unrelated local-only files such as app-specific `.env` edits
+
 ## Documentation
 
 ```bash
