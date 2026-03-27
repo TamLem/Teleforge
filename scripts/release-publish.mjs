@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 const dryRun = process.argv.includes("--dry-run");
+const initialOtp = readOptionValue("--otp") ?? process.env.TELEFORGE_NPM_OTP ?? null;
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -18,6 +20,7 @@ const releasePackages = [
 
 async function main() {
   let publishedCount = 0;
+  let otp = initialOtp;
 
   for (const releasePackage of releasePackages) {
     const packageDir = path.join(repoRoot, releasePackage.dir);
@@ -36,16 +39,49 @@ async function main() {
     }
 
     console.log(`${dryRun ? "dry-run" : "publish"} ${releasePackage.name}@${version}`);
-    await run(
-      "npm",
-      ["publish", "--access", "public", ...(dryRun ? ["--dry-run"] : [])],
-      packageDir
-    );
+    otp = await publishPackage({
+      currentOtp: otp,
+      dryRun,
+      name: releasePackage.name,
+      packageDir,
+      version
+    });
     publishedCount += 1;
   }
 
   if (publishedCount === 0) {
     console.log(`No unpublished release packages found${dryRun ? " for dry-run" : ""}.`);
+  }
+}
+
+async function publishPackage({ currentOtp, dryRun, name, packageDir, version }) {
+  let otp = currentOtp;
+
+  while (true) {
+    const args = ["publish", "--access", "public", ...(dryRun ? ["--dry-run"] : [])];
+    if (otp) {
+      args.push(`--otp=${otp}`);
+    }
+
+    const result = await run("npm", args, packageDir, {
+      allowFailure: true,
+      forwardOutput: true,
+      stdio: "pipe"
+    });
+
+    if (result.code === 0) {
+      return otp;
+    }
+
+    const combinedOutput = `${result.stdout}\n${result.stderr}`;
+    if (!dryRun && combinedOutput.includes("EOTP")) {
+      otp = await promptForOtp(`${name}@${version}`);
+      continue;
+    }
+
+    throw new Error(
+      `npm ${args.join(" ")} failed in ${packageDir} with exit code ${result.code ?? "unknown"}`
+    );
   }
 }
 
@@ -68,8 +104,31 @@ async function isVersionPublished(packageName, version) {
   throw new Error(`Unable to check npm version for ${spec}:\n${combinedOutput}`.trim());
 }
 
+async function promptForOtp(packageLabel) {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error(
+      `npm requested a one-time password for ${packageLabel}, but no interactive terminal is available. Re-run with --otp=<code> or TELEFORGE_NPM_OTP set.`
+    );
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  try {
+    const otp = (await rl.question(`Enter npm OTP for ${packageLabel}: `)).trim();
+    if (!otp) {
+      throw new Error("A non-empty npm OTP is required to continue publishing.");
+    }
+    return otp;
+  } finally {
+    rl.close();
+  }
+}
+
 function run(command, args, cwd, options = {}) {
-  const { allowFailure = false, stdio = "inherit" } = options;
+  const { allowFailure = false, forwardOutput = false, stdio = "inherit" } = options;
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -84,9 +143,15 @@ function run(command, args, cwd, options = {}) {
     if (stdio === "pipe") {
       child.stdout?.on("data", (chunk) => {
         stdout += chunk.toString();
+        if (forwardOutput) {
+          process.stdout.write(chunk);
+        }
       });
       child.stderr?.on("data", (chunk) => {
         stderr += chunk.toString();
+        if (forwardOutput) {
+          process.stderr.write(chunk);
+        }
       });
     }
 
@@ -108,6 +173,22 @@ function run(command, args, cwd, options = {}) {
       });
     });
   });
+}
+
+function readOptionValue(flagName) {
+  const prefixed = `${flagName}=`;
+
+  for (let index = 0; index < process.argv.length; index += 1) {
+    const arg = process.argv[index];
+    if (arg === flagName) {
+      return process.argv[index + 1] ?? null;
+    }
+    if (arg?.startsWith(prefixed)) {
+      return arg.slice(prefixed.length);
+    }
+  }
+
+  return null;
 }
 
 main().catch((error) => {

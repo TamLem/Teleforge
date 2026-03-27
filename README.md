@@ -68,6 +68,21 @@ pnpm run publish:dry-run
 pnpm run publish
 ```
 
+Interactive publish:
+
+```bash
+pnpm run publish
+```
+
+If npm account 2FA is enabled for publish, the script will prompt in the terminal for your OTP when npm requests it.
+
+Non-interactive alternatives:
+
+```bash
+pnpm run publish -- --otp=123456
+TELEFORGE_NPM_OTP=123456 pnpm run publish
+```
+
 Notes:
 
 - `pnpm run publish` uses [`scripts/release-publish.mjs`](./scripts/release-publish.mjs), not raw `changeset publish`
