@@ -1,6 +1,6 @@
 {
   "name": "@teleforge/devtools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Teleforge development CLI.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -30,7 +30,7 @@
     "test": "pnpm --filter create-teleforge-app build && pnpm run build && node --test test/*.mjs"
   },
   "dependencies": {
-    "@teleforge/core": "workspace:1.0.0",
+    "@teleforge/core": "workspace:1.1.0",
     "http-proxy": "^1.18.1",
     "localtunnel": "^2.0.2",
     "qrcode-terminal": "^0.12.0",
