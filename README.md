@@ -65,29 +65,30 @@ Local release commands:
 ```bash
 pnpm run version
 pnpm run publish:dry-run
-pnpm run publish
+NPM_TOKEN=your_npm_token pnpm run publish
 ```
 
-Interactive publish:
+Token-based publish:
 
 ```bash
-pnpm run publish
+NPM_TOKEN=your_npm_token pnpm run publish
 ```
 
-If npm account 2FA is enabled for publish, the script will prompt in the terminal for your OTP when npm requests it.
+The release script reads an npm token from `--token`, `TELEFORGE_NPM_TOKEN`, `NPM_TOKEN`, or `NODE_AUTH_TOKEN` and writes a temporary npm user config for the publish session.
 
-Non-interactive alternatives:
+Equivalent alternatives:
 
 ```bash
-pnpm run publish -- --otp=123456
-TELEFORGE_NPM_OTP=123456 pnpm run publish
+pnpm run publish -- --token=your_npm_token
+TELEFORGE_NPM_TOKEN=your_npm_token pnpm run publish
+NODE_AUTH_TOKEN=your_npm_token pnpm run publish
 ```
 
 Notes:
 
 - `pnpm run publish` uses `scripts/release-publish.mjs`, not raw `changeset publish`
 - the publish script skips versions that already exist on npm and does not attempt to publish example apps or the generator
-- CI still needs npm credentials configured outside the repo, typically `NPM_TOKEN` with bypass-2FA publishing enabled, or an equivalent trusted publishing setup
+- CI still needs npm credentials configured outside the repo, typically `NPM_TOKEN`
 - release commits should not include unrelated local-only files such as app-specific `.env` edits
 
 ## Documentation
