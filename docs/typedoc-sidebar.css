@@ -36,3 +36,7 @@
   background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   font-weight: 600;
 }
+
+.teleforge-guides-primary .site-menu {
+  display: none;
+}

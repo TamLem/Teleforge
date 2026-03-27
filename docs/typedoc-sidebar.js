@@ -21,6 +21,10 @@
     return currentUrl.href.replace(rootUrl.href, "") || "index.html";
   }
 
+  function isNarrativePage(currentPath) {
+    return currentPath === "index.html" || currentPath.startsWith("documents/");
+  }
+
   function buildSection(title, links, base, currentPath) {
     const section = document.createElement("nav");
     section.className = "tsd-navigation teleforge-sidebar-section";
@@ -56,6 +60,11 @@
     }
 
     const currentPath = currentDocumentPath(base);
+    document.documentElement.classList.toggle(
+      "teleforge-guides-primary",
+      isNarrativePage(currentPath)
+    );
+
     const docsSection = buildSection("Guides", guideLinks, base, currentPath);
     const apiSection = buildSection(
       "API Reference",
