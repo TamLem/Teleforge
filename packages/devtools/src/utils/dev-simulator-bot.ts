@@ -90,7 +90,7 @@ export async function createSimulatorBotBridge(options: {
     );
   }
 
-  const workerPath = fileURLToPath(new URL("./simulator-bot-worker.js", import.meta.url));
+  const workerPath = path.join(resolveCurrentBundleDirectory(), "simulator-bot-worker.js");
   const child = spawn(process.execPath, ["--import", tsxImportPath, workerPath], {
     cwd: options.cwd,
     env: {
@@ -106,6 +106,36 @@ export async function createSimulatorBotBridge(options: {
   const bridge = new WorkerBackedSimulatorBotBridge(child);
   await bridge.getCommands();
   return bridge;
+}
+
+function resolveCurrentBundleDirectory(): string {
+  const originalPrepareStackTrace = Error.prepareStackTrace;
+
+  try {
+    Error.prepareStackTrace = (_, stack) => stack;
+    const stack = new Error().stack as unknown as NodeJS.CallSite[] | undefined;
+
+    for (const frame of stack ?? []) {
+      const fileName = frame.getFileName();
+      if (typeof fileName !== "string" || fileName.length === 0) {
+        continue;
+      }
+
+      if (fileName.startsWith("node:")) {
+        continue;
+      }
+
+      if (fileName.startsWith("file://")) {
+        return path.dirname(fileURLToPath(fileName));
+      }
+
+      return path.dirname(fileName);
+    }
+  } finally {
+    Error.prepareStackTrace = originalPrepareStackTrace;
+  }
+
+  return process.cwd();
 }
 
 function toWorkerAppUrl(appUrl: string): string {
