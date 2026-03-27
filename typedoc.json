@@ -16,6 +16,8 @@
   "tsconfig": "tsconfig.typedoc.json",
   "out": "docs/api",
   "name": "Teleforge Documentation",
+  "customCss": "docs/typedoc-sidebar.css",
+  "customJs": "docs/typedoc-sidebar.js",
   "includeVersion": true,
   "disableGit": true,
   "disableSources": true,
