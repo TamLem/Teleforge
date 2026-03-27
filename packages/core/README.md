@@ -1,11 +1,11 @@
-# @teleforge/core
+# @teleforgex/core
 
 Core manifest schema, validation, and loading utilities for Teleforge.
 
 ## Installation
 
 ```bash
-npm install @teleforge/core
+npm install @teleforgex/core
 ```
 
 ## Exports
@@ -20,10 +20,10 @@ import {
   validateInitDataBotToken,
   validateInitDataEd25519,
   validateManifest
-} from "@teleforge/core";
+} from "@teleforgex/core";
 ```
 
-`@teleforge/core` validates the current Teleforge manifest shape emitted by the generator and consumed by devtools.
+`@teleforgex/core` validates the current Teleforge manifest shape emitted by the generator and consumed by devtools.
 
 It also exposes launch parsing and server-side initData validation helpers for Telegram Mini Apps:
 
@@ -46,7 +46,7 @@ const result = await validateInitDataEd25519(initData, telegramPublicKeyHex, {
 
 This follows Telegram's current third-party validation format: `signature` is base64url-encoded, the public key is hex, and the signed payload is prefixed with `${botId}:WebAppData` before the sorted `key=value` lines.
 
-For cross-surface messaging, `@teleforge/core` now includes a shared event bus:
+For cross-surface messaging, `@teleforgex/core` now includes a shared event bus:
 
 ```ts
 const bus = createEventBus();
@@ -56,16 +56,16 @@ bus.on(EventTypes.ORDER_CREATED, (event) => {
 });
 ```
 
-React helpers are available from the isolated `@teleforge/core/react` subpath so Node consumers do not pull React transitively:
+React helpers are available from the isolated `@teleforgex/core/react` subpath so Node consumers do not pull React transitively:
 
 ```ts
-import { useEvent, useEventBus, useEventPublisher } from "@teleforge/core/react";
+import { useEvent, useEventBus, useEventPublisher } from "@teleforgex/core/react";
 ```
 
 Browser-focused consumers can avoid the Node-only manifest and HMAC helpers by importing from the browser-safe subpath:
 
 ```ts
-import { parseLaunchContext } from "@teleforge/core/browser";
+import { parseLaunchContext } from "@teleforgex/core/browser";
 ```
 
 ## Validation Runtimes
@@ -76,7 +76,7 @@ import { parseLaunchContext } from "@teleforge/core/browser";
 
 ## Flow State Contract
 
-`UserFlowState` is the canonical V1 continuity contract exported by `@teleforge/core`:
+`UserFlowState` is the canonical V1 continuity contract exported by `@teleforgex/core`:
 
 ```ts
 interface UserFlowState {

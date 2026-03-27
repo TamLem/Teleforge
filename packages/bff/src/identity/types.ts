@@ -1,6 +1,6 @@
 import type { BffRequestContext } from "../context/types.js";
 import type { BffErrorCode } from "../errors/codes.js";
-import type { WebAppUser } from "@teleforge/core";
+import type { WebAppUser } from "@teleforgex/core";
 
 export interface AppUser {
   id: string;

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createBotRuntime, type BotRuntime } from "@teleforge/bot";
+import { createBotRuntime, type BotRuntime } from "@teleforgex/bot";
 import { config as loadDotenv } from "dotenv";
 
 import { createStartCommand } from "./commands/start.js";

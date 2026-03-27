@@ -1,4 +1,4 @@
-import { useTheme } from "@teleforge/web";
+import { useTheme } from "@teleforgex/web";
 
 export interface ThemeColors {
   bgColor: string;

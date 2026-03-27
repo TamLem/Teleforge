@@ -11,7 +11,7 @@ import {
   type TelegramMessage,
   type TelegramReplyMarkup,
   type TelegramUpdate
-} from "@teleforge/bot";
+} from "@teleforgex/bot";
 import { config as loadDotenv } from "dotenv";
 
 import { createStarterBotRuntime, hasUsableToken, readStarterBotConfig } from "./runtime.js";

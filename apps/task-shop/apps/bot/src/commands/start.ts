@@ -1,7 +1,7 @@
-import { initiateCoordinatedFlow, templates } from "@teleforge/bot";
+import { initiateCoordinatedFlow, templates } from "@teleforgex/bot";
 
-import type { BotCommandDefinition } from "@teleforge/bot";
-import type { UserFlowStateManager } from "@teleforge/core";
+import type { BotCommandDefinition } from "@teleforgex/bot";
+import type { UserFlowStateManager } from "@teleforgex/core";
 
 export function createStartCommand(
   miniAppUrl: string,

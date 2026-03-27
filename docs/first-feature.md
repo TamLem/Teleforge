@@ -50,7 +50,7 @@ They should line up with the files you create:
 Create `apps/bot/src/commands/orders.ts`:
 
 ```ts
-import type { BotCommandDefinition } from "@teleforge/bot";
+import type { BotCommandDefinition } from "@teleforgex/bot";
 
 export function createOrdersCommand(miniAppUrl: string): BotCommandDefinition {
   return {

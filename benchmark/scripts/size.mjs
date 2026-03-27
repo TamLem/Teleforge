@@ -5,32 +5,32 @@ import { repoRoot, writeJson } from "./common.mjs";
 
 const bundleTargets = [
   {
-    id: "@teleforge/core",
+    id: "@teleforgex/core",
     entry: "./packages/core/dist/index.js",
     platform: "node"
   },
   {
-    id: "@teleforge/core/browser",
+    id: "@teleforgex/core/browser",
     entry: "./packages/core/dist/browser.js",
     platform: "browser"
   },
   {
-    id: "@teleforge/web",
+    id: "@teleforgex/web",
     entry: "./packages/web/dist/index.js",
     platform: "browser"
   },
   {
-    id: "@teleforge/bot",
+    id: "@teleforgex/bot",
     entry: "./packages/bot/dist/index.js",
     platform: "node"
   },
   {
-    id: "@teleforge/ui",
+    id: "@teleforgex/ui",
     entry: "./packages/ui/dist/index.js",
     platform: "browser"
   },
   {
-    id: "@teleforge/devtools",
+    id: "@teleforgex/devtools",
     entry: "./packages/devtools/dist/index.js",
     platform: "node"
   }
@@ -93,7 +93,7 @@ for (const target of bundleTargets) {
 }
 
 const treeShaking = {
-  "@teleforge/web/useTelegram": await measureTreeShake()
+  "@teleforgex/web/useTelegram": await measureTreeShake()
 };
 
 await writeJson("results/size.json", {

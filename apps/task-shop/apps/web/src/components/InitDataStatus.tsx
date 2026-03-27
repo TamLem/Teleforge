@@ -1,4 +1,4 @@
-import { TgCard, TgText } from "@teleforge/ui";
+import { TgCard, TgText } from "@teleforgex/ui";
 
 import { useInitDataValidation } from "../hooks/useInitDataValidation";
 

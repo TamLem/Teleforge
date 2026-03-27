@@ -1,7 +1,7 @@
 import { BffRouteError } from "../route/errors.js";
 
 import type { BffRequestContext } from "../context/types.js";
-import type { LaunchMode } from "@teleforge/core";
+import type { LaunchMode } from "@teleforgex/core";
 
 export function enforceLaunchModes(
   launchModes: readonly LaunchMode[] | undefined,

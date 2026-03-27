@@ -4,7 +4,7 @@ import type { AppUser, IdentityAdapter, IdentityResolutionOptions } from "../ide
 import type { BffCacheStore } from "../route/types.js";
 import type { BffRouteConfig, BffRouteDefinition } from "../route/types.js";
 import type { SessionAdapter } from "../session/types.js";
-import type { LaunchMode } from "@teleforge/core";
+import type { LaunchMode } from "@teleforgex/core";
 
 export interface BffFeatureFlags {
   completion: boolean;

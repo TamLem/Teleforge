@@ -16,7 +16,7 @@ import type {
   ResolvedCoordinationConfig,
   TeleforgeManifest,
   UserFlowState
-} from "@teleforge/core/browser";
+} from "@teleforgex/core/browser";
 
 export interface CoordinationProviderProps extends FlowResumeProviderProps {
   children: React.ReactNode;

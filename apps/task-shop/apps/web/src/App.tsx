@@ -1,10 +1,10 @@
-import { AppShell, TgButton, TgText } from "@teleforge/ui";
+import { AppShell, TgButton, TgText } from "@teleforgex/ui";
 import {
   CoordinationProvider,
   ExpiredFlowView,
   ResumeIndicator,
   useFlowState
-} from "@teleforge/web";
+} from "@teleforgex/web";
 import { useEffect, useState } from "react";
 
 import { taskShopCoordination } from "./coordination";

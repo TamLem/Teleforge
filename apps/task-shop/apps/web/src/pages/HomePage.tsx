@@ -1,5 +1,5 @@
-import { TgButton, TgCard, TgText } from "@teleforge/ui";
-import { useLaunch } from "@teleforge/web";
+import { TgButton, TgCard, TgText } from "@teleforgex/ui";
+import { useLaunch } from "@teleforgex/web";
 
 import { InitDataStatus } from "../components/InitDataStatus";
 import { TaskCard } from "../components/TaskCard";

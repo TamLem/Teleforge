@@ -2,7 +2,7 @@ import { extractFlowContext } from "../primitives/context.js";
 import { createCompletionMessage } from "../templates/completion.js";
 
 import type { WebAppDataContext } from "../router/types.js";
-import type { UserFlowState, UserFlowStateManager } from "@teleforge/core";
+import type { UserFlowState, UserFlowStateManager } from "@teleforgex/core";
 
 export interface MiniAppReturnData {
   data: Record<string, unknown>;

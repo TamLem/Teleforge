@@ -1,6 +1,6 @@
 import type { MiniAppReturnData } from "../coordination/handle-return.js";
 import type { ReplyOptions } from "../router/types.js";
-import type { UserFlowState } from "@teleforge/core";
+import type { UserFlowState } from "@teleforgex/core";
 
 export interface CompletionMessage {
   options: ReplyOptions;

@@ -75,8 +75,8 @@ const runtimeResults = await readJson("results/runtime.json");
 const memoryResults = await readJson("results/memory.json");
 const current = flattenResults(sizeResults, runtimeResults, memoryResults);
 const baselineName = process.argv.includes("--write-baseline")
-  ? (process.argv[process.argv.indexOf("--write-baseline") + 1] ?? "v1.0.0")
-  : "v1.0.0";
+  ? (process.argv[process.argv.indexOf("--write-baseline") + 1] ?? "v0.1.0")
+  : "v0.1.0";
 const baselinePath = path.join(baselinesDir, `${baselineName}.json`);
 
 if (process.argv.includes("--write-baseline")) {

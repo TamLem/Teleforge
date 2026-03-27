@@ -1,4 +1,4 @@
-import { useMainButton, useTelegram, useTheme } from "@teleforge/web";
+import { useMainButton, useTelegram, useTheme } from "@teleforgex/web";
 import { useEffect } from "react";
 
 import { BackButton } from "./BackButton.js";

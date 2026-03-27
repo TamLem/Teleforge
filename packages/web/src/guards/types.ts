@@ -1,4 +1,4 @@
-import type { TeleforgeManifest } from "@teleforge/core/browser";
+import type { TeleforgeManifest } from "@teleforgex/core/browser";
 
 export interface RouteRequirements {
   auth?: boolean;

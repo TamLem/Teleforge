@@ -1,5 +1,5 @@
-import { validateInitDataEd25519 } from "@teleforge/core/validation/ed25519";
-import { useLaunch } from "@teleforge/web";
+import { validateInitDataEd25519 } from "@teleforgex/core/validation/ed25519";
+import { useLaunch } from "@teleforgex/web";
 import { useEffect, useState } from "react";
 
 interface ValidationState {

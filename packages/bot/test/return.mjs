@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { UserFlowStateManager, createFlowStorage } from "@teleforge/core";
+import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
 
 import { createSignedPayload, handleMiniAppReturnData } from "../dist/index.js";
 

@@ -311,7 +311,7 @@ async function checkTeleforgeDependencies(
       message: "No @teleforge dependencies were found in the project package manifests.",
       name: "teleforge_dependencies",
       remediation:
-        "Install the Teleforge packages referenced by your app, such as @teleforge/core and @teleforge/web.",
+        "Install the Teleforge packages referenced by your app, such as @teleforgex/core and @teleforgex/web.",
       status: "error"
     };
   }
@@ -851,7 +851,7 @@ async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifes
       }
 
       for (const [name, version] of Object.entries(section)) {
-        if (!name.startsWith("@teleforge/") || typeof version !== "string") {
+        if (!name.startsWith("@teleforgex/") || typeof version !== "string") {
           continue;
         }
         packages.set(name, version);
@@ -870,14 +870,14 @@ async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifes
 }
 
 function determineRequiredTeleforgePackages(manifest: TeleforgeManifest | undefined): string[] {
-  const required = new Set<string>(["@teleforge/core", "@teleforge/web"]);
+  const required = new Set<string>(["@teleforgex/core", "@teleforgex/web"]);
 
   if (manifest?.bot) {
-    required.add("@teleforge/bot");
+    required.add("@teleforgex/bot");
   }
 
   if (manifest?.runtime.mode === "bff") {
-    required.add("@teleforge/bff");
+    required.add("@teleforgex/bff");
   }
 
   return [...required];

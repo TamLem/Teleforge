@@ -39,7 +39,7 @@ Teleforge's BFF package helps with layer 2.
 At the package level, the core pattern is:
 
 ```ts
-import { createBffConfig, defineBffRoute } from "@teleforge/bff";
+import { createBffConfig, defineBffRoute } from "@teleforgex/bff";
 
 const config = createBffConfig({
   botToken: process.env.BOT_TOKEN,

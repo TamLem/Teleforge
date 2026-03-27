@@ -5,7 +5,7 @@ import type {
   RouteCoordinationMetadata,
   TeleforgeManifest,
   UserFlowState
-} from "@teleforge/core/browser";
+} from "@teleforgex/core/browser";
 
 export interface PersistFlowStateInput {
   currentState: UserFlowState | null;

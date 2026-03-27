@@ -4,12 +4,12 @@
   "commit": false,
   "fixed": [
     [
-      "@teleforge/bff",
-      "@teleforge/bot",
-      "@teleforge/core",
-      "@teleforge/devtools",
-      "@teleforge/ui",
-      "@teleforge/web"
+      "@teleforgex/bff",
+      "@teleforgex/bot",
+      "@teleforgex/core",
+      "@teleforgex/devtools",
+      "@teleforgex/ui",
+      "@teleforgex/web"
     ]
   ],
   "linked": [],

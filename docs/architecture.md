@@ -12,11 +12,11 @@ At a high level:
 
 ```text
 Telegram Client
-  -> Mini App runtime (@teleforge/web + @teleforge/ui)
-  -> Bot runtime (@teleforge/bot)
-  -> Optional BFF runtime (@teleforge/bff)
-  -> Shared contracts and validation (@teleforge/core)
-  -> Local iteration tooling (@teleforge/devtools)
+  -> Mini App runtime (@teleforgex/web + @teleforgex/ui)
+  -> Bot runtime (@teleforgex/bot)
+  -> Optional BFF runtime (@teleforgex/bff)
+  -> Shared contracts and validation (@teleforgex/core)
+  -> Local iteration tooling (@teleforgex/devtools)
 ```
 
 The framework is organized so that application code can share one manifest and one set of flow contracts across these surfaces.
@@ -26,26 +26,26 @@ The framework is organized so that application code can share one manifest and o
 The implemented package graph is:
 
 ```text
-@teleforge/core
-  <- @teleforge/web
-  <- @teleforge/bot
-  <- @teleforge/bff
+@teleforgex/core
+  <- @teleforgex/web
+  <- @teleforgex/bot
+  <- @teleforgex/bff
 
-@teleforge/web
-  <- @teleforge/ui
+@teleforgex/web
+  <- @teleforgex/ui
 
 create-teleforge-app
   generates workspaces that consume the packages above
 
-@teleforge/devtools
-  depends on @teleforge/core for manifest parsing and validation
+@teleforgex/devtools
+  depends on @teleforgex/core for manifest parsing and validation
 ```
 
 Implications:
 
-- `@teleforge/core` is the source of truth for shared types and cross-surface contracts.
-- `@teleforge/web`, `bot`, and `bff` interpret Telegram runtime concerns for their own execution surface.
-- `@teleforge/ui` stays presentation-focused and builds on `@teleforge/web` instead of reimplementing Telegram state handling.
+- `@teleforgex/core` is the source of truth for shared types and cross-surface contracts.
+- `@teleforgex/web`, `bot`, and `bff` interpret Telegram runtime concerns for their own execution surface.
+- `@teleforgex/ui` stays presentation-focused and builds on `@teleforgex/web` instead of reimplementing Telegram state handling.
 
 ## Runtime Surfaces
 
@@ -55,8 +55,8 @@ Teleforge V1 supports three main runtime surfaces.
 
 The Mini App runtime lives in the browser and is built from:
 
-- `@teleforge/web`
-- `@teleforge/ui`
+- `@teleforgex/web`
+- `@teleforgex/ui`
 - your app code in `apps/web`
 
 Responsibilities:
@@ -71,7 +71,7 @@ Responsibilities:
 
 The bot runtime lives in Node and is built from:
 
-- `@teleforge/bot`
+- `@teleforgex/bot`
 - your bot code in `apps/bot`
 
 Responsibilities:
@@ -86,7 +86,7 @@ Responsibilities:
 
 The BFF runtime is optional and lives server-side. It is built from:
 
-- `@teleforge/bff`
+- `@teleforgex/bff`
 - your app code in `apps/api`
 
 Responsibilities:
@@ -150,7 +150,7 @@ Use this when request context, auth translation, and route middleware belong clo
 
 ## Core Contracts
 
-`@teleforge/core` defines the contracts shared across the framework.
+`@teleforgex/core` defines the contracts shared across the framework.
 
 ### Launch Context
 
@@ -191,7 +191,7 @@ Higher-level resume behavior is built on top of this contract rather than embedd
 
 The Mini App layer is split between raw runtime hooks and UI primitives.
 
-### `@teleforge/web`
+### `@teleforgex/web`
 
 This package is responsible for:
 
@@ -210,9 +210,9 @@ Typical entry points are:
 - `useManifestGuard()`
 - `CoordinationProvider`
 
-### `@teleforge/ui`
+### `@teleforgex/ui`
 
-This package sits on top of `@teleforge/web` and converts Telegram state into reusable React UI primitives.
+This package sits on top of `@teleforgex/web` and converts Telegram state into reusable React UI primitives.
 
 Responsibilities:
 
@@ -225,7 +225,7 @@ It does not own Telegram data or security logic. It consumes them.
 
 ## Bot Layer
 
-`@teleforge/bot` owns Telegram update handling and the bot-facing half of coordinated flows.
+`@teleforgex/bot` owns Telegram update handling and the bot-facing half of coordinated flows.
 
 Key responsibilities:
 
@@ -243,7 +243,7 @@ The bot layer is where chat-native entry points usually start. It can:
 
 ## BFF Layer
 
-`@teleforge/bff` provides a Telegram-aware backend-for-frontend surface.
+`@teleforgex/bff` provides a Telegram-aware backend-for-frontend surface.
 
 Its architecture has four main parts:
 
@@ -292,17 +292,17 @@ One of Teleforge's most specific V1 features is chat-to-Mini-App coordination.
 The architecture spans packages:
 
 ```text
-@teleforge/core
+@teleforgex/core
   -> route coordination metadata
   -> signed flow context
   -> flow-state contract
 
-@teleforge/web
+@teleforgex/web
   -> CoordinationProvider
   -> FlowResumeProvider
   -> returnToChat / completeFlow / resumeFlow
 
-@teleforge/bot
+@teleforgex/bot
   -> chat primitives
   -> web_app_data handling
   -> return/completion templates
@@ -321,7 +321,7 @@ The reference implementation for this lifecycle is `apps/task-shop`.
 
 ## Local Tooling Architecture
 
-`@teleforge/devtools` is not part of application runtime, but it is part of the framework architecture because it understands the manifest and the development workflow.
+`@teleforgex/devtools` is not part of application runtime, but it is part of the framework architecture because it understands the manifest and the development workflow.
 
 It provides:
 

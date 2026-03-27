@@ -15,8 +15,8 @@ In practice, there are always two surfaces:
 
 Teleforge is built around that split. It gives you:
 
-- `@teleforge/bot` for the chat side
-- `@teleforge/web` and `@teleforge/ui` for the Mini App side
+- `@teleforgex/bot` for the chat side
+- `@teleforgex/web` and `@teleforgex/ui` for the Mini App side
 - shared coordination and validation helpers so those two surfaces can work together cleanly
 
 ## What Telegram Sends to the Mini App
@@ -31,9 +31,9 @@ The most important part is **`initData`**:
 
 Teleforge wraps this in:
 
-- `useTelegram()` and `useLaunch()` in `@teleforge/web`
-- launch and validation helpers in `@teleforge/core`
-- Telegram-aware middleware and request context in `@teleforge/bff`
+- `useTelegram()` and `useLaunch()` in `@teleforgex/web`
+- launch and validation helpers in `@teleforgex/core`
+- Telegram-aware middleware and request context in `@teleforgex/bff`
 
 ## Launch Modes
 

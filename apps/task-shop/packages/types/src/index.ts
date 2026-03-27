@@ -41,7 +41,7 @@ export const mockTasks: Task[] = [
   },
   {
     category: "Bot",
-    description: "Register slash commands and a start flow with @teleforge/bot.",
+    description: "Register slash commands and a start flow with @teleforgex/bot.",
     difficulty: "Beginner",
     estimatedTime: "20 min",
     id: "task-002",

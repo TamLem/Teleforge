@@ -4,7 +4,7 @@ import { useManifest } from "./ManifestContext.js";
 import { useRouteGuard } from "./useRouteGuard.js";
 
 import type { GuardResult, RouteRequirements } from "./types.js";
-import type { TeleforgeManifest } from "@teleforge/core/browser";
+import type { TeleforgeManifest } from "@teleforgex/core/browser";
 
 export function useManifestGuard(
   routePath: string,

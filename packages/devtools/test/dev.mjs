@@ -315,7 +315,7 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
   );
   await writeFile(
     path.join(projectRoot, "apps", "bot", "src", "runtime.ts"),
-    `import { createBotRuntime } from "@teleforge/bot";
+    `import { createBotRuntime } from "@teleforgex/bot";
 
 export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
   const runtime = createBotRuntime();

@@ -1,6 +1,6 @@
 {
-  "name": "@teleforge/ui",
-  "version": "1.1.0",
+  "name": "@teleforgex/ui",
+  "version": "0.1.0",
   "description": "UI primitives for Telegram Mini Apps.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -35,7 +35,7 @@
     "test": "pnpm run build && node --test test/*.mjs"
   },
   "dependencies": {
-    "@teleforge/web": "workspace:1.1.0"
+    "@teleforgex/web": "workspace:0.1.0"
   },
   "peerDependencies": {
     "react": "^18.3.1"

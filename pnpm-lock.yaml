@@ -62,17 +62,17 @@ importers:
 
   examples/starter-app:
     dependencies:
-      '@teleforge/bot':
-        specifier: workspace:1.1.0
+      '@teleforgex/bot':
+        specifier: workspace:0.1.0
         version: link:../../packages/bot
-      '@teleforge/core':
-        specifier: workspace:1.1.0
+      '@teleforgex/core':
+        specifier: workspace:0.1.0
         version: link:../../packages/core
-      '@teleforge/ui':
-        specifier: workspace:1.1.0
+      '@teleforgex/ui':
+        specifier: workspace:0.1.0
         version: link:../../packages/ui
-      '@teleforge/web':
-        specifier: workspace:1.1.0
+      '@teleforgex/web':
+        specifier: workspace:0.1.0
         version: link:../../packages/web
       dotenv:
         specifier: ^16.4.7
@@ -84,8 +84,8 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
     devDependencies:
-      '@teleforge/devtools':
-        specifier: workspace:1.1.0
+      '@teleforgex/devtools':
+        specifier: workspace:0.1.0
         version: link:../../packages/devtools
       '@types/node':
         specifier: ^24.0.0
@@ -111,8 +111,8 @@ importers:
 
   packages/bff:
     dependencies:
-      '@teleforge/core':
-        specifier: workspace:1.1.0
+      '@teleforgex/core':
+        specifier: workspace:0.1.0
         version: link:../core
     devDependencies:
       '@types/node':
@@ -124,8 +124,8 @@ importers:
 
   packages/bot:
     dependencies:
-      '@teleforge/core':
-        specifier: workspace:1.1.0
+      '@teleforgex/core':
+        specifier: workspace:0.1.0
         version: link:../core
     devDependencies:
       '@types/node':
@@ -165,8 +165,8 @@ importers:
 
   packages/devtools:
     dependencies:
-      '@teleforge/core':
-        specifier: workspace:1.1.0
+      '@teleforgex/core':
+        specifier: workspace:0.1.0
         version: link:../core
       http-proxy:
         specifier: ^1.18.1
@@ -196,8 +196,8 @@ importers:
 
   packages/ui:
     dependencies:
-      '@teleforge/web':
-        specifier: workspace:1.1.0
+      '@teleforgex/web':
+        specifier: workspace:0.1.0
         version: link:../web
     devDependencies:
       '@types/react':
@@ -224,8 +224,8 @@ importers:
 
   packages/web:
     dependencies:
-      '@teleforge/core':
-        specifier: workspace:1.1.0
+      '@teleforgex/core':
+        specifier: workspace:0.1.0
         version: link:../core
     devDependencies:
       '@types/react':

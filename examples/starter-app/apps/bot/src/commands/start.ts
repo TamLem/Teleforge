@@ -1,4 +1,4 @@
-import type { BotCommandDefinition } from "@teleforge/bot";
+import type { BotCommandDefinition } from "@teleforgex/bot";
 
 export function createStartCommand(miniAppUrl: string): BotCommandDefinition {
   return {

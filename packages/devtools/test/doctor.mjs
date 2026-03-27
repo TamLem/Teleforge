@@ -95,9 +95,9 @@ test("doctor --json emits machine-readable diagnostics and exits non-zero on err
 test("doctor reports conflicting Teleforge dependency majors", async () => {
   const projectDir = await createDoctorFixture({
     dependencyVersions: {
-      "@teleforge/bot": "^1.0.0",
-      "@teleforge/core": "^1.0.0",
-      "@teleforge/web": "^2.0.0"
+      "@teleforgex/bot": "^0.1.0",
+      "@teleforgex/core": "^0.1.0",
+      "@teleforgex/web": "^2.0.0"
     }
   });
 
@@ -147,10 +147,10 @@ test("doctor fails the node-version check below Node 18", async () => {
 async function createDoctorFixture(options = {}) {
   const envFile = options.envFile ?? true;
   const dependencyVersions = options.dependencyVersions ?? {
-    "@teleforge/bot": "^1.0.0",
-    "@teleforge/core": "^1.0.0",
-    "@teleforge/devtools": "^1.0.0",
-    "@teleforge/web": "^1.0.0"
+    "@teleforgex/bot": "^0.1.0",
+    "@teleforgex/core": "^0.1.0",
+    "@teleforgex/devtools": "^0.1.0",
+    "@teleforgex/web": "^0.1.0"
   };
   const minifiedManifest = options.minifiedManifest ?? false;
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-doctor-"));

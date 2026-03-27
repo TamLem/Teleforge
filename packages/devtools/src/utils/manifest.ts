@@ -1,7 +1,7 @@
 import {
   loadManifest as loadCoreManifest,
   type TeleforgeManifest as CoreTeleforgeManifest
-} from "@teleforge/core";
+} from "@teleforgex/core";
 
 export interface TeleforgeManifest extends Omit<CoreTeleforgeManifest, "runtime"> {
   runtime: Omit<CoreTeleforgeManifest["runtime"], "webFramework"> & {
@@ -11,7 +11,7 @@ export interface TeleforgeManifest extends Omit<CoreTeleforgeManifest, "runtime"
 
 /**
  * Loads a Teleforge manifest from disk and narrows the runtime to the web frameworks supported by
- * `@teleforge/devtools`.
+ * `@teleforgex/devtools`.
  */
 export async function loadManifest(
   cwd: string
@@ -20,7 +20,7 @@ export async function loadManifest(
 
   if (manifest.runtime.webFramework !== "vite" && manifest.runtime.webFramework !== "nextjs") {
     throw new Error(
-      "Invalid teleforge.app.json: runtime.webFramework is not supported by @teleforge/devtools."
+      "Invalid teleforge.app.json: runtime.webFramework is not supported by @teleforgex/devtools."
     );
   }
 

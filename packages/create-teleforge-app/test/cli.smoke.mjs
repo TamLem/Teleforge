@@ -78,7 +78,7 @@ test("generates BFF scaffold", async () => {
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
   assert.equal(rootPackage.devDependencies.tsx, "^4.19.2");
-  assert.equal(rootPackage.devDependencies["@teleforge/devtools"], "^1.0.0");
+  assert.equal(rootPackage.devDependencies["@teleforgex/devtools"], "^0.1.0");
   assert.equal(
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"

@@ -3,7 +3,7 @@ import { sendFlowInit } from "../primitives/flow.js";
 
 import type { FlowContextSource, FlowInitOptions } from "../primitives/index.js";
 import type { TelegramMessage } from "../router/types.js";
-import type { UserFlowStateManager } from "@teleforge/core";
+import type { UserFlowStateManager } from "@teleforgex/core";
 
 export interface CoordinatedFlowOptions extends FlowInitOptions {
   initialStep: string;

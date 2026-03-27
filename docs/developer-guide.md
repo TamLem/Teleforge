@@ -219,9 +219,9 @@ Run `teleforge doctor` before assuming Telegram, HTTPS, or manifest issues are a
 
 ## Package Roles
 
-Teleforge is organized as layered packages with `@teleforge/core` at the center.
+Teleforge is organized as layered packages with `@teleforgex/core` at the center.
 
-### `@teleforge/core`
+### `@teleforgex/core`
 
 Use core for:
 
@@ -231,9 +231,9 @@ Use core for:
 - shared flow-state types
 - coordination metadata and event primitives
 
-Browser-safe consumers should prefer `@teleforge/core/browser` when they only need portable launch and validation utilities.
+Browser-safe consumers should prefer `@teleforgex/core/browser` when they only need portable launch and validation utilities.
 
-### `@teleforge/web`
+### `@teleforgex/web`
 
 Use web for React-side Telegram integration:
 
@@ -244,16 +244,16 @@ Use web for React-side Telegram integration:
 - route guards such as `useRouteGuard()` and `useManifestGuard()`
 - coordination helpers such as `CoordinationProvider`, `FlowResumeProvider`, `returnToChat()`, and `resumeFlow()`
 
-### `@teleforge/ui`
+### `@teleforgex/ui`
 
-Use UI when you want Telegram-native React components on top of `@teleforge/web`, including:
+Use UI when you want Telegram-native React components on top of `@teleforgex/web`, including:
 
 - `AppShell`
 - `MainButton`
 - `LaunchModeBoundary`
 - cards, text, lists, settings, and inputs
 
-### `@teleforge/bot`
+### `@teleforgex/bot`
 
 Use bot for Telegram update handling:
 
@@ -263,7 +263,7 @@ Use bot for Telegram update handling:
 - `web_app_data` parsing and acknowledgment helpers
 - webhook handlers and adapters
 
-### `@teleforge/bff`
+### `@teleforgex/bff`
 
 Use BFF for Telegram-aware backend routes:
 
@@ -275,7 +275,7 @@ Use BFF for Telegram-aware backend routes:
 - request context creation
 - session and identity helpers
 
-### `@teleforge/devtools`
+### `@teleforgex/devtools`
 
 Use devtools for local iteration and diagnostics:
 
@@ -289,7 +289,7 @@ Use devtools for local iteration and diagnostics:
 ### Telegram State in the Mini App
 
 ```tsx
-import { useLaunch, useTelegram, useTheme } from "@teleforge/web";
+import { useLaunch, useTelegram, useTheme } from "@teleforgex/web";
 
 export function Screen() {
   const telegram = useTelegram();
@@ -311,7 +311,7 @@ Use `useTelegram()` when you need direct SDK state. Use `useLaunch()` when you n
 ### Main Button Coordination
 
 ```tsx
-import { useMainButton } from "@teleforge/web";
+import { useMainButton } from "@teleforgex/web";
 
 export function CheckoutAction({ disabled }: { disabled: boolean }) {
   useMainButton({
@@ -323,13 +323,13 @@ export function CheckoutAction({ disabled }: { disabled: boolean }) {
 }
 ```
 
-For component-level rendering, `@teleforge/ui` also exposes a `MainButton` component built on top of the hook.
+For component-level rendering, `@teleforgex/ui` also exposes a `MainButton` component built on top of the hook.
 
 ### Theme-Aware UI
 
 ```tsx
-import { AppShell, TgCard, TgText } from "@teleforge/ui";
-import { useTheme } from "@teleforge/web";
+import { AppShell, TgCard, TgText } from "@teleforgex/ui";
+import { useTheme } from "@teleforgex/web";
 
 export function ThemedScreen() {
   const theme = useTheme();
@@ -350,7 +350,7 @@ When route access depends on launch mode or client capabilities:
 
 - use `useRouteGuard()` for imperative checks
 - use `useManifestGuard()` when route requirements already live in `teleforge.app.json`
-- use `LaunchModeBoundary` from `@teleforge/ui` for view-level fallbacks
+- use `LaunchModeBoundary` from `@teleforgex/ui` for view-level fallbacks
 
 This is the pattern Teleforge uses for flows like compact/fullscreen checkout protection.
 
@@ -378,13 +378,13 @@ runtime.router.onWebAppData(async (context) => {
 
 Mini App-side:
 
-- use the coordination helpers from `@teleforge/web` when the result should go back to chat
+- use the coordination helpers from `@teleforgex/web` when the result should go back to chat
 - use the BFF or your own API when the result should stay in the app session
 
 ### BFF Route Definition
 
 ```ts
-import { defineBffRoute } from "@teleforge/bff";
+import { defineBffRoute } from "@teleforgex/bff";
 
 export const profileRoute = defineBffRoute({
   auth: "required",
@@ -406,9 +406,9 @@ Teleforge V1 includes chat/Mini App coordination primitives for flows that begin
 
 Use these pieces together:
 
-- `@teleforge/core` for route coordination metadata and flow-state contracts
-- `@teleforge/web` for `CoordinationProvider`, `FlowResumeProvider`, `ResumeIndicator`, `returnToChat()`, and `resumeFlow()`
-- `@teleforge/bot` for reply primitives and `web_app_data` handling
+- `@teleforgex/core` for route coordination metadata and flow-state contracts
+- `@teleforgex/web` for `CoordinationProvider`, `FlowResumeProvider`, `ResumeIndicator`, `returnToChat()`, and `resumeFlow()`
+- `@teleforgex/bot` for reply primitives and `web_app_data` handling
 
 The full reference implementation lives in [`apps/task-shop`](../apps/task-shop/README.md).
 
@@ -444,9 +444,9 @@ pnpm docs:build
 Targeted package verification:
 
 ```bash
-pnpm --filter @teleforge/web test
-pnpm --filter @teleforge/bff test
-pnpm --filter @teleforge/bot test
+pnpm --filter @teleforgex/web test
+pnpm --filter @teleforgex/bff test
+pnpm --filter @teleforgex/bot test
 pnpm --dir apps/task-shop test
 ```
 

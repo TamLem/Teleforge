@@ -1,11 +1,11 @@
-# @teleforge/ui
+# @teleforgex/ui
 
-UI primitives built on top of `@teleforge/web`.
+UI primitives built on top of `@teleforgex/web`.
 
 ## Installation
 
 ```bash
-npm install @teleforge/ui @teleforge/web react react-dom
+npm install @teleforgex/ui @teleforgex/web react react-dom
 ```
 
 ## Exports
@@ -22,7 +22,7 @@ import {
   TgList,
   TgSpinner,
   TgText
-} from "@teleforge/ui";
+} from "@teleforgex/ui";
 ```
 
 `AppShell` provides viewport-aware layout, Telegram theme CSS variables, optional header/back button support, and Main Button integration.
@@ -37,7 +37,7 @@ The package also includes theme-aware UI primitives powered by Telegram theme va
 </TgCard>
 ```
 
-`LaunchModeBoundary` adds UI-level protection on top of `@teleforge/web` launch detection:
+`LaunchModeBoundary` adds UI-level protection on top of `@teleforgex/web` launch detection:
 
 ```tsx
 <LaunchModeBoundary modes={["fullscreen"]} showExpandPrompt>

@@ -1,6 +1,6 @@
 {
-  "name": "@teleforge/bff",
-  "version": "1.1.0",
+  "name": "@teleforgex/bff",
+  "version": "0.1.0",
   "description": "Typed BFF route definitions and middleware for Teleforge.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -33,7 +33,7 @@
     "test": "pnpm run build && node --test test/*.mjs test/adapters/*.mjs test/completion/*.mjs test/config/*.mjs test/context/*.mjs test/errors/*.mjs test/identity/*.mjs test/route/*.mjs test/middleware/*.mjs test/session/*.mjs"
   },
   "dependencies": {
-    "@teleforge/core": "workspace:1.1.0"
+    "@teleforgex/core": "workspace:0.1.0"
   },
   "publishConfig": {
     "access": "public"

@@ -1,4 +1,4 @@
-import type { FlowStateResolver, ResumeFlowResult, UserFlowState } from "@teleforge/core";
+import type { FlowStateResolver, ResumeFlowResult, UserFlowState } from "@teleforgex/core";
 
 export interface ResumeFlowOptions {
   currentUserId?: number | string | null;

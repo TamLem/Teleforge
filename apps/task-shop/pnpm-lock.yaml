@@ -11,14 +11,14 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:packages/types
-      '@teleforge/bot':
+      '@teleforgex/bot':
         specifier: link:../../packages/bot
         version: link:../../packages/bot
-      '@teleforge/core':
+      '@teleforgex/core':
         specifier: link:../../packages/core
         version: link:../../packages/core
     devDependencies:
-      '@teleforge/devtools':
+      '@teleforgex/devtools':
         specifier: link:../../packages/devtools
         version: link:../../packages/devtools
       '@types/node':
@@ -54,10 +54,10 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforge/bot':
+      '@teleforgex/bot':
         specifier: link:../../../../packages/bot
         version: link:../../../../packages/bot
-      '@teleforge/core':
+      '@teleforgex/core':
         specifier: link:../../../../packages/core
         version: link:../../../../packages/core
       dotenv:
@@ -79,13 +79,13 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforge/core':
+      '@teleforgex/core':
         specifier: link:../../../../packages/core
         version: link:../../../../packages/core
-      '@teleforge/ui':
+      '@teleforgex/ui':
         specifier: link:../../../../packages/ui
         version: link:../../../../packages/ui
-      '@teleforge/web':
+      '@teleforgex/web':
         specifier: link:../../../../packages/web
         version: link:../../../../packages/web
       react:

@@ -5,7 +5,7 @@ import type {
   GeneratedCommandResponse,
   RegisteredCommand
 } from "../router/types.js";
-import type { TeleforgeManifest } from "@teleforge/core";
+import type { TeleforgeManifest } from "@teleforgex/core";
 
 export function createDefaultHelpHandler(
   commands: ReadonlyArray<Pick<RegisteredCommand, "command" | "description">> = []

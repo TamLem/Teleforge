@@ -1,5 +1,5 @@
 import type { CartItem, OrderPayload } from "@task-shop/types";
-import type { FlowStateResolver, UserFlowState } from "@teleforge/core/browser";
+import type { FlowStateResolver, UserFlowState } from "@teleforgex/core/browser";
 
 export type TaskShopRoute = "/" | "/cart" | "/checkout" | "/success";
 

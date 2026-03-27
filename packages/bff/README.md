@@ -1,11 +1,11 @@
-# `@teleforge/bff`
+# `@teleforgex/bff`
 
 Typed BFF route definitions, registry helpers, and middleware primitives for Teleforge.
 
 ## Route Definition
 
 ```ts
-import { createBffConfig, defineBffRoute, executeBffRoute } from "@teleforge/bff";
+import { createBffConfig, defineBffRoute, executeBffRoute } from "@teleforgex/bff";
 
 const profileRoute = defineBffRoute({
   auth: "required",
@@ -31,6 +31,6 @@ Routes can be service-backed or handler-backed. The execution pipeline composes 
 
 ## Validation Runtime Notes
 
-- Ed25519 `initData` validation uses the portable WebCrypto path from `@teleforge/core/browser`.
-- Bot-token `initData` validation uses the Node-only HMAC path from `@teleforge/core`.
+- Ed25519 `initData` validation uses the portable WebCrypto path from `@teleforgex/core/browser`.
+- Bot-token `initData` validation uses the Node-only HMAC path from `@teleforgex/core`.
 - When `validateInitData` is enabled with only `botToken` configured, non-Node runtimes fail explicitly with `RUNTIME_UNSUPPORTED_VALIDATION` instead of falling back to unchecked requests.

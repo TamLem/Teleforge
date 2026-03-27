@@ -12,7 +12,7 @@ import type {
   ResumeFlowError,
   ResumeFlowResult,
   UserFlowState
-} from "@teleforge/core";
+} from "@teleforgex/core";
 import type { ReactNode } from "react";
 
 export interface FlowResumeProviderProps {

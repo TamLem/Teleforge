@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Convenience re-exports that combine `@teleforge/web` hooks with UI-specific helpers.
+ * Convenience re-exports that combine `@teleforgex/web` hooks with UI-specific helpers.
  */
 export {
   useBackButton,
@@ -13,6 +13,6 @@ export {
   type UseMainButtonReturn,
   type UseTelegramReturn,
   type UseThemeReturn
-} from "@teleforge/web";
+} from "@teleforgex/web";
 export { useLaunchMode, type LaunchMode, type UseLaunchModeReturn } from "./useLaunchMode.js";
 export { useThemeColors, type ThemeColors } from "./useThemeColors.js";

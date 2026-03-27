@@ -45,12 +45,12 @@ pnpm test
 
 Teleforge release versioning is managed with Changesets, but package publishing is intentionally limited to the framework packages:
 
-- `@teleforge/core`
-- `@teleforge/web`
-- `@teleforge/ui`
-- `@teleforge/bot`
-- `@teleforge/bff`
-- `@teleforge/devtools`
+- `@teleforgex/core`
+- `@teleforgex/web`
+- `@teleforgex/ui`
+- `@teleforgex/bot`
+- `@teleforgex/bff`
+- `@teleforgex/devtools`
 
 The repository release workflow lives in [`.github/workflows/release.yml`](./.github/workflows/release.yml). On `main`, it:
 
@@ -100,7 +100,7 @@ pnpm docs:serve
 Narrative docs live in [`docs/`](./docs/README.md).
 
 Generated API reference is rebuilt into `docs/api/` on demand and linked from the documentation index.
-It covers the current `@teleforge/core`, `web`, `bot`, `bff`, `ui`, and `devtools` public surfaces.
+It covers the current `@teleforgex/core`, `web`, `bot`, `bff`, `ui`, and `devtools` public surfaces.
 
 ## Tooling Surface
 
@@ -126,7 +126,7 @@ node packages/devtools/dist/cli.js doctor
 ### Web Hooks
 
 ```ts
-import { useTelegram, useTheme } from "@teleforge/web";
+import { useTelegram, useTheme } from "@teleforgex/web";
 ```
 
 `useTelegram` exposes the typed Telegram WebApp SDK with SSR-safe defaults, reactive viewport/theme state, and mock detection. `useTheme` derives Telegram-friendly convenience colors and `--tg-theme-*` CSS variables for UI components.

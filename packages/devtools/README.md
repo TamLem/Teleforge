@@ -1,11 +1,11 @@
-# @teleforge/devtools
+# @teleforgex/devtools
 
 Local developer tooling for Teleforge.
 
 ## Installation
 
 ```bash
-npm install -D @teleforge/devtools
+npm install -D @teleforgex/devtools
 ```
 
 ## Commands

@@ -24,7 +24,7 @@ export function validateLaunchAgainstManifest({
       errors.push(`Required capability '${capability}' not available in this context.`);
     } else if (supported === null) {
       errors.push(
-        `Required capability '${capability}' cannot be evaluated by @teleforge/core yet.`
+        `Required capability '${capability}' cannot be evaluated by @teleforgex/core yet.`
       );
     }
   }

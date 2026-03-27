@@ -1,17 +1,17 @@
-# @teleforge/web
+# @teleforgex/web
 
 React hooks and types for Telegram WebApp integration.
 
 ## Installation
 
 ```bash
-npm install @teleforge/web react
+npm install @teleforgex/web react
 ```
 
 ## Exports
 
 ```ts
-import { useTelegram, useTheme } from "@teleforge/web";
+import { useTelegram, useTheme } from "@teleforgex/web";
 ```
 
 `useTelegram` provides SSR-safe access to the Telegram WebApp SDK, reactive theme and viewport state, and DEV-003 mock detection.
@@ -26,7 +26,7 @@ import { useTelegram, useTheme } from "@teleforge/web";
 ## Example
 
 ```tsx
-import { useTelegram, useTheme } from "@teleforge/web";
+import { useTelegram, useTheme } from "@teleforgex/web";
 
 export function Screen() {
   const { user, viewportHeight } = useTelegram();
@@ -51,5 +51,5 @@ export function Screen() {
 ## Verification
 
 ```bash
-pnpm --filter @teleforge/web test
+pnpm --filter @teleforgex/web test
 ```

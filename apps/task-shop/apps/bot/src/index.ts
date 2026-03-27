@@ -7,7 +7,7 @@ import { config as loadDotenv } from "dotenv";
 import { createTaskShopBotRuntime, readTaskShopBotConfig } from "./runtime.js";
 import { createPollingBot, createPreviewBot } from "./telegram.js";
 
-import type { BotRuntime, TelegramUpdate } from "@teleforge/bot";
+import type { BotRuntime, TelegramUpdate } from "@teleforgex/bot";
 
 loadTaskShopEnv();
 

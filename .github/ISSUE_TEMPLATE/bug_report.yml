@@ -18,7 +18,7 @@ body:
       label: Reproduction Steps
       description: Provide the smallest set of steps needed to reproduce the problem.
       placeholder: |
-        1. Run `pnpm --filter @teleforge/devtools test`
+        1. Run `pnpm --filter @teleforgex/devtools test`
         2. Open...
         3. Observe...
     validations:
@@ -35,7 +35,7 @@ body:
     attributes:
       label: Package Version
       description: Include the affected package and version when known.
-      placeholder: "@teleforge/core@1.0.0"
+      placeholder: "@teleforgex/core@0.1.0"
     validations:
       required: true
   - type: input

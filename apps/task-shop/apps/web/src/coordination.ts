@@ -2,7 +2,7 @@ import {
   defineCoordinationConfig,
   flowCoordination,
   routeCoordination
-} from "@teleforge/core/browser";
+} from "@teleforgex/core/browser";
 
 export const taskShopCoordination = defineCoordinationConfig({
   defaults: {

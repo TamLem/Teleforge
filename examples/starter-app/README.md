@@ -2,8 +2,8 @@
 
 Minimal onboarding example for Teleforge. It keeps the surface area small:
 
-- one Mini App page built with `@teleforge/web` and `@teleforge/ui`
-- one `/start` bot command built with `@teleforge/bot`
+- one Mini App page built with `@teleforgex/web` and `@teleforgex/ui`
+- one `/start` bot command built with `@teleforgex/bot`
 - one root `pnpm dev` script that runs the whole local stack
 
 ## Quick Start

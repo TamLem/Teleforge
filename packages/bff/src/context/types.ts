@@ -1,6 +1,6 @@
 import type { BffErrorCode } from "../errors/codes.js";
 import type { AppUser, IdentityCacheEntry, ResolvedIdentity } from "../identity/types.js";
-import type { LaunchMode, WebAppUser } from "@teleforge/core";
+import type { LaunchMode, WebAppUser } from "@teleforgex/core";
 
 export type BffAuthType = "none" | "session" | "telegram";
 export type BffChatType = "channel" | "group" | "private" | "sender" | "supergroup" | null;

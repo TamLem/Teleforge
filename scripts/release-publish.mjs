@@ -10,12 +10,12 @@ const initialOtp = readOptionValue("--otp") ?? process.env.TELEFORGE_NPM_OTP ?? 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const releasePackages = [
-  { dir: "packages/core", name: "@teleforge/core" },
-  { dir: "packages/web", name: "@teleforge/web" },
-  { dir: "packages/ui", name: "@teleforge/ui" },
-  { dir: "packages/bot", name: "@teleforge/bot" },
-  { dir: "packages/bff", name: "@teleforge/bff" },
-  { dir: "packages/devtools", name: "@teleforge/devtools" }
+  { dir: "packages/core", name: "@teleforgex/core" },
+  { dir: "packages/web", name: "@teleforgex/web" },
+  { dir: "packages/ui", name: "@teleforgex/ui" },
+  { dir: "packages/bot", name: "@teleforgex/bot" },
+  { dir: "packages/bff", name: "@teleforgex/bff" },
+  { dir: "packages/devtools", name: "@teleforgex/devtools" }
 ];
 
 async function main() {

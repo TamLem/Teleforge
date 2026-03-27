@@ -1,28 +1,28 @@
 {
   "generatedAt": "2026-03-25T13:55:14.704Z",
-  "version": "v1.0.0",
+  "version": "v0.1.0",
   "bundleSizes": {
-    "@teleforge/core": {
+    "@teleforgex/core": {
       "gzipBytes": 19770,
       "rawBytes": 76578
     },
-    "@teleforge/core/browser": {
+    "@teleforgex/core/browser": {
       "gzipBytes": 3336,
       "rawBytes": 8851
     },
-    "@teleforge/web": {
+    "@teleforgex/web": {
       "gzipBytes": 8475,
       "rawBytes": 25842
     },
-    "@teleforge/bot": {
+    "@teleforgex/bot": {
       "gzipBytes": 2137,
       "rawBytes": 5238
     },
-    "@teleforge/ui": {
+    "@teleforgex/ui": {
       "gzipBytes": 10240,
       "rawBytes": 31124
     },
-    "@teleforge/devtools": {
+    "@teleforgex/devtools": {
       "gzipBytes": 135281,
       "rawBytes": 485945
     }
@@ -87,7 +87,7 @@
     }
   },
   "treeShaking": {
-    "@teleforge/web/useTelegram": {
+    "@teleforgex/web/useTelegram": {
       "gzipBytes": 3935,
       "rawBytes": 10177
     }

@@ -1,7 +1,7 @@
 import { mockTasks } from "@task-shop/types";
 
-import type { BotCommandDefinition } from "@teleforge/bot";
-import type { UserFlowStateManager } from "@teleforge/core";
+import type { BotCommandDefinition } from "@teleforgex/bot";
+import type { UserFlowStateManager } from "@teleforgex/core";
 
 export function createTasksCommand(flowStateManager: UserFlowStateManager): BotCommandDefinition {
   return {

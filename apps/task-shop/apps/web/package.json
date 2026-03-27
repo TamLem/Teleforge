@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@task-shop/types": "workspace:*",
-    "@teleforge/core": "link:../../../../packages/core",
-    "@teleforge/ui": "link:../../../../packages/ui",
-    "@teleforge/web": "link:../../../../packages/web",
+    "@teleforgex/core": "link:../../../../packages/core",
+    "@teleforgex/ui": "link:../../../../packages/ui",
+    "@teleforgex/web": "link:../../../../packages/web",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

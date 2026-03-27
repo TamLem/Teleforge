@@ -1,5 +1,5 @@
 {
-  "name": "@teleforge/task-shop",
+  "name": "@teleforgex/task-shop",
   "private": true,
   "version": "0.1.0",
   "workspaces": [
@@ -19,11 +19,11 @@
   },
   "dependencies": {
     "@task-shop/types": "workspace:*",
-    "@teleforge/bot": "link:../../packages/bot",
-    "@teleforge/core": "link:../../packages/core"
+    "@teleforgex/bot": "link:../../packages/bot",
+    "@teleforgex/core": "link:../../packages/core"
   },
   "devDependencies": {
-    "@teleforge/devtools": "link:../../packages/devtools",
+    "@teleforgex/devtools": "link:../../packages/devtools",
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
     "@types/node": "^24.0.0",

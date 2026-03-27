@@ -1,4 +1,4 @@
-import { UserFlowStateManager, createFlowStorage } from "@teleforge/core";
+import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
 
 export function createTaskShopFlowStateManager(): UserFlowStateManager {
   return new UserFlowStateManager(

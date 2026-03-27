@@ -2,12 +2,12 @@ import {
   SIGNED_FLOW_CONTEXT_PREFIX,
   createSignedFlowContext,
   verifySignedFlowContext
-} from "@teleforge/core";
+} from "@teleforgex/core";
 
 import { isRecord, parseJsonRecord } from "./shared.js";
 
 import type { TelegramMessage, TelegramUpdate, TelegramWebAppData } from "../router/types.js";
-import type { FlowContext as CoreFlowContext } from "@teleforge/core";
+import type { FlowContext as CoreFlowContext } from "@teleforgex/core";
 
 export type FlowContext = CoreFlowContext;
 

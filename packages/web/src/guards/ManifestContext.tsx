@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from "react";
 
-import type { TeleforgeManifest } from "@teleforge/core/browser";
+import type { TeleforgeManifest } from "@teleforgex/core/browser";
 
 const ManifestContext = createContext<TeleforgeManifest | null>(null);
 

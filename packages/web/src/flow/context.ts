@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-import type { ResumeFlowError, ResumeFlowResult, UserFlowState } from "@teleforge/core";
+import type { ResumeFlowError, ResumeFlowResult, UserFlowState } from "@teleforgex/core";
 
 export type FlowStateStatus = "error" | "idle" | "resumed" | "resuming";
 

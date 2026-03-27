@@ -1,4 +1,4 @@
-import { createBotRuntime, type TelegramMessage, type TelegramUpdate } from "@teleforge/bot";
+import { createBotRuntime, type TelegramMessage, type TelegramUpdate } from "@teleforgex/bot";
 
 import { createStartCommand } from "../../../apps/bot/src/commands/start.ts";
 import { createTasksCommand } from "../../../apps/bot/src/commands/tasks.ts";

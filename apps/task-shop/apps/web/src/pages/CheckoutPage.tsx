@@ -1,6 +1,6 @@
-import { useEventPublisher } from "@teleforge/core/react";
-import { ExpandedOnly, TgButton, TgCard, TgText } from "@teleforge/ui";
-import { completeFlow, useCoordinatedMainButton } from "@teleforge/web";
+import { useEventPublisher } from "@teleforgex/core/react";
+import { ExpandedOnly, TgButton, TgCard, TgText } from "@teleforgex/ui";
+import { completeFlow, useCoordinatedMainButton } from "@teleforgex/web";
 
 import type { CartItem, OrderPayload } from "@task-shop/types";
 

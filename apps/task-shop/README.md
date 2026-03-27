@@ -4,10 +4,10 @@ Reference Teleforge sample app that exercises the full V1 stack with a simple ta
 
 ## What It Covers
 
-- `@teleforge/bot`: `/start`, `/tasks`, and `web_app_data` order handling
-- `@teleforge/web`: launch data, theme, and checkout mode protection
-- `@teleforge/ui`: Telegram-native cards, buttons, typography, and boundaries
-- `@teleforge/core`: `publishToBot()` and Ed25519 initData validation
+- `@teleforgex/bot`: `/start`, `/tasks`, and `web_app_data` order handling
+- `@teleforgex/web`: launch data, theme, and checkout mode protection
+- `@teleforgex/ui`: Telegram-native cards, buttons, typography, and boundaries
+- `@teleforgex/core`: `publishToBot()` and Ed25519 initData validation
 
 ## Structure
 

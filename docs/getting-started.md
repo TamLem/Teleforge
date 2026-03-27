@@ -287,12 +287,12 @@ pnpm docs:build
 
 The main packages are:
 
-- `@teleforge/core`: manifest, validation, launch parsing, flow-state contracts
-- `@teleforge/web`: Telegram hooks and Mini App coordination
-- `@teleforge/ui`: Telegram-native React UI primitives
-- `@teleforge/bot`: bot routing, `web_app_data`, webhook helpers
-- `@teleforge/bff`: Telegram-aware backend routes, adapters, sessions
-- `@teleforge/devtools`: local development and diagnostics
+- `@teleforgex/core`: manifest, validation, launch parsing, flow-state contracts
+- `@teleforgex/web`: Telegram hooks and Mini App coordination
+- `@teleforgex/ui`: Telegram-native React UI primitives
+- `@teleforgex/bot`: bot routing, `web_app_data`, webhook helpers
+- `@teleforgex/bff`: Telegram-aware backend routes, adapters, sessions
+- `@teleforgex/devtools`: local development and diagnostics
 
 ## Next Reading
 

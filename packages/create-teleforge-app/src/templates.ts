@@ -9,10 +9,10 @@ interface BuildProjectFilesOptions {
 }
 
 const teleforgeDependencies = {
-  "@teleforge/bot": "^1.0.0",
-  "@teleforge/core": "^1.0.0",
-  "@teleforge/ui": "^1.0.0",
-  "@teleforge/web": "^1.0.0"
+  "@teleforgex/bot": "^0.1.0",
+  "@teleforgex/core": "^0.1.0",
+  "@teleforgex/ui": "^0.1.0",
+  "@teleforgex/web": "^0.1.0"
 };
 
 export function buildProjectFiles(options: BuildProjectFilesOptions): Record<string, string> {
@@ -138,7 +138,7 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
       dotenv: "^16.4.7"
     },
     devDependencies: {
-      "@teleforge/devtools": "^1.0.0",
+      "@teleforgex/devtools": "^0.1.0",
       tsx: "^4.19.2",
       typescript: "^5.8.3"
     }
@@ -355,7 +355,7 @@ import {
   type TelegramMessage,
   type TelegramReplyMarkup,
   type TelegramUpdate
-} from "@teleforge/bot";
+} from "@teleforgex/bot";
 
 import { createGeneratedBotRuntime, hasUsableToken, readGeneratedBotConfig } from "./runtime.ts";
 
@@ -623,7 +623,7 @@ function loadWorkspaceEnv() {
 
 function botRuntimeTs(): string {
   return `import { config as loadDotenv } from "dotenv";
-import { createBotRuntime, type BotRuntime } from "@teleforge/bot";
+import { createBotRuntime, type BotRuntime } from "@teleforgex/bot";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1037,7 +1037,7 @@ test("home page renders the welcome screen", () => {
 }
 
 function launchModeGuardTs(): string {
-  return `import { useLaunch } from "@teleforge/web";
+  return `import { useLaunch } from "@teleforgex/web";
 
 export function requireLaunchMode(allowedModes: string[]) {
   const { mode } = useLaunch();

@@ -5,7 +5,7 @@ import {
   type LaunchMode,
   type WebAppInitData,
   type WebAppUser
-} from "@teleforge/core/browser";
+} from "@teleforgex/core/browser";
 
 import { BffContextError } from "./errors.js";
 
@@ -148,7 +148,7 @@ async function validateTelegramInitData(
       );
     }
 
-    const core = await import("@teleforge/core");
+    const core = await import("@teleforgex/core");
     const result = core.validateInitDataBotToken(initDataRaw, options.botToken);
 
     if (!result.valid) {

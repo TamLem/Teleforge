@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@task-shop/types": "workspace:*",
-    "@teleforge/bot": "link:../../../../packages/bot",
-    "@teleforge/core": "link:../../../../packages/core",
+    "@teleforgex/bot": "link:../../../../packages/bot",
+    "@teleforgex/core": "link:../../../../packages/core",
     "dotenv": "^16.6.1"
   },
   "devDependencies": {

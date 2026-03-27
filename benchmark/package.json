@@ -1,10 +1,10 @@
 {
-  "name": "@teleforge/benchmark",
+  "name": "@teleforgex/benchmark",
   "private": true,
   "type": "module",
   "scripts": {
     "analyze": "pnpm run size && pnpm run bench:ci && pnpm run memory && pnpm run memory:test && pnpm run report",
-    "baseline:write": "node ./scripts/report.mjs --write-baseline v1.0.0",
+    "baseline:write": "node ./scripts/report.mjs --write-baseline v0.1.0",
     "bench": "node ./scripts/runtime.mjs",
     "bench:ci": "node ./scripts/runtime.mjs --ci",
     "memory": "node --expose-gc ./scripts/memory.mjs",

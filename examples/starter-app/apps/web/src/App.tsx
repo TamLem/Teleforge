@@ -1,5 +1,12 @@
-import { AppShell, MainButton, SettingsItem, SettingsSection, TgCard, TgText } from "@teleforge/ui";
-import { useTelegram, useTheme } from "@teleforge/web";
+import {
+  AppShell,
+  MainButton,
+  SettingsItem,
+  SettingsSection,
+  TgCard,
+  TgText
+} from "@teleforgex/ui";
+import { useTelegram, useTheme } from "@teleforgex/web";
 import { useMemo, useState } from "react";
 
 type MockTheme = "dark" | "light";

@@ -2,10 +2,10 @@ import {
   createWebAppReplyOptions,
   handleMiniAppReturnData,
   type WebAppDataHandler
-} from "@teleforge/bot";
+} from "@teleforgex/bot";
 
 import type { OrderPayload } from "@task-shop/types";
-import type { UserFlowStateManager } from "@teleforge/core";
+import type { UserFlowStateManager } from "@teleforgex/core";
 
 export function createOrderCompletedHandler(
   flowStateManager: UserFlowStateManager,

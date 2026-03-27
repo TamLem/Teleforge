@@ -2,7 +2,7 @@ import type { BffServiceRouteConfig } from "../adapters/types.js";
 import type { CompletionResolver } from "../completion/types.js";
 import type { BffRequestContext } from "../context/types.js";
 import type { BffErrorCode } from "../errors/codes.js";
-import type { LaunchMode, RouteCoordinationMetadata } from "@teleforge/core";
+import type { LaunchMode, RouteCoordinationMetadata } from "@teleforgex/core";
 
 export type BffAuthMode = "optional" | "public" | "required";
 export type BffRouteMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";

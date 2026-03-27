@@ -1,4 +1,4 @@
-import type { ResumeFlowError } from "@teleforge/core";
+import type { ResumeFlowError } from "@teleforgex/core";
 
 export interface ExpiredFlowViewProps {
   error?: ResumeFlowError | null;

@@ -58,5 +58,5 @@ Validate the Task Shop sample app and the underlying Teleforge V1 framework in t
 
 ## Notes
 
-- `@teleforge/core/browser` exists specifically to keep browser bundles free of Node-only manifest and HMAC code.
+- `@teleforgex/core/browser` exists specifically to keep browser bundles free of Node-only manifest and HMAC code.
 - The integration suite is mock-first by design so it can run in CI without secret material.

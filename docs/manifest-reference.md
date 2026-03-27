@@ -23,8 +23,8 @@ If you need the short version, start with [Getting Started](./getting-started.md
 It is consumed by:
 
 - the scaffold generator
-- `@teleforge/core` manifest validation
-- `@teleforge/devtools`
+- `@teleforgex/core` manifest validation
+- `@teleforgex/devtools`
 - app code that derives route behavior from the manifest
 
 ## Top-Level Schema
@@ -47,7 +47,7 @@ The current top-level fields are:
 | `permissions` | array           | no       | declared app permissions              |
 | `security`    | object          | no       | validation/origin settings            |
 
-There is no top-level `bff.adapters[]` section in the current manifest schema. BFF adapters are configured in `@teleforge/bff` code, not in `teleforge.app.json`.
+There is no top-level `bff.adapters[]` section in the current manifest schema. BFF adapters are configured in `@teleforgex/bff` code, not in `teleforge.app.json`.
 
 ## `id`
 
