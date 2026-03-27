@@ -39,7 +39,7 @@ apps/
 - TypeScript is strict by default.
 - Formatting is enforced with Prettier and the repository uses double quotes.
 - ESLint enforces the shared quality rules across packages and the sample app.
-- Generated output such as `dist/` and `docs/api/` should not be edited manually.
+- Generated output such as `dist/` should not be edited manually.
 
 ## Testing
 
@@ -59,7 +59,7 @@ Update the relevant docs when you change public behavior:
 
 - package `README.md` files for install or usage changes
 - JSDoc comments for public APIs
-- `docs/api/` via `pnpm docs:build`
+- `dist/docs-site/` via `pnpm docs:build`
 - `apps/task-shop/docs/INTEGRATION_AUDIT.md` when integration behavior changes
 
 ## Commit and PR Guidance

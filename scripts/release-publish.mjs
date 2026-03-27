@@ -118,11 +118,7 @@ async function createNpmAuthConfig(token) {
   const userConfigPath = path.join(tempDir, ".npmrc");
 
   try {
-    await writeFile(
-      userConfigPath,
-      `//registry.npmjs.org/:_authToken=${token}\n`,
-      "utf8"
-    );
+    await writeFile(userConfigPath, `//registry.npmjs.org/:_authToken=${token}\n`, "utf8");
     return {
       cleanup: async () => {
         await rm(tempDir, { force: true, recursive: true });
@@ -142,8 +138,12 @@ async function createNpmAuthConfig(token) {
 }
 
 function run(command, args, cwd, options = {}) {
-  const { allowFailure = false, env = process.env, forwardOutput = false, stdio = "inherit" } =
-    options;
+  const {
+    allowFailure = false,
+    env = process.env,
+    forwardOutput = false,
+    stdio = "inherit"
+  } = options;
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {

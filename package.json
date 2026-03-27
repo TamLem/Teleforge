@@ -25,9 +25,11 @@
     "changeset": "changeset",
     "changeset:publish": "changeset publish",
     "check": "pnpm lint && pnpm format && pnpm test && pnpm build",
-    "docs:build": "typedoc",
-    "docs:clean": "rm -rf docs/api",
-    "docs:serve": "pnpm exec serve docs/api --listen 4173",
+    "docs:build": "pnpm docs:clean && node scripts/build-docs-site.mjs && typedoc --options typedoc.api.json",
+    "docs:build:api": "typedoc --options typedoc.api.json",
+    "docs:build:site": "node scripts/build-docs-site.mjs",
+    "docs:clean": "rm -rf dist/docs-site",
+    "docs:serve": "pnpm exec serve dist/docs-site --listen 4173",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "lint": "eslint . --ext .ts,.tsx,.js,.mjs,.cjs",
@@ -44,10 +46,12 @@
     "@typescript-eslint/parser": "^8.31.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.31.0",
+    "markdown-it": "^14.1.1",
+    "markdown-it-anchor": "^9.2.0",
     "prettier": "^3.5.3",
     "serve": "^14.2.4",
-    "typedoc": "^0.28.14",
     "tsup": "^8.5.0",
+    "typedoc": "^0.28.14",
     "typescript": "^5.9.3"
   }
 }

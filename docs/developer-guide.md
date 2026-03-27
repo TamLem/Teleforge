@@ -455,4 +455,4 @@ pnpm --dir apps/task-shop test
 - Read [Architecture](./architecture.md) for the framework layout and runtime boundaries.
 - Read [`examples/starter-app/README.md`](../examples/starter-app/README.md) for the smallest working example.
 - Read [`apps/task-shop/README.md`](../apps/task-shop/README.md) for the end-to-end reference implementation.
-- Use the [API reference](./api/index.html) once you know which package surface you need.
+- Use the generated API reference in `dist/docs-site/api/index.html` once you know which package surface you need.

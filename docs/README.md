@@ -3,7 +3,7 @@
 Teleforge now has two documentation layers:
 
 - narrative developer docs in this `docs/` directory
-- generated API reference in [`docs/api/`](./api/index.html)
+- generated API reference in the built docs site under `dist/docs-site/api/`
 
 Use the narrative docs first if you are trying to understand how the framework fits together or how to start building with it.
 
@@ -24,6 +24,8 @@ Use the narrative docs first if you are trying to understand how the framework f
 
 ## API Reference
 
-- [Generated API docs](./api/index.html)
+- Build the docs locally with `pnpm docs:build`
+- Open the narrative site at `dist/docs-site/index.html`
+- Open the generated TypeDoc API reference at `dist/docs-site/api/index.html`
 
 The API docs are useful once you already know which package or hook you need. They are not a substitute for the usage and architecture guides above.

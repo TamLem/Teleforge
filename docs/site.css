@@ -1,0 +1,379 @@
+:root {
+  --bg: #f7f3ec;
+  --panel: #fffdf9;
+  --panel-strong: #f0e7d8;
+  --text: #241b11;
+  --text-muted: #65584a;
+  --border: #dbcab5;
+  --accent: #8c4b1f;
+  --accent-soft: rgba(140, 75, 31, 0.12);
+  --shadow: 0 18px 50px rgba(36, 27, 17, 0.08);
+  --code-bg: #2d251d;
+  --code-text: #f8f0e7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(140, 75, 31, 0.08), transparent 24rem),
+    linear-gradient(180deg, #fbf8f3 0%, var(--bg) 100%);
+  font:
+    16px/1.65 "Instrument Sans",
+    "Inter",
+    "Segoe UI",
+    sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+code,
+pre,
+kbd {
+  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid rgba(219, 202, 181, 0.8);
+  backdrop-filter: blur(14px);
+  background: rgba(251, 248, 243, 0.84);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: min(1380px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 0.9rem 0;
+}
+
+.brand {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+
+.site-header__links {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-left: auto;
+}
+
+.site-header__links a,
+.nav-toggle {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  color: var(--text);
+  background: rgba(255, 253, 249, 0.88);
+  text-decoration: none;
+  font: inherit;
+}
+
+.nav-toggle {
+  display: none;
+  cursor: pointer;
+}
+
+.site-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 220px;
+  gap: 2rem;
+  width: min(1380px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.sidebar,
+.toc {
+  position: sticky;
+  top: 5.4rem;
+  align-self: start;
+}
+
+.sidebar-card,
+.toc-card {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1rem;
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.sidebar-card + .sidebar-section,
+.sidebar-section + .sidebar-section,
+.sidebar-section + .sidebar-card,
+.toc-card {
+  margin-top: 1rem;
+}
+
+.sidebar-kicker {
+  margin: 0 0 0.35rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.sidebar-card h1,
+.sidebar-section h2 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.sidebar-card h1 {
+  font-size: 1.25rem;
+}
+
+.sidebar-card p {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+}
+
+.sidebar-section {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 0.9rem;
+  background: rgba(255, 253, 249, 0.88);
+}
+
+.sidebar-section h2 {
+  margin-bottom: 0.7rem;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.sidebar-link,
+.sidebar-api-link,
+.toc-link {
+  display: block;
+  border-radius: 14px;
+  padding: 0.45rem 0.6rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.sidebar-link:hover,
+.sidebar-link:focus-visible,
+.sidebar-api-link:hover,
+.sidebar-api-link:focus-visible,
+.toc-link:hover,
+.toc-link:focus-visible {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.sidebar-link.current {
+  color: var(--text);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.content {
+  min-width: 0;
+}
+
+.prose {
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  padding: clamp(1.2rem, 2vw, 2.5rem);
+  background: rgba(255, 253, 249, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+}
+
+.prose h1 {
+  font-size: clamp(2.25rem, 4vw, 3.6rem);
+  margin-bottom: 1rem;
+}
+
+.prose h2 {
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  margin-top: 2.8rem;
+}
+
+.prose h3 {
+  font-size: 1.15rem;
+  margin-top: 2rem;
+}
+
+.prose p,
+.prose li {
+  color: var(--text);
+}
+
+.prose blockquote {
+  margin: 1.5rem 0;
+  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.prose pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 18px;
+  background: var(--code-bg);
+  color: var(--code-text);
+}
+
+.prose :not(pre) > code {
+  border-radius: 8px;
+  padding: 0.16rem 0.38rem;
+  background: rgba(45, 37, 29, 0.08);
+  font-size: 0.92em;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+}
+
+.prose th,
+.prose td {
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--panel-strong);
+}
+
+.toc-card {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.toc-link {
+  font-size: 0.95rem;
+}
+
+.toc-level-3 {
+  margin-left: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.toc-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.page-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.page-nav__link,
+.page-nav__spacer {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 1rem;
+  background: rgba(255, 253, 249, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.page-nav__link {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.page-nav__link--next {
+  text-align: right;
+}
+
+.page-nav__eyebrow {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 1120px) {
+  .site-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .toc {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .site-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar,
+  .toc {
+    position: static;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  body[data-nav-open="true"] .sidebar {
+    display: block;
+  }
+
+  .site-header__links {
+    gap: 0.55rem;
+  }
+
+  .site-header__links a {
+    display: none;
+  }
+
+  .page-nav {
+    grid-template-columns: 1fr;
+  }
+}

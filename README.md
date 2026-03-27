@@ -109,7 +109,8 @@ pnpm docs:serve
 
 Narrative docs live in [`docs/`](./docs/README.md).
 
-Generated API reference is rebuilt into `docs/api/` on demand and linked from the documentation index.
+`pnpm docs:build` now builds a standalone docs site into `dist/docs-site/`.
+The narrative site is the primary surface, and the TypeDoc API reference is rebuilt separately into `dist/docs-site/api/` and linked from the site header/sidebar.
 It covers the current `@teleforgex/core`, `web`, `bot`, `bff`, `ui`, and `devtools` public surfaces.
 
 ## Tooling Surface
