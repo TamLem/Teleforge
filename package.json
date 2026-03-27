@@ -3,7 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "description": "Telegram-native full-stack framework.",
+  "homepage": "https://tamlem.github.io/Teleforge/",
   "packageManager": "pnpm@10.15.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TamLem/Teleforge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TamLem/Teleforge/issues"
+  },
   "workspaces": [
     "packages/*",
     "benchmark",

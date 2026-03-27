@@ -32,6 +32,15 @@ If you are new to the repo, start here:
 - `packages/ui`: Telegram-native React UI components
 - `packages/web`: React hooks and Telegram WebApp types for Mini Apps
 
+## npm Packages
+
+- [`@teleforgex/core`](https://www.npmjs.com/package/@teleforgex/core)
+- [`@teleforgex/web`](https://www.npmjs.com/package/@teleforgex/web)
+- [`@teleforgex/ui`](https://www.npmjs.com/package/@teleforgex/ui)
+- [`@teleforgex/bot`](https://www.npmjs.com/package/@teleforgex/bot)
+- [`@teleforgex/bff`](https://www.npmjs.com/package/@teleforgex/bff)
+- [`@teleforgex/devtools`](https://www.npmjs.com/package/@teleforgex/devtools)
+
 ## Common Commands
 
 ```bash

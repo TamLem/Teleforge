@@ -2,6 +2,7 @@
   "name": "@teleforgex/bff",
   "version": "0.1.0",
   "description": "Typed BFF route definitions and middleware for Teleforge.",
+  "homepage": "https://tamlem.github.io/Teleforge/",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -46,6 +47,14 @@
     "typescript"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TamLem/Teleforge.git",
+    "directory": "packages/bff"
+  },
+  "bugs": {
+    "url": "https://github.com/TamLem/Teleforge/issues"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
