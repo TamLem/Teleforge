@@ -13,6 +13,9 @@
     "url": "https://github.com/TamLem/Teleforge/issues"
   },
   "workspaces": [
+    "apps/task-shop",
+    "apps/task-shop/apps/*",
+    "apps/task-shop/packages/*",
     "packages/*",
     "benchmark",
     "examples/*"
