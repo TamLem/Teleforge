@@ -1,6 +1,5 @@
-import { config as loadDotenv } from "dotenv";
-import https from "node:https";
 import { existsSync } from "node:fs";
+import https from "node:https";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +12,7 @@ import {
   type TelegramReplyMarkup,
   type TelegramUpdate
 } from "@teleforge/bot";
+import { config as loadDotenv } from "dotenv";
 
 import { createStarterBotRuntime, hasUsableToken, readStarterBotConfig } from "./runtime.js";
 

@@ -56,8 +56,10 @@ async function main() {
 
 async function publishPackage({ currentOtp, dryRun, name, packageDir, version }) {
   let otp = currentOtp;
+  let shouldRetry = true;
 
-  while (true) {
+  while (shouldRetry) {
+    shouldRetry = false;
     const args = ["publish", "--access", "public", ...(dryRun ? ["--dry-run"] : [])];
     if (otp) {
       args.push(`--otp=${otp}`);
@@ -76,6 +78,7 @@ async function publishPackage({ currentOtp, dryRun, name, packageDir, version })
     const combinedOutput = `${result.stdout}\n${result.stderr}`;
     if (!dryRun && combinedOutput.includes("EOTP")) {
       otp = await promptForOtp(`${name}@${version}`);
+      shouldRetry = true;
       continue;
     }
 
@@ -83,6 +86,8 @@ async function publishPackage({ currentOtp, dryRun, name, packageDir, version })
       `npm ${args.join(" ")} failed in ${packageDir} with exit code ${result.code ?? "unknown"}`
     );
   }
+
+  throw new Error(`npm publish retry loop exited unexpectedly for ${name}@${version}`);
 }
 
 async function isVersionPublished(packageName, version) {

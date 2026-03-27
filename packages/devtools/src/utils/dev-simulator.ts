@@ -17,6 +17,7 @@ import {
   type MockProfile,
   type PartialMockProfile
 } from "./mock-server/types.js";
+
 import type { TeleforgeManifest } from "./manifest.js";
 
 export interface DevSimulatorOptions {
