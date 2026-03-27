@@ -2,7 +2,7 @@
 
 [![Developer Docs](https://img.shields.io/badge/Docs-Developer_Guide-blue)](./docs/developer-guide.md)
 
-Product OS execution workspace for the Teleforge V1 toolchain.
+Telegram-native full-stack framework for bots, Mini Apps, coordination flows, and local simulator-first development.
 
 ## Getting Started
 
@@ -27,7 +27,7 @@ If you are new to the repo, start here:
 - `packages/core`: manifest schema, validation, launch parsing, events, and flow-state primitives
 - `packages/bot`: command routing, WebApp data handling, and webhook helpers
 - `packages/bff`: Telegram-aware BFF routes, adapters, context, and session/auth helpers
-- `packages/create-teleforge-app`: DX-002 scaffold generator
+- `packages/create-teleforge-app`: scaffold generator for new Teleforge apps
 - `packages/devtools`: `teleforge dev`, `teleforge mock`, and `teleforge doctor`
 - `packages/ui`: Telegram-native React UI components
 - `packages/web`: React hooks and Telegram WebApp types for Mini Apps

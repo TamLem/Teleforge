@@ -1,6 +1,6 @@
 # create-teleforge-app
 
-Greenfield Teleforge project generator for Product OS task `DX-002`.
+Greenfield Teleforge project generator for new apps and examples.
 
 ## Usage
 
