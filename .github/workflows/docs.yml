@@ -31,6 +31,9 @@ jobs:
           cache: pnpm
           node-version: 20
       - uses: actions/configure-pages@v5
+        with:
+          enablement: ${{ secrets.PAGES_ENABLEMENT_TOKEN != '' }}
+          token: ${{ secrets.PAGES_ENABLEMENT_TOKEN != '' && secrets.PAGES_ENABLEMENT_TOKEN || github.token }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:build
       - uses: actions/upload-pages-artifact@v3
