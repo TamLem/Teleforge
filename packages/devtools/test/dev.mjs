@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 
 const packageRoot = process.cwd();
 const cliPath = path.join(packageRoot, "dist", "cli.js");
-const fixtureRoot = path.join(packageRoot, "..", "..", "generated", "spa-dev-check");
+const fixtureRoot = path.join(packageRoot, "..", "..", "examples", "starter-app");
 const workspaceNodeModules = path.join(
   packageRoot,
   "..",
@@ -32,11 +32,6 @@ test("dev serves the simulator shell, injects the Telegram mock bridge into the 
     recursive: true
   });
   await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
-  await symlink(
-    path.join(fixtureRoot, "apps", "web", "node_modules"),
-    path.join(projectRoot, "apps", "web", "node_modules"),
-    "dir"
-  );
   await writeFile(path.join(projectRoot, ".env.local"), "TELEFORGE_LABEL=local-override\n");
   await mkdir(binRoot, { recursive: true });
   await writeFile(
@@ -233,11 +228,7 @@ test("dev starts companion app services with the resolved Mini App URL", async (
     recursive: true
   });
   await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
-  await symlink(
-    path.join(fixtureRoot, "apps", "web", "node_modules"),
-    path.join(projectRoot, "apps", "web", "node_modules"),
-    "dir"
-  );
+  await writeFile(path.join(projectRoot, ".env.local"), "MINI_APP_URL=\n");
   await mkdir(binRoot, { recursive: true });
   await writeFile(
     path.join(binRoot, "pnpm"),
@@ -308,11 +299,6 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
     recursive: true
   });
   await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
-  await symlink(
-    path.join(fixtureRoot, "apps", "web", "node_modules"),
-    path.join(projectRoot, "apps", "web", "node_modules"),
-    "dir"
-  );
   await writeFile(
     path.join(projectRoot, "apps", "bot", "src", "runtime.ts"),
     `import { createBotRuntime } from "@teleforgex/bot";
