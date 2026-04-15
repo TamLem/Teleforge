@@ -92,3 +92,35 @@ test("generates BFF scaffold", async () => {
   const webTest = await readFile(webTestPath, "utf8");
   assert.match(webTest, /Welcome to Sample Bff/);
 });
+
+test("generates scaffold with --link flag using link: protocol", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-link-"));
+  const projectName = "linked-app";
+
+  await execFileAsync(
+    "node",
+    [cliPath, projectName, "--mode", "spa", "--yes", "--link", "/home/aj/hustle/tmf"],
+    { cwd: tmpRoot }
+  );
+
+  const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
+  const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
+
+  assert.equal(
+    rootPackage.dependencies["@teleforgex/core"],
+    "link:/home/aj/hustle/tmf/packages/core"
+  );
+  assert.equal(
+    rootPackage.dependencies["@teleforgex/bot"],
+    "link:/home/aj/hustle/tmf/packages/bot"
+  );
+  assert.equal(rootPackage.dependencies["@teleforgex/ui"], "link:/home/aj/hustle/tmf/packages/ui");
+  assert.equal(
+    rootPackage.dependencies["@teleforgex/web"],
+    "link:/home/aj/hustle/tmf/packages/web"
+  );
+  assert.equal(
+    rootPackage.devDependencies["@teleforgex/devtools"],
+    "link:/home/aj/hustle/tmf/packages/devtools"
+  );
+});

@@ -6,14 +6,37 @@ interface BuildProjectFilesOptions {
   botUsername: string;
   mode: GeneratorMode;
   packageManager: PackageManager;
+  /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
+  linkPath?: string;
 }
 
-const teleforgeDependencies = {
+const teleforgeRegistryDependencies = {
   "@teleforgex/bot": "^0.1.0",
   "@teleforgex/core": "^0.1.0",
   "@teleforgex/ui": "^0.1.0",
   "@teleforgex/web": "^0.1.0"
 };
+
+const linkablePackages = ["bot", "core", "ui", "web"] as const;
+
+function teleforgeDependencies(linkPath?: string): Record<string, string> {
+  if (!linkPath) {
+    return { ...teleforgeRegistryDependencies };
+  }
+
+  const deps: Record<string, string> = {};
+  for (const pkg of linkablePackages) {
+    deps[`@teleforgex/${pkg}`] = `link:${linkPath}/packages/${pkg}`;
+  }
+  return deps;
+}
+
+function devtoolsDependency(linkPath?: string): Record<string, string> {
+  if (!linkPath) {
+    return { "@teleforgex/devtools": "^0.1.0" };
+  }
+  return { "@teleforgex/devtools": `link:${linkPath}/packages/devtools` };
+}
 
 export function buildProjectFiles(options: BuildProjectFilesOptions): Record<string, string> {
   return {
@@ -134,11 +157,11 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
       test: "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
     },
     dependencies: {
-      ...teleforgeDependencies,
+      ...teleforgeDependencies(options.linkPath),
       dotenv: "^16.4.7"
     },
     devDependencies: {
-      "@teleforgex/devtools": "^0.1.0",
+      ...devtoolsDependency(options.linkPath),
       tsx: "^4.19.2",
       typescript: "^5.8.3"
     }
@@ -1039,11 +1062,23 @@ test("home page renders the welcome screen", () => {
 function launchModeGuardTs(): string {
   return `import { useLaunch } from "@teleforgex/web";
 
+function normalizeLaunchMode(mode: string | null): string | null {
+  if (mode === "full") return "fullscreen";
+  return mode;
+}
+
 export function requireLaunchMode(allowedModes: string[]) {
-  const { mode } = useLaunch();
+  const { isReady, mode: rawMode } = useLaunch();
+  const mode = normalizeLaunchMode(rawMode);
+
+  if (!isReady) return true;
+
+  if (mode === null) return true;
 
   if (!allowedModes.includes(mode)) {
-    throw new Error(\`Route requires launch mode: \${allowedModes.join(", ")}\`);
+    throw new Error(
+      \`Route requires launch mode: \${allowedModes.join(", ")}, but received: \${mode}\`
+    );
   }
 
   return true;

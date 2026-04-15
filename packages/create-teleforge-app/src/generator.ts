@@ -12,6 +12,8 @@ interface GenerateProjectOptions {
   mode: GeneratorMode;
   overwrite: boolean;
   packageManager: PackageManager;
+  /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
+  linkPath?: string;
 }
 
 interface GenerateProjectResult {
@@ -56,7 +58,8 @@ export async function generateProject(
     appName,
     botUsername,
     mode: options.mode,
-    packageManager: options.packageManager
+    packageManager: options.packageManager,
+    linkPath: options.linkPath
   });
 
   for (const [relativeFilePath, content] of Object.entries(files)) {

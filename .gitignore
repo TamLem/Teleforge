@@ -6,3 +6,4 @@ dist
 generated
 execution-progress.*.log
 benchmark/results
+.factory/*

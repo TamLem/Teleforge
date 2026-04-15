@@ -9,6 +9,8 @@ interface CliOptions {
   targetDir?: string;
   mode?: GeneratorMode;
   packageManager?: PackageManager;
+  /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
+  linkPath?: string;
   overwrite: boolean;
   yes: boolean;
   help: boolean;
@@ -70,6 +72,24 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--link") {
+      const value = argv[index + 1];
+      if (!value || value.startsWith("-")) {
+        throw new Error("Expected a path after --link.");
+      }
+      options.linkPath = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--link=")) {
+      options.linkPath = arg.split("=")[1] || "";
+      if (!options.linkPath) {
+        throw new Error("Expected a path after --link=.");
+      }
+      continue;
+    }
+
     throw new Error(`Unknown argument: ${arg}`);
   }
 
@@ -107,6 +127,7 @@ function printHelp(): void {
   output.write(
     `  --overwrite                   Remove an existing target directory before generating\n`
   );
+  output.write(`  --link <path>                 Link packages to a local teleforge monorepo\n`);
   output.write(`  -y, --yes                     Accept defaults without prompts\n`);
   output.write(`  -h, --help                    Show help\n`);
 }
@@ -174,7 +195,8 @@ async function run(): Promise<void> {
     targetDir: resolved.targetDir,
     mode: resolved.mode,
     overwrite: options.overwrite,
-    packageManager: resolved.packageManager
+    packageManager: resolved.packageManager,
+    linkPath: options.linkPath
   });
 
   output.write(`\nCreated Teleforge project in ${result.targetDir}\n`);
