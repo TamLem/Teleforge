@@ -5,7 +5,7 @@ UI primitives built on top of `@teleforgex/web`.
 ## Installation
 
 ```bash
-npm install @teleforgex/ui @teleforgex/web react react-dom
+pnpm add @teleforgex/ui @teleforgex/web react react-dom
 ```
 
 ## Exports

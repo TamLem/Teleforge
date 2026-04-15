@@ -81,5 +81,5 @@ If you already have a bot project and want to link it to local teleforge:
 ## Requirements
 
 - **Node.js >= 18**
-- **pnpm** (recommended) or npm
+- **pnpm**
 - A local clone of the [Teleforge monorepo](https://github.com/TamLem/Teleforge)

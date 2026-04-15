@@ -32,7 +32,7 @@ If you are new to the repo, start here:
 - `packages/ui`: Telegram-native React UI components
 - `packages/web`: React hooks and Telegram WebApp types for Mini Apps
 
-## npm Packages
+## Published Packages
 
 - [`@teleforgex/core`](https://www.npmjs.com/package/@teleforgex/core)
 - [`@teleforgex/web`](https://www.npmjs.com/package/@teleforgex/web)

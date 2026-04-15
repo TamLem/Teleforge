@@ -5,7 +5,7 @@ Telegram bot routing primitives for Teleforge.
 ## Installation
 
 ```bash
-npm install @teleforgex/bot
+pnpm add @teleforgex/bot
 ```
 
 ## Exports

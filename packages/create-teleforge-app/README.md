@@ -5,8 +5,8 @@ Greenfield Teleforge project generator for new apps and examples.
 ## Usage
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js my-app --mode spa
 node dist/cli.js my-bff-app --mode bff
 ```
@@ -47,5 +47,5 @@ Inside this repo, the best follow-on docs are:
 ## Verification
 
 ```bash
-npm test
+pnpm test
 ```

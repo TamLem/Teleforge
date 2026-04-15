@@ -5,7 +5,7 @@ Local developer tooling for Teleforge.
 ## Installation
 
 ```bash
-npm install -D @teleforgex/devtools
+pnpm add -D @teleforgex/devtools
 ```
 
 ## Commands

@@ -3,12 +3,11 @@
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 
-import { generateProject, type GeneratorMode, type PackageManager } from "./generator.js";
+import { generateProject, type GeneratorMode } from "./generator.js";
 
 interface CliOptions {
   targetDir?: string;
   mode?: GeneratorMode;
-  packageManager?: PackageManager;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
   overwrite: boolean;
@@ -61,17 +60,6 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
 
-    if (arg === "--package-manager" || arg === "-p") {
-      options.packageManager = parsePackageManager(argv[index + 1]);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--package-manager=")) {
-      options.packageManager = parsePackageManager(arg.split("=")[1]);
-      continue;
-    }
-
     if (arg === "--link") {
       const value = argv[index + 1];
       if (!value || value.startsWith("-")) {
@@ -104,26 +92,12 @@ function parseMode(value?: string): GeneratorMode {
   throw new Error(`Expected --mode to be "spa" or "bff", received "${value ?? ""}".`);
 }
 
-function parsePackageManager(value?: string): PackageManager {
-  if (value === "npm" || value === "pnpm") {
-    return value;
-  }
-
-  throw new Error(`Expected --package-manager to be "npm" or "pnpm", received "${value ?? ""}".`);
-}
-
-function inferPackageManager(): PackageManager {
-  const userAgent = process.env.npm_config_user_agent ?? "";
-  return userAgent.includes("pnpm") ? "pnpm" : "npm";
-}
-
 function printHelp(): void {
   output.write(`create-teleforge-app\n\n`);
   output.write(`Usage:\n`);
   output.write(`  create-teleforge-app <project-name> [options]\n\n`);
   output.write(`Options:\n`);
   output.write(`  -m, --mode <spa|bff>          Select the web runtime mode\n`);
-  output.write(`  -p, --package-manager <tool>  Choose npm or pnpm for next-step commands\n`);
   output.write(
     `  --overwrite                   Remove an existing target directory before generating\n`
   );
@@ -134,7 +108,7 @@ function printHelp(): void {
 
 async function promptForMissing(
   options: CliOptions
-): Promise<Required<Pick<CliOptions, "targetDir" | "mode" | "packageManager">>> {
+): Promise<Required<Pick<CliOptions, "targetDir" | "mode">>> {
   if (options.yes) {
     if (!options.targetDir) {
       throw new Error("Project name is required when using --yes.");
@@ -142,8 +116,7 @@ async function promptForMissing(
 
     return {
       targetDir: options.targetDir,
-      mode: options.mode ?? "spa",
-      packageManager: options.packageManager ?? inferPackageManager()
+      mode: options.mode ?? "spa"
     };
   }
 
@@ -164,12 +137,9 @@ async function promptForMissing(
 
     const mode = options.mode ?? (await promptMode(prompt));
 
-    const packageManager = options.packageManager ?? inferPackageManager();
-
     return {
       targetDir,
-      mode,
-      packageManager
+      mode
     };
   } finally {
     prompt.close();
@@ -195,7 +165,6 @@ async function run(): Promise<void> {
     targetDir: resolved.targetDir,
     mode: resolved.mode,
     overwrite: options.overwrite,
-    packageManager: resolved.packageManager,
     linkPath: options.linkPath
   });
 
@@ -204,9 +173,9 @@ async function run(): Promise<void> {
   output.write(`Files written: ${result.fileCount}\n\n`);
   output.write(`Next steps:\n`);
   output.write(`  cd ${result.relativeTargetDir}\n`);
-  output.write(`  ${result.packageManager} install\n`);
-  output.write(`  ${result.packageManager} run dev\n`);
-  output.write(`  ${result.packageManager} run doctor\n`);
+  output.write(`  pnpm install\n`);
+  output.write(`  pnpm run dev\n`);
+  output.write(`  pnpm run doctor\n`);
 }
 
 run().catch((error: unknown) => {

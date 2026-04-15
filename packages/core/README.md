@@ -5,7 +5,7 @@ Core manifest schema, validation, and loading utilities for Teleforge.
 ## Installation
 
 ```bash
-npm install @teleforgex/core
+pnpm add @teleforgex/core
 ```
 
 ## Exports

@@ -1,11 +1,10 @@
-import type { GeneratorMode, PackageManager } from "./generator.js";
+import type { GeneratorMode } from "./generator.js";
 
 interface BuildProjectFilesOptions {
   appId: string;
   appName: string;
   botUsername: string;
   mode: GeneratorMode;
-  packageManager: PackageManager;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
 }
@@ -63,11 +62,11 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
 }
 
 function generatedReadme(options: BuildProjectFilesOptions): string {
-  const install = `${options.packageManager} install`;
-  const run = `${options.packageManager} run dev`;
-  const runPublic = `${options.packageManager} run dev:public`;
-  const doctor = `${options.packageManager} run doctor`;
-  const runTests = `${options.packageManager} test`;
+  const install = `pnpm install`;
+  const run = `pnpm run dev`;
+  const runPublic = `pnpm run dev:public`;
+  const doctor = `pnpm run doctor`;
+  const runTests = `pnpm test`;
 
   return `# ${options.appName}
 
@@ -122,10 +121,10 @@ You still import and register commands or pages in code yourself.
 
 ## Dev Workflow
 
-- \`${options.packageManager} run dev\`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and companion bot process
-- \`${options.packageManager} run dev:public\`: public HTTPS tunnel for real Telegram testing
-- \`${options.packageManager} test\`: baseline bot and screen smoke tests
-- \`${options.packageManager} run doctor\`: manifest and environment diagnostics
+- \`pnpm run dev\`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and companion bot process
+- \`pnpm run dev:public\`: public HTTPS tunnel for real Telegram testing
+- \`pnpm test\`: baseline bot and screen smoke tests
+- \`pnpm run doctor\`: manifest and environment diagnostics
 
 ## Bot Runtime
 
