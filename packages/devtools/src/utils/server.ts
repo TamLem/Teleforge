@@ -115,13 +115,25 @@ export async function runManagedDevCommand(options: ManagedDevCommandOptions): P
       }
     };
 
-    const handleSignal = async () => {
-      await stop();
-      resolve();
+    let signalCount = 0;
+    const onSignal = async () => {
+      signalCount += 1;
+      if (signalCount === 1) {
+        await stop();
+        resolve();
+        process.exit(0);
+        return;
+      }
+
+      runtime.child.kill("SIGKILL");
+      for (const service of runtime.companionServices) {
+        service.child.kill("SIGKILL");
+      }
+      process.exit(1);
     };
 
-    process.once("SIGINT", handleSignal);
-    process.once("SIGTERM", handleSignal);
+    process.on("SIGINT", onSignal);
+    process.on("SIGTERM", onSignal);
     monitorRuntime(runtime, reject);
   });
 }
@@ -234,15 +246,18 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
     server,
     async cleanup() {
       handle.disposing = true;
+
+      const childExit = !child.killed
+        ? (child.kill("SIGTERM"), onceExit(child, 5_000))
+        : Promise.resolve();
+      const companionExits = Promise.all(companionServices.map((service) => service.cleanup()));
+
       proxy.close();
-      await closeServer(server);
+
+      await Promise.all([closeServer(server, 5_000), childExit, companionExits]);
+
       if (tunnel) {
         await tunnel.cleanup();
-      }
-      await Promise.all(companionServices.map((service) => service.cleanup()));
-      if (!child.killed) {
-        child.kill("SIGTERM");
-        await onceExit(child, 5_000);
       }
     }
   };
@@ -614,16 +629,24 @@ async function ensureDirectory(directory: string, errorMessage: string): Promise
   }
 }
 
-async function closeServer(server: http.Server | https.Server): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
+async function closeServer(
+  server: http.Server | https.Server,
+  timeoutMs: number = 5_000
+): Promise<void> {
+  await Promise.race([
+    new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    }),
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, timeoutMs);
+    })
+  ]);
 }
 
 async function onceExit(child: ChildProcess, timeoutMs: number): Promise<void> {
