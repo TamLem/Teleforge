@@ -330,6 +330,9 @@ importers:
       '@teleforgex/web':
         specifier: workspace:0.1.0
         version: link:../web
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
     devDependencies:
       '@types/node':
         specifier: ^24.0.0

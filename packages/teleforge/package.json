@@ -72,7 +72,8 @@
     "@teleforgex/core": "workspace:0.1.0",
     "@teleforgex/devtools": "workspace:0.1.0",
     "@teleforgex/ui": "workspace:0.1.0",
-    "@teleforgex/web": "workspace:0.1.0"
+    "@teleforgex/web": "workspace:0.1.0",
+    "tsx": "^4.20.6"
   },
   "publishConfig": {
     "access": "public"

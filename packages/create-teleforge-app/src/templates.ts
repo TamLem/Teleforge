@@ -30,7 +30,7 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
     "apps/api/src/routes/webhook.ts": apiWebhookRouteTs(),
     "apps/api/tsconfig.json": apiTsconfig(),
     "apps/bot/package.json": generatedBotPackageJson(),
-    "apps/bot/src/commands/start.ts": botStartCommandTs(options.appName),
+    "apps/bot/src/flows/start.flow.ts": botStartFlowTs(options.appName),
     "apps/bot/src/index.ts": botIndexTs(),
     "apps/bot/src/runtime.ts": botRuntimeTs(),
     "apps/bot/test/start.test.ts": botStartTestTs(options.appName),
@@ -79,23 +79,23 @@ ${doctor}
 ## Structure
 
 - \`apps/web\`: Mini App surface (${options.mode === "spa" ? "Vite SPA" : "Next.js BFF web"})
-- \`apps/bot\`: Bot runtime, command handlers, and simulator bridge export in \`src/runtime.ts\`
+- \`apps/bot\`: Bot runtime, flow definitions, and simulator bridge export in \`src/runtime.ts\`
 - \`apps/api\`: optional API and webhook placeholder routes
 - \`teleforge.config.ts\`: App definition
 
 ## Read These Files First
 
-- \`teleforge.config.ts\`: source of truth for commands, routes, launch modes, and capabilities
-- \`apps/bot/src/commands/start.ts\`: the first bot command users hit
-- \`apps/bot/src/runtime.ts\`: where bot commands are registered and the simulator bridge is exported
+- \`teleforge.config.ts\`: source of truth for flow discovery, routes, launch modes, and capabilities
+- \`apps/bot/src/flows/start.flow.ts\`: the first bot flow users hit, including its bot entry command
+- \`apps/bot/src/runtime.ts\`: where discovered flows are loaded into the bot runtime
 - \`apps/web/src/App.tsx\` (${options.mode === "spa" ? "SPA router shell" : "client page composition"}) and \`apps/web/src/pages/*\`: where Mini App UI actually changes
 
 Config strings are conventions, not magic auto-imports:
 
-- \`handler: "commands/start"\` conventionally maps to \`apps/bot/src/commands/start.ts\`
+- \`flows.root: "apps/bot/src/flows"\` tells Teleforge where to discover \`*.flow.ts\` modules
 - \`component: "pages/Home"\` conventionally maps to \`apps/web/src/pages/Home.tsx\`
 
-You still import and register commands or pages in code yourself.
+You still compose advanced runtime behavior in code yourself, but basic bot entry commands can now come directly from discovered flow definitions.
 
 ## Dev Workflow
 
@@ -169,6 +169,9 @@ export default defineTeleforgeApp({
     name: ${JSON.stringify(options.appName)},
     version: "1.0.0"
   },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
   runtime: ${JSON.stringify(runtime, null, 2)},
   bot: {
     username: ${JSON.stringify(options.botUsername)},
@@ -176,14 +179,7 @@ export default defineTeleforgeApp({
     webhook: {
       path: "/api/webhook",
       secretEnv: "WEBHOOK_SECRET"
-    },
-    commands: [
-      {
-        command: "start",
-        description: "Start the Mini App",
-        handler: "commands/start"
-      }
-    ]
+    }
   },
   miniApp: {
     entry: "apps/web/src/main.tsx",
@@ -367,7 +363,7 @@ loadWorkspaceEnv();
 const botConfig = readGeneratedBotConfig();
 
 async function main() {
-  const runtime = createGeneratedBotRuntime(botConfig);
+  const runtime = await createGeneratedBotRuntime(botConfig);
 
   const token = botConfig.token;
   if (!hasUsableToken(token)) {
@@ -626,47 +622,88 @@ function loadWorkspaceEnv() {
 
 function botRuntimeTs(): string {
   return `import { config as loadDotenv } from "dotenv";
+import {
+  createFlowCommands,
+  loadTeleforgeApp,
+  loadTeleforgeFlows
+} from "teleforge";
 import { createBotRuntime, type BotRuntime } from "teleforge/bot";
+import { UserFlowStateManager, createFlowStorage } from "teleforge/core";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createStartCommand } from "./commands/start.ts";
-
 export interface GeneratedBotRuntimeOptions {
+  flowSecret?: string;
   miniAppUrl?: string;
+  workspaceRoot?: string;
 }
 
 export interface GeneratedBotConfig {
+  flowSecret: string;
   miniAppUrl: string;
   token?: string;
+  workspaceRoot: string;
 }
 
 loadWorkspaceEnv();
 
 export function createGeneratedBotRuntime(
   options: GeneratedBotRuntimeOptions = {}
-): BotRuntime {
+): Promise<BotRuntime> {
   const config = readGeneratedBotConfig(options);
   const runtime = createBotRuntime();
+  const storage = new UserFlowStateManager(
+    createFlowStorage({
+      backend: "memory",
+      defaultTTL: 900,
+      namespace: "generated-app"
+    })
+  );
 
-  runtime.registerCommands([createStartCommand(config.miniAppUrl)]);
-  return runtime;
+  return loadTeleforgeApp(config.workspaceRoot).then(async ({ app }) => {
+    const flows = await loadTeleforgeFlows({
+      app,
+      cwd: config.workspaceRoot
+    });
+
+    runtime.registerCommands(
+      createFlowCommands({
+        flows,
+        secret: config.flowSecret,
+        storage,
+        webAppUrl: config.miniAppUrl
+      })
+    );
+
+    return runtime;
+  });
 }
 
-export function createDevBotRuntime(options: GeneratedBotRuntimeOptions = {}): BotRuntime {
+export async function createDevBotRuntime(
+  options: GeneratedBotRuntimeOptions = {}
+): Promise<BotRuntime> {
   return createGeneratedBotRuntime(options);
 }
 
 export function readGeneratedBotConfig(
   options: GeneratedBotRuntimeOptions = {}
 ): GeneratedBotConfig {
+  const workspaceRoot =
+    readNonEmptyEnvValue(options.workspaceRoot) ??
+    resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
   return {
+    flowSecret:
+      readNonEmptyEnvValue(options.flowSecret) ??
+      readNonEmptyEnv("TELEFORGE_FLOW_SECRET") ??
+      "teleforge-generated-flow-secret",
     miniAppUrl:
       readNonEmptyEnvValue(options.miniAppUrl) ??
       readNonEmptyEnv("MINI_APP_URL") ??
       "https://example.ngrok.app",
-    token: readNonEmptyEnv("BOT_TOKEN")
+    token: readNonEmptyEnv("BOT_TOKEN"),
+    workspaceRoot
   };
 }
 
@@ -715,20 +752,31 @@ export function hasUsableToken(value: string | undefined): value is string {
 `;
 }
 
-function botStartCommandTs(appName: string): string {
-  return `export function createStartCommand(miniAppUrl: string) {
-  return {
-    command: "start",
-    description: "Start the Mini App",
-    async handler(context) {
-      await context.replyWithWebApp(
-        "Welcome to ${appName}. Launch the Mini App to continue.",
-        "Open ${appName}",
-        miniAppUrl
-      );
+function botStartFlowTs(appName: string): string {
+  return `import { defineFlow } from "teleforge";
+
+export default defineFlow({
+  id: "start",
+  initialStep: "home",
+  state: {},
+  bot: {
+    command: {
+      buttonText: "Open ${appName}",
+      command: "start",
+      description: "Start the Mini App",
+      text: "Welcome to ${appName}. Launch the Mini App to continue."
     }
-  };
-}
+  },
+  miniApp: {
+    route: "/"
+  },
+  steps: {
+    home: {
+      screen: "home",
+      type: "miniapp"
+    }
+  }
+});
 `;
 }
 
@@ -736,22 +784,17 @@ function botStartTestTs(appName: string): string {
   return `import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createStartCommand } from "../src/commands/start.ts";
+import startFlow from "../src/flows/start.flow.ts";
 
-test("/start replies with a Mini App button", async () => {
-  const replies: Array<{ buttonLabel: string; text: string; url: string }> = [];
-  const command = createStartCommand("https://example.test");
-
-  await command.handler({
-    replyWithWebApp: async (text: string, buttonLabel: string, url: string) => {
-      replies.push({ buttonLabel, text, url });
-    }
-  });
-
-  assert.equal(replies.length, 1);
-  assert.equal(replies[0]?.buttonLabel, "Open ${appName}");
-  assert.equal(replies[0]?.url, "https://example.test");
-  assert.match(replies[0]?.text ?? "", /Welcome to ${appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/);
+test("start flow declares the bot entry command", () => {
+  assert.equal(startFlow.bot?.command?.command, "start");
+  assert.equal(startFlow.bot?.command?.buttonText, "Open ${appName}");
+  assert.match(
+    startFlow.bot?.command?.text ?? "",
+    /Welcome to ${appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/
+  );
+  assert.equal(startFlow.miniApp?.route, "/");
+  assert.equal(startFlow.steps.home.type, "miniapp");
 });
 `;
 }

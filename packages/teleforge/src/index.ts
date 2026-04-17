@@ -25,6 +25,7 @@ export {
   discoverFlowFiles,
   loadTeleforgeFlows
 } from "./discovery.js";
+export { loadTeleforgeApp, loadTeleforgeAppFromFile, resolveTeleforgeConfigPath } from "./config.js";
 export type {
   ChatFlowStepDefinition,
   CreateFlowCoordinationConfigOptions,
@@ -49,3 +50,4 @@ export type {
   LoadTeleforgeFlowsOptions,
   TeleforgeFlowConventions
 } from "./discovery.js";
+export type { LoadedTeleforgeApp } from "./config.js";
