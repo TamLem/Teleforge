@@ -13,6 +13,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
+    },
+    "./cli": {
+      "import": "./dist/cli.js",
+      "require": "./dist/cli.cjs",
+      "default": "./dist/cli.js"
     }
   },
   "bin": {
@@ -35,7 +40,8 @@
     "http-proxy": "^1.18.1",
     "localtunnel": "^2.0.2",
     "qrcode-terminal": "^0.12.0",
-    "selfsigned": "^3.0.1"
+    "selfsigned": "^3.0.1",
+    "tsx": "^4.20.6"
   },
   "publishConfig": {
     "access": "public"

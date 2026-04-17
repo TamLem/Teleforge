@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
 const packageRoot = process.cwd();
 const cliPath = path.join(packageRoot, "dist", "cli.js");
 
-test("fails with a clear error when teleforge.app.json is missing", async () => {
+test("fails with a clear error when teleforge config is missing", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-devtools-"));
 
   await assert.rejects(execFileAsync("node", [cliPath, "dev"], { cwd: tmpRoot }), (error) => {
@@ -19,7 +19,7 @@ test("fails with a clear error when teleforge.app.json is missing", async () => 
   });
 });
 
-test("fails with the same clear error for dev:https when teleforge.app.json is missing", async () => {
+test("fails with the same clear error for dev:https when teleforge config is missing", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-devtools-https-"));
 
   await assert.rejects(execFileAsync("node", [cliPath, "dev:https"], { cwd: tmpRoot }), (error) => {

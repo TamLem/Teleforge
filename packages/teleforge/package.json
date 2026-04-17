@@ -1,0 +1,103 @@
+{
+  "name": "teleforge",
+  "version": "0.1.0",
+  "description": "Unified TypeScript framework package for Telegram-native apps.",
+  "homepage": "https://tamlem.github.io/Teleforge/",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./bot": {
+      "types": "./dist/bot.d.ts",
+      "import": "./dist/bot.js",
+      "require": "./dist/bot.cjs",
+      "default": "./dist/bot.js"
+    },
+    "./bff": {
+      "types": "./dist/bff.d.ts",
+      "import": "./dist/bff.js",
+      "require": "./dist/bff.cjs",
+      "default": "./dist/bff.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs",
+      "default": "./dist/core.js"
+    },
+    "./devtools": {
+      "types": "./dist/devtools.d.ts",
+      "import": "./dist/devtools.js",
+      "require": "./dist/devtools.cjs",
+      "default": "./dist/devtools.js"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "import": "./dist/ui.js",
+      "require": "./dist/ui.cjs",
+      "default": "./dist/ui.js"
+    },
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js",
+      "require": "./dist/web.cjs",
+      "default": "./dist/web.js"
+    }
+  },
+  "bin": {
+    "teleforge": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "format": "prettier --check .",
+    "lint": "eslint . --ext .ts,.mjs",
+    "prepublishOnly": "pnpm run build",
+    "test": "pnpm run build && node --test test/*.mjs"
+  },
+  "dependencies": {
+    "@teleforgex/bff": "workspace:0.1.0",
+    "@teleforgex/bot": "workspace:0.1.0",
+    "@teleforgex/core": "workspace:0.1.0",
+    "@teleforgex/devtools": "workspace:0.1.0",
+    "@teleforgex/ui": "workspace:0.1.0",
+    "@teleforgex/web": "workspace:0.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "telegram",
+    "framework",
+    "mini-app",
+    "bot",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TamLem/Teleforge.git",
+    "directory": "packages/teleforge"
+  },
+  "bugs": {
+    "url": "https://github.com/TamLem/Teleforge/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}

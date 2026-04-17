@@ -554,7 +554,15 @@ function watchProjectFiles(
   cwd: string,
   onChange: (filename: string) => Promise<void>
 ): Array<ReturnType<typeof watch>> {
-  const files = new Set(["teleforge.app.json", ".env", ".env.local"]);
+  const files = new Set([
+    "teleforge.app.json",
+    "teleforge.config.ts",
+    "teleforge.config.mts",
+    "teleforge.config.js",
+    "teleforge.config.mjs",
+    ".env",
+    ".env.local"
+  ]);
   let timer: NodeJS.Timeout | undefined;
 
   return [

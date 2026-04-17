@@ -293,6 +293,9 @@ importers:
       selfsigned:
         specifier: ^3.0.1
         version: 3.0.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
     devDependencies:
       '@types/http-proxy':
         specifier: ^1.17.16
@@ -303,6 +306,34 @@ importers:
       '@types/qrcode-terminal':
         specifier: ^0.12.2
         version: 0.12.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/teleforge:
+    dependencies:
+      '@teleforgex/bff':
+        specifier: workspace:0.1.0
+        version: link:../bff
+      '@teleforgex/bot':
+        specifier: workspace:0.1.0
+        version: link:../bot
+      '@teleforgex/core':
+        specifier: workspace:0.1.0
+        version: link:../core
+      '@teleforgex/devtools':
+        specifier: workspace:0.1.0
+        version: link:../devtools
+      '@teleforgex/ui':
+        specifier: workspace:0.1.0
+        version: link:../ui
+      '@teleforgex/web':
+        specifier: workspace:0.1.0
+        version: link:../web
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.12.0
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

@@ -256,7 +256,6 @@ async function checkTeleforgeDependencies(
   manifest: TeleforgeManifest | undefined
 ): Promise<DoctorCheck> {
   const packageFiles = await loadPackageManifestSummaries(cwd);
-  const requiredPackages = determineRequiredTeleforgePackages(manifest);
   const discoveredPackages = new Map<string, Set<string>>();
 
   for (const packageFile of packageFiles) {
@@ -267,15 +266,19 @@ async function checkTeleforgeDependencies(
     }
   }
 
+  const usesUnifiedPackage = discoveredPackages.has("teleforge");
+  const requiredPackages = usesUnifiedPackage
+    ? ["teleforge"]
+    : determineRequiredTeleforgePackages(manifest);
   const missingPackages = requiredPackages.filter((name) => !discoveredPackages.has(name));
   if (missingPackages.length > 0) {
     return {
       category: "Environment",
       details: missingPackages.map((name) => `Missing ${name}`),
-      message: "Required @teleforge packages are missing from package.json.",
+      message: "Required Teleforge dependencies are missing from package.json.",
       name: "teleforge_dependencies",
       remediation:
-        "Install the missing @teleforge packages in your workspace or app package before continuing.",
+        "Install the missing Teleforge package dependencies in your workspace or app package before continuing.",
       status: "error"
     };
   }
@@ -297,10 +300,10 @@ async function checkTeleforgeDependencies(
     return {
       category: "Environment",
       details: versionDetails,
-      message: "Conflicting major versions detected across @teleforge dependencies.",
+      message: "Conflicting major versions detected across Teleforge dependencies.",
       name: "teleforge_dependencies",
       remediation:
-        "Align all @teleforge dependencies to the same major version before running Teleforge.",
+        "Align all Teleforge dependencies to the same major version before running Teleforge.",
       status: "error"
     };
   }
@@ -308,10 +311,10 @@ async function checkTeleforgeDependencies(
   if (versionDetails.length === 0) {
     return {
       category: "Environment",
-      message: "No @teleforge dependencies were found in the project package manifests.",
+      message: "No Teleforge dependencies were found in the project package manifests.",
       name: "teleforge_dependencies",
       remediation:
-        "Install the Teleforge packages referenced by your app, such as @teleforgex/core and @teleforgex/web.",
+        "Install the Teleforge framework package in your app, or add the required Teleforge workspace dependencies.",
       status: "error"
     };
   }
@@ -326,10 +329,8 @@ async function checkTeleforgeDependencies(
 }
 
 async function loadManifestState(cwd: string): Promise<ManifestState> {
-  const manifestPath = path.join(cwd, "teleforge.app.json");
-
   try {
-    const { manifest } = await loadManifest(cwd);
+    const { manifest, manifestPath } = await loadManifest(cwd);
     return {
       manifest,
       manifestPath
@@ -337,7 +338,7 @@ async function loadManifestState(cwd: string): Promise<ManifestState> {
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : String(error),
-      manifestPath
+      manifestPath: path.join(cwd, "teleforge.config.ts")
     };
   }
 }
@@ -378,9 +379,9 @@ async function checkManifestConsistency(
     return {
       category: "Configuration",
       details: manifestState.error ? [manifestState.error] : undefined,
-      message: "teleforge.app.json is missing or invalid.",
+      message: "Teleforge app config is missing or invalid.",
       name: "manifest_consistency",
-      remediation: "Create or repair teleforge.app.json before running Teleforge commands.",
+      remediation: "Create or repair teleforge.config.ts before running Teleforge commands.",
       status: "error"
     };
   }
@@ -447,16 +448,16 @@ async function checkManifestConsistency(
     return {
       category: "Configuration",
       details: issues,
-      message: "Manifest consistency checks failed.",
+      message: "Teleforge app consistency checks failed.",
       name: "manifest_consistency",
-      remediation: "Repair teleforge.app.json and the referenced files before retrying.",
+      remediation: "Repair teleforge.config.ts and the referenced files before retrying.",
       status: "error"
     };
   }
 
   return {
     category: "Configuration",
-    message: "Manifest fields and referenced project files look consistent.",
+    message: "Teleforge config fields and referenced project files look consistent.",
     name: "manifest_consistency",
     status: "pass"
   };
@@ -531,7 +532,7 @@ function checkMiniAppUrl(publicUrl: string | undefined): DoctorCheck {
       message: "Mini App URL not configured.",
       name: "mini_app_url",
       remediation:
-        "Set TELEFORGE_PUBLIC_URL=https://your-domain.com or add miniApp.url to teleforge.app.json.",
+        "Set TELEFORGE_PUBLIC_URL=https://your-domain.com or add miniApp.url to teleforge.config.ts.",
       status: "warn"
     };
   }
@@ -614,7 +615,7 @@ async function checkWebhookReachability(options: {
       category: "Connectivity",
       message: "Webhook path is not configured in the manifest.",
       name: "webhook_reachable",
-      remediation: "Add bot.webhook.path to teleforge.app.json.",
+      remediation: "Add bot.webhook.path to teleforge.config.ts.",
       status: "error"
     };
   }
@@ -697,7 +698,7 @@ function checkBotFatherSetup(
       category: "BotFather",
       message: "Bot username missing from the manifest.",
       name: "botfather",
-      remediation: "Set bot.username in teleforge.app.json before configuring BotFather.",
+      remediation: "Set bot.username in teleforge.config.ts before configuring BotFather.",
       status: "warn"
     };
   }
@@ -851,7 +852,7 @@ async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifes
       }
 
       for (const [name, version] of Object.entries(section)) {
-        if (!name.startsWith("@teleforgex/") || typeof version !== "string") {
+        if ((name !== "teleforge" && !name.startsWith("@teleforgex/")) || typeof version !== "string") {
           continue;
         }
         packages.set(name, version);

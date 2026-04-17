@@ -9,32 +9,10 @@ interface BuildProjectFilesOptions {
   linkPath?: string;
 }
 
-const teleforgeRegistryDependencies = {
-  "@teleforgex/bot": "^0.1.0",
-  "@teleforgex/core": "^0.1.0",
-  "@teleforgex/ui": "^0.1.0",
-  "@teleforgex/web": "^0.1.0"
-};
-
-const linkablePackages = ["bot", "core", "ui", "web"] as const;
-
-function teleforgeDependencies(linkPath?: string): Record<string, string> {
-  if (!linkPath) {
-    return { ...teleforgeRegistryDependencies };
-  }
-
-  const deps: Record<string, string> = {};
-  for (const pkg of linkablePackages) {
-    deps[`@teleforgex/${pkg}`] = `link:${linkPath}/packages/${pkg}`;
-  }
-  return deps;
-}
-
-function devtoolsDependency(linkPath?: string): Record<string, string> {
-  if (!linkPath) {
-    return { "@teleforgex/devtools": "^0.1.0" };
-  }
-  return { "@teleforgex/devtools": `link:${linkPath}/packages/devtools` };
+function teleforgeDependency(linkPath?: string): Record<string, string> {
+  return {
+    teleforge: !linkPath ? "^0.1.0" : `link:${linkPath}/packages/teleforge`
+  };
 }
 
 export function buildProjectFiles(options: BuildProjectFilesOptions): Record<string, string> {
@@ -44,7 +22,7 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
     "README.md": generatedReadme(options),
     "package.json": generatedRootPackageJson(options),
     "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
-    "teleforge.app.json": generatedManifest(options),
+    "teleforge.config.ts": generatedConfig(options),
     "tsconfig.base.json": generatedBaseTsconfig(),
     "apps/api/package.json": generatedApiPackageJson(),
     "apps/api/src/index.ts": apiIndexTs(),
@@ -103,16 +81,16 @@ ${doctor}
 - \`apps/web\`: Mini App surface (${options.mode === "spa" ? "Vite SPA" : "Next.js BFF web"})
 - \`apps/bot\`: Bot runtime, command handlers, and simulator bridge export in \`src/runtime.ts\`
 - \`apps/api\`: optional API and webhook placeholder routes
-- \`teleforge.app.json\`: App manifest
+- \`teleforge.config.ts\`: App definition
 
 ## Read These Files First
 
-- \`teleforge.app.json\`: source of truth for commands, routes, launch modes, and capabilities
+- \`teleforge.config.ts\`: source of truth for commands, routes, launch modes, and capabilities
 - \`apps/bot/src/commands/start.ts\`: the first bot command users hit
 - \`apps/bot/src/runtime.ts\`: where bot commands are registered and the simulator bridge is exported
 - \`apps/web/src/App.tsx\` (${options.mode === "spa" ? "SPA router shell" : "client page composition"}) and \`apps/web/src/pages/*\`: where Mini App UI actually changes
 
-Manifest strings are conventions, not magic auto-imports:
+Config strings are conventions, not magic auto-imports:
 
 - \`handler: "commands/start"\` conventionally maps to \`apps/bot/src/commands/start.ts\`
 - \`component: "pages/Home"\` conventionally maps to \`apps/web/src/pages/Home.tsx\`
@@ -124,7 +102,7 @@ You still import and register commands or pages in code yourself.
 - \`pnpm run dev\`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and companion bot process
 - \`pnpm run dev:public\`: public HTTPS tunnel for real Telegram testing
 - \`pnpm test\`: baseline bot and screen smoke tests
-- \`pnpm run doctor\`: manifest and environment diagnostics
+- \`pnpm run doctor\`: config and environment diagnostics
 
 ## Bot Runtime
 
@@ -156,18 +134,17 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
       test: "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
     },
     dependencies: {
-      ...teleforgeDependencies(options.linkPath),
+      ...teleforgeDependency(options.linkPath),
       dotenv: "^16.4.7"
     },
     devDependencies: {
-      ...devtoolsDependency(options.linkPath),
       tsx: "^4.19.2",
       typescript: "^5.8.3"
     }
   });
 }
 
-function generatedManifest(options: BuildProjectFilesOptions): string {
+function generatedConfig(options: BuildProjectFilesOptions): string {
   const runtime =
     options.mode === "spa"
       ? {
@@ -184,54 +161,58 @@ function generatedManifest(options: BuildProjectFilesOptions): string {
           apiRoutes: "apps/api/src/routes"
         };
 
-  return stringifyJson({
-    $schema: "https://teleforge.dev/schemas/app-manifest.json",
-    id: options.appId,
-    name: options.appName,
-    version: "1.0.0",
-    runtime,
-    bot: {
-      username: options.botUsername,
-      tokenEnv: "BOT_TOKEN",
-      webhook: {
-        path: "/api/webhook",
-        secretEnv: "WEBHOOK_SECRET"
-      },
-      commands: [
-        {
-          command: "start",
-          description: "Start the Mini App",
-          handler: "commands/start"
-        }
-      ]
+  return `import { defineTeleforgeApp } from "teleforge";
+
+export default defineTeleforgeApp({
+  app: {
+    id: ${JSON.stringify(options.appId)},
+    name: ${JSON.stringify(options.appName)},
+    version: "1.0.0"
+  },
+  runtime: ${JSON.stringify(runtime, null, 2)},
+  bot: {
+    username: ${JSON.stringify(options.botUsername)},
+    tokenEnv: "BOT_TOKEN",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
     },
-    miniApp: {
-      entryPoint: "apps/web/src/main.tsx",
-      launchModes: ["inline", "compact", "fullscreen"],
-      defaultMode: "inline",
-      capabilities: ["write_access", "read_access"]
-    },
-    routes: [
+    commands: [
       {
-        path: "/",
-        component: "pages/Home",
-        launchModes: ["inline", "compact", "fullscreen"],
-        guards: ["auth"]
-      },
-      {
-        path: "/settings",
-        component: "pages/Settings",
-        launchModes: ["fullscreen"],
-        guards: ["auth", "write_access"]
-      }
-    ],
-    permissions: [
-      {
-        capability: "write_access",
-        description: "Post messages on user's behalf"
+        command: "start",
+        description: "Start the Mini App",
+        handler: "commands/start"
       }
     ]
-  });
+  },
+  miniApp: {
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"],
+    defaultMode: "inline",
+    capabilities: ["write_access", "read_access"]
+  },
+  routes: [
+    {
+      path: "/",
+      component: "pages/Home",
+      launchModes: ["inline", "compact", "fullscreen"],
+      guards: ["auth"]
+    },
+    {
+      path: "/settings",
+      component: "pages/Settings",
+      launchModes: ["fullscreen"],
+      guards: ["auth", "write_access"]
+    }
+  ],
+  permissions: [
+    {
+      capability: "write_access",
+      description: "Post messages on user's behalf"
+    }
+  ]
+});
+`;
 }
 
 function generatedBaseTsconfig(): string {
@@ -377,7 +358,7 @@ import {
   type TelegramMessage,
   type TelegramReplyMarkup,
   type TelegramUpdate
-} from "@teleforgex/bot";
+} from "teleforge/bot";
 
 import { createGeneratedBotRuntime, hasUsableToken, readGeneratedBotConfig } from "./runtime.ts";
 
@@ -645,7 +626,7 @@ function loadWorkspaceEnv() {
 
 function botRuntimeTs(): string {
   return `import { config as loadDotenv } from "dotenv";
-import { createBotRuntime, type BotRuntime } from "@teleforgex/bot";
+import { createBotRuntime, type BotRuntime } from "teleforge/bot";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -940,7 +921,7 @@ export default function App() {
         <p className="eyebrow">Teleforge Starter</p>
         <h1>${appName}</h1>
         <p className="lede">
-          Generated with the SPA scaffold. The sample routes mirror the manifest launch-mode rules.
+          Generated with the SPA scaffold. The sample routes mirror the Teleforge config launch-mode rules.
         </p>
         <nav className="nav">
           <button type="button" onClick={() => navigate("/")}>
@@ -971,7 +952,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <p className="eyebrow">Teleforge Starter</p>
             <h1>${appName}</h1>
             <p className="lede">
-              Generated with the BFF scaffold. Sample routes mirror the manifest launch-mode rules.
+              Generated with the BFF scaffold. Sample routes mirror the Teleforge config launch-mode rules.
             </p>
             <nav className="nav">
               <a href="/">Home</a>
@@ -1037,7 +1018,7 @@ export function SettingsPage() {
       <p className="badge">Route: /settings</p>
       <h2>Settings</h2>
       <p>
-        This page is restricted to fullscreen mode and maps to the manifest's stronger capability requirements.
+        This page is restricted to fullscreen mode and maps to the config's stronger capability requirements.
       </p>
     </div>
   );
@@ -1063,7 +1044,7 @@ test("home page renders the welcome screen", () => {
 }
 
 function launchModeGuardTs(): string {
-  return `import { useLaunch } from "@teleforgex/web";
+  return `import { useLaunch } from "teleforge/web";
 
 function normalizeLaunchMode(mode: string | null): string | null {
   if (mode === "full") return "fullscreen";

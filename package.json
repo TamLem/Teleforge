@@ -1,5 +1,5 @@
 {
-  "name": "teleforge",
+  "name": "teleforge-workspace",
   "private": true,
   "version": "0.1.0",
   "description": "Telegram-native full-stack framework.",
@@ -24,7 +24,7 @@
     "analyze": "pnpm build && pnpm --dir benchmark analyze",
     "bench": "pnpm --dir benchmark bench",
     "bench:ci": "pnpm --dir benchmark bench:ci",
-    "build": "pnpm --filter '@teleforgex/*' --filter '!@teleforgex/task-shop' build && pnpm --filter create-teleforge-app build && pnpm --dir apps/task-shop build",
+    "build": "pnpm --filter '@teleforgex/*' --filter teleforge --filter '!@teleforgex/task-shop' build && pnpm --filter create-teleforge-app build && pnpm --dir apps/task-shop build",
     "changeset": "changeset",
     "changeset:publish": "changeset publish",
     "check": "pnpm lint && pnpm format && pnpm test && pnpm build",
@@ -40,7 +40,7 @@
     "publish": "node scripts/release-publish.mjs",
     "publish:dry-run": "node scripts/release-publish.mjs --dry-run",
     "size": "pnpm --dir benchmark size",
-    "test": "pnpm --filter '@teleforgex/*' --filter '!@teleforgex/task-shop' test && pnpm --filter create-teleforge-app test && pnpm --dir apps/task-shop test",
+    "test": "pnpm --filter '@teleforgex/*' --filter teleforge --filter '!@teleforgex/task-shop' test && pnpm --filter create-teleforge-app test && pnpm --dir apps/task-shop test",
     "version": "changeset version"
   },
   "devDependencies": {

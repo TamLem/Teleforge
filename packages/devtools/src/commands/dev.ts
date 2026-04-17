@@ -73,7 +73,7 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
             : undefined,
       onStarted: async (context) => {
         console.log(
-          `✓ Validated teleforge.app.json (${context.manifest.runtime.mode.toUpperCase()} mode, ${context.manifest.runtime.webFramework})`
+          `✓ Validated Teleforge app config (${context.manifest.runtime.mode.toUpperCase()} mode, ${context.manifest.runtime.webFramework})`
         );
         console.log("✓ Project environment loaded");
 

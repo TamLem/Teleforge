@@ -45,8 +45,9 @@ test("doctor checks report pass/warn/error data for a configured project", async
   assert.equal(result.status, "pass");
 });
 
-test("doctor --fix creates .env and formats the manifest", async () => {
+test("doctor --fix creates .env and normalizes teleforge.config.ts", async () => {
   const projectDir = await createDoctorFixture({
+    configFile: true,
     envFile: false,
     minifiedManifest: true
   });
@@ -66,10 +67,10 @@ test("doctor --fix creates .env and formats the manifest", async () => {
   });
 
   const env = await readFile(path.join(projectDir, ".env"), "utf8");
-  const manifest = await readFile(path.join(projectDir, "teleforge.app.json"), "utf8");
+  const config = await readFile(path.join(projectDir, "teleforge.config.ts"), "utf8");
 
   assert.match(env, /BOT_TOKEN=your_bot_token_here/);
-  assert.match(manifest, /\n {2}"id": "doctor-fixture"/);
+  assert.match(config, /\n$/);
   assert.ok(result.fixes.some((fix) => fix.name === "create_env_file" && fix.applied));
   assert.ok(result.fixes.some((fix) => fix.name === "format_manifest" && fix.applied));
 });
@@ -145,6 +146,7 @@ test("doctor fails the node-version check below Node 18", async () => {
 });
 
 async function createDoctorFixture(options = {}) {
+  const configFile = options.configFile ?? false;
   const envFile = options.envFile ?? true;
   const dependencyVersions = options.dependencyVersions ?? {
     "@teleforgex/bot": "^0.1.0",
@@ -227,11 +229,37 @@ async function createDoctorFixture(options = {}) {
     "utf8"
   );
   await writeFile(path.join(tempRoot, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n", "utf8");
-  await writeFile(
-    path.join(tempRoot, "teleforge.app.json"),
-    minifiedManifest ? JSON.stringify(manifest) : `${JSON.stringify(manifest, null, 2)}\n`,
-    "utf8"
-  );
+  if (configFile) {
+    const configSource = `export default ${JSON.stringify(
+      {
+        app: {
+          id: manifest.id,
+          name: manifest.name,
+          version: manifest.version
+        },
+        runtime: manifest.runtime,
+        bot: manifest.bot,
+        miniApp: {
+          ...manifest.miniApp,
+          entry: manifest.miniApp.entryPoint
+        },
+        routes: manifest.routes
+      },
+      null,
+      minifiedManifest ? undefined : 2
+    )}`;
+    await writeFile(
+      path.join(tempRoot, "teleforge.config.ts"),
+      minifiedManifest ? configSource : `${configSource}\n`,
+      "utf8"
+    );
+  } else {
+    await writeFile(
+      path.join(tempRoot, "teleforge.app.json"),
+      minifiedManifest ? JSON.stringify(manifest) : `${JSON.stringify(manifest, null, 2)}\n`,
+      "utf8"
+    );
+  }
   await writeFile(
     path.join(tempRoot, ".teleforge", "certs", "localhost-cert.pem"),
     certificates.cert,

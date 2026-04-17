@@ -11,7 +11,7 @@ export async function applyDoctorFixes(cwd: string): Promise<DoctorFix[]> {
   const fixes: DoctorFix[] = [];
   const envPath = path.join(cwd, ".env");
   const envExamplePath = path.join(cwd, ".env.example");
-  const manifestPath = path.join(cwd, "teleforge.app.json");
+  const configPath = path.join(cwd, "teleforge.config.ts");
 
   if (!(await pathExists(envPath)) && (await pathExists(envExamplePath))) {
     await copyFile(envExamplePath, envPath);
@@ -22,22 +22,21 @@ export async function applyDoctorFixes(cwd: string): Promise<DoctorFix[]> {
     });
   }
 
-  if (await pathExists(manifestPath)) {
+  if (await pathExists(configPath)) {
     try {
-      const raw = await readFile(manifestPath, "utf8");
-      const formatted = `${JSON.stringify(JSON.parse(raw), null, 2)}\n`;
-      if (formatted !== raw) {
-        await writeFile(manifestPath, formatted, "utf8");
+      const raw = await readFile(configPath, "utf8");
+      if (!raw.endsWith("\n")) {
+        await writeFile(configPath, `${raw}\n`, "utf8");
         fixes.push({
           applied: true,
-          description: "Formatted teleforge.app.json.",
+          description: "Ensured teleforge.config.ts ends with a newline.",
           name: "format_manifest"
         });
       }
     } catch {
       fixes.push({
         applied: false,
-        description: "Skipped teleforge.app.json formatting because the file is not valid JSON.",
+        description: "Skipped teleforge.config.ts formatting.",
         name: "format_manifest"
       });
     }

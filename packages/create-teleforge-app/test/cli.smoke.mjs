@@ -18,11 +18,12 @@ test("generates SPA scaffold", async () => {
     cwd: tmpRoot
   });
 
-  const manifestPath = path.join(tmpRoot, projectName, "teleforge.app.json");
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.equal(manifest.runtime.mode, "spa");
-  assert.equal(manifest.runtime.webFramework, "vite");
-  assert.equal(manifest.routes[1].path, "/settings");
+  const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
+  const configSource = await readFile(configPath, "utf8");
+  assert.match(configSource, /defineTeleforgeApp/);
+  assert.match(configSource, /mode": "spa"/);
+  assert.match(configSource, /webFramework": "vite"/);
+  assert.match(configSource, /path: "\/settings"/);
 
   const webPackagePath = path.join(tmpRoot, projectName, "apps", "web", "package.json");
   const webPackage = JSON.parse(await readFile(webPackagePath, "utf8"));
@@ -30,6 +31,7 @@ test("generates SPA scaffold", async () => {
 
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
+  assert.equal(rootPackage.dependencies.teleforge, "^0.1.0");
   assert.equal(
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
@@ -88,11 +90,11 @@ test("generates BFF scaffold", async () => {
     cwd: tmpRoot
   });
 
-  const manifestPath = path.join(tmpRoot, projectName, "teleforge.app.json");
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.equal(manifest.runtime.mode, "bff");
-  assert.equal(manifest.runtime.webFramework, "nextjs");
-  assert.equal(manifest.runtime.apiRoutes, "apps/api/src/routes");
+  const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
+  const configSource = await readFile(configPath, "utf8");
+  assert.match(configSource, /mode": "bff"/);
+  assert.match(configSource, /webFramework": "nextjs"/);
+  assert.match(configSource, /apiRoutes": "apps\/api\/src\/routes"/);
 
   const nextPagePath = path.join(
     tmpRoot,
@@ -114,7 +116,7 @@ test("generates BFF scaffold", async () => {
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
   assert.equal(rootPackage.devDependencies.tsx, "^4.19.2");
-  assert.equal(rootPackage.devDependencies["@teleforgex/devtools"], "^0.1.0");
+  assert.equal(rootPackage.dependencies.teleforge, "^0.1.0");
   assert.equal(
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
@@ -148,21 +150,8 @@ test("generates scaffold with --link flag using link: protocol", async () => {
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
 
   assert.equal(
-    rootPackage.dependencies["@teleforgex/core"],
-    "link:/home/aj/hustle/tmf/packages/core"
-  );
-  assert.equal(
-    rootPackage.dependencies["@teleforgex/bot"],
-    "link:/home/aj/hustle/tmf/packages/bot"
-  );
-  assert.equal(rootPackage.dependencies["@teleforgex/ui"], "link:/home/aj/hustle/tmf/packages/ui");
-  assert.equal(
-    rootPackage.dependencies["@teleforgex/web"],
-    "link:/home/aj/hustle/tmf/packages/web"
-  );
-  assert.equal(
-    rootPackage.devDependencies["@teleforgex/devtools"],
-    "link:/home/aj/hustle/tmf/packages/devtools"
+    rootPackage.dependencies.teleforge,
+    "link:/home/aj/hustle/tmf/packages/teleforge"
   );
 });
 

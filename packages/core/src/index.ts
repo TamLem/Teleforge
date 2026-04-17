@@ -5,6 +5,10 @@
  */
 export { ManifestValidationError } from "./errors/ManifestValidationError.js";
 export {
+  defineTeleforgeApp,
+  teleforgeAppToManifest
+} from "./app/types.js";
+export {
   createSignedPhoneAuthToken,
   verifySignedPhoneAuthToken
 } from "./auth/phone.js";
@@ -39,6 +43,11 @@ export type {
 } from "./events/types.js";
 export { EventTypes, createEvent, createOrderEvent, normalizeEventSource } from "./events/types.js";
 export type { EventErrorCode } from "./events/errors.js";
+export type {
+  TeleforgeAppConfig,
+  TeleforgeAppIdentity,
+  TeleforgeMiniAppConfig
+} from "./app/types.js";
 export type {
   CreateSignedPhoneAuthTokenOptions,
   PhoneAuthTokenPayload,
