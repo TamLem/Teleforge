@@ -136,6 +136,17 @@ test("dev logs upstream app 500 responses for simulator app requests", async () 
     },
     recursive: true
   });
+  await mkdir(path.join(projectRoot, "node_modules"), { recursive: true });
+  await symlink(
+    path.join(workspaceNodeModules, "teleforge"),
+    path.join(projectRoot, "node_modules", "teleforge"),
+    "dir"
+  );
+  await symlink(
+    path.join(workspaceNodeModules, "tsx"),
+    path.join(projectRoot, "node_modules", "tsx"),
+    "dir"
+  );
   await mkdir(binRoot, { recursive: true });
   await writeFile(
     path.join(binRoot, "pnpm"),
@@ -301,7 +312,7 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
   await symlink(workspaceNodeModules, path.join(projectRoot, "node_modules"), "dir");
   await writeFile(
     path.join(projectRoot, "apps", "bot", "src", "runtime.ts"),
-    `import { createBotRuntime } from "@teleforgex/bot";
+    `import { createBotRuntime } from "teleforge/bot";
 
 export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
   const runtime = createBotRuntime();

@@ -3,6 +3,7 @@ import { accessSync, constants as fsConstants, watch } from "node:fs";
 import { readFile, readdir, stat } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
@@ -281,10 +282,15 @@ async function spawnCompanionServices(options: {
   publicUrl: string;
 }): Promise<CompanionServiceHandle[]> {
   const definitions = await discoverCompanionServices(options.cwd);
+  const runner = await resolveWorkspaceScriptRunner(options.cwd);
   const handles: CompanionServiceHandle[] = [];
 
   for (const definition of definitions) {
-    const child = spawn("pnpm", ["dev"], {
+    if (!runner) {
+      continue;
+    }
+
+    const child = spawn(runner.command, [...runner.args, "dev"], {
       cwd: definition.cwd,
       env: buildCompanionEnv(options.env, options.publicUrl),
       stdio: "inherit"
@@ -368,6 +374,164 @@ function buildCompanionEnv(env: NodeJS.ProcessEnv, publicUrl: string): NodeJS.Pr
 function preferNonEmptyEnv(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : fallback;
+}
+
+interface ScriptRunnerCommand {
+  args: string[];
+  command: string;
+}
+
+async function resolveWorkspaceScriptRunner(cwd: string): Promise<ScriptRunnerCommand | null> {
+  const packageManager = await detectWorkspacePackageManager(cwd);
+
+  if (packageManager === "npm") {
+    return {
+      args: ["run"],
+      command: "npm"
+    };
+  }
+
+  if (packageManager === "yarn") {
+    return {
+      args: [],
+      command: "yarn"
+    };
+  }
+
+  if (packageManager === "bun") {
+    return {
+      args: ["run"],
+      command: "bun"
+    };
+  }
+
+  if (commandExists("pnpm")) {
+    return {
+      args: [],
+      command: "pnpm"
+    };
+  }
+
+  const npxCommand = resolveFirstAvailableCommand(["npx", "npx.cmd"]);
+  if (!npxCommand) {
+    return null;
+  }
+
+  return {
+    args: ["--yes", "pnpm@10.15.0"],
+    command: npxCommand
+  };
+}
+
+async function detectWorkspacePackageManager(
+  cwd: string
+): Promise<"bun" | "npm" | "pnpm" | "yarn"> {
+  const packageManagerField = await readWorkspacePackageManagerField(cwd);
+  const declaredManager = trimToUndefined(packageManagerField)?.split("@")[0];
+
+  if (
+    declaredManager === "bun" ||
+    declaredManager === "npm" ||
+    declaredManager === "pnpm" ||
+    declaredManager === "yarn"
+  ) {
+    return declaredManager;
+  }
+
+  const lockfiles = await findPresentWorkspaceLockfiles(cwd);
+  if (lockfiles.includes("pnpm-lock.yaml")) {
+    return "pnpm";
+  }
+  if (lockfiles.includes("package-lock.json")) {
+    return "npm";
+  }
+  if (lockfiles.includes("yarn.lock")) {
+    return "yarn";
+  }
+  if (lockfiles.includes("bun.lockb")) {
+    return "bun";
+  }
+
+  return "pnpm";
+}
+
+async function readWorkspacePackageManagerField(cwd: string): Promise<string | undefined> {
+  try {
+    const packageJson = JSON.parse(await readFile(path.join(cwd, "package.json"), "utf8")) as {
+      packageManager?: unknown;
+    };
+    return typeof packageJson.packageManager === "string" ? packageJson.packageManager : undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+async function findPresentWorkspaceLockfiles(cwd: string): Promise<string[]> {
+  const candidates = ["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lockb"];
+  const present: string[] = [];
+
+  for (const candidate of candidates) {
+    try {
+      const result = await stat(path.join(cwd, candidate));
+      if (result.isFile()) {
+        present.push(candidate);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return present;
+}
+
+function commandExists(command: string): boolean {
+  return resolveFirstAvailableCommand([command]) !== null;
+}
+
+function resolveFirstAvailableCommand(candidates: string[]): string | null {
+  const pathValue = process.env.PATH ?? "";
+  const pathEntries = pathValue
+    .split(path.delimiter)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const extensions =
+    process.platform === "win32"
+      ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+          .split(";")
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+      : [""];
+
+  for (const candidate of candidates) {
+    if (candidate.includes(path.sep)) {
+      try {
+        accessSync(candidate, fsConstants.X_OK);
+        return candidate;
+      } catch {
+        continue;
+      }
+    }
+
+    for (const directory of pathEntries) {
+      for (const extension of extensions) {
+        const executable = path.join(directory, `${candidate}${extension}`);
+        try {
+          accessSync(executable, fsConstants.X_OK);
+          return executable;
+        } catch {
+          continue;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 function spawnFrameworkServer(options: {
@@ -606,7 +770,8 @@ function resolveBinary(cwd: string, framework: "vite" | "nextjs"): string {
   const binaryName = framework === "vite" ? "vite" : "next";
   const candidates = [
     path.join(cwd, "node_modules", ".bin", binaryName),
-    path.join(cwd, "apps", "web", "node_modules", ".bin", binaryName)
+    path.join(cwd, "apps", "web", "node_modules", ".bin", binaryName),
+    ...resolveWorkspaceBinaryCandidates(binaryName)
   ];
 
   for (const candidate of candidates) {
@@ -621,6 +786,18 @@ function resolveBinary(cwd: string, framework: "vite" | "nextjs"): string {
   throw new Error(
     `Could not find the ${binaryName} binary. Install project dependencies before running teleforge.`
   );
+}
+
+function resolveWorkspaceBinaryCandidates(binaryName: string): string[] {
+  const homeDirectory = os.homedir();
+  if (!homeDirectory) {
+    return [];
+  }
+
+  return [
+    path.join(homeDirectory, ".local", "share", "pnpm", binaryName),
+    path.join(homeDirectory, ".pnpm", binaryName)
+  ];
 }
 
 async function ensureDirectory(directory: string, errorMessage: string): Promise<void> {
@@ -712,4 +889,8 @@ function logDevServerError(summary: string, details?: string): void {
   if (details) {
     console.error(`[teleforge:dev] ${details}`);
   }
+}
+
+function trimToUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }

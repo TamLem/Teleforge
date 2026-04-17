@@ -40,11 +40,6 @@ export default defineTeleforgeApp({
     entry: "apps/web/src/main.tsx",
     launchModes: ["inline", "compact", "fullscreen"]
   },
-  routes: [
-    {
-      path: "/"
-    }
-  ],
   runtime: {
     mode: "spa",
     webFramework: "vite"

@@ -28,7 +28,7 @@ export interface TeleforgeAppConfig {
   flows?: TeleforgeFlowConventions;
   miniApp: TeleforgeMiniAppConfig;
   permissions?: TeleforgePermission[];
-  routes: RouteDefinition[];
+  routes?: RouteDefinition[];
   runtime: TeleforgeRuntime;
   security?: TeleforgeManifest["security"];
 }
@@ -52,7 +52,7 @@ export function teleforgeAppToManifest(config: TeleforgeAppConfig): TeleforgeMan
     },
     name: config.app.name,
     ...(config.permissions ? { permissions: config.permissions } : {}),
-    routes: config.routes,
+    routes: config.routes ?? [],
     runtime: config.runtime,
     ...(config.security ? { security: config.security } : {}),
     version: config.app.version

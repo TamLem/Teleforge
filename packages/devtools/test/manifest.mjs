@@ -11,7 +11,7 @@ test("loadManifest supports teleforge.config.ts deriving routes from imported fl
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-devtools-manifest-"));
   const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
   const teleforgeIndexUrl = pathToFileURL(
-    path.join(process.cwd(), "packages", "teleforge", "src", "index.ts")
+    path.resolve(process.cwd(), "..", "teleforge", "src", "index.ts")
   ).href;
 
   await mkdir(flowsRoot, { recursive: true });
@@ -46,8 +46,7 @@ export default defineFlow({
   );
   await writeFile(
     path.join(tmpRoot, "teleforge.config.ts"),
-    `import { createFlowRoutes, defineTeleforgeApp } from ${JSON.stringify(teleforgeIndexUrl)};
-import startFlow from "./apps/bot/src/flows/start.flow.ts";
+    `import { defineTeleforgeApp } from ${JSON.stringify(teleforgeIndexUrl)};
 
 export default defineTeleforgeApp({
   app: {
@@ -72,9 +71,6 @@ export default defineTeleforgeApp({
     entry: "apps/web/src/main.tsx",
     launchModes: ["inline", "compact", "fullscreen"]
   },
-  routes: createFlowRoutes({
-    flows: [startFlow]
-  }),
   runtime: {
     mode: "spa",
     webFramework: "vite"
