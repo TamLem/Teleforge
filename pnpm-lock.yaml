@@ -175,18 +175,6 @@ importers:
 
   examples/starter-app:
     dependencies:
-      '@teleforgex/bot':
-        specifier: workspace:0.1.0
-        version: link:../../packages/bot
-      '@teleforgex/core':
-        specifier: workspace:0.1.0
-        version: link:../../packages/core
-      '@teleforgex/ui':
-        specifier: workspace:0.1.0
-        version: link:../../packages/ui
-      '@teleforgex/web':
-        specifier: workspace:0.1.0
-        version: link:../../packages/web
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -196,10 +184,10 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      teleforge:
+        specifier: link:../../packages/teleforge
+        version: link:../../packages/teleforge
     devDependencies:
-      '@teleforgex/devtools':
-        specifier: workspace:0.1.0
-        version: link:../../packages/devtools
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.0

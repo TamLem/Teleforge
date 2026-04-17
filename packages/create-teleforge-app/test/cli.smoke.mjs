@@ -86,9 +86,7 @@ test("generates SPA scaffold", async () => {
 
   const runtimePath = path.join(tmpRoot, projectName, "apps", "bot", "src", "runtime.ts");
   const runtimeSource = await readFile(runtimePath, "utf8");
-  assert.match(runtimeSource, /loadTeleforgeApp/);
-  assert.match(runtimeSource, /loadTeleforgeFlows/);
-  assert.match(runtimeSource, /createFlowCommands/);
+  assert.match(runtimeSource, /createDiscoveredBotRuntime/);
 
   const guardPath = path.join(
     tmpRoot,
@@ -161,9 +159,7 @@ test("generates BFF scaffold", async () => {
 
   const runtimePath = path.join(tmpRoot, projectName, "apps", "bot", "src", "runtime.ts");
   const runtimeSource = await readFile(runtimePath, "utf8");
-  assert.match(runtimeSource, /loadTeleforgeApp/);
-  assert.match(runtimeSource, /loadTeleforgeFlows/);
-  assert.match(runtimeSource, /createFlowCommands/);
+  assert.match(runtimeSource, /createDiscoveredBotRuntime/);
 });
 
 test("generates scaffold with --link flag using link: protocol", async () => {

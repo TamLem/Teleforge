@@ -622,13 +622,8 @@ function loadWorkspaceEnv() {
 
 function botRuntimeTs(): string {
   return `import { config as loadDotenv } from "dotenv";
-import {
-  createFlowCommands,
-  loadTeleforgeApp,
-  loadTeleforgeFlows
-} from "teleforge";
-import { createBotRuntime, type BotRuntime } from "teleforge/bot";
-import { UserFlowStateManager, createFlowStorage } from "teleforge/core";
+import { createDiscoveredBotRuntime } from "teleforge";
+import { type BotRuntime } from "teleforge/bot";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -652,31 +647,11 @@ export function createGeneratedBotRuntime(
   options: GeneratedBotRuntimeOptions = {}
 ): Promise<BotRuntime> {
   const config = readGeneratedBotConfig(options);
-  const runtime = createBotRuntime();
-  const storage = new UserFlowStateManager(
-    createFlowStorage({
-      backend: "memory",
-      defaultTTL: 900,
-      namespace: "generated-app"
-    })
-  );
 
-  return loadTeleforgeApp(config.workspaceRoot).then(async ({ app }) => {
-    const flows = await loadTeleforgeFlows({
-      app,
-      cwd: config.workspaceRoot
-    });
-
-    runtime.registerCommands(
-      createFlowCommands({
-        flows,
-        secret: config.flowSecret,
-        storage,
-        webAppUrl: config.miniAppUrl
-      })
-    );
-
-    return runtime;
+  return createDiscoveredBotRuntime({
+    cwd: config.workspaceRoot,
+    flowSecret: config.flowSecret,
+    miniAppUrl: config.miniAppUrl
   });
 }
 

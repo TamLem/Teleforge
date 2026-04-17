@@ -20,6 +20,9 @@ export {
   isMiniAppStep
 } from "./flow.js";
 export {
+  createDiscoveredBotRuntime,
+} from "./bot-runtime.js";
+export {
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
   discoverFlowFiles,
@@ -50,4 +53,5 @@ export type {
   LoadTeleforgeFlowsOptions,
   TeleforgeFlowConventions
 } from "./discovery.js";
+export type { CreateDiscoveredBotRuntimeOptions } from "./bot-runtime.js";
 export type { LoadedTeleforgeApp } from "./config.js";

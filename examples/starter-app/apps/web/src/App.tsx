@@ -5,8 +5,8 @@ import {
   SettingsSection,
   TgCard,
   TgText
-} from "@teleforgex/ui";
-import { useTelegram, useTheme } from "@teleforgex/web";
+} from "teleforge/ui";
+import { useTelegram, useTheme } from "teleforge/web";
 import { useMemo, useState } from "react";
 
 type MockTheme = "dark" | "light";

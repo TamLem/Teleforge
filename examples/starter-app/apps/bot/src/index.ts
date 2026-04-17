@@ -11,7 +11,7 @@ import {
   type TelegramMessage,
   type TelegramReplyMarkup,
   type TelegramUpdate
-} from "@teleforgex/bot";
+} from "teleforge/bot";
 import { config as loadDotenv } from "dotenv";
 
 import { createStarterBotRuntime, hasUsableToken, readStarterBotConfig } from "./runtime.js";
@@ -21,7 +21,7 @@ loadStarterEnv();
 const botConfig = readStarterBotConfig();
 
 async function main() {
-  const runtime = createStarterBotRuntime(botConfig);
+  const runtime = await createStarterBotRuntime(botConfig);
 
   const token = botConfig.token;
   if (!hasUsableToken(token)) {
