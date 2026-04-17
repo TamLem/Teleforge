@@ -21,6 +21,8 @@ test("generates SPA scaffold", async () => {
   const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
   const configSource = await readFile(configPath, "utf8");
   assert.match(configSource, /defineTeleforgeApp/);
+  assert.match(configSource, /createFlowRoutes/);
+  assert.match(configSource, /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/);
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
   assert.match(configSource, /mode": "spa"/);
   assert.match(configSource, /webFramework": "vite"/);
@@ -50,6 +52,7 @@ test("generates SPA scaffold", async () => {
   const startFlow = await readFile(startFlowPath, "utf8");
   assert.match(startFlow, /defineFlow/);
   assert.match(startFlow, /command: "start"/);
+  assert.match(startFlow, /component: "pages\/Home"/);
   assert.match(startFlow, /route: "\/"/);
 
   const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
@@ -112,6 +115,8 @@ test("generates BFF scaffold", async () => {
 
   const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
   const configSource = await readFile(configPath, "utf8");
+  assert.match(configSource, /createFlowRoutes/);
+  assert.match(configSource, /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/);
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
   assert.match(configSource, /mode": "bff"/);
   assert.match(configSource, /webFramework": "nextjs"/);

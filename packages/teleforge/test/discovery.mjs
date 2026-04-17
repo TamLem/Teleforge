@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import {
+  createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
   defineFlow,
@@ -230,4 +231,49 @@ test("createFlowCoordinationConfigFromFlows derives routes and bot command entry
   assert.equal(config.resolveRoute("/order")?.metadata.flow?.requestWriteAccess, true);
   assert.equal(config.resolveStepRoute("order", "done"), "/order/success");
   assert.equal(config.resolveRoute("/order")?.metadata.entryPoints[0]?.type, "bot_command");
+});
+
+test("createFlowRoutes derives manifest routes from flow miniapp metadata", () => {
+  const flow = defineFlow({
+    id: "start",
+    initialStep: "home",
+    state: {},
+    bot: {
+      command: {
+        command: "start",
+        text: "Open app"
+      }
+    },
+    miniApp: {
+      component: "pages/Home",
+      guards: ["auth"],
+      launchModes: ["inline", "compact", "fullscreen"],
+      route: "/"
+    },
+    steps: {
+      home: {
+        screen: "home",
+        type: "miniapp"
+      }
+    }
+  });
+  const routes = createFlowRoutes({
+    flows: [flow],
+    routes: [
+      {
+        component: "pages/Settings",
+        launchModes: ["fullscreen"],
+        path: "/settings"
+      }
+    ]
+  });
+
+  assert.equal(routes.length, 2);
+  assert.equal(routes[0]?.path, "/settings");
+  assert.equal(routes[1]?.path, "/");
+  assert.equal(routes[1]?.component, "pages/Home");
+  assert.deepEqual(routes[1]?.guards, ["auth"]);
+  assert.deepEqual(routes[1]?.launchModes, ["inline", "compact", "fullscreen"]);
+  assert.equal(routes[1]?.coordination?.flow?.flowId, "start");
+  assert.equal(routes[1]?.coordination?.entryPoints[0]?.type, "bot_command");
 });

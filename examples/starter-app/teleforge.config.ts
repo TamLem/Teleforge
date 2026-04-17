@@ -1,4 +1,6 @@
-import { defineTeleforgeApp } from "teleforge";
+import { createFlowRoutes, defineTeleforgeApp } from "teleforge";
+
+import startFlow from "./apps/bot/src/flows/start.flow.ts";
 
 export default defineTeleforgeApp({
   app: {
@@ -31,11 +33,7 @@ export default defineTeleforgeApp({
     defaultMode: "inline",
     capabilities: ["read_access"]
   },
-  routes: [
-    {
-      path: "/",
-      component: "App",
-      launchModes: ["inline", "compact", "fullscreen"]
-    }
-  ]
+  routes: createFlowRoutes({
+    flows: [startFlow]
+  })
 });

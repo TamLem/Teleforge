@@ -5,6 +5,7 @@ import type { BotCommandDefinition, CommandContext, CoordinatedFlowOptions } fro
 import type {
   CoordinationDefaults,
   LaunchEntryPoint,
+  RouteDefinition,
   ResolvedCoordinationConfig,
   ReturnToChatMetadata,
   UserFlowStateManager
@@ -30,11 +31,19 @@ export interface TeleforgeFlowBotDefinition {
 }
 
 export interface TeleforgeFlowMiniAppDefinition {
+  capabilities?: RouteDefinition["capabilities"];
+  component?: RouteDefinition["component"];
+  description?: RouteDefinition["description"];
+  guards?: RouteDefinition["guards"];
+  launchModes?: RouteDefinition["launchModes"];
+  meta?: RouteDefinition["meta"];
   entryPoints?: readonly LaunchEntryPoint[];
   requestWriteAccess?: boolean;
   returnToChat?: ReturnToChatMetadata;
   route: string;
   stepRoutes?: Readonly<Record<string, string>>;
+  title?: RouteDefinition["title"];
+  ui?: RouteDefinition["ui"];
 }
 
 export interface FlowHandlerContext<

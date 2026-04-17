@@ -9,6 +9,7 @@ import { createFlowStartCommand } from "./flow.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
   CoordinationDefaults,
+  RouteDefinition,
   RouteCoordinationConfig,
   ResolvedCoordinationConfig,
   ReturnToChatMetadata,
@@ -72,6 +73,13 @@ export interface CreateFlowCommandsOptions {
 export interface CreateFlowCoordinationConfigFromFlowsOptions {
   defaults?: Partial<CoordinationDefaults>;
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
+  returnToChat?: ReturnToChatMetadata;
+}
+
+export interface CreateFlowRoutesOptions {
+  defaults?: Partial<CoordinationDefaults>;
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
+  routes?: readonly RouteDefinition[];
   returnToChat?: ReturnToChatMetadata;
 }
 
@@ -225,6 +233,51 @@ export function createFlowCoordinationConfigFromFlows(
     flows: flowEntries,
     routes
   });
+}
+
+export function createFlowRoutes(options: CreateFlowRoutesOptions): RouteDefinition[] {
+  const flows = normalizeDiscoveredFlows(options.flows);
+  const coordination = createFlowCoordinationConfigFromFlows({
+    defaults: options.defaults,
+    flows,
+    returnToChat: options.returnToChat
+  });
+  const routes = [...(options.routes ?? [])];
+  const seenPaths = new Set(routes.map((route) => route.path));
+
+  for (const flow of flows) {
+    if (!flow.miniApp) {
+      continue;
+    }
+
+    const resolvedRoute = coordination.resolveRoute(flow.miniApp.route);
+
+    if (!resolvedRoute) {
+      throw new Error(
+        `Unable to derive route metadata for flow "${flow.id}" at path "${flow.miniApp.route}".`
+      );
+    }
+
+    if (seenPaths.has(flow.miniApp.route)) {
+      throw new Error(`Duplicate route path "${flow.miniApp.route}" while deriving flow routes.`);
+    }
+
+    routes.push({
+      ...(flow.miniApp.capabilities ? { capabilities: flow.miniApp.capabilities } : {}),
+      ...(flow.miniApp.component ? { component: flow.miniApp.component } : {}),
+      coordination: resolvedRoute.metadata,
+      ...(flow.miniApp.description ? { description: flow.miniApp.description } : {}),
+      ...(flow.miniApp.guards ? { guards: [...flow.miniApp.guards] } : {}),
+      ...(flow.miniApp.launchModes ? { launchModes: [...flow.miniApp.launchModes] } : {}),
+      ...(flow.miniApp.meta ? { meta: { ...flow.miniApp.meta } } : {}),
+      path: flow.miniApp.route,
+      ...(flow.miniApp.title ? { title: flow.miniApp.title } : {}),
+      ...(flow.miniApp.ui ? { ui: structuredClone(flow.miniApp.ui) } : {})
+    });
+    seenPaths.add(flow.miniApp.route);
+  }
+
+  return routes;
 }
 
 function resolveFlowRoot(options: DiscoverFlowFilesOptions): string {

@@ -161,7 +161,9 @@ function generatedConfig(options: BuildProjectFilesOptions): string {
           apiRoutes: "apps/api/src/routes"
         };
 
-  return `import { defineTeleforgeApp } from "teleforge";
+  return `import { createFlowRoutes, defineTeleforgeApp } from "teleforge";
+
+import startFlow from "./apps/bot/src/flows/start.flow.ts";
 
 export default defineTeleforgeApp({
   app: {
@@ -187,20 +189,17 @@ export default defineTeleforgeApp({
     defaultMode: "inline",
     capabilities: ["write_access", "read_access"]
   },
-  routes: [
-    {
-      path: "/",
-      component: "pages/Home",
-      launchModes: ["inline", "compact", "fullscreen"],
-      guards: ["auth"]
-    },
-    {
-      path: "/settings",
-      component: "pages/Settings",
-      launchModes: ["fullscreen"],
-      guards: ["auth", "write_access"]
-    }
-  ],
+  routes: createFlowRoutes({
+    flows: [startFlow],
+    routes: [
+      {
+        path: "/settings",
+        component: "pages/Settings",
+        launchModes: ["fullscreen"],
+        guards: ["auth", "write_access"]
+      }
+    ]
+  }),
   permissions: [
     {
       capability: "write_access",
@@ -743,6 +742,9 @@ export default defineFlow({
     }
   },
   miniApp: {
+    component: "pages/Home",
+    guards: ["auth"],
+    launchModes: ["inline", "compact", "fullscreen"],
     route: "/"
   },
   steps: {

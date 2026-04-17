@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import {
@@ -97,7 +99,15 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
 
     const modulePath = process.argv[1];
     const loaded = await import(pathToFileURL(modulePath).href);
-    const config = loaded.default ?? loaded.app ?? loaded.config;
+    const candidate = loaded.default ?? loaded.app ?? loaded.config;
+    const config =
+      candidate &&
+      typeof candidate === "object" &&
+      "default" in candidate &&
+      candidate.default &&
+      typeof candidate.default === "object"
+        ? candidate.default
+        : candidate;
 
     if (!config || typeof config !== "object") {
       throw new Error("teleforge.config must export a default Teleforge app config object.");
@@ -107,9 +117,10 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
   `;
 
   try {
+    const tsxImportPath = resolveTsxImportPath(cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      ["--import", "tsx", "--input-type=module", "--eval", script, configPath],
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script, configPath],
       {
         cwd,
         env: process.env
@@ -125,4 +136,24 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       (error instanceof Error ? error.message : `Failed to load ${path.basename(configPath)}.`);
     throw new Error(`Failed to load ${path.basename(configPath)}: ${message}`);
   }
+}
+
+function resolveTsxImportPath(cwd: string): string {
+  const candidates = [
+    path.join(cwd, "__teleforge_loader__.js"),
+    path.join(process.cwd(), "__teleforge_loader__.js"),
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "__teleforge_loader__.js")
+  ];
+
+  for (const basePath of candidates) {
+    try {
+      return pathToFileURL(createRequire(basePath).resolve("tsx")).href;
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error(
+    'Teleforge could not resolve the "tsx" loader needed to read teleforge.config.ts.'
+  );
 }

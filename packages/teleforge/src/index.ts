@@ -23,6 +23,7 @@ export {
   createDiscoveredBotRuntime,
 } from "./bot-runtime.js";
 export {
+  createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
   discoverFlowFiles,
@@ -48,6 +49,7 @@ export type {
 export type {
   CreateFlowCommandsOptions,
   CreateFlowCoordinationConfigFromFlowsOptions,
+  CreateFlowRoutesOptions,
   DiscoveredFlowModule,
   DiscoverFlowFilesOptions,
   LoadTeleforgeFlowsOptions,
