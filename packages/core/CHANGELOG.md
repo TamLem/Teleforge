@@ -1,5 +1,13 @@
 # @teleforgex/core
 
+## 0.2.0
+
+### Minor Changes
+
+- 2fa207c: Add shared phone-number auth utilities across Teleforge.
+
+  Core now exposes normalized phone-number helpers, signed phone-auth tokens, and launch parsing support for `tfPhoneAuth`. Web exposes the parsed launch token through `useLaunch()`. Bot adds reply-keyboard contact request helpers, self-shared contact extraction, and signed phone-auth Mini App links. BFF centralizes identity resolution behind a provider-backed identity manager and adds a phone-auth exchange handler that issues sessions from the signed phone token flow.
+
 ## 0.1.0
 
 ### Minor Changes

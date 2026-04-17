@@ -1,6 +1,6 @@
 {
   "name": "@teleforgex/bff",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed BFF route definitions and middleware for Teleforge.",
   "homepage": "https://tamlem.github.io/Teleforge/",
   "type": "module",
@@ -34,7 +34,7 @@
     "test": "pnpm run build && node --test test/adapters/*.mjs test/completion/*.mjs test/config/*.mjs test/context/*.mjs test/errors/*.mjs test/identity/*.mjs test/route/*.mjs test/middleware/*.mjs test/session/*.mjs"
   },
   "dependencies": {
-    "@teleforgex/core": "workspace:0.1.0"
+    "@teleforgex/core": "workspace:0.2.0"
   },
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@teleforgex/bot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Telegram bot routing primitives for Teleforge.",
   "homepage": "https://tamlem.github.io/Teleforge/",
   "type": "module",
@@ -28,7 +28,7 @@
     "test": "pnpm run build && node --test test/*.mjs test/primitives/*.mjs"
   },
   "dependencies": {
-    "@teleforgex/core": "workspace:0.1.0"
+    "@teleforgex/core": "workspace:0.2.0"
   },
   "publishConfig": {
     "access": "public"
