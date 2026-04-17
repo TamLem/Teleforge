@@ -41,7 +41,43 @@ test("generates SPA scaffold", async () => {
 
   const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");
   const webTest = await readFile(webTestPath, "utf8");
+  assert.match(webTest, /import React from "react"/);
   assert.match(webTest, /renderToStaticMarkup/);
+
+  const homePagePath = path.join(tmpRoot, projectName, "apps", "web", "src", "pages", "Home.tsx");
+  const homePage = await readFile(homePagePath, "utf8");
+  assert.match(homePage, /import React from "react"/);
+  assert.match(homePage, /requireLaunchMode\(\["inline", "compact", "fullscreen"\]\)/);
+  assert.match(homePage, /inline, compact, and fullscreen launch modes/);
+
+  const settingsPagePath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "web",
+    "src",
+    "pages",
+    "Settings.tsx"
+  );
+  const settingsPage = await readFile(settingsPagePath, "utf8");
+  assert.match(settingsPage, /import React from "react"/);
+
+  const appPath = path.join(tmpRoot, projectName, "apps", "web", "src", "App.tsx");
+  const appSource = await readFile(appPath, "utf8");
+  assert.match(appSource, /import React, \{ useEffect, useState \} from "react"/);
+
+  const guardPath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "web",
+    "src",
+    "guards",
+    "launchMode.ts"
+  );
+  const guard = await readFile(guardPath, "utf8");
+  assert.match(guard, /typeof window === "undefined"/);
+  assert.match(guard, /if \(mode === "unknown"\) return null/);
 });
 
 test("generates BFF scaffold", async () => {
@@ -90,7 +126,12 @@ test("generates BFF scaffold", async () => {
 
   const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");
   const webTest = await readFile(webTestPath, "utf8");
+  assert.match(webTest, /import React from "react"/);
   assert.match(webTest, /Welcome to Sample Bff/);
+
+  const homePagePath = path.join(tmpRoot, projectName, "apps", "web", "src", "pages", "Home.tsx");
+  const homePage = await readFile(homePagePath, "utf8");
+  assert.match(homePage, /requireLaunchMode\(\["inline", "compact", "fullscreen"\]\)/);
 });
 
 test("generates scaffold with --link flag using link: protocol", async () => {
@@ -122,5 +163,17 @@ test("generates scaffold with --link flag using link: protocol", async () => {
   assert.equal(
     rootPackage.devDependencies["@teleforgex/devtools"],
     "link:/home/aj/hustle/tmf/packages/devtools"
+  );
+});
+
+test("rejects project names that normalize to empty app metadata", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-invalid-name-"));
+
+  await assert.rejects(
+    () =>
+      execFileAsync("node", [cliPath, "!!!", "--mode", "spa", "--yes"], {
+        cwd: tmpRoot
+      }),
+    /must contain at least one letter or number/
   );
 });

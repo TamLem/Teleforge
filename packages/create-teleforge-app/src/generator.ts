@@ -31,6 +31,7 @@ export async function generateProject(
   }
 
   const targetDir = path.resolve(options.cwd, relativeTargetDir);
+  const projectDirName = path.basename(targetDir);
   const exists = await directoryExists(targetDir);
 
   if (exists && options.overwrite) {
@@ -46,8 +47,15 @@ export async function generateProject(
     }
   }
 
-  const appId = toKebabCase(path.basename(relativeTargetDir));
-  const appName = toTitleCase(path.basename(relativeTargetDir));
+  const appId = toKebabCase(projectDirName);
+  const appName = toTitleCase(projectDirName);
+
+  if (!appId || !appName) {
+    throw new Error(
+      `Project name "${relativeTargetDir}" must contain at least one letter or number.`
+    );
+  }
+
   const botUsername = `${appId.replace(/-/g, "_")}_bot`;
 
   const files = buildProjectFiles({

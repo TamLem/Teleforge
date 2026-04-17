@@ -912,7 +912,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 }
 
 function spaAppTsx(appName: string): string {
-  return `import { useEffect, useState } from "react";
+  return `import React, { useEffect, useState } from "react";
 import { HomePage } from "./pages/Home";
 import { SettingsPage } from "./pages/Settings";
 
@@ -1005,17 +1005,19 @@ export { SettingsPage } from "./pages/Settings";
 }
 
 function homePageTsx(appName: string): string {
-  return `import { requireLaunchMode } from "../guards/launchMode";
+  return `import React from "react";
+import { requireLaunchMode } from "../guards/launchMode";
 
 export function HomePage() {
-  requireLaunchMode(["inline", "compact"]);
+  requireLaunchMode(["inline", "compact", "fullscreen"]);
 
   return (
     <div className="stack">
       <p className="badge">Route: /</p>
       <h2>Welcome to ${appName}</h2>
       <p>
-        This sample page is available in inline and compact launch modes and demonstrates an auth guard.
+        This sample page is available in inline, compact, and fullscreen launch modes and demonstrates an auth
+        guard.
       </p>
     </div>
   );
@@ -1024,7 +1026,8 @@ export function HomePage() {
 }
 
 function settingsPageTsx(): string {
-  return `import { requireLaunchMode } from "../guards/launchMode";
+  return `import React from "react";
+import { requireLaunchMode } from "../guards/launchMode";
 
 export function SettingsPage() {
   requireLaunchMode(["fullscreen"]);
@@ -1045,6 +1048,7 @@ export function SettingsPage() {
 function homePageTestTs(appName: string): string {
   return `import assert from "node:assert/strict";
 import test from "node:test";
+import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { HomePage } from "../src/pages/Home";
@@ -1063,10 +1067,13 @@ function launchModeGuardTs(): string {
 
 function normalizeLaunchMode(mode: string | null): string | null {
   if (mode === "full") return "fullscreen";
+  if (mode === "unknown") return null;
   return mode;
 }
 
 export function requireLaunchMode(allowedModes: string[]) {
+  if (typeof window === "undefined") return true;
+
   const { isReady, mode: rawMode } = useLaunch();
   const mode = normalizeLaunchMode(rawMode);
 
@@ -1076,7 +1083,7 @@ export function requireLaunchMode(allowedModes: string[]) {
 
   if (!allowedModes.includes(mode)) {
     throw new Error(
-      \`Route requires launch mode: \${allowedModes.join(", ")}, but received: \${mode}\`
+      \`Route requires launch mode: \${allowedModes.join(", ")} (received: \${rawMode ?? "unavailable"})\`
     );
   }
 
