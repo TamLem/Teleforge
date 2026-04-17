@@ -139,6 +139,14 @@ export function createIdentityAdapter(overrides = {}) {
         ...user
       };
     },
+    async findByPhoneNumber(phoneNumber) {
+      return phoneNumber
+        ? {
+            id: `app_user:phone:${phoneNumber}`,
+            phoneNumber
+          }
+        : null;
+    },
     async findByTelegramId(telegramUserId) {
       return {
         id: "app_user_1",

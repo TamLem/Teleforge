@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { executeBffRoute, verifyAccessToken } from "../../dist/index.js";
+import { executeBffRoute, telegramIdIdentityProvider, verifyAccessToken } from "../../dist/index.js";
 import { createSessionRoutes } from "../../dist/routes.js";
 import {
   createAuthenticatedTelegramContext,
@@ -16,7 +16,7 @@ test("session exchange returns access and refresh tokens with resolved identity"
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });

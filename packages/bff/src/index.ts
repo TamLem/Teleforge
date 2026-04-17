@@ -68,23 +68,36 @@ export {
   serializeErrorResponse
 } from "./errors/index.js";
 export { BffIdentityError } from "./identity/errors.js";
+export { createIdentityManager } from "./identity/manager.js";
 export { withIdentityResolution } from "./identity/middleware.js";
+export { resolvePhoneAuthIdentity } from "./identity/phone.js";
+export {
+  customIdentityProvider,
+  phoneAuthIdentityProvider,
+  telegramIdIdentityProvider,
+  usernameIdentityProvider
+} from "./identity/providers.js";
 export { resolveIdentity } from "./identity/resolve.js";
 export type { BffErrorCode, ErrorResponse, FieldError } from "./errors/index.js";
 export type {
   AppUser,
   BffIdentityErrorCode,
-  CustomIdentityResolver,
+  CustomIdentityProviderResolver,
   IdentityAdapter,
   IdentityCacheEntry,
+  IdentityManager,
+  IdentityProvider,
+  IdentityProviderContext,
+  IdentityProviderResult,
   IdentityResolutionOptions,
-  IdentityResolverContext,
-  IdentityStrategy,
+  IdentityResolveInput,
+  PhoneAuthOptions,
+  PhoneIdentityAdapter,
   ResolvedIdentity
 } from "./identity/types.js";
 export { createSessionRoutes } from "./routes/session.js";
 export { BffSessionError } from "./session/errors.js";
-export { createSessionExchangeHandler } from "./session/exchange.js";
+export { createPhoneAuthExchangeHandler, createSessionExchangeHandler } from "./session/exchange.js";
 export { withSessionValidation } from "./session/middleware.js";
 export { createSessionRefreshHandler } from "./session/refresh.js";
 export { createSessionRevokeHandler } from "./session/revoke.js";
@@ -102,10 +115,12 @@ export type {
   BffSessionErrorCode,
   CreateSessionInput,
   ExchangeInput,
+  ExchangeOutput,
+  PhoneAuthExchangeInput,
+  PhoneAuthRouteOptions,
   RefreshTokenRecord,
   RotateRefreshTokenInput,
   RotateRefreshTokenResult,
-  ExchangeOutput,
   RefreshInput,
   RevokeInput,
   RevokeOutput,

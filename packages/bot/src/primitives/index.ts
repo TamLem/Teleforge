@@ -8,5 +8,18 @@ export type { FlowContext, FlowContextSource } from "./context.js";
 export { createSignedPayload, extractFlowContext } from "./context.js";
 export type { FlowInitOptions } from "./flow.js";
 export { sendFlowInit } from "./flow.js";
+export type {
+  CreatePhoneAuthLinkOptions,
+  PhoneContactSource,
+  PhoneNumberRequestButtonOptions,
+  PhoneNumberRequestMarkupOptions,
+  SharedPhoneContact
+} from "./phone.js";
+export {
+  createPhoneAuthLink,
+  createPhoneNumberRequestButton,
+  createPhoneNumberRequestMarkup,
+  extractSharedPhoneContact
+} from "./phone.js";
 export type { FlowResult, MessageTemplate } from "./templates.js";
 export { templates } from "./templates.js";

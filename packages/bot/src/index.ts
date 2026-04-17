@@ -13,8 +13,12 @@ export { handleMiniAppReturn, initiateCoordinatedFlow } from "./coordination/sta
 export {
   createFlowCallback,
   createMiniAppButton,
+  createPhoneAuthLink,
+  createPhoneNumberRequestButton,
+  createPhoneNumberRequestMarkup,
   generateMiniAppLink,
   createSignedPayload,
+  extractSharedPhoneContact,
   extractFlowContext,
   handleFlowCallback,
   sendFlowInit,
@@ -32,7 +36,12 @@ export type {
   MiniAppLinkOptions,
   FlowResult,
   MessageTemplate,
-  MiniAppButtonOptions
+  MiniAppButtonOptions,
+  CreatePhoneAuthLinkOptions,
+  PhoneContactSource,
+  PhoneNumberRequestButtonOptions,
+  PhoneNumberRequestMarkupOptions,
+  SharedPhoneContact
 } from "./primitives/index.js";
 export type { BotRuntime } from "./runtime.js";
 export { createBotRuntime } from "./runtime.js";
@@ -70,7 +79,11 @@ export type {
   TelegramCallbackAnswer,
   TelegramChat,
   TelegramCallbackQuery,
+  TelegramContact,
   TelegramInlineKeyboardButton,
+  TelegramInlineKeyboardMarkup,
+  TelegramKeyboardButton,
+  TelegramKeyboardMarkup,
   TelegramMessage,
   TelegramReplyMarkup,
   TelegramUpdate,

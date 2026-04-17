@@ -52,6 +52,7 @@ test("returns SSR-safe defaults when window is unavailable", () => {
   assert.equal(snapshot.mode, null);
   assert.equal(snapshot.platform, "unknown");
   assert.equal(snapshot.initData, "");
+  assert.equal(snapshot.phoneAuthToken, null);
   assert.deepEqual(snapshot.validationErrors, []);
 
   if (previousWindow) {
@@ -64,7 +65,7 @@ test("handles missing Telegram gracefully in the browser", async () => {
 
   globalThis.window = {
     location: {
-      search: "?startapp=checkout"
+      search: "?startapp=checkout&tfPhoneAuth=signed-phone-token"
     }
   };
 
@@ -79,6 +80,7 @@ test("handles missing Telegram gracefully in the browser", async () => {
 
   assert.equal(snapshot.context, null);
   assert.equal(snapshot.isReady, false);
+  assert.equal(snapshot.phoneAuthToken, null);
   assert.equal(snapshot.startParam, null);
   assert.equal(snapshot.platform, "unknown");
 
@@ -95,7 +97,7 @@ test("parses launch context when Telegram is ready and tracks viewport changes",
       WebApp: mock
     },
     location: {
-      search: "?startapp=checkout"
+      search: "?startapp=checkout&tfPhoneAuth=signed-phone-token"
     }
   };
 
@@ -111,6 +113,7 @@ test("parses launch context when Telegram is ready and tracks viewport changes",
   assert.equal(snapshot.isReady, true);
   assert.equal(snapshot.mode, "compact");
   assert.equal(snapshot.platform, "ios");
+  assert.equal(snapshot.phoneAuthToken, "signed-phone-token");
   assert.equal(snapshot.startParam, "checkout");
   assert.equal(snapshot.user?.id, 42);
   assert.equal(snapshot.isAuthenticated, true);

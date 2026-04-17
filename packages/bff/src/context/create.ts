@@ -21,8 +21,9 @@ export async function createBffRequestContext(
     user: parsedInitData.telegramUser
   };
   const identityState = {
-    promise: null,
-    value: null
+    promises: new Map(),
+    value: null,
+    valueKey: null
   };
   const resolutionCache = new Map();
 

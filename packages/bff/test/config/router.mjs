@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createBffConfig, defineBffRoute } from "../../dist/index.js";
+import { createBffConfig, defineBffRoute, telegramIdIdentityProvider } from "../../dist/index.js";
 import { createIdentityAdapter, createMemorySessionAdapter } from "../helpers/session.mjs";
 
 test("mountBuiltIns skips session routes when sessions are disabled", () => {
@@ -11,7 +11,8 @@ test("mountBuiltIns skips session routes when sessions are disabled", () => {
       sessions: false
     },
     identity: {
-      adapter: createIdentityAdapter()
+      adapter: createIdentityAdapter(),
+      providers: [telegramIdIdentityProvider()]
     }
   });
   const router = config.createRouter();
@@ -28,7 +29,8 @@ test("mountBuiltIns registers built-in session routes when enabled", () => {
     },
     botToken: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
     identity: {
-      adapter: createIdentityAdapter()
+      adapter: createIdentityAdapter(),
+      providers: [telegramIdIdentityProvider()]
     },
     jwt: {
       secret: "teleforge-jwt-secret"
@@ -54,7 +56,8 @@ test("createHandler processes matched JSON requests through the BFF pipeline", a
       sessions: false
     },
     identity: {
-      adapter: createIdentityAdapter()
+      adapter: createIdentityAdapter(),
+      providers: [telegramIdIdentityProvider()]
     }
   });
   const router = config.createRouter();
@@ -118,7 +121,8 @@ test("createHandler resolves configured services for service routes", async () =
       sessions: false
     },
     identity: {
-      adapter: createIdentityAdapter()
+      adapter: createIdentityAdapter(),
+      providers: [telegramIdIdentityProvider()]
     },
     services: {
       users: {

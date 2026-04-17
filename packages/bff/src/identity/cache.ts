@@ -1,11 +1,12 @@
-import type { AppUser, IdentityResolutionOptions, ResolvedIdentity } from "./types.js";
+import type { AppUser, IdentityManager, IdentityResolveInput, ResolvedIdentity } from "./types.js";
 import type { BffRequestContext } from "../context/types.js";
 
 const DEFAULT_IDENTITY_CACHE_TTL = 1_000;
 
 export function getIdentityCacheKey<TAppUser extends AppUser>(
   context: BffRequestContext,
-  options: IdentityResolutionOptions<TAppUser>
+  options: IdentityManager<TAppUser>,
+  input: IdentityResolveInput
 ): string | null {
   const telegramUser = context.telegramUser;
 
@@ -13,23 +14,10 @@ export function getIdentityCacheKey<TAppUser extends AppUser>(
     return null;
   }
 
-  switch (options.strategy) {
-    case "telegram-id":
-      return `identity:telegram-id:${telegramUser.id}:${options.autoCreate}`;
-    case "username":
-      return telegramUser.username
-        ? `identity:username:${telegramUser.username}:${options.autoCreate}`
-        : `identity:username:missing:${telegramUser.id}:${options.autoCreate}`;
-    case "custom":
-      return `identity:custom:${telegramUser.id}:${options.autoCreate}`;
-    default:
-      return null;
-  }
+  return `identity:${options.providers.map((provider) => provider.name).join(",")}:${telegramUser.id}:${telegramUser.username ?? "missing"}:${options.autoCreate}:${input.phoneAuthToken ?? ""}`;
 }
 
-export function getIdentityCacheTTL<TAppUser extends AppUser>(
-  options: IdentityResolutionOptions<TAppUser>
-): number {
+export function getIdentityCacheTTL<TAppUser extends AppUser>(options: IdentityManager<TAppUser>): number {
   return options.cacheTTL ?? DEFAULT_IDENTITY_CACHE_TTL;
 }
 

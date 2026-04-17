@@ -61,6 +61,7 @@ export interface LaunchContext {
   isInline: boolean;
   launchMode: LaunchMode;
   mode: LaunchMode;
+  phoneAuthToken: string | null;
   platform: TelegramPlatform;
   startParam: string | null;
   startParamRaw: string | null;

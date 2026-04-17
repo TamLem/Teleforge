@@ -14,6 +14,7 @@ If you are new to the repo, start here:
 - [Build Your First Feature](./docs/first-feature.md)
 - [Flow Coordination](./docs/flow-coordination.md)
 - [BFF Mode Guide](./docs/bff-guide.md)
+- [Shared Phone Auth](./docs/shared-phone-auth.md)
 - [Testing](./docs/testing.md)
 - [Deployment](./docs/deployment.md)
 - [Environment Variables](./docs/environment-variables.md)

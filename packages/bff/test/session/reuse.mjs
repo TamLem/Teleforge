@@ -7,6 +7,7 @@ import {
   createSessionRoutes,
   defineBffRoute,
   executeBffRoute,
+  telegramIdIdentityProvider,
   withSessionValidation
 } from "../../dist/index.js";
 import {
@@ -24,7 +25,7 @@ test("refresh token reuse revokes the family and emits a security event", async 
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret",
     securityEvents: {
@@ -66,7 +67,7 @@ test("parallel refresh attempts trigger reuse detection for the losing request",
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });
@@ -100,7 +101,7 @@ test("revoke-on-reuse invalidates access tokens from the same session family", a
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });

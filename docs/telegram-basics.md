@@ -68,6 +68,23 @@ Teleforge supports that in two layers:
 - simple app-to-bot payloads through Telegram `sendData`
 - richer coordinated flows through `completeFlow()`, `returnToChat()`, `handleMiniAppReturnData()`, and flow-state helpers
 
+## Contact Sharing and Phone Auth
+
+Telegram bots can also request a user to share their own contact card.
+
+Teleforge uses that capability for optional shared phone-number auth:
+
+1. the bot asks for a self-shared contact
+2. the bot validates that the contact belongs to the sending Telegram user
+3. the bot signs a short-lived phone-auth token into the Mini App launch URL
+4. the Mini App forwards that token to the BFF
+5. the BFF resolves app identity by normalized phone number and can issue an app session
+
+This is separate from `web_app_data`:
+
+- `web_app_data` is app-to-bot data transport
+- shared phone auth is a bot-to-Mini-App credential handoff
+
 ## BotFather
 
 BotFather is Telegram's official bot-management bot.

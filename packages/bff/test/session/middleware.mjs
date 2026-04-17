@@ -7,6 +7,7 @@ import {
   createSessionRoutes,
   defineBffRoute,
   executeBffRoute,
+  telegramIdIdentityProvider,
   withSessionValidation
 } from "../../dist/index.js";
 import {
@@ -23,7 +24,7 @@ test("withSessionValidation hydrates session auth and identity from a bearer tok
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });
@@ -90,7 +91,7 @@ test("withSessionValidation rejects revoked sessions", async () => {
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });

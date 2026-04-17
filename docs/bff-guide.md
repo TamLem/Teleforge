@@ -39,7 +39,11 @@ Teleforge's BFF package helps with layer 2.
 At the package level, the core pattern is:
 
 ```ts
-import { createBffConfig, defineBffRoute } from "@teleforgex/bff";
+import {
+  createBffConfig,
+  defineBffRoute,
+  telegramIdIdentityProvider
+} from "@teleforgex/bff";
 
 const config = createBffConfig({
   botToken: process.env.BOT_TOKEN,
@@ -47,7 +51,8 @@ const config = createBffConfig({
     sessions: false
   },
   identity: {
-    adapter: myIdentityAdapter
+    adapter: myIdentityAdapter,
+    providers: [telegramIdIdentityProvider()]
   }
 });
 
@@ -68,6 +73,45 @@ router.add(
 ```
 
 That route can then be exposed through the HTTP adapter you choose.
+
+## Identity Configuration
+
+Teleforge BFF identity is provider-based.
+
+That means `identity` config should always include:
+
+- `adapter`: your app-user storage adapter
+- `providers`: one or more identity providers
+
+The built-in providers are:
+
+- `telegramIdIdentityProvider()`
+- `usernameIdentityProvider()`
+- `phoneAuthIdentityProvider()`
+- `customIdentityProvider()`
+
+Use `telegramIdIdentityProvider()` when Telegram user id is your primary app-user key. Use `usernameIdentityProvider()` only when your app deliberately keys users by Telegram username. Use `customIdentityProvider()` when the lookup rules are app-specific.
+
+You can register providers in priority order:
+
+```ts
+import {
+  createBffConfig,
+  telegramIdIdentityProvider,
+  usernameIdentityProvider
+} from "@teleforgex/bff";
+
+const config = createBffConfig({
+  botToken: process.env.BOT_TOKEN!,
+  features: {
+    sessions: false
+  },
+  identity: {
+    adapter: myIdentityAdapter,
+    providers: [telegramIdIdentityProvider(), usernameIdentityProvider()]
+  }
+});
+```
 
 ## How `apps/api` Fits In
 
@@ -114,6 +158,44 @@ That is how you get routes such as:
 - `/revoke`
 
 These are useful when Telegram identity needs to be turned into an app session.
+
+## Shared Phone Auth
+
+Teleforge also supports a phone-share auth flow when your bot needs the user to confirm the phone number tied to their account.
+
+The flow is:
+
+1. the bot requests a self-shared contact
+2. the bot validates the contact and signs a short-lived `tfPhoneAuth` token
+3. the Mini App launches with that token in the URL
+4. the Mini App sends `phoneAuthToken` to a BFF route
+5. the BFF verifies the token, matches it to the active Telegram user, resolves identity, and issues a session
+
+Use `createPhoneAuthExchangeHandler()` for step 5:
+
+```ts
+import {
+  createPhoneAuthExchangeHandler,
+  defineBffRoute
+} from "@teleforgex/bff";
+
+export const phoneExchangeRoute = defineBffRoute({
+  auth: "required",
+  handler: createPhoneAuthExchangeHandler({
+    adapter: sessionAdapter,
+    identity: {
+      adapter: phoneIdentityAdapter,
+      autoCreate: true,
+      secret: process.env.PHONE_AUTH_SECRET!
+    },
+    secret: process.env.JWT_SECRET!
+  }),
+  method: "POST",
+  path: "/phone/exchange"
+});
+```
+
+The request body should include `{ phoneAuthToken }`. For the bot-side half of the flow, use the contact-request and link-signing helpers from `@teleforgex/bot`.
 
 ## What to Build First in BFF Mode
 

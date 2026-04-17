@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BffValidationError, createBffConfig } from "../../dist/index.js";
+import { BffValidationError, createBffConfig, telegramIdIdentityProvider } from "../../dist/index.js";
 import { createIdentityAdapter } from "../helpers/session.mjs";
 
 test("createBffConfig throws CONFIG_INVALID with field details when botToken is missing", () => {
@@ -13,7 +13,8 @@ test("createBffConfig throws CONFIG_INVALID with field details when botToken is 
           sessions: false
         },
         identity: {
-          adapter: createIdentityAdapter()
+          adapter: createIdentityAdapter(),
+          providers: [telegramIdIdentityProvider()]
         }
       }),
     (error) =>
@@ -29,7 +30,8 @@ test("sessions-enabled config requires both session adapter and jwt secret", () 
       createBffConfig({
         botToken: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
         identity: {
-          adapter: createIdentityAdapter()
+          adapter: createIdentityAdapter(),
+          providers: [telegramIdIdentityProvider()]
         }
       }),
     (error) =>
@@ -49,7 +51,8 @@ test("service registrations must match their registry keys", () => {
           sessions: false
         },
         identity: {
-          adapter: createIdentityAdapter()
+          adapter: createIdentityAdapter(),
+          providers: [telegramIdIdentityProvider()]
         },
         services: {
           users: {
@@ -67,5 +70,25 @@ test("service registrations must match their registry keys", () => {
       error instanceof BffValidationError &&
       error.code === "CONFIG_INVALID" &&
       error.fields?.some((field) => field.path === "services.users.name")
+  );
+});
+
+test("identity config requires at least one provider", () => {
+  assert.throws(
+    () =>
+      createBffConfig({
+        botToken: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        features: {
+          sessions: false
+        },
+        identity: {
+          adapter: createIdentityAdapter(),
+          providers: []
+        }
+      }),
+    (error) =>
+      error instanceof BffValidationError &&
+      error.code === "CONFIG_INVALID" &&
+      error.fields?.some((field) => field.path === "identity.providers")
   );
 });

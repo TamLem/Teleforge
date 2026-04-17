@@ -4,6 +4,11 @@
  * and event publishing.
  */
 export { ManifestValidationError } from "./errors/ManifestValidationError.js";
+export {
+  createSignedPhoneAuthToken,
+  verifySignedPhoneAuthToken
+} from "./auth/phone.js";
+export { normalizePhoneNumber } from "./utils/phone.js";
 export { EventErrorCodes, TeleforgeEventError } from "./events/errors.js";
 export { TeleforgeEventBus, type TeleforgeEventBusOptions } from "./events/bus.js";
 export {
@@ -34,6 +39,11 @@ export type {
 } from "./events/types.js";
 export { EventTypes, createEvent, createOrderEvent, normalizeEventSource } from "./events/types.js";
 export type { EventErrorCode } from "./events/errors.js";
+export type {
+  CreateSignedPhoneAuthTokenOptions,
+  PhoneAuthTokenPayload,
+  VerifySignedPhoneAuthTokenOptions
+} from "./auth/phone.js";
 export type { ApiEventTransport } from "./events/transports/api.js";
 export type { BotEventTransport } from "./events/transports/bot.js";
 export type { MiniAppEventTransport } from "./events/transports/miniapp.js";

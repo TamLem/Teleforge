@@ -189,7 +189,7 @@ function toTelegramSendMessageOptions(options: ReplyOptions): Record<string, unk
 }
 
 function serializeReplyMarkup(markup?: TelegramReplyMarkup): TelegramReplyMarkup | undefined {
-  return markup ? { inline_keyboard: markup.inline_keyboard } : undefined;
+  return markup ? { ...markup } : undefined;
 }
 
 interface JsonResponse {

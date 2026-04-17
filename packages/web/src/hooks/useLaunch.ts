@@ -30,6 +30,7 @@ export interface UseLaunchReturn {
   isReady: boolean;
   isValidForManifest: boolean | null;
   mode: LaunchContext["launchMode"] | null;
+  phoneAuthToken: string | null;
   platform: TelegramPlatform;
   startParam: string | null;
   user: WebAppUser | null;
@@ -132,6 +133,7 @@ export function useLaunch(): UseLaunchReturn {
     isReady: context !== null,
     isValidForManifest: validation.isValidForManifest,
     mode: context?.mode ?? null,
+    phoneAuthToken: context?.phoneAuthToken ?? null,
     platform: context?.platform ?? "unknown",
     startParam: context?.startParam ?? null,
     user: context?.user ?? null,

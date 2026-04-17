@@ -25,8 +25,7 @@ export function normalizeBffConfigOptions<TAppUser extends AppUser>(
     },
     identity: {
       ...options.identity,
-      autoCreate: options.identity.autoCreate ?? true,
-      strategy: options.identity.strategy ?? "telegram-id"
+      autoCreate: options.identity.autoCreate ?? true
     },
     jwt: options.jwt
       ? {
@@ -69,6 +68,14 @@ export function validateBffConfigOptions<TAppUser extends AppUser>(
       code: "required",
       message: "identity.adapter is required.",
       path: "identity.adapter"
+    });
+  }
+
+  if (!Array.isArray(options.identity?.providers) || options.identity.providers.length === 0) {
+    fields.push({
+      code: "required",
+      message: "identity.providers must contain at least one provider.",
+      path: "identity.providers"
     });
   }
 

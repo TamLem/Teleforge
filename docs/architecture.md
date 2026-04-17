@@ -94,7 +94,7 @@ Responsibilities:
 - validate Telegram identity server-side
 - expose Telegram-aware backend routes
 - enforce launch-mode/auth constraints at the API layer
-- resolve app identity from Telegram identity
+- resolve app identity through provider-based identity management
 - exchange/refresh/revoke app sessions
 - invoke downstream services through adapters
 
@@ -270,6 +270,8 @@ Its architecture has four main parts:
 
 This avoids scattering Telegram request parsing through route code.
 
+The normalized launch context can also surface a short-lived `tfPhoneAuth` token when a bot launches the Mini App through the shared phone-auth flow.
+
 ### Middleware
 
 Built-in middleware handles:
@@ -283,7 +285,27 @@ Built-in middleware handles:
 
 ### Adapters and Sessions
 
-Service adapters let BFF routes proxy or orchestrate downstream services, while session helpers manage exchange, refresh, and revoke flows for app sessions derived from Telegram identity.
+Service adapters let BFF routes proxy or orchestrate downstream services, while session helpers manage exchange, refresh, and revoke flows for app sessions derived from resolved Teleforge identity.
+
+### Identity Manager
+
+Teleforge BFF identity now centers on a provider-backed identity manager.
+
+That manager:
+
+- receives the current Telegram-authenticated request context
+- runs one or more identity providers in order
+- resolves or auto-creates an application user
+- feeds the resulting identity into session exchange
+
+Built-in providers cover:
+
+- Telegram user id
+- Telegram username
+- signed phone-auth token exchange
+- custom app-defined resolution logic
+
+This keeps identity policy explicit and composable instead of hard-coding one lookup strategy into the framework.
 
 ## Flow Coordination Architecture
 

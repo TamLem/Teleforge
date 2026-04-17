@@ -62,6 +62,7 @@ test("parses valid initData from URL params and extracts launch context", () => 
   assert.equal(context.platform, "ios");
   assert.equal(context.launchMode, "compact");
   assert.equal(context.mode, "compact");
+  assert.equal(context.phoneAuthToken, null);
   assert.equal(context.startParam, "checkout");
   assert.equal(context.startParamRaw, "checkout");
   assert.equal(context.user?.id, 42);
@@ -116,6 +117,7 @@ test("parseLaunchContext handles missing initData and platform fallbacks safely"
 
   assert.equal(context.initData, "");
   assert.equal(context.user, null);
+  assert.equal(context.phoneAuthToken, null);
   assert.equal(context.launchMode, "fullscreen");
   assert.equal(context.canExpand, false);
   assert.equal(context.capabilities.supportsFullscreen, true);
@@ -132,6 +134,14 @@ test("parseLaunchContext honors explicit launch mode and startapp params", () =>
   assert.equal(context.startParamRaw, "settings");
   assert.equal(context.isInline, true);
   assert.equal(context.canExpand, true);
+});
+
+test("parseLaunchContext exposes signed phone auth tokens from the launch URL", () => {
+  const context = parseLaunchContext(
+    "tgWebAppPlatform=ios&tgWebAppVersion=8.0&tfPhoneAuth=signed-phone-token"
+  );
+
+  assert.equal(context.phoneAuthToken, "signed-phone-token");
 });
 
 test("validateLaunchAgainstManifest accepts supported contexts and rejects unsupported launch modes", () => {

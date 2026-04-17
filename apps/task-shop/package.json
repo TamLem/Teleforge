@@ -15,7 +15,7 @@
     "lint": "eslint . --ext .ts,.tsx,.mjs,.cjs",
     "lint:fix": "eslint . --fix --ext .ts,.tsx,.mjs,.cjs",
     "test": "pnpm run build && pnpm run test:integration",
-    "test:integration": "node --import tsx --test tests/integration/**/*.spec.ts"
+    "test:integration": "find tests/integration -name '*.spec.ts' -exec node --import tsx --test {} +"
   },
   "dependencies": {
     "@task-shop/types": "workspace:*",

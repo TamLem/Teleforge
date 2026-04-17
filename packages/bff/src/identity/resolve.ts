@@ -1,3 +1,4 @@
+import { createIdentityManager } from "./manager.js";
 import {
   getCachedIdentity,
   getIdentityCacheKey,
@@ -5,35 +6,47 @@ import {
   setCachedIdentity
 } from "./cache.js";
 import { BffIdentityError } from "./errors.js";
-import { resolveByTelegramId } from "./strategies/telegramId.js";
-import { resolveByUsername } from "./strategies/username.js";
 
-import type { AppUser, IdentityResolutionOptions, ResolvedIdentity } from "./types.js";
+import type {
+  AppUser,
+  IdentityManager,
+  IdentityProviderResult,
+  IdentityResolutionOptions,
+  IdentityResolveInput,
+  ResolvedIdentity
+} from "./types.js";
 import type { BffRequestContext } from "../context/types.js";
 
 export async function resolveIdentity<TAppUser extends AppUser = AppUser>(
   context: BffRequestContext,
-  options: IdentityResolutionOptions<TAppUser>
+  options: IdentityManager<TAppUser> | IdentityResolutionOptions<TAppUser>,
+  input: IdentityResolveInput = {}
 ): Promise<ResolvedIdentity<TAppUser> | null> {
-  if (context._identityState.promise) {
-    return (await context._identityState.promise) as ResolvedIdentity<TAppUser> | null;
+  const manager = createIdentityManager(options);
+  const identityKey = getIdentityStateKey(context, manager, input);
+  const activePromise = context._identityState.promises.get(identityKey);
+
+  if (activePromise) {
+    return (await activePromise) as ResolvedIdentity<TAppUser> | null;
   }
 
-  const promise = resolveIdentityInternal(context, options);
-  context._identityState.promise = promise as Promise<ResolvedIdentity | null>;
+  const promise = resolveIdentityInternal(context, manager, input);
+  context._identityState.promises.set(identityKey, promise as Promise<ResolvedIdentity | null>);
 
   try {
     const resolvedIdentity = await promise;
     context._identityState.value = resolvedIdentity as ResolvedIdentity | null;
+    context._identityState.valueKey = identityKey;
     return resolvedIdentity;
   } finally {
-    context._identityState.promise = null;
+    context._identityState.promises.delete(identityKey);
   }
 }
 
 async function resolveIdentityInternal<TAppUser extends AppUser>(
   context: BffRequestContext,
-  options: IdentityResolutionOptions<TAppUser>
+  options: IdentityManager<TAppUser>,
+  input: IdentityResolveInput
 ): Promise<ResolvedIdentity<TAppUser> | null> {
   const telegramUser = context.telegramUser;
 
@@ -42,55 +55,49 @@ async function resolveIdentityInternal<TAppUser extends AppUser>(
   }
 
   const now = Date.now();
-  const cacheKey = getIdentityCacheKey(context, options);
+  const cacheKey = getIdentityCacheKey(context, options, input);
 
   if (cacheKey) {
     const cached = getCachedIdentity(context, cacheKey, now);
 
     if (cached !== null) {
       context._identityState.value = cached as ResolvedIdentity | null;
+      context._identityState.valueKey = cacheKey;
       return cached as ResolvedIdentity<TAppUser> | null;
     }
   }
 
   try {
-    let appUser: TAppUser | null;
+    let appUser: TAppUser | null = null;
+    let matchedProvider: IdentityProviderResult<TAppUser> | null = null;
 
-    switch (options.strategy) {
-      case "telegram-id":
-        appUser = await resolveByTelegramId(options.adapter, telegramUser.id);
-        break;
-      case "username":
-        appUser = await resolveByUsername(options.adapter, telegramUser.username);
-        break;
-      case "custom":
-        if (!options.resolve) {
-          throw new BffIdentityError(
-            "IDENTITY_STRATEGY_INVALID",
-            500,
-            "Custom identity resolution requires an injected resolve() function."
-          );
-        }
+    for (const provider of options.providers) {
+      const result = await provider.resolve({
+        adapter: options.adapter,
+        context,
+        input,
+        telegramUser
+      });
 
-        appUser = await options.resolve({
-          adapter: options.adapter,
-          context,
-          telegramUser
-        });
+      if (!result) {
+        continue;
+      }
+
+      matchedProvider ??= result;
+
+      if (result.appUser) {
+        appUser = result.appUser;
+        matchedProvider = result;
         break;
-      default:
-        throw new BffIdentityError(
-          "IDENTITY_STRATEGY_INVALID",
-          500,
-          `Unsupported identity strategy: ${String(options.strategy)}`
-        );
+      }
     }
 
     let isNewUser = false;
 
-    if (!appUser && options.autoCreate) {
+    if (!appUser && options.autoCreate && matchedProvider) {
       const createInput = {
         ...(await options.onCreate?.(telegramUser, context)),
+        ...(matchedProvider.createInput ?? {}),
         telegramFirstName: telegramUser.first_name,
         telegramLanguageCode: telegramUser.language_code ?? null,
         telegramLastName: telegramUser.last_name ?? null,
@@ -102,7 +109,13 @@ async function resolveIdentityInternal<TAppUser extends AppUser>(
       isNewUser = true;
     }
 
-    const resolvedIdentity = createResolvedIdentity(appUser, isNewUser, telegramUser, now);
+    const resolvedIdentity = createResolvedIdentity(
+      appUser,
+      isNewUser,
+      telegramUser,
+      now,
+      matchedProvider?.phoneNumber
+    );
 
     if (cacheKey) {
       setCachedIdentity(context, cacheKey, resolvedIdentity, getIdentityCacheTTL(options), now);
@@ -126,14 +139,27 @@ function createResolvedIdentity<TAppUser extends AppUser>(
   appUser: TAppUser | null,
   isNewUser: boolean,
   telegramUser: NonNullable<BffRequestContext["telegramUser"]>,
-  resolvedAt: number
+  resolvedAt: number,
+  phoneNumber?: string
 ): ResolvedIdentity<TAppUser> {
   return {
     appUser,
     appUserId: appUser?.id ?? null,
     isNewUser,
+    ...(phoneNumber ? { phoneNumber } : {}),
     resolvedAt,
     telegramUserId: telegramUser.id,
     ...(telegramUser.username ? { telegramUsername: telegramUser.username } : {})
   };
+}
+
+function getIdentityStateKey<TAppUser extends AppUser>(
+  context: BffRequestContext,
+  options: IdentityManager<TAppUser>,
+  input: IdentityResolveInput
+): string {
+  return (
+    getIdentityCacheKey(context, options, input) ??
+    `identity:${options.providers.map((provider) => provider.name).join(",")}:none`
+  );
 }

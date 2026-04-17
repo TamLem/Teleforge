@@ -15,6 +15,7 @@ Start with the guides first.
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
 - [BFF Mode Guide](./bff-guide.md)
+- [Shared Phone Auth](./shared-phone-auth.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)

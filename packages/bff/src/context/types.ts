@@ -47,8 +47,9 @@ export interface BffResponseState {
 }
 
 export interface BffIdentityState {
-  promise: Promise<ResolvedIdentity | null> | null;
+  promises: Map<string, Promise<ResolvedIdentity | null>>;
   value: ResolvedIdentity | null;
+  valueKey: string | null;
 }
 
 export interface BffRequestContext {

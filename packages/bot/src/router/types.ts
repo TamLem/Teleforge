@@ -21,6 +21,14 @@ export interface TelegramWebAppData {
   data: string;
 }
 
+export interface TelegramContact {
+  first_name: string;
+  last_name?: string;
+  phone_number: string;
+  user_id?: number;
+  vcard?: string;
+}
+
 export interface TelegramCallbackQuery {
   data?: string;
   from: TelegramUser;
@@ -42,9 +50,23 @@ export interface TelegramInlineKeyboardButton {
   };
 }
 
-export interface TelegramReplyMarkup {
+export interface TelegramKeyboardButton {
+  request_contact?: boolean;
+  text: string;
+}
+
+export interface TelegramInlineKeyboardMarkup {
   inline_keyboard: TelegramInlineKeyboardButton[][];
 }
+
+export interface TelegramKeyboardMarkup {
+  keyboard: TelegramKeyboardButton[][];
+  one_time_keyboard?: boolean;
+  resize_keyboard?: boolean;
+  selective?: boolean;
+}
+
+export type TelegramReplyMarkup = TelegramInlineKeyboardMarkup | TelegramKeyboardMarkup;
 
 export interface ReplyOptions {
   disable_web_page_preview?: boolean;
@@ -55,6 +77,7 @@ export interface ReplyOptions {
 
 export interface TelegramMessage {
   chat: TelegramChat;
+  contact?: TelegramContact;
   date?: number;
   from?: TelegramUser;
   message_id?: number;

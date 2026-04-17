@@ -51,6 +51,7 @@ export function parseLaunchContext(searchParams: URLSearchParams | string): Laun
     isInline: launchMode === "inline",
     launchMode,
     mode: launchMode,
+    phoneAuthToken: optionalString(params.get("tfPhoneAuth")),
     platform,
     startParam,
     startParamRaw,
@@ -58,6 +59,10 @@ export function parseLaunchContext(searchParams: URLSearchParams | string): Laun
     userUnsafe: initDataUnsafe.user ?? null,
     version
   };
+}
+
+function optionalString(value: string | null): string | null {
+  return value && value.trim().length > 0 ? value : null;
 }
 
 function detectLaunchModeFromParams(params: URLSearchParams): LaunchMode {

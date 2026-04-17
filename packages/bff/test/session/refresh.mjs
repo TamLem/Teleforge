@@ -7,6 +7,7 @@ import {
   createSessionRoutes,
   executeBffRoute,
   hashRefreshToken,
+  telegramIdIdentityProvider,
   verifyAccessToken
 } from "../../dist/index.js";
 import {
@@ -22,7 +23,7 @@ test("session refresh rotates the refresh token and returns a new access token p
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createSessionRoutes, executeBffRoute } from "../../dist/index.js";
+import { createSessionRoutes, executeBffRoute, telegramIdIdentityProvider } from "../../dist/index.js";
 import {
   createAuthenticatedTelegramContext,
   createIdentityAdapter,
@@ -16,7 +16,7 @@ test("session revoke invalidates the current session", async () => {
     identity: {
       adapter: createIdentityAdapter(),
       autoCreate: false,
-      strategy: "telegram-id"
+      providers: [telegramIdIdentityProvider()]
     },
     secret: "teleforge-session-secret"
   });

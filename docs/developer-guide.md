@@ -16,6 +16,7 @@ Use this guide as the hub. The new step-by-step companions are:
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
 - [BFF Mode Guide](./bff-guide.md)
+- [Shared Phone Auth](./shared-phone-auth.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)
@@ -273,7 +274,8 @@ Use BFF for Telegram-aware backend routes:
 - auth and launch-mode middleware
 - service adapters
 - request context creation
-- session and identity helpers
+- provider-based identity resolution
+- session and phone-auth exchange helpers
 
 ### `@teleforgex/devtools`
 
@@ -307,6 +309,8 @@ export function Screen() {
 ```
 
 Use `useTelegram()` when you need direct SDK state. Use `useLaunch()` when you need interpreted capability and auth information.
+
+`useLaunch()` also exposes `phoneAuthToken` when the Mini App was opened through Teleforge's shared phone-auth flow.
 
 ### Main Button Coordination
 
@@ -399,6 +403,54 @@ export const profileRoute = defineBffRoute({
 ```
 
 Use service routes when you are mapping to downstream APIs. Use handler routes when you need orchestration logic in-process.
+
+### Provider-Based Identity
+
+Teleforge BFF identity config is explicit and provider-based.
+
+```ts
+import {
+  createBffConfig,
+  telegramIdIdentityProvider,
+  usernameIdentityProvider
+} from "@teleforgex/bff";
+
+const config = createBffConfig({
+  botToken: process.env.BOT_TOKEN!,
+  features: {
+    sessions: false
+  },
+  identity: {
+    adapter: identityAdapter,
+    providers: [telegramIdIdentityProvider(), usernameIdentityProvider()]
+  }
+});
+```
+
+This keeps identity lookup policy visible in app code instead of hiding it behind implicit defaults.
+
+### Shared Phone Number Auth
+
+When your app needs a Telegram user to prove control of a phone number, use the bot and BFF helpers together.
+
+Bot side:
+
+- request a self-shared contact with `createPhoneNumberRequestMarkup()`
+- validate it with `extractSharedPhoneContact()`
+- launch the Mini App with `createPhoneAuthLink()`
+
+Mini App side:
+
+- read `phoneAuthToken` from `useLaunch()`
+- send it to your BFF route
+
+BFF side:
+
+- use `createPhoneAuthExchangeHandler()` to verify the signed token
+- resolve the app user by normalized phone number
+- issue the same session envelope used by the standard exchange route
+
+This is the right pattern when phone number is the app's primary login key but Telegram still needs to anchor the trust chain.
 
 ## Flow Coordination
 

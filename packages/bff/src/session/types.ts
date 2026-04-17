@@ -1,6 +1,11 @@
 import type { BffErrorCode } from "../errors/codes.js";
 import type { SessionSecurityEventSink } from "../events/security.js";
-import type { AppUser, IdentityResolutionOptions, ResolvedIdentity } from "../identity/types.js";
+import type {
+  AppUser,
+  IdentityResolutionOptions,
+  PhoneAuthOptions,
+  ResolvedIdentity
+} from "../identity/types.js";
 
 export type BffSessionErrorCode = Extract<
   BffErrorCode,
@@ -111,6 +116,10 @@ export interface ExchangeInput {
   deviceInfo?: Record<string, unknown>;
 }
 
+export interface PhoneAuthExchangeInput extends ExchangeInput {
+  phoneAuthToken: string;
+}
+
 export interface ExchangeOutput<TAppUser extends AppUser = AppUser> {
   accessToken: string;
   expiresIn: number;
@@ -133,4 +142,8 @@ export interface RevokeOutput {
 
 export interface SessionRouteOptions<TAppUser extends AppUser = AppUser> extends SessionConfig {
   identity: IdentityResolutionOptions<TAppUser>;
+}
+
+export interface PhoneAuthRouteOptions<TAppUser extends AppUser = AppUser> extends SessionConfig {
+  identity: PhoneAuthOptions<TAppUser>;
 }

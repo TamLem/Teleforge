@@ -2,9 +2,15 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 
-import { BffIdentityError, createBffRequestContext, resolveIdentity } from "../../dist/index.js";
+import {
+  createBffRequestContext,
+  customIdentityProvider,
+  resolveIdentity,
+  telegramIdIdentityProvider,
+  usernameIdentityProvider
+} from "../../dist/index.js";
 
-test("resolveIdentity returns an existing user via telegram-id and reuses the request cache", async () => {
+test("resolveIdentity returns an existing user via telegram-id provider and reuses the request cache", async () => {
   const context = await createAuthenticatedContext();
   let lookupCount = 0;
   const adapter = createAdapter({
@@ -21,12 +27,12 @@ test("resolveIdentity returns an existing user via telegram-id and reuses the re
   const first = await resolveIdentity(context, {
     adapter,
     autoCreate: false,
-    strategy: "telegram-id"
+    providers: [telegramIdIdentityProvider()]
   });
   const second = await resolveIdentity(context, {
     adapter,
     autoCreate: false,
-    strategy: "telegram-id"
+    providers: [telegramIdIdentityProvider()]
   });
 
   assert.equal(first?.appUserId, "user_1");
@@ -59,7 +65,7 @@ test("resolveIdentity auto-creates new users and applies onCreate fields", async
         displayName: telegramUser.first_name
       };
     },
-    strategy: "telegram-id"
+    providers: [telegramIdIdentityProvider()]
   });
 
   assert.equal(identity?.appUserId, "user_new");
@@ -76,7 +82,7 @@ test("resolveIdentity returns a null app identity when autoCreate is disabled", 
   const identity = await resolveIdentity(context, {
     adapter,
     autoCreate: false,
-    strategy: "telegram-id"
+    providers: [telegramIdIdentityProvider()]
   });
 
   assert.equal(identity?.appUserId, null);
@@ -84,7 +90,7 @@ test("resolveIdentity returns a null app identity when autoCreate is disabled", 
   assert.equal(identity?.isNewUser, false);
 });
 
-test("resolveIdentity supports username strategy", async () => {
+test("resolveIdentity supports username providers", async () => {
   const context = await createAuthenticatedContext();
   const adapter = createAdapter({
     findByUsername: async (username) => ({
@@ -96,25 +102,35 @@ test("resolveIdentity supports username strategy", async () => {
   const identity = await resolveIdentity(context, {
     adapter,
     autoCreate: false,
-    strategy: "username"
+    providers: [usernameIdentityProvider()]
   });
 
   assert.equal(identity?.appUserId, "user:integration_user");
   assert.equal(identity?.appUser?.username, "integration_user");
 });
 
-test("resolveIdentity throws a typed error for invalid custom strategy configuration", async () => {
+test("resolveIdentity supports custom providers", async () => {
   const context = await createAuthenticatedContext();
+  let lookupCount = 0;
 
-  await assert.rejects(
-    () =>
-      resolveIdentity(context, {
-        adapter: createAdapter(),
-        autoCreate: false,
-        strategy: "custom"
-      }),
-    (error) => error instanceof BffIdentityError && error.code === "IDENTITY_STRATEGY_INVALID"
-  );
+  const identity = await resolveIdentity(context, {
+    adapter: createAdapter(),
+    autoCreate: false,
+    providers: [
+      customIdentityProvider(async ({ telegramUser }) => {
+        lookupCount += 1;
+
+        return {
+          appUser: {
+            id: `custom:${telegramUser.id}`
+          }
+        };
+      })
+    ]
+  });
+
+  assert.equal(identity?.appUserId, "custom:279058397");
+  assert.equal(lookupCount, 1);
 });
 
 function createAdapter(overrides = {}) {

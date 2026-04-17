@@ -71,6 +71,7 @@ export function hydrateSessionContext(
     resolvedAt: claims.iat * 1000,
     telegramUserId: claims.tid
   };
+  context._identityState.valueKey = `session:${claims.sid}`;
 
   return context._identityState.value;
 }

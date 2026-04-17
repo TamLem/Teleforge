@@ -7,7 +7,6 @@ export interface AppUser {
   [key: string]: unknown;
 }
 
-export type IdentityStrategy = "custom" | "telegram-id" | "username";
 export type BffIdentityErrorCode = Extract<
   BffErrorCode,
   "IDENTITY_RESOLUTION_FAILED" | "IDENTITY_STRATEGY_INVALID"
@@ -17,6 +16,7 @@ export interface ResolvedIdentity<TAppUser extends AppUser = AppUser> {
   appUser: TAppUser | null;
   appUserId: string | null;
   isNewUser: boolean;
+  phoneNumber?: string;
   resolvedAt: number;
   telegramUserId: number;
   telegramUsername?: string;
@@ -29,20 +29,61 @@ export interface IdentityCacheEntry<TAppUser extends AppUser = AppUser> {
 
 export interface IdentityAdapter<TAppUser extends AppUser = AppUser> {
   create: (user: Partial<TAppUser>) => Promise<TAppUser> | TAppUser;
+  findByPhoneNumber?: (phoneNumber: string) => Promise<TAppUser | null> | TAppUser | null;
   findByTelegramId: (telegramUserId: number) => Promise<TAppUser | null> | TAppUser | null;
   findByUsername: (username: string) => Promise<TAppUser | null> | TAppUser | null;
-  update: (appUserId: string, updates: Partial<TAppUser>) => Promise<TAppUser> | TAppUser;
+  update?: (appUserId: string, updates: Partial<TAppUser>) => Promise<TAppUser> | TAppUser;
 }
 
-export interface IdentityResolverContext<TAppUser extends AppUser = AppUser> {
+export interface PhoneIdentityAdapter<TAppUser extends AppUser = AppUser>
+  extends IdentityAdapter<TAppUser> {
+  findByPhoneNumber: (phoneNumber: string) => Promise<TAppUser | null> | TAppUser | null;
+}
+
+export interface IdentityResolveInput {
+  phoneAuthToken?: string;
+}
+
+export interface IdentityProviderContext<TAppUser extends AppUser = AppUser> {
   adapter: IdentityAdapter<TAppUser>;
   context: BffRequestContext;
+  input: IdentityResolveInput;
   telegramUser: WebAppUser;
 }
 
-export type CustomIdentityResolver<TAppUser extends AppUser = AppUser> = (
-  input: IdentityResolverContext<TAppUser>
-) => Promise<TAppUser | null> | TAppUser | null;
+export interface IdentityProviderResult<TAppUser extends AppUser = AppUser> {
+  appUser: TAppUser | null;
+  createInput?: Partial<TAppUser>;
+  phoneNumber?: string;
+}
+
+export interface IdentityProvider<TAppUser extends AppUser = AppUser> {
+  name: string;
+  resolve: (
+    input: IdentityProviderContext<TAppUser>
+  ) =>
+    | Promise<IdentityProviderResult<TAppUser> | null>
+    | IdentityProviderResult<TAppUser>
+    | null;
+}
+
+export type CustomIdentityProviderResolver<TAppUser extends AppUser = AppUser> = (
+  input: IdentityProviderContext<TAppUser>
+) =>
+  | Promise<IdentityProviderResult<TAppUser> | null>
+  | IdentityProviderResult<TAppUser>
+  | null;
+
+export interface IdentityManager<TAppUser extends AppUser = AppUser> {
+  adapter: IdentityAdapter<TAppUser>;
+  autoCreate: boolean;
+  cacheTTL?: number;
+  onCreate?: (
+    telegramUser: WebAppUser,
+    context: BffRequestContext
+  ) => Partial<TAppUser> | Promise<Partial<TAppUser>>;
+  providers: readonly IdentityProvider<TAppUser>[];
+}
 
 export interface IdentityResolutionOptions<TAppUser extends AppUser = AppUser> {
   adapter: IdentityAdapter<TAppUser>;
@@ -52,6 +93,11 @@ export interface IdentityResolutionOptions<TAppUser extends AppUser = AppUser> {
     telegramUser: WebAppUser,
     context: BffRequestContext
   ) => Partial<TAppUser> | Promise<Partial<TAppUser>>;
-  resolve?: CustomIdentityResolver<TAppUser>;
-  strategy: IdentityStrategy;
+  providers: readonly IdentityProvider<TAppUser>[];
+}
+
+export interface PhoneAuthOptions<TAppUser extends AppUser = AppUser>
+  extends Omit<IdentityResolutionOptions<TAppUser>, "adapter" | "providers"> {
+  adapter: PhoneIdentityAdapter<TAppUser>;
+  secret: string;
 }

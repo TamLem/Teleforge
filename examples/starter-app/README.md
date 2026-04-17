@@ -69,6 +69,109 @@ The important connection to understand is:
 
 So the manifest is the source of truth for app shape, but not a magic resolver.
 
+## End-to-End Phone Auth Example
+
+If you want to turn this starter app into a phone-number login prototype, the smallest complete path is:
+
+1. add `PHONE_AUTH_SECRET` to `.env`
+2. add a `/login` command that sends a reply-keyboard contact request
+3. validate the returned contact with `extractSharedPhoneContact()`
+4. open the Mini App with `createPhoneAuthLink()`
+5. read `phoneAuthToken` from `useLaunch()` in the web app
+6. POST that token to a BFF route using `createPhoneAuthExchangeHandler()`
+
+Suggested `.env` addition:
+
+```bash
+PHONE_AUTH_SECRET=replace_me_with_a_long_random_secret
+```
+
+Bot-side sketch:
+
+```ts
+import {
+  createPhoneAuthLink,
+  createPhoneNumberRequestMarkup,
+  extractSharedPhoneContact
+} from "@teleforgex/bot";
+
+runtime.router.command("login", async (context) => {
+  await context.reply("Share the phone number tied to your account.", {
+    reply_markup: createPhoneNumberRequestMarkup()
+  });
+});
+
+runtime.router.use(async (context, next) => {
+  const sharedContact = extractSharedPhoneContact(context.update);
+
+  if (!sharedContact) {
+    await next();
+    return;
+  }
+
+  const phoneUrl = await createPhoneAuthLink({
+    phoneNumber: sharedContact.normalizedPhoneNumber,
+    secret: process.env.PHONE_AUTH_SECRET!,
+    telegramUserId: sharedContact.telegramUserId,
+    webAppUrl: config.miniAppUrl
+  });
+
+  await context.replyWithWebApp("Continue sign in", "Open Starter App", phoneUrl);
+});
+```
+
+Mini App-side sketch:
+
+```tsx
+import { useLaunch } from "@teleforgex/web";
+
+function PhoneAuthExample() {
+  const launch = useLaunch();
+
+  async function finishPhoneAuth() {
+    if (!launch.phoneAuthToken) {
+      return;
+    }
+
+    await fetch("/api/phone/exchange", {
+      body: JSON.stringify({
+        phoneAuthToken: launch.phoneAuthToken
+      }),
+      headers: {
+        "content-type": "application/json",
+        "x-telegram-init-data": launch.initData
+      },
+      method: "POST"
+    });
+  }
+
+  return <button onClick={finishPhoneAuth}>Finish sign in</button>;
+}
+```
+
+Server-side sketch:
+
+```ts
+import { createPhoneAuthExchangeHandler, defineBffRoute } from "@teleforgex/bff";
+
+export const phoneExchange = defineBffRoute({
+  auth: "required",
+  handler: createPhoneAuthExchangeHandler({
+    adapter: sessionAdapter,
+    identity: {
+      adapter: identityAdapter,
+      autoCreate: true,
+      secret: process.env.PHONE_AUTH_SECRET!
+    },
+    secret: process.env.JWT_SECRET!
+  }),
+  method: "POST",
+  path: "/phone/exchange"
+});
+```
+
+For the full framework walkthrough, read [Shared Phone Auth](../../docs/shared-phone-auth.md).
+
 ## What to Change First
 
 If you want your first customization:

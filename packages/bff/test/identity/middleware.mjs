@@ -6,6 +6,7 @@ import {
   createBffRequestContext,
   defineBffRoute,
   executeBffRoute,
+  telegramIdIdentityProvider,
   withIdentityResolution
 } from "../../dist/index.js";
 
@@ -62,7 +63,7 @@ test("withIdentityResolution populates ctx.identity before the route handler exe
           }
         },
         autoCreate: false,
-        strategy: "telegram-id"
+        providers: [telegramIdIdentityProvider()]
       })
     ],
     path: "/me"
