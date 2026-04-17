@@ -15,12 +15,17 @@ export interface TeleforgeMiniAppConfig extends Omit<TeleforgeManifest["miniApp"
   entry: string;
 }
 
+export interface TeleforgeFlowConventions {
+  root?: string;
+}
+
 export interface TeleforgeAppConfig {
   app: TeleforgeAppIdentity;
   bot: TeleforgeManifest["bot"];
   build?: TeleforgeManifest["build"];
   dev?: TeleforgeManifest["dev"];
   features?: TeleforgeManifest["features"];
+  flows?: TeleforgeFlowConventions;
   miniApp: TeleforgeMiniAppConfig;
   permissions?: TeleforgePermission[];
   routes: RouteDefinition[];

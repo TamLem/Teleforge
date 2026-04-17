@@ -45,6 +45,7 @@ export { EventTypes, createEvent, createOrderEvent, normalizeEventSource } from 
 export type { EventErrorCode } from "./events/errors.js";
 export type {
   TeleforgeAppConfig,
+  TeleforgeFlowConventions,
   TeleforgeAppIdentity,
   TeleforgeMiniAppConfig
 } from "./app/types.js";

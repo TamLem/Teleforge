@@ -24,6 +24,9 @@ test("defineTeleforgeApp preserves config and converts it to a manifest", () => 
       entry: "apps/web/src/main.tsx",
       launchModes: ["inline", "compact", "fullscreen"]
     },
+    flows: {
+      root: "flows"
+    },
     routes: [
       {
         path: "/"
@@ -39,6 +42,7 @@ test("defineTeleforgeApp preserves config and converts it to a manifest", () => 
   assert.equal(manifest.id, "sample-app");
   assert.equal(manifest.name, "Sample App");
   assert.equal(manifest.miniApp.entryPoint, "apps/web/src/main.tsx");
+  assert.equal(app.flows.root, "flows");
 });
 
 test("defineFlow preserves flow metadata", () => {
