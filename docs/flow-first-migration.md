@@ -2,6 +2,8 @@
 
 This document describes how Teleforge moves from the current V1 architecture to the flow-first framework model described in [Flow-First Developer Experience](./flow-first-dx.md).
 
+For the remaining implementation work after commit `88597a8`, use [Flow-First Execution Handoff Plan](./flow-first-execution-plan.md).
+
 This is a **breaking V2 migration plan**. It assumes **no backward compatibility requirement** for:
 
 - `teleforge.app.json`

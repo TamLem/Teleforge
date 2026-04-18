@@ -14,6 +14,7 @@ Use the narrative docs first if you are trying to understand how the framework f
 - [Developer Guide](./developer-guide.md): setup, runtime modes, daily workflow, and common implementation patterns
 - [Flow-First Developer Experience](./flow-first-dx.md): product direction for evolving Teleforge toward flow-first authoring and a more unified framework model
 - [Flow-First V2 Migration Plan](./flow-first-migration.md): breaking migration plan for replacing the V1 manifest-first, package-first model with a unified flow-first framework
+- [Flow-First Execution Handoff Plan](./flow-first-execution-plan.md): takeover-grade execution plan for the remaining V2 implementation gaps after the current continuity and server-hook slices
 - [Build Your First Feature](./first-feature.md): guided command + route tutorial for scaffolded apps
 - [Flow Coordination](./flow-coordination.md): annotated walkthrough of Teleforge's chat -> Mini App -> chat lifecycle using Task Shop
 - [BFF Mode Guide](./bff-guide.md): practical guide for turning the generated BFF scaffold into a real backend surface
