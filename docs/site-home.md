@@ -12,6 +12,8 @@ Start with the guides first.
 - [Telegram Mini App Basics](./telegram-basics.md)
 - [Getting Started](./getting-started.md)
 - [Developer Guide](./developer-guide.md)
+- [Flow-First Developer Experience](./flow-first-dx.md)
+- [Flow-First V2 Migration Plan](./flow-first-migration.md)
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
 - [BFF Mode Guide](./bff-guide.md)

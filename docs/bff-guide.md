@@ -39,11 +39,7 @@ Teleforge's BFF package helps with layer 2.
 At the package level, the core pattern is:
 
 ```ts
-import {
-  createBffConfig,
-  defineBffRoute,
-  telegramIdIdentityProvider
-} from "@teleforgex/bff";
+import { createBffConfig, defineBffRoute, telegramIdIdentityProvider } from "@teleforgex/bff";
 
 const config = createBffConfig({
   botToken: process.env.BOT_TOKEN,
@@ -174,10 +170,7 @@ The flow is:
 Use `createPhoneAuthExchangeHandler()` for step 5:
 
 ```ts
-import {
-  createPhoneAuthExchangeHandler,
-  defineBffRoute
-} from "@teleforgex/bff";
+import { createPhoneAuthExchangeHandler, defineBffRoute } from "@teleforgex/bff";
 
 export const phoneExchangeRoute = defineBffRoute({
   auth: "required",

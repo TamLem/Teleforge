@@ -13,6 +13,7 @@ It focuses on the implemented workflow in this repository:
 Use this guide as the hub. The new step-by-step companions are:
 
 - [Telegram Mini App Basics](./telegram-basics.md)
+- [Flow-First Developer Experience](./flow-first-dx.md)
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
 - [BFF Mode Guide](./bff-guide.md)
@@ -20,6 +21,8 @@ Use this guide as the hub. The new step-by-step companions are:
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)
+
+If you are looking for where Teleforge should evolve next rather than what V1 already ships, read [Flow-First Developer Experience](./flow-first-dx.md). That document is design direction, not current behavior.
 
 ## Who Teleforge Is For
 

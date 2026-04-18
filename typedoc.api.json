@@ -1,6 +1,12 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": [
+    "packages/teleforge/src/index.ts",
+    "packages/teleforge/src/web.ts",
+    "packages/teleforge/src/ui.ts",
+    "packages/teleforge/src/bot.ts",
+    "packages/teleforge/src/bff.ts",
+    "packages/teleforge/src/devtools.ts",
     "packages/core/src/index.ts",
     "packages/core/src/browser.ts",
     "packages/core/src/events/react.ts",
