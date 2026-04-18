@@ -1,8 +1,7 @@
 import { useLaunch } from "@teleforgex/web";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 import { resolveMiniAppScreen } from "./screens.js";
-
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { TeleforgeFlowDefinition } from "./flow.js";
@@ -10,6 +9,8 @@ import type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,
   TeleforgeScreenDefinition,
+  TeleforgeScreenGuardBlock,
+  TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
 import type { ReactNode } from "react";
@@ -19,18 +20,81 @@ type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
 export interface TeleforgeMiniAppProps {
   fallback?: ReactNode;
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
+  loadingFallback?: ReactNode;
   pathname?: string;
+  renderBlocked?: (error: BlockedMiniAppScreen) => ReactNode;
   renderError?: (error: UnresolvedMiniAppScreen) => ReactNode;
+  renderRuntimeError?: (error: RuntimeErrorMiniAppScreen) => ReactNode;
   screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>;
 }
 
 export interface UseTeleforgeMiniAppRuntimeOptions
-  extends Omit<TeleforgeMiniAppProps, "fallback" | "renderError"> {}
+  extends Omit<TeleforgeMiniAppProps, "fallback" | "loadingFallback" | "renderBlocked" | "renderError"> {}
+
+export interface ReadyMiniAppScreen extends ResolvedMiniAppScreen {
+  loaderData?: unknown;
+  status: "ready";
+}
+
+export interface BlockedMiniAppScreen extends ResolvedMiniAppScreen {
+  block: TeleforgeScreenGuardBlock;
+  status: "blocked";
+}
+
+export interface PendingMiniAppScreen {
+  resolution: ResolvedMiniAppScreen | UnresolvedMiniAppScreen;
+  status: "pending";
+}
+
+export interface UnresolvedMiniAppRuntimeScreen extends UnresolvedMiniAppScreen {
+  status: "unresolved";
+}
+
+export interface RuntimeErrorMiniAppScreen {
+  error: Error;
+  resolution: ResolvedMiniAppScreen;
+  status: "runtime_error";
+}
+
+export type TeleforgeMiniAppRuntimeState =
+  | ReadyMiniAppScreen
+  | BlockedMiniAppScreen
+  | PendingMiniAppScreen
+  | RuntimeErrorMiniAppScreen
+  | UnresolvedMiniAppRuntimeScreen;
 
 export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
   const resolution = useTeleforgeMiniAppRuntime(props);
 
-  if ("reason" in resolution) {
+  if (resolution.status === "pending") {
+    if (props.loadingFallback) {
+      return <>{props.loadingFallback}</>;
+    }
+
+    if ("reason" in resolution.resolution) {
+      return <DefaultMiniAppPending />;
+    }
+
+    return <DefaultMiniAppPending screenId={resolution.resolution.screenId} />;
+  }
+
+  if (resolution.status === "blocked") {
+    if (props.renderBlocked) {
+      return <>{props.renderBlocked(resolution)}</>;
+    }
+
+    return <DefaultMiniAppBlocked error={resolution} />;
+  }
+
+  if (resolution.status === "runtime_error") {
+    if (props.renderRuntimeError) {
+      return <>{props.renderRuntimeError(resolution)}</>;
+    }
+
+    return <DefaultMiniAppRuntimeError error={resolution} />;
+  }
+
+  if (resolution.status === "unresolved") {
     if (props.renderError) {
       return <>{props.renderError(resolution)}</>;
     }
@@ -48,6 +112,7 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
     <Screen
       flow={resolution.flow}
       flowId={resolution.flowId}
+      loaderData={resolution.loaderData}
       routePath={resolution.routePath}
       screenId={resolution.screenId}
       state={resolution.state}
@@ -58,19 +123,119 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
 
 export function useTeleforgeMiniAppRuntime(
   options: UseTeleforgeMiniAppRuntimeOptions
-): ResolvedMiniAppScreen | UnresolvedMiniAppScreen {
+): TeleforgeMiniAppRuntimeState {
   const launch = useLaunch();
   const pathname = options.pathname ?? resolveWindowPathname();
+  const [state, setState] = useState<TeleforgeMiniAppRuntimeState>(() => {
+    const resolution = resolveMiniAppScreen({
+      flows: options.flows,
+      pathname,
+      screens: options.screens
+    });
 
-  return useMemo(
-    () =>
-      resolveMiniAppScreen({
-        flows: options.flows,
-        pathname,
-        screens: options.screens
-      }),
-    [launch.startParam, options.flows, pathname, options.screens]
-  );
+    if ("reason" in resolution) {
+      return createUnresolvedRuntimeState(resolution);
+    }
+
+    return {
+      resolution,
+      status: "pending"
+    };
+  });
+
+  useEffect(() => {
+    let isCancelled = false;
+    const resolution = resolveMiniAppScreen({
+      flows: options.flows,
+      pathname,
+      screens: options.screens
+    });
+
+    if ("reason" in resolution) {
+      setState(createUnresolvedRuntimeState(resolution));
+      return;
+    }
+
+    setState({
+      resolution,
+      status: "pending"
+    });
+
+    loadMiniAppScreenRuntime(resolution)
+      .then((nextState) => {
+        if (!isCancelled) {
+          setState(nextState);
+        }
+      })
+      .catch((error: unknown) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setState({
+          error:
+            error instanceof Error ? error : new Error("Unknown Teleforge Mini App runtime error."),
+          resolution,
+          status: "runtime_error"
+        });
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [launch.startParam, options.flows, pathname, options.screens]);
+
+  return state;
+}
+
+export async function loadMiniAppScreenRuntime(
+  resolution: ResolvedMiniAppScreen
+): Promise<ReadyMiniAppScreen | BlockedMiniAppScreen> {
+  const context = createRuntimeContext(resolution);
+  const guardResult = resolution.screen.guard
+    ? await resolution.screen.guard(context)
+    : true;
+
+  if (guardResult !== true) {
+    if (guardResult === false) {
+      return {
+        ...resolution,
+        block: {
+          allow: false
+        },
+        status: "blocked"
+      };
+    }
+
+    return {
+      ...resolution,
+      block: guardResult,
+      status: "blocked"
+    };
+  }
+
+  return {
+    ...resolution,
+    ...(resolution.screen.loader
+      ? {
+          loaderData: await resolution.screen.loader(context)
+        }
+      : {}),
+    status: "ready"
+  };
+}
+
+function createRuntimeContext(
+  resolution: ResolvedMiniAppScreen
+): TeleforgeScreenRuntimeContext<unknown> {
+  return {
+    flow: resolution.flow,
+    flowId: resolution.flowId,
+    routePath: resolution.routePath,
+    screenId: resolution.screenId,
+    state: resolution.state,
+    stepId: resolution.stepId
+  };
 }
 
 function DefaultMiniAppError(options: { error: UnresolvedMiniAppScreen }) {
@@ -94,6 +259,41 @@ function DefaultMiniAppError(options: { error: UnresolvedMiniAppScreen }) {
         </div>
       );
   }
+}
+
+function createUnresolvedRuntimeState(
+  resolution: UnresolvedMiniAppScreen
+): UnresolvedMiniAppRuntimeScreen {
+  return {
+    ...resolution,
+    status: "unresolved"
+  };
+}
+
+function DefaultMiniAppBlocked(options: { error: BlockedMiniAppScreen }) {
+  const { error } = options;
+
+  return (
+    <div>
+      Teleforge blocked screen "{error.screenId}" for flow "{error.flowId}".
+      {error.block.reason ? ` ${error.block.reason}` : ""}
+    </div>
+  );
+}
+
+function DefaultMiniAppPending(options: { screenId?: string } = {}) {
+  return <div>Loading Teleforge Mini App{options.screenId ? ` screen "${options.screenId}"` : ""}.</div>;
+}
+
+function DefaultMiniAppRuntimeError(options: { error: RuntimeErrorMiniAppScreen }) {
+  const { error } = options;
+
+  return (
+    <div>
+      Teleforge failed to initialize screen "{error.resolution.screenId}" for flow "
+      {error.resolution.flowId}". {error.error.message}
+    </div>
+  );
 }
 
 function resolveWindowPathname(): string {

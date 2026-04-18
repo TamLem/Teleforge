@@ -20,7 +20,11 @@ export {
   isMiniAppStep
 } from "./flow.js";
 export { createDiscoveredBotRuntime } from "./bot-runtime.js";
-export { TeleforgeMiniApp, useTeleforgeMiniAppRuntime } from "./miniapp-runtime.js";
+export {
+  loadMiniAppScreenRuntime,
+  TeleforgeMiniApp,
+  useTeleforgeMiniAppRuntime
+} from "./miniapp-runtime.js";
 export {
   createFlowRoutes,
   createFlowCommands,
@@ -85,6 +89,15 @@ export type {
   ResolvedMiniAppScreen,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
+  TeleforgeScreenGuardBlock,
+  TeleforgeScreenGuardResult,
+  TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
+export type {
+  BlockedMiniAppScreen,
+  ReadyMiniAppScreen,
+  RuntimeErrorMiniAppScreen,
+  TeleforgeMiniAppRuntimeState
+} from "./miniapp-runtime.js";
 export type { TeleforgeFlowMiniAppDefinition } from "./flow.js";

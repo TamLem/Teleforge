@@ -5,19 +5,37 @@ import type { TeleforgeFlowDefinition } from "./flow-definition.js";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
+type MaybePromise<T> = Promise<T> | T;
 
 export interface TeleforgeScreenComponentProps<TState = unknown> {
   flow: TeleforgeFlowDefinition<TState, unknown>;
   flowId: string;
+  loaderData?: unknown;
   routePath: string;
   screenId: string;
   state: TState;
   stepId: string;
 }
 
-export interface TeleforgeScreenDefinition<TState = unknown> {
+export interface TeleforgeScreenRuntimeContext<TState = unknown>
+  extends Omit<TeleforgeScreenComponentProps<TState>, "loaderData"> {}
+
+export interface TeleforgeScreenGuardBlock {
+  allow: false;
+  reason?: string;
+}
+
+export type TeleforgeScreenGuardResult = boolean | TeleforgeScreenGuardBlock;
+
+export interface TeleforgeScreenDefinition<TState = unknown, TLoaderData = unknown> {
   component: ComponentType<TeleforgeScreenComponentProps<TState>>;
+  guard?: (
+    context: TeleforgeScreenRuntimeContext<TState>
+  ) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
+  loader?: (
+    context: TeleforgeScreenRuntimeContext<TState>
+  ) => MaybePromise<TLoaderData>;
   title?: string;
 }
 

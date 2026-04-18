@@ -578,7 +578,8 @@ Status:
 - the framework-owned Mini App shell, screen registry, and screen discovery now exist
 - starter-app now renders through `TeleforgeMiniApp`
 - generated apps now follow the same screen-first Mini App shape
-- loader execution, guard execution, submit handling, and return transitions still need to move into the framework runtime
+- screen-level guard and loader hooks now execute through the framework-owned Mini App runtime
+- submit handling, return transitions, and richer action execution still need to move into the framework runtime
 
 Planned sub-slices:
 

@@ -1,5 +1,9 @@
 export * from "@teleforgex/web";
-export { TeleforgeMiniApp, useTeleforgeMiniAppRuntime } from "./miniapp-runtime.js";
+export {
+  loadMiniAppScreenRuntime,
+  TeleforgeMiniApp,
+  useTeleforgeMiniAppRuntime
+} from "./miniapp-runtime.js";
 export {
   createScreenRegistry,
   defineScreen,
@@ -15,8 +19,17 @@ export type {
   ResolvedMiniAppScreen,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
+  TeleforgeScreenGuardBlock,
+  TeleforgeScreenGuardResult,
+  TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
+export type {
+  BlockedMiniAppScreen,
+  ReadyMiniAppScreen,
+  RuntimeErrorMiniAppScreen,
+  TeleforgeMiniAppRuntimeState
+} from "./miniapp-runtime.js";
 export type {
   ChatFlowStepDefinition,
   FlowActionDefinition,

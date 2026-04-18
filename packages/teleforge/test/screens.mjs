@@ -9,6 +9,7 @@ import {
   defineFlow,
   defineScreen,
   discoverScreenFiles,
+  loadMiniAppScreenRuntime,
   loadTeleforgeScreens,
   resolveMiniAppScreen
 } from "../dist/index.js";
@@ -143,4 +144,88 @@ test("resolveMiniAppScreen resolves flow routes to registered screens", () => {
   assert.equal(detailResolution.stepId, "detail");
   assert.equal(detailResolution.screenId, "catalog.detail");
   assert.equal(missingResolution.reason, "missing_route");
+});
+
+test("loadMiniAppScreenRuntime evaluates screen guards and loaders", async () => {
+  const flow = defineFlow({
+    id: "checkout",
+    initialStep: "address",
+    state: {
+      userId: "u_123"
+    },
+    miniApp: {
+      route: "/checkout"
+    },
+    steps: {
+      address: {
+        screen: "checkout.address",
+        type: "miniapp"
+      }
+    }
+  });
+  const allowedScreen = defineScreen({
+    async guard(context) {
+      return context.state.userId === "u_123";
+    },
+    loader(context) {
+      return {
+        heading: `Address for ${context.flowId}`
+      };
+    },
+    component: () => null,
+    id: "checkout.address"
+  });
+
+  const resolution = resolveMiniAppScreen({
+    flows: [flow],
+    pathname: "/checkout",
+    screens: [allowedScreen]
+  });
+
+  assert.ok(!("reason" in resolution));
+
+  const runtime = await loadMiniAppScreenRuntime(resolution);
+  assert.equal(runtime.status, "ready");
+  assert.deepEqual(runtime.loaderData, {
+    heading: "Address for checkout"
+  });
+});
+
+test("loadMiniAppScreenRuntime blocks screens when the guard fails", async () => {
+  const flow = defineFlow({
+    id: "billing",
+    initialStep: "card",
+    state: {},
+    miniApp: {
+      route: "/billing"
+    },
+    steps: {
+      card: {
+        screen: "billing.card",
+        type: "miniapp"
+      }
+    }
+  });
+  const guardedScreen = defineScreen({
+    guard() {
+      return {
+        allow: false,
+        reason: "Billing details are not available yet."
+      };
+    },
+    component: () => null,
+    id: "billing.card"
+  });
+
+  const resolution = resolveMiniAppScreen({
+    flows: [flow],
+    pathname: "/billing",
+    screens: [guardedScreen]
+  });
+
+  assert.ok(!("reason" in resolution));
+
+  const runtime = await loadMiniAppScreenRuntime(resolution);
+  assert.equal(runtime.status, "blocked");
+  assert.equal(runtime.block.reason, "Billing details are not available yet.");
 });

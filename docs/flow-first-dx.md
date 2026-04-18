@@ -191,6 +191,7 @@ Current migration progress already reflects part of this direction:
 - shared `defineFlow()` definitions can now be used on bot and Mini App surfaces
 - Mini App screens can be registered through `defineScreen()`
 - `TeleforgeMiniApp` provides a framework-owned shell for flow-aware screen resolution
+- screen modules can now carry framework-owned guard and loader hooks
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
 
 ## Desired Outcome
