@@ -13,6 +13,7 @@ export interface TeleforgeAppIdentity {
 
 export interface TeleforgeMiniAppConfig extends Omit<TeleforgeManifest["miniApp"], "entryPoint"> {
   entry: string;
+  screensRoot?: string;
 }
 
 export interface TeleforgeFlowConventions {
@@ -39,7 +40,7 @@ export function defineTeleforgeApp<TConfig extends TeleforgeAppConfig>(config: T
 }
 
 export function teleforgeAppToManifest(config: TeleforgeAppConfig): TeleforgeManifest {
-  const { entry, ...miniApp } = config.miniApp;
+  const { entry, screensRoot: _screensRoot, ...miniApp } = config.miniApp;
 
   return {
     bot: config.bot,

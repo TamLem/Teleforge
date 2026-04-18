@@ -20,16 +20,20 @@ export {
   isMiniAppStep
 } from "./flow.js";
 export { createDiscoveredBotRuntime } from "./bot-runtime.js";
+export { TeleforgeMiniApp, useTeleforgeMiniAppRuntime } from "./miniapp-runtime.js";
 export {
   createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
   createFlowRuntimeSummaries,
   createFlowRuntimeSummary,
+  discoverScreenFiles,
   discoverFlowHandlerFiles,
   discoverFlowFiles,
+  loadTeleforgeScreens,
   loadTeleforgeFlowHandlers,
-  loadTeleforgeFlows
+  loadTeleforgeFlows,
+  resolveScreenRoot
 } from "./discovery.js";
 export {
   loadTeleforgeApp,
@@ -49,9 +53,13 @@ export type {
   TeleforgeFlowBotCommandDefinition,
   TeleforgeFlowBotDefinition,
   TeleforgeFlowDefinition,
-  TeleforgeFlowDefinitionInput,
-  TeleforgeFlowMiniAppDefinition
+  TeleforgeFlowDefinitionInput
 } from "./flow.js";
+export {
+  createScreenRegistry,
+  defineScreen,
+  resolveMiniAppScreen
+} from "./screens.js";
 export type {
   CreateFlowCommandsOptions,
   CreateFlowCoordinationConfigFromFlowsOptions,
@@ -64,9 +72,19 @@ export type {
   DiscoveredFlowStepSummary,
   DiscoverFlowHandlerFilesOptions,
   DiscoverFlowFilesOptions,
+  DiscoverScreenFilesOptions,
   LoadTeleforgeFlowHandlersOptions,
   LoadTeleforgeFlowsOptions,
+  LoadTeleforgeScreensOptions,
   TeleforgeFlowConventions
 } from "./discovery.js";
 export type { CreateDiscoveredBotRuntimeOptions } from "./bot-runtime.js";
 export type { LoadedTeleforgeApp } from "./config.js";
+export type {
+  DiscoveredScreenModule,
+  ResolvedMiniAppScreen,
+  TeleforgeScreenComponentProps,
+  TeleforgeScreenDefinition,
+  UnresolvedMiniAppScreen
+} from "./screens.js";
+export type { TeleforgeFlowMiniAppDefinition } from "./flow.js";

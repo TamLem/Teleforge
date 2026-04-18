@@ -29,6 +29,10 @@ Implemented in the repo now:
 - convention-based external flow handler discovery for step enter/submit/action wiring
 - devtools flow completeness diagnostics, including step-level wiring status and unresolved handler gaps
 - framework-owned bot execution for discovered chat-entry flows, callback actions, and chat-to-Mini-App transitions
+- browser-safe flow definitions for shared flow modules
+- convention-based screen discovery for Mini App screens
+- a framework-owned Mini App shell and screen registry entrypoint
+- starter-app Mini App rendering through the framework-owned shell instead of app-local screen selection
 
 That means the migration is no longer blocked on primitives or on the initial app path. The remaining work is mostly about **making flows the primary runtime object everywhere**, not about inventing the base framework APIs.
 
@@ -48,24 +52,166 @@ That means the main migration is:
 - from manual registration to convention-first discovery
 - from coordination helpers to flow execution as the default model
 
+## Adopted Frontend Architecture Decisions
+
+The Mini App side of V2 should not be treated as a generic website and not as a thin renderer bolted onto the bot runtime.
+
+The adopted direction is:
+
+- Teleforge Mini Apps are a **screen runtime**
+- screens are bound to flow steps or explicit launch intents
+- the product abstraction remains `flow -> step -> screen -> transition`
+- routes exist as delivery/runtime machinery, not as the primary authoring model
+
+This means the frontend architecture for the remaining V2 work should follow these rules.
+
+### 1. The frontend is a screen runtime, not a monolithic SPA
+
+Mini App steps should resolve to registered screens with:
+
+- flow context
+- step context
+- optional loader data
+- typed submit/action contracts
+- runtime-owned transition handling
+
+Developers should author screens and flow steps, not arbitrary page trees.
+
+### 2. Teleforge owns the product model; the web framework owns delivery
+
+The framework should keep:
+
+- flow definitions
+- step metadata
+- screen identity
+- loader/guard/submit/action contracts
+- transition ownership
+
+The underlying frontend runtime should provide:
+
+- route delivery
+- SSR or pre-render entry where useful
+- client-side transitions after boot
+- code splitting and hydration machinery
+
+For V2 planning purposes, Teleforge should use one default delivery/runtime stack internally rather than exposing multiple user-facing frontend modes.
+
+That means:
+
+- users should not choose between "SPA mode", "Next.js mode", or other framework-branded frontend modes
+- the concrete web runtime remains an implementation detail of Teleforge
+- the authoring model stays `app -> flow -> step -> screen`
+- the generated app and docs should present one Mini App model, not a framework comparison
+
+### 3. Use a hybrid rendering model
+
+The frontend target is not a full upfront SPA payload.
+
+The architecture should favor:
+
+- a small persistent Mini App shell
+- initial shell or first-screen render via SSR/pre-render where useful
+- selective hydration of interactive surfaces
+- screen-level lazy loading and chunking
+- client-driven transitions after initial boot
+
+This should be reflected in the remaining slices, especially screen resolution and shell/runtime ownership.
+
+The important constraint is that this should remain one default runtime behavior, not a user-facing render-mode matrix.
+
+### 4. Add an explicit runtime bridge/server layer
+
+The migration plan should treat Mini App execution as a bridge-backed runtime when server authority is required, not as direct screen-to-database glue.
+
+When present, that bridge layer should own:
+
+- flow instance loading
+- guard execution
+- loader execution
+- submit/action endpoints
+- transition resolution
+- auth/session validation
+- persistence and logging
+
+This is the right place for authoritative flow validation. The frontend remains an untrusted client.
+
+This should not be taught as a separate "BFF product" that users are expected to assemble up front.
+
+Instead:
+
+- server-backed flow hooks are optional framework behavior
+- apps that do not need custom server authority should not be forced into a visible BFF model
+- apps that do need server authority should use framework-owned flow hooks, not hand-wired backend concepts as the first abstraction
+
+### 4.1 BFF is not a V2 public concept
+
+The current repo has a `packages/bff` implementation layer, but V2 should not preserve `BFF` as a public framework concept that users are asked to reason about.
+
+The intended V2 stance is:
+
+- users build apps through flows, screens, handlers, and optional server hooks
+- users do not start by choosing or assembling a BFF
+- server-backed behavior is introduced only when a flow needs trusted server execution
+
+During migration:
+
+- `packages/bff` may remain temporarily as an internal implementation module
+- its responsibilities may later be renamed, collapsed, or redistributed behind the unified `teleforge` surface
+- docs and scaffolds should stop teaching `BFF` as a first-class app shape
+
+The public DX target is:
+
+- `flows + screens + optional server hooks`
+
+not:
+
+- `bot + web + bff` composition
+
+### 5. Keep state boundaries explicit
+
+The remaining runtime work should distinguish:
+
+- local UI state: screen-only transient state
+- flow state: durable shared state across chat and Mini App
+- domain state: persistent application state outside the flow instance
+- derived view state: computed data that usually should not be persisted directly
+
+This should shape the runtime bridge APIs and the screen hook model.
+
+### 6. Model Telegram-specific behavior as a capability layer
+
+Telegram WebApp APIs should not be used ad hoc across screens.
+
+V2 should expose a clean capability layer for:
+
+- main button
+- back button
+- theme and viewport
+- haptics
+- share/close/expand and related client integrations
+
+This belongs in the Mini App shell/runtime layer, not in arbitrary screen code.
+
 ## Hard Cut Line
 
 V2 should replace these V1 defaults:
 
 - `teleforge.app.json` as the source of truth
 - `createBotRuntime()` as the default app entry model
-- `createBffConfig()` as the default first thing users assemble
+- `createBffConfig()` or any user-facing backend assembly as the default first thing users assemble
 - `CoordinationProvider` and related primitives as the first flow API users touch
 - scaffold output that teaches developers to register commands, routes, and handlers manually
 - docs that explain Teleforge primarily through package boundaries
+- docs that force users to think in terms of SPA vs Next.js vs BFF mode choices
 
 V2 should replace them with:
 
 - `teleforge.config.ts`
 - `defineTeleforgeApp()`
 - `defineFlow()`
-- convention-owned discovery of flows, handlers, pages, and routes
+- convention-owned discovery of flows, handlers, screens, and optional server hooks
 - a single public framework package surface
+- one default Teleforge Mini App runtime model
 
 ## What Can Be Reused
 
@@ -79,6 +225,12 @@ V1 already contains useful execution substrate that V2 can build on internally:
 
 These should be reused as implementation layers where possible, but they should stop being the primary authoring surface.
 
+For clarity:
+
+- `packages/bff` may continue to exist during migration for implementation reuse
+- that does not mean `BFF` remains a user-facing framework abstraction
+- if a later rename or consolidation makes the public model simpler, that is aligned with this plan
+
 ## Migration Workstreams
 
 ### 1. Create the new framework root
@@ -90,6 +242,7 @@ This surface should own:
 - root exports such as `defineTeleforgeApp()` and `defineFlow()`
 - subpath exports for specialized surfaces where needed
 - the CLI/bin so installation and usage feel like one framework
+- the hiding of internal package/runtime boundaries from app authors
 
 Internal monorepo packages can remain during implementation, but V2 docs and generated apps should no longer teach the split-package model.
 
@@ -107,8 +260,14 @@ It should describe:
 - flow roots
 - bot defaults
 - Mini App defaults
-- BFF enablement
+- optional server-hook enablement where needed
 - dev and simulator settings
+
+It should not require:
+
+- a separate BFF section as part of the default app story
+- a frontend mode choice
+- internal package knowledge
 
 This config should be executable framework input, not just metadata.
 
@@ -134,6 +293,7 @@ The flow layer should become the primary developer abstraction for:
 - flow state
 - guards
 - async loaders or submit handlers
+- screen identity and render hints for Mini App steps
 
 This layer should compile down to the existing coordination, launch, resume, and return infrastructure where that is still useful.
 
@@ -143,6 +303,7 @@ Status:
 - `defineFlow()` exists and supports typed flow definitions plus bot-entry and Mini App metadata
 - flow actions now support stable action ids for external handler binding
 - framework-owned chat-step execution now exists in the discovered bot runtime
+- browser-safe flow definition exports now exist for Mini App-side consumption
 - what does not exist yet is full framework-owned step execution across Mini App and backend surfaces
 
 ### 4. Add convention-based discovery
@@ -154,7 +315,7 @@ The framework should discover and wire:
 - flow definitions
 - step or action handlers
 - Mini App screens or route modules
-- BFF routes needed by flows
+- optional server hooks needed by flows
 
 The developer should not need to hand-assemble a bot runtime just to make a flow work.
 
@@ -165,8 +326,9 @@ Status:
 - derived command registration exists
 - a framework-owned discovered bot runtime exists and is used by the scaffold and starter app
 - step-handler discovery now exists, including convention-based external step handler modules
+- screen discovery now exists for Mini App screen modules
 - discovered bot runtime now executes chat-entry flows and callback-driven transitions through discovered handlers
-- page/screen discovery and backend-hook discovery do not exist yet
+- backend-hook discovery does not exist yet
 
 ### 5. Make devtools load the app model
 
@@ -181,6 +343,15 @@ This is the biggest infrastructure migration because V1 devtools currently use t
 - simulator boot
 - file watching
 - webhook and public URL diagnostics
+
+Devtools should describe the app in public framework terms:
+
+- flows
+- screens
+- handlers
+- optional server hooks
+
+and not in terms of internal package categories.
 
 Status:
 
@@ -241,9 +412,9 @@ The framework can now discover flows and derive:
 
 But it still does not discover or execute:
 
-- page or screen modules by convention
-- backend handlers derived from flow definitions
+- optional server-backed flow hooks derived from flow definitions
 - Mini App submit/return handling from flow definitions
+- full Mini App loader/guard/submit execution from flow definitions
 
 That is the main missing jump from “framework scaffolding” to “flow-first application runtime”.
 
@@ -254,8 +425,8 @@ Devtools can now boot config-derived apps, surface discovered flow summaries, an
 But the simulator and diagnostics should eventually understand:
 
 - which screens or pages resolve for each Mini App step
-- which backend hooks exist for a flow
-- where a flow is incomplete because a screen, backend hook, or Mini App execution surface is missing
+- which optional server hooks exist for a flow
+- where a flow is incomplete because a screen, server hook, or Mini App execution surface is missing
 
 Until that happens, the runtime path is ahead of the devtools story.
 
@@ -265,7 +436,7 @@ The starter app is aligned now, but Teleforge still lacks a migrated complex exa
 
 - multi-step flows
 - guarded Mini App routes
-- backend-assisted flows
+- server-assisted flows where needed
 - realistic return-to-chat and resume behavior
 
 Task Shop or an equivalent example needs to become that proof point.
@@ -282,7 +453,7 @@ to:
 
 - apps
 - flows
-- handlers
+- screens and handlers
 - framework-owned runtime conventions
 
 ## Recommended Implementation Order
@@ -301,11 +472,12 @@ The foundation phase is now complete enough that the next order should focus on 
 
 ### Revised next order
 
-1. Finish Mini App screen/page resolution and step execution.
-2. Add backend hook discovery and execution where flows need server-side work.
-3. Migrate Task Shop or another non-trivial example onto the same flow-first runtime model.
-4. Extend devtools visibility across screen and backend resolution.
-5. Rewrite the main docs around the now-concrete flow-first path.
+1. Build the Mini App shell/runtime and screen registry behind one default Teleforge app model.
+2. Finish Mini App screen resolution, loader/guard execution, and step submit/return handling.
+3. Add optional server-hook discovery and execution where flows need server-side work.
+4. Migrate Task Shop or another non-trivial example onto the same flow-first runtime model.
+5. Extend devtools visibility across screen and server-hook resolution.
+6. Rewrite the main docs around the now-concrete flow-first path.
 
 This order is better because it finishes the actual framework model before spending more effort on documentation polish or further transitional helpers.
 
@@ -381,12 +553,15 @@ Status:
 
 ### Slice 4. Mini App step and page resolution
 
-Make Mini App step definitions resolve to screens or route modules by convention.
+Make Mini App step definitions resolve to screens inside a framework-owned Mini App runtime.
 
 This should cover:
 
-- screen-to-component lookup
-- optional loaders or submit hooks
+- a small persistent Mini App shell
+- screen registry and screen-to-component lookup
+- framework-owned route entrypoints that host Teleforge screens
+- optional loaders and guards per step
+- submit and action bridge wiring for the active step
 - return-to-chat integration from the framework path
 - clear errors when a step references a missing screen
 - devtools visibility into resolved screen ownership per step
@@ -397,30 +572,42 @@ Target outcome:
 
 Planned sub-slices:
 
-1. Add screen/component resolution from `flows.root` conventions.
-2. Add framework-owned Mini App submit and return handlers for discovered steps.
-3. Surface resolved screen ownership and missing-screen errors in devtools.
+1. Complete screen/component resolution from flow conventions across generated apps.
+2. Add guard/loader execution for first render and client refresh paths.
+3. Add framework-owned Mini App submit, action, and return handlers for discovered steps.
+4. Surface resolved screen ownership and missing-screen errors in devtools.
 
-### Slice 5. Backend hook discovery
+### Slice 5. Optional server-hook discovery
 
-Add optional backend execution points for flows.
+Add the runtime bridge/server layer for flow-aware Mini App execution and optional server hooks.
 
 This should cover:
 
+- authoritative flow instance loading
+- auth/session and flow-ownership validation
+- loader execution entrypoints
 - submit handlers that need server-side work
+- action execution that needs server authority
 - identity-aware route execution where needed
-- a framework-owned mapping from flow definitions to backend hooks
-- devtools/runtime visibility for which flows depend on backend hooks
+- a framework-owned mapping from flow definitions to server hooks
+- devtools/runtime visibility for which flows depend on server hooks
 
 Target outcome:
 
-- BFF behavior becomes flow-shaped instead of app-wired glue code
+- server-backed flow behavior becomes flow-shaped instead of app-wired glue code
 
 Planned sub-slices:
 
-1. Define convention roots for flow-scoped backend hooks.
-2. Map flow step submit handlers onto BFF execution points.
-3. Surface backend-hook requirements and gaps in runtime summaries and devtools.
+1. Define the runtime bridge/server contract for loaders, submits, actions, and transition resolution.
+2. Define convention roots for flow-scoped server hooks.
+3. Map flow step submit/action handlers onto bridge execution points.
+4. Surface server-hook requirements and gaps in runtime summaries and devtools.
+
+Public API rule for this slice:
+
+- no new user-facing `BFF mode`
+- no requirement that users import or think about a `bff` package
+- server capabilities should surface as flow-level hooks or config, not as a separate app topology choice
 
 ### Slice 6. Complex example migration
 
@@ -430,7 +617,8 @@ This should prove:
 
 - multi-step journeys
 - guarded screens
-- backend-assisted transitions
+- server-assisted transitions where needed
+- screen-runtime execution inside the Mini App shell
 - realistic flow resume behavior
 - convention-discovered handlers instead of hand-wired runtime glue
 
@@ -441,7 +629,7 @@ Target outcome:
 Planned sub-slices:
 
 1. Port one multi-step Task Shop flow onto `defineFlow()`.
-2. Replace hand-wired bot/runtime glue with discovered handlers.
+2. Replace hand-wired bot/runtime glue with discovered handlers and screen registration.
 3. Prove guarded screens, backend-assisted transitions, and resume behavior from the framework path.
 
 ### Slice 7. Documentation cutover
@@ -451,7 +639,7 @@ Rewrite the main docs around the flow-first model after the runtime is complete 
 This should cover:
 
 - getting started from `teleforge.config.ts`
-- defining flows and handlers
+- defining flows, screens, and handlers
 - local dev and simulator debugging
 - complex app composition patterns
 
@@ -461,8 +649,8 @@ Target outcome:
 
 Planned sub-slices:
 
-1. Rewrite getting started around `teleforge.config.ts`, `flows/*`, and handler conventions.
-2. Rewrite framework guides around discovered runtime execution instead of package assembly.
+1. Rewrite getting started around `teleforge.config.ts`, `flows/*`, screens, and handler conventions.
+2. Rewrite framework guides around screen runtime, discovered execution, and optional server hooks instead of package assembly or mode choices.
 3. Demote V1/package-boundary docs to migration or internal architecture references only.
 
 ## Current-to-V2 Mapping
@@ -475,7 +663,9 @@ The main conceptual replacements are:
 | package-oriented mental model                     | framework-oriented mental model                                |
 | `createBotRuntime()` + command registration       | discovered framework runtime from flow definitions             |
 | `CoordinationProvider` as an app integration step | framework-owned flow execution                                 |
-| `defineBffRoute()` as an entry concept            | optional backend surface derived from app and flow definitions |
+| raw web routes/pages as the product model         | screen runtime hosted by framework-owned route entrypoints     |
+| SPA vs Next.js vs BFF mode choice                 | one default Teleforge app model                                |
+| `defineBffRoute()` as an entry concept            | optional server hook/runtime bridge derived from flows         |
 | scaffolded manual wiring                          | scaffolded framework conventions                               |
 
 ## Acceptance Criteria
@@ -485,12 +675,17 @@ The migration is successful when:
 - a new Teleforge app starts from `teleforge.config.ts`
 - the primary app feature is expressed as a flow, not as package wiring
 - the bot, Mini App, and return-to-chat lifecycle work from a framework-owned discovered runtime
+- Mini App screens resolve from a framework-owned screen runtime, not ad hoc route wiring
+- the Mini App shell remains small and screen-level code is lazy-loaded by default
+- authoritative submit/action/guard/loader execution happens through the runtime bridge/server layer when needed
 - `teleforge dev` boots the app from the new config model
 - `teleforge dev` can explain flow wiring state at the step level
 - the starter example and the scaffold use the same framework path
 - route ownership is no longer duplicated between config and flows
-- generated apps use the unified framework package
-- the main docs teach flows, handlers, and app definitions before package boundaries
+- generated apps expose one Teleforge app model without mode-selection complexity
+- the main docs teach flows, screens, handlers, and app definitions before package boundaries or internal package topology
+- `BFF` is no longer taught as a public Teleforge concept
+- optional server-backed behavior is explained only as flow-level server hooks when needed
 
 ## Non-Goals
 

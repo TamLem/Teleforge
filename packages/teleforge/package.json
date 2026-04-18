@@ -75,6 +75,9 @@
     "@teleforgex/web": "workspace:0.1.0",
     "tsx": "^4.20.6"
   },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -99,6 +102,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
     "typescript": "^5.8.3"
   }
 }

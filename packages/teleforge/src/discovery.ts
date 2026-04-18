@@ -11,6 +11,7 @@ import type {
   FlowStepDefinition,
   TeleforgeFlowDefinition
 } from "./flow.js";
+import type { DiscoveredScreenModule } from "./screens.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
   CoordinationDefaults,
@@ -28,6 +29,7 @@ type AnyFlowDefinition = TeleforgeFlowDefinition<
 >;
 
 const FLOW_FILE_SUFFIXES = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"] as const;
+const SCREEN_FILE_SUFFIXES = [".screen.tsx", ".screen.ts", ".screen.mts", ".screen.jsx", ".screen.js", ".screen.mjs"] as const;
 const HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
 const DEFAULT_FLOW_ROOT = "flows";
 type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
@@ -57,9 +59,76 @@ export interface DiscoverFlowHandlerFilesOptions {
 
 export interface LoadTeleforgeFlowHandlersOptions extends DiscoverFlowHandlerFilesOptions {}
 
+export interface DiscoverScreenFilesOptions {
+  app?: {
+    miniApp: {
+      entry: string;
+      screensRoot?: string;
+    };
+  };
+  cwd: string;
+  root?: string;
+}
+
+export interface LoadTeleforgeScreensOptions extends DiscoverScreenFilesOptions {}
+
 export interface DiscoveredFlowModule {
   filePath: string;
   flow: AnyFlowDefinition;
+}
+
+export async function discoverScreenFiles(options: DiscoverScreenFilesOptions): Promise<string[]> {
+  const root = resolveScreenRoot(options);
+  const absoluteRoot = path.resolve(options.cwd, root);
+
+  try {
+    return await collectFilesBySuffix(absoluteRoot, SCREEN_FILE_SUFFIXES);
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export function resolveScreenRoot(options: DiscoverScreenFilesOptions): string {
+  if (options.root) {
+    return options.root;
+  }
+
+  if (options.app?.miniApp.screensRoot) {
+    return options.app.miniApp.screensRoot;
+  }
+
+  return path.join(path.dirname(options.app?.miniApp.entry ?? "apps/web/src/main.tsx"), "screens");
+}
+
+export async function loadTeleforgeScreens(
+  options: LoadTeleforgeScreensOptions
+): Promise<DiscoveredScreenModule[]> {
+  const files = await discoverScreenFiles(options);
+  const discovered: DiscoveredScreenModule[] = [];
+  const seenIds = new Map<string, string>();
+
+  for (const filePath of files) {
+    const screen = await loadScreenDefinition(filePath);
+    const existing = seenIds.get(screen.id);
+
+    if (existing) {
+      throw new Error(
+        `Duplicate screen id "${screen.id}" discovered in "${existing}" and "${filePath}".`
+      );
+    }
+
+    seenIds.set(screen.id, filePath);
+    discovered.push({
+      filePath,
+      screen
+    });
+  }
+
+  return discovered;
 }
 
 export interface DiscoveredFlowActionSummary {
@@ -545,6 +614,17 @@ async function loadFlowDefinition(filePath: string): Promise<AnyFlowDefinition> 
   }
 
   return candidate;
+}
+
+async function loadScreenDefinition(filePath: string): Promise<DiscoveredScreenModule["screen"]> {
+  const module = await import(pathToFileURL(filePath).href);
+  const screen = module.default;
+
+  if (!screen || typeof screen !== "object" || typeof screen.id !== "string") {
+    throw new Error(`Screen module "${filePath}" must default-export a screen definition.`);
+  }
+
+  return Object.freeze(screen);
 }
 
 async function loadFlowHandlerModule(

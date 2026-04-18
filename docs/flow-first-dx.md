@@ -11,9 +11,9 @@ The primary authoring model should be:
 - define a flow
 - define the steps in that flow
 - attach handlers to user actions and transitions
-- let Teleforge wire the bot, Mini App, state, resume, and backend surfaces around it
+- let Teleforge wire the bot, Mini App, state, resume, and optional server-backed behavior around it
 
-Instead of starting from package boundaries like `bot`, `web`, `bff`, and `core`, developers should start from the user journey they want to build.
+Instead of starting from package boundaries or runtime topology choices, developers should start from the user journey they want to build.
 
 ## Why This Direction
 
@@ -22,7 +22,7 @@ Today, Teleforge V1 is strongest when the developer already understands:
 - which package owns which concern
 - how chat opens a Mini App
 - how Mini App state is resumed
-- how `web_app_data`, BFF routes, and auth/session helpers fit together
+- how `web_app_data`, return-to-chat helpers, and server-backed flow behavior fit together
 
 That is workable for framework authors and advanced users, but it still feels library-first.
 
@@ -51,6 +51,7 @@ The core concepts are:
 
 - `Flow`: a complete user journey such as onboarding, checkout, profile setup, or phone verification
 - `Step`: one unit of interaction in chat or in the Mini App
+- `Screen`: the Mini App UI bound to a Mini App step
 - `Handler`: the application logic attached to a step or action
 - `State`: typed data accumulated through the flow
 - `Transition`: the next destination after a user action or handler result
@@ -122,13 +123,14 @@ This is not a final API contract. It shows the intended center of gravity: the f
 From that definition, the framework should own the repetitive wiring:
 
 - bot command and callback registration
-- Mini App route or screen entry
+- Mini App screen entry and runtime resolution
+- screen registry and route-to-screen matching
 - typed flow state persistence
 - return-to-chat behavior
 - resume behavior after interruption
-- optional BFF submission or validation endpoints where the flow needs them
+- optional server hooks for validation, loaders, submits, or trusted actions where the flow needs them
 
-In other words, the framework should interpret the flow across surfaces instead of forcing developers to manually synchronize chat logic, browser logic, and backend logic.
+In other words, the framework should interpret the flow across surfaces instead of forcing developers to manually synchronize chat logic, screen logic, and server logic.
 
 ## Handlers as the Main Extension Point
 
@@ -143,6 +145,8 @@ Important handler shapes include:
 - `onComplete`
 - `guard`
 - `loader`
+
+The important constraint is that these should feel like one flow runtime model, not separate bot/web/backend APIs that the app author has to stitch together manually.
 
 This keeps application logic close to the step where it matters.
 
@@ -159,6 +163,16 @@ That means a flow can:
 
 The framework should make that normal, not advanced.
 
+It should also present one default Mini App model to the user.
+
+The app author should not need to choose between:
+
+- a "SPA mode"
+- a "Next.js mode"
+- a "BFF mode"
+
+Those are implementation details or legacy repo concepts, not the intended V2 authoring model.
+
 ## Relationship to V1
 
 Teleforge V1 already contains building blocks for this direction:
@@ -166,7 +180,7 @@ Teleforge V1 already contains building blocks for this direction:
 - coordinated flow state
 - bot-side Mini App launch helpers
 - Mini App resume and return-to-chat helpers
-- Telegram-aware BFF routes and session/auth helpers
+- server-side auth, identity, and route helpers that can be reused behind flow hooks
 
 The problem is not that the pieces do not exist. The problem is that developers still experience them as separate pieces.
 
@@ -177,8 +191,9 @@ The flow-first direction reframes those pieces behind one framework model.
 The desired developer experience is:
 
 - define a flow
+- define screens for Mini App steps where needed
 - write handlers where the business logic lives
-- let Teleforge run that flow across chat, Mini App, and backend boundaries
+- let Teleforge run that flow across chat, Mini App, and optional server-backed boundaries
 
 That is the shift from Teleforge as a toolkit to Teleforge as a framework.
 

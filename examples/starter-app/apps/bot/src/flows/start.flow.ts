@@ -1,4 +1,4 @@
-import { defineFlow } from "teleforge";
+import { defineFlow } from "teleforge/web";
 
 export default defineFlow({
   id: "start",
