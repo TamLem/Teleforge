@@ -192,6 +192,7 @@ Current migration progress already reflects part of this direction:
 - Mini App screens can be registered through `defineScreen()`
 - `TeleforgeMiniApp` provides a framework-owned shell for flow-aware screen resolution
 - screen modules can now carry framework-owned guard and loader hooks
+- Mini App submit and action transitions now have framework-owned execution helpers
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
 
 ## Desired Outcome

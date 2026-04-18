@@ -579,7 +579,8 @@ Status:
 - starter-app now renders through `TeleforgeMiniApp`
 - generated apps now follow the same screen-first Mini App shape
 - screen-level guard and loader hooks now execute through the framework-owned Mini App runtime
-- submit handling, return transitions, and richer action execution still need to move into the framework runtime
+- Mini App submit transitions and action execution now have framework-owned runtime helpers
+- return transitions, persistent instance bridging, and richer client-side progression still need to move into the framework runtime
 
 Planned sub-slices:
 

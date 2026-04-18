@@ -83,6 +83,7 @@ export interface ChatFlowStepDefinition<TState, TServices = unknown> {
 }
 
 export interface MiniAppFlowStepDefinition<TState, TData = unknown, TServices = unknown> {
+  actions?: ReadonlyArray<FlowActionDefinition<TState, TServices>>;
   onEnter?: (
     input: FlowHandlerContext<TState, TServices>
   ) => MaybePromise<void | FlowTransitionResult<TState>>;
@@ -165,10 +166,6 @@ export function defineFlow<
   }
 
   for (const [stepId, step] of Object.entries(flow.steps)) {
-    if (step.type !== "chat") {
-      continue;
-    }
-
     const seenActionKeys = new Set<string>();
 
     for (const action of step.actions ?? []) {

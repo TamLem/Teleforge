@@ -1,10 +1,11 @@
 import { useLaunch } from "@teleforgex/web";
 import { useEffect, useState } from "react";
 
+import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow.js";
 import { resolveMiniAppScreen } from "./screens.js";
 
-import type { DiscoveredFlowModule } from "./discovery.js";
-import type { TeleforgeFlowDefinition } from "./flow.js";
+import type { DiscoveredFlowModule, DiscoveredFlowStepHandlerModule } from "./discovery.js";
+import type { FlowActionDefinition, FlowTransitionResult, TeleforgeFlowDefinition } from "./flow.js";
 import type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,
@@ -55,6 +56,39 @@ export interface RuntimeErrorMiniAppScreen {
   resolution: ResolvedMiniAppScreen;
   status: "runtime_error";
 }
+
+export interface ExecuteMiniAppStepSubmitOptions<TData = unknown> {
+  data: TData;
+  handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
+  resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
+  services?: unknown;
+}
+
+export interface ExecuteMiniAppStepActionOptions {
+  action: string;
+  handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
+  resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
+  services?: unknown;
+}
+
+interface MiniAppTransitionBase {
+  flow: AnyFlowDefinition;
+  fromStepId: string;
+  state: unknown;
+  stepId: string;
+}
+
+export interface ChatMiniAppTransitionResult extends MiniAppTransitionBase {
+  target: "chat";
+}
+
+export interface ScreenMiniAppTransitionResult extends MiniAppTransitionBase {
+  routePath: string;
+  screenId: string;
+  target: "miniapp";
+}
+
+export type MiniAppStepExecutionResult = ChatMiniAppTransitionResult | ScreenMiniAppTransitionResult;
 
 export type TeleforgeMiniAppRuntimeState =
   | ReadyMiniAppScreen
@@ -225,6 +259,77 @@ export async function loadMiniAppScreenRuntime(
   };
 }
 
+export async function executeMiniAppStepSubmit<TData = unknown>(
+  options: ExecuteMiniAppStepSubmitOptions<TData>
+): Promise<MiniAppStepExecutionResult> {
+  const step = getFlowStep(options.resolution.flow, options.resolution.stepId);
+
+  if (!isMiniAppStep(step)) {
+    throw new Error(
+      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" is not a Mini App step.`
+    );
+  }
+
+  const handlerIndex = createMiniAppHandlerIndex(options.handlers);
+  const handlerModule = handlerIndex.get(
+    createMiniAppHandlerKey(options.resolution.flowId, options.resolution.stepId)
+  );
+  const onSubmit = step.onSubmit ?? handlerModule?.onSubmit;
+
+  if (!onSubmit) {
+    throw new Error(
+      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" does not define an onSubmit handler.`
+    );
+  }
+
+  const result = await onSubmit({
+    data: options.data,
+    flow: options.resolution.flow,
+    services: options.services,
+    state: options.resolution.state
+  });
+
+  return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId);
+}
+
+export async function executeMiniAppStepAction(
+  options: ExecuteMiniAppStepActionOptions
+): Promise<MiniAppStepExecutionResult> {
+  const step = getFlowStep(options.resolution.flow, options.resolution.stepId);
+
+  if (!isMiniAppStep(step)) {
+    throw new Error(
+      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" is not a Mini App step.`
+    );
+  }
+
+  const handlerIndex = createMiniAppHandlerIndex(options.handlers);
+  const handlerModule = handlerIndex.get(
+    createMiniAppHandlerKey(options.resolution.flowId, options.resolution.stepId)
+  );
+  const actionDefinition = (step.actions ?? []).find(
+    (candidate) => resolveFlowActionKey(candidate) === options.action
+  );
+  const actionHandler =
+    actionDefinition?.handler ?? handlerModule?.actions[options.action] ?? undefined;
+
+  if (!actionHandler && !actionDefinition?.to) {
+    throw new Error(
+      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" action "${options.action}" is not wired.`
+    );
+  }
+
+  const result = actionHandler
+    ? await actionHandler({
+        flow: options.resolution.flow,
+        services: options.services,
+        state: options.resolution.state
+      })
+    : undefined;
+
+  return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId, actionDefinition);
+}
+
 function createRuntimeContext(
   resolution: ResolvedMiniAppScreen
 ): TeleforgeScreenRuntimeContext<unknown> {
@@ -236,6 +341,93 @@ function createRuntimeContext(
     state: resolution.state,
     stepId: resolution.stepId
   };
+}
+
+function createMiniAppHandlerIndex(
+  handlers: Iterable<DiscoveredFlowStepHandlerModule> | undefined
+): ReadonlyMap<string, DiscoveredFlowStepHandlerModule> {
+  return new Map(
+    Array.from(handlers ?? [], (handler) => [
+      createMiniAppHandlerKey(handler.flowId, handler.stepId),
+      handler
+    ])
+  );
+}
+
+function createMiniAppHandlerKey(flowId: string, stepId: string): string {
+  return `${flowId}:${stepId}`;
+}
+
+function resolveMiniAppTransition(
+  resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen,
+  result: void | FlowTransitionResult<unknown> | unknown,
+  currentStepId: string,
+  action?: FlowActionDefinition<unknown, unknown>
+): MiniAppStepExecutionResult {
+  const nextState = resolveNextState(resolution.state, result);
+  const nextStepId = resolveNextStepId(currentStepId, action, result);
+  const nextStep = getFlowStep(resolution.flow, nextStepId);
+
+  if (!isMiniAppStep(nextStep)) {
+    return {
+      flow: resolution.flow,
+      fromStepId: currentStepId,
+      state: nextState,
+      stepId: nextStepId,
+      target: "chat"
+    };
+  }
+
+  return {
+    flow: resolution.flow,
+    fromStepId: currentStepId,
+    routePath: resolveMiniAppRoutePath(resolution.flow, nextStepId),
+    screenId: nextStep.screen,
+    state: nextState,
+    stepId: nextStepId,
+    target: "miniapp"
+  };
+}
+
+function resolveMiniAppRoutePath(flow: AnyFlowDefinition, stepId: string): string {
+  const stepRoute = flow.miniApp?.stepRoutes?.[stepId];
+
+  if (typeof stepRoute === "string" && stepRoute.length > 0) {
+    return stepRoute;
+  }
+
+  if (flow.miniApp?.route) {
+    return flow.miniApp.route;
+  }
+
+  throw new Error(`Flow "${flow.id}" does not define a Mini App route for step "${stepId}".`);
+}
+
+function resolveNextState<TState>(
+  currentState: TState,
+  result: void | FlowTransitionResult<TState> | unknown
+): TState {
+  if (isFlowTransitionResult(result) && result.state !== undefined) {
+    return result.state as TState;
+  }
+
+  return currentState;
+}
+
+function resolveNextStepId<TState>(
+  currentStepId: string,
+  action: FlowActionDefinition<TState, unknown> | undefined,
+  result: void | FlowTransitionResult<TState> | unknown
+): string {
+  if (isFlowTransitionResult(result) && typeof result.to === "string" && result.to.length > 0) {
+    return result.to;
+  }
+
+  return action?.to ?? currentStepId;
+}
+
+function isFlowTransitionResult<TState>(value: unknown): value is FlowTransitionResult<TState> {
+  return typeof value === "object" && value !== null;
 }
 
 function DefaultMiniAppError(options: { error: UnresolvedMiniAppScreen }) {

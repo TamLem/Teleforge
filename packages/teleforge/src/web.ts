@@ -1,5 +1,7 @@
 export * from "@teleforgex/web";
 export {
+  executeMiniAppStepAction,
+  executeMiniAppStepSubmit,
   loadMiniAppScreenRuntime,
   TeleforgeMiniApp,
   useTeleforgeMiniAppRuntime
@@ -26,8 +28,13 @@ export type {
 } from "./screens.js";
 export type {
   BlockedMiniAppScreen,
+  ChatMiniAppTransitionResult,
+  ExecuteMiniAppStepActionOptions,
+  ExecuteMiniAppStepSubmitOptions,
+  MiniAppStepExecutionResult,
   ReadyMiniAppScreen,
   RuntimeErrorMiniAppScreen,
+  ScreenMiniAppTransitionResult,
   TeleforgeMiniAppRuntimeState
 } from "./miniapp-runtime.js";
 export type {
