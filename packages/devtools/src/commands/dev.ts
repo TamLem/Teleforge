@@ -27,8 +27,8 @@ export interface DevCommandFlags extends SharedCommandFlags {
  */
 export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   let browserOpened = false;
-  const loadedManifest =
-    flags.mock || flags.webhook ? (await loadManifest(flags.cwd)).manifest : undefined;
+  const loadedState = flags.mock || flags.webhook ? await loadManifest(flags.cwd) : undefined;
+  const loadedManifest = loadedState?.manifest;
   const manifest = flags.webhook ? loadedManifest : undefined;
   const webhookSupport =
     flags.webhook && manifest
@@ -39,6 +39,7 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
       ? createDevSimulator({
           autoloadApp: flags.autoloadApp,
           cwd: flags.cwd,
+          discoveredFlows: loadedState?.discoveredFlows ?? [],
           env: process.env,
           manifest: loadedManifest
         })

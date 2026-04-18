@@ -17,6 +17,7 @@ import {
   type MockProfile,
   type PartialMockProfile
 } from "./mock-server/types.js";
+import type { DiscoveredTeleforgeFlowSummary } from "./manifest.js";
 
 import type { TeleforgeManifest } from "./manifest.js";
 
@@ -24,6 +25,7 @@ export interface DevSimulatorOptions {
   autoloadApp?: boolean;
   appBasePath?: string;
   cwd: string;
+  discoveredFlows?: DiscoveredTeleforgeFlowSummary[];
   env: NodeJS.ProcessEnv;
   manifest: TeleforgeManifest;
 }
@@ -78,6 +80,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
   const apiBasePath = "/__teleforge/api";
   const autoloadApp = options.autoloadApp ?? false;
   const botToken = options.env.BOT_TOKEN ?? process.env.BOT_TOKEN;
+  const discoveredFlows = options.discoveredFlows ?? [];
   const manifestCommands = options.manifest.bot.commands ?? [];
   const builtInFixtures = createBuiltInFixtures(options.manifest.name);
   let activeScenarioName: string | null = null;
@@ -312,6 +315,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         activeScenarioName,
         appOpen,
         commandCount: commandHints.length,
+        discoveredFlowCount: discoveredFlows.length,
         latestEvent: eventLog[0] ?? null,
         lastAction,
         miniAppUrl: `${appBasePath}/`,
@@ -321,6 +325,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       },
       events: eventLog,
       fixtures: builtInFixtures.map(toFixtureSummary),
+      flows: discoveredFlows,
       manifest: {
         commands: manifestCommands,
         name: options.manifest.name
@@ -945,6 +950,28 @@ function createSimulatorUiHtml(options: {
       .pane-diagnostics .log {
         max-height: 21rem;
       }
+      .flow-list {
+        display: grid;
+        gap: 0.6rem;
+      }
+      .flow-card {
+        border-radius: 14px;
+        background: rgba(19, 32, 51, 0.04);
+        padding: 0.8rem 0.9rem;
+        display: grid;
+        gap: 0.25rem;
+      }
+      .flow-card strong {
+        font-size: 0.95rem;
+      }
+      .flow-card code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .flow-meta {
+        font-size: 0.82rem;
+        color: #45556e;
+        line-height: 1.45;
+      }
       @media (max-width: 1680px) {
         .shell {
           grid-template-columns: minmax(320px, 360px) minmax(400px, 1fr) minmax(300px, 360px);
@@ -1099,6 +1126,7 @@ function createSimulatorUiHtml(options: {
             <h2>Debug</h2>
             <div id="debug-summary" class="log">Loading debug state…</div>
             <div class="controls">
+              <label>Discovered Flows<div id="debug-flows" class="flow-list"><p class="hint">Waiting for simulator state…</p></div></label>
               <label>Last Action<div id="debug-last-action" class="log">No simulator actions yet.</div></label>
               <label>Profile Snapshot<div id="debug-profile" class="log">Waiting for simulator state…</div></label>
             </div>
@@ -1118,6 +1146,7 @@ function createSimulatorUiHtml(options: {
         chatInput: document.getElementById("chat-input"),
         colorScheme: document.getElementById("color-scheme"),
         debugLastAction: document.getElementById("debug-last-action"),
+        debugFlows: document.getElementById("debug-flows"),
         debugProfile: document.getElementById("debug-profile"),
         debugSummary: document.getElementById("debug-summary"),
         events: document.getElementById("events"),
@@ -1249,6 +1278,7 @@ function createSimulatorUiHtml(options: {
         ids.debugSummary.textContent = [
           "Mode: " + (payload.chat?.mode || "manifest"),
           "Commands: " + String(debug.commandCount ?? payload.chat?.commandHints?.length ?? 0),
+          "Discovered Flows: " + String(debug.discoveredFlowCount ?? payload.flows?.length ?? 0),
           "Mini App Open: " + String(Boolean(debug.appOpen)),
           "Mini App URL: " + (debug.miniAppUrl || appBasePath + "/"),
           "Active Scenario: " + (debug.activeScenarioName || "None"),
@@ -1269,6 +1299,52 @@ function createSimulatorUiHtml(options: {
           null,
           2
         );
+      }
+
+      function renderFlows(flows) {
+        ids.debugFlows.innerHTML = "";
+
+        if (!Array.isArray(flows) || flows.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "hint";
+          empty.textContent = "No discovered flows. This workspace may be running manifest-only routes.";
+          ids.debugFlows.appendChild(empty);
+          return;
+        }
+
+        for (const flow of flows) {
+          const card = document.createElement("article");
+          card.className = "flow-card";
+
+          const title = document.createElement("strong");
+          title.textContent = flow.id;
+          card.appendChild(title);
+
+          const primary = document.createElement("div");
+          primary.className = "flow-meta";
+          primary.textContent =
+            "route: " +
+            (flow.route || "none") +
+            "\\ncommand: " +
+            (flow.command || "none") +
+            "\\nsteps: " +
+            String(flow.stepCount || 0);
+          primary.style.whiteSpace = "pre-wrap";
+          card.appendChild(primary);
+
+          const secondary = document.createElement("div");
+          secondary.className = "flow-meta";
+          secondary.textContent =
+            "initial: " +
+            (flow.initialStep || "unknown") +
+            "\\nfinal: " +
+            (flow.finalStep || flow.initialStep || "unknown") +
+            (flow.component ? "\\ncomponent: " + flow.component : "");
+          secondary.style.whiteSpace = "pre-wrap";
+          card.appendChild(secondary);
+
+          ids.debugFlows.appendChild(card);
+        }
       }
 
       function renderFixtures(fixtures) {
@@ -1385,6 +1461,7 @@ function createSimulatorUiHtml(options: {
         renderTranscript(payload.transcript);
         renderEvents(payload.events);
         renderDebug(payload);
+        renderFlows(payload.flows);
         renderFixtures(payload.fixtures);
         renderScenarios(payload.scenarios);
         syncAppVisibility(Boolean(payload.debug?.appOpen));

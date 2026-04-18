@@ -29,13 +29,28 @@ export interface TeleforgeManifest extends Omit<CoreTeleforgeManifest, "runtime"
   };
 }
 
+export interface DiscoveredTeleforgeFlowSummary {
+  command?: string;
+  component?: string;
+  filePath?: string;
+  finalStep: string;
+  id: string;
+  initialStep: string;
+  route?: string;
+  stepCount: number;
+}
+
 /**
  * Loads a Teleforge manifest from disk and narrows the runtime to the web frameworks supported by
  * `@teleforgex/devtools`.
  */
 export async function loadManifest(
   cwd: string
-): Promise<{ manifest: TeleforgeManifest; manifestPath: string }> {
+): Promise<{
+  discoveredFlows: DiscoveredTeleforgeFlowSummary[];
+  manifest: TeleforgeManifest;
+  manifestPath: string;
+}> {
   const configState = await tryLoadTeleforgeConfig(cwd);
   const loaded = configState ?? (await loadCoreManifest(cwd));
   const { manifest, manifestPath } = loaded;
@@ -46,7 +61,10 @@ export async function loadManifest(
     );
   }
 
+  const discoveredFlows = hasDiscoveredFlowSummaries(loaded) ? loaded.discoveredFlows : [];
+
   return {
+    discoveredFlows,
     manifest: {
       ...manifest,
       runtime: {
@@ -60,14 +78,24 @@ export async function loadManifest(
 
 async function tryLoadTeleforgeConfig(
   cwd: string
-): Promise<{ manifest: CoreTeleforgeManifest; manifestPath: string } | null> {
+): Promise<{
+  discoveredFlows: DiscoveredTeleforgeFlowSummary[];
+  manifest: CoreTeleforgeManifest;
+  manifestPath: string;
+} | null> {
   const configPath = await resolveConfigPath(cwd);
   if (!configPath) {
     return null;
   }
 
   const config = await loadConfigModule(configPath, cwd);
-  const hydratedConfig = await deriveConfigRoutes(config, cwd);
+  const flowModules = config.flows
+    ? await loadFlowModules({
+        cwd,
+        root: config.flows.root ?? "flows"
+      })
+    : [];
+  const hydratedConfig = deriveConfigRoutes(config, flowModules);
   const result = validateManifest(teleforgeAppToManifest(hydratedConfig));
 
   if (!result.success) {
@@ -77,6 +105,7 @@ async function tryLoadTeleforgeConfig(
   }
 
   return {
+    discoveredFlows: summarizeFlows(flowModules),
     manifest: result.data,
     manifestPath: configPath
   };
@@ -141,10 +170,10 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
   }
 }
 
-async function deriveConfigRoutes(
+function deriveConfigRoutes(
   config: TeleforgeAppConfig,
-  cwd: string
-): Promise<TeleforgeAppConfig> {
+  flows: RouteFlowDefinition[]
+): TeleforgeAppConfig {
   const explicitRoutes = [...(config.routes ?? [])];
   if (!config.flows) {
     return {
@@ -153,11 +182,6 @@ async function deriveConfigRoutes(
     };
   }
 
-  const flows = await loadFlowModules({
-    cwd,
-    root: config.flows.root ?? "flows"
-  });
-
   return {
     ...config,
     routes: createRoutesFromFlows(flows, explicitRoutes)
@@ -165,12 +189,14 @@ async function deriveConfigRoutes(
 }
 
 interface RouteFlowDefinition {
+  __filePath?: string;
   bot?: {
     command?: {
       command: string;
       entryStep?: string;
     };
   };
+  finalStep?: string;
   id: string;
   initialStep: string;
   miniApp?: {
@@ -192,6 +218,30 @@ interface RouteFlowDefinition {
     ui?: RouteDefinition["ui"];
   };
   steps: Record<string, unknown>;
+}
+
+function summarizeFlows(flows: RouteFlowDefinition[]): DiscoveredTeleforgeFlowSummary[] {
+  return flows.map((flow) => ({
+    ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
+    ...(flow.miniApp?.component ? { component: flow.miniApp.component } : {}),
+    ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
+    finalStep: flow.finalStep ?? flow.initialStep,
+    id: flow.id,
+    initialStep: flow.initialStep,
+    ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
+    stepCount: Object.keys(flow.steps).length
+  }));
+}
+
+function hasDiscoveredFlowSummaries(value: unknown): value is {
+  discoveredFlows: DiscoveredTeleforgeFlowSummary[];
+} {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "discoveredFlows" in value &&
+    Array.isArray(value.discoveredFlows)
+  );
 }
 
 async function loadFlowModules(options: {
@@ -265,7 +315,10 @@ async function loadFlowModules(options: {
       }
 
       seenIds.set(flow.id, file);
-      flows.push(flow);
+      flows.push({
+        ...flow,
+        __filePath: file
+      });
     }
 
     process.stdout.write(JSON.stringify(flows));

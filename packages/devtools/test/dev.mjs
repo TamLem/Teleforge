@@ -391,6 +391,11 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     const stateBefore = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/state`);
     assert.equal(stateBefore.transcript[0]?.role, "system");
     assert.equal(stateBefore.chat.mode, "workspace");
+    assert.equal(stateBefore.debug.discoveredFlowCount, 1);
+    assert.equal(stateBefore.flows.length, 1);
+    assert.equal(stateBefore.flows[0]?.id, "start");
+    assert.equal(stateBefore.flows[0]?.route, "/");
+    assert.equal(stateBefore.flows[0]?.command, "start");
     assert.match(stateBefore.debug.scenarioStoragePath, /teleforge-home[\\/]scenarios$/);
     assert.ok(stateBefore.fixtures.some((fixture) => fixture.id === "resume-flow"));
 

@@ -82,6 +82,11 @@ export default defineTeleforgeApp({
   const loaded = await loadManifest(tmpRoot);
 
   assert.equal(loaded.manifest.id, "devtools-flow-app");
+  assert.equal(loaded.discoveredFlows.length, 1);
+  assert.equal(loaded.discoveredFlows[0]?.id, "start");
+  assert.equal(loaded.discoveredFlows[0]?.route, "/");
+  assert.equal(loaded.discoveredFlows[0]?.command, "start");
+  assert.equal(loaded.discoveredFlows[0]?.stepCount, 1);
   assert.equal(loaded.manifest.routes.length, 1);
   assert.equal(loaded.manifest.routes[0]?.path, "/");
   assert.equal(loaded.manifest.routes[0]?.component, "pages/Home");
