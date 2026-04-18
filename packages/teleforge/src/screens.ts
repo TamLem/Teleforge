@@ -12,9 +12,12 @@ export interface TeleforgeScreenComponentProps<TState = unknown> {
   flowId: string;
   loaderData?: unknown;
   routePath: string;
+  runAction?: (action: string) => Promise<void>;
   screenId: string;
   state: TState;
   stepId: string;
+  submit?: (data: unknown) => Promise<void>;
+  transitioning?: boolean;
 }
 
 export interface TeleforgeScreenRuntimeContext<TState = unknown>

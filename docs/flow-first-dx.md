@@ -193,6 +193,7 @@ Current migration progress already reflects part of this direction:
 - `TeleforgeMiniApp` provides a framework-owned shell for flow-aware screen resolution
 - screen modules can now carry framework-owned guard and loader hooks
 - Mini App submit and action transitions now have framework-owned execution helpers
+- the Mini App shell now owns intra-Mini-App step progression and explicit chat handoff state
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
 
 ## Desired Outcome

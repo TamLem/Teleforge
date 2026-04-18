@@ -22,8 +22,10 @@ export interface TeleforgeMiniAppProps {
   fallback?: ReactNode;
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
   loadingFallback?: ReactNode;
+  onReturnToChat?: (result: ChatMiniAppTransitionResult) => void | Promise<void>;
   pathname?: string;
   renderBlocked?: (error: BlockedMiniAppScreen) => ReactNode;
+  renderChatHandoff?: (result: ChatHandoffMiniAppScreen) => ReactNode;
   renderError?: (error: UnresolvedMiniAppScreen) => ReactNode;
   renderRuntimeError?: (error: RuntimeErrorMiniAppScreen) => ReactNode;
   screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>;
@@ -55,6 +57,11 @@ export interface RuntimeErrorMiniAppScreen {
   error: Error;
   resolution: ResolvedMiniAppScreen;
   status: "runtime_error";
+}
+
+export interface ChatHandoffMiniAppScreen {
+  result: ChatMiniAppTransitionResult;
+  status: "chat_handoff";
 }
 
 export interface ExecuteMiniAppStepSubmitOptions<TData = unknown> {
@@ -98,7 +105,28 @@ export type TeleforgeMiniAppRuntimeState =
   | UnresolvedMiniAppRuntimeScreen;
 
 export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
-  const resolution = useTeleforgeMiniAppRuntime(props);
+  const [activePathname, setActivePathname] = useState(() => props.pathname ?? resolveWindowPathname());
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [handoff, setHandoff] = useState<ChatHandoffMiniAppScreen | null>(null);
+  const resolution = useTeleforgeMiniAppRuntime({
+    ...props,
+    pathname: activePathname
+  });
+
+  useEffect(() => {
+    if (props.pathname) {
+      setActivePathname(props.pathname);
+      setHandoff(null);
+    }
+  }, [props.pathname]);
+
+  if (handoff) {
+    if (props.renderChatHandoff) {
+      return <>{props.renderChatHandoff(handoff)}</>;
+    }
+
+    return <DefaultMiniAppChatHandoff result={handoff.result} />;
+  }
 
   if (resolution.status === "pending") {
     if (props.loadingFallback) {
@@ -147,10 +175,31 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
       flow={resolution.flow}
       flowId={resolution.flowId}
       loaderData={resolution.loaderData}
+      runAction={(action: string) =>
+        handleMiniAppAction({
+          action,
+          onReturnToChat: props.onReturnToChat,
+          resolution,
+          setActivePathname,
+          setHandoff,
+          setIsTransitioning
+        })
+      }
       routePath={resolution.routePath}
       screenId={resolution.screenId}
       state={resolution.state}
       stepId={resolution.stepId}
+      submit={(data: unknown) =>
+        handleMiniAppSubmit({
+          data,
+          onReturnToChat: props.onReturnToChat,
+          resolution,
+          setActivePathname,
+          setHandoff,
+          setIsTransitioning
+        })
+      }
+      transitioning={isTransitioning}
     />
   );
 }
@@ -330,6 +379,79 @@ export async function executeMiniAppStepAction(
   return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId, actionDefinition);
 }
 
+async function handleMiniAppSubmit(options: {
+  data: unknown;
+  onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
+  resolution: ReadyMiniAppScreen;
+  setActivePathname: (pathname: string) => void;
+  setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
+  setIsTransitioning: (value: boolean) => void;
+}): Promise<void> {
+  options.setIsTransitioning(true);
+
+  try {
+    const result = await executeMiniAppStepSubmit({
+      data: options.data,
+      resolution: options.resolution
+    });
+
+    await applyMiniAppExecutionResult({
+      onReturnToChat: options.onReturnToChat,
+      result,
+      setActivePathname: options.setActivePathname,
+      setHandoff: options.setHandoff
+    });
+  } finally {
+    options.setIsTransitioning(false);
+  }
+}
+
+async function handleMiniAppAction(options: {
+  action: string;
+  onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
+  resolution: ReadyMiniAppScreen;
+  setActivePathname: (pathname: string) => void;
+  setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
+  setIsTransitioning: (value: boolean) => void;
+}): Promise<void> {
+  options.setIsTransitioning(true);
+
+  try {
+    const result = await executeMiniAppStepAction({
+      action: options.action,
+      resolution: options.resolution
+    });
+
+    await applyMiniAppExecutionResult({
+      onReturnToChat: options.onReturnToChat,
+      result,
+      setActivePathname: options.setActivePathname,
+      setHandoff: options.setHandoff
+    });
+  } finally {
+    options.setIsTransitioning(false);
+  }
+}
+
+async function applyMiniAppExecutionResult(options: {
+  onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
+  result: MiniAppStepExecutionResult;
+  setActivePathname: (pathname: string) => void;
+  setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
+}): Promise<void> {
+  if (options.result.target === "miniapp") {
+    options.setHandoff(null);
+    options.setActivePathname(options.result.routePath);
+    return;
+  }
+
+  await options.onReturnToChat?.(options.result);
+  options.setHandoff({
+    result: options.result,
+    status: "chat_handoff"
+  });
+}
+
 function createRuntimeContext(
   resolution: ResolvedMiniAppScreen
 ): TeleforgeScreenRuntimeContext<unknown> {
@@ -475,6 +597,14 @@ function DefaultMiniAppBlocked(options: { error: BlockedMiniAppScreen }) {
 
 function DefaultMiniAppPending(options: { screenId?: string } = {}) {
   return <div>Loading Teleforge Mini App{options.screenId ? ` screen "${options.screenId}"` : ""}.</div>;
+}
+
+function DefaultMiniAppChatHandoff(options: { result: ChatMiniAppTransitionResult }) {
+  return (
+    <div>
+      Teleforge is handing this flow back to chat at step "{options.result.stepId}".
+    </div>
+  );
 }
 
 function DefaultMiniAppRuntimeError(options: { error: RuntimeErrorMiniAppScreen }) {

@@ -580,14 +580,14 @@ Status:
 - generated apps now follow the same screen-first Mini App shape
 - screen-level guard and loader hooks now execute through the framework-owned Mini App runtime
 - Mini App submit transitions and action execution now have framework-owned runtime helpers
-- return transitions, persistent instance bridging, and richer client-side progression still need to move into the framework runtime
+- the Mini App shell now owns intra-Mini-App step progression and explicit chat handoff state
+- persistent instance bridging and real return-to-chat/resume integration still need to move into the framework runtime
 
-Planned sub-slices:
+Remaining sub-slices:
 
-1. Complete screen/component resolution from flow conventions across generated apps.
-2. Add guard/loader execution for first render and client refresh paths.
-3. Add framework-owned Mini App submit, action, and return handlers for discovered steps.
-4. Surface resolved screen ownership and missing-screen errors in devtools.
+1. Persist flow instance state across Mini App step transitions instead of keeping the current transition result in shell-local state only.
+2. Replace the current explicit chat handoff state with real return-to-chat/resume integration.
+3. Surface Mini App transition progress and handoff behavior more clearly in devtools.
 
 ### Slice 5. Optional server-hook discovery
 

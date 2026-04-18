@@ -98,6 +98,7 @@ export type {
 } from "./screens.js";
 export type {
   BlockedMiniAppScreen,
+  ChatHandoffMiniAppScreen,
   ChatMiniAppTransitionResult,
   ExecuteMiniAppStepActionOptions,
   ExecuteMiniAppStepSubmitOptions,
