@@ -73,7 +73,9 @@ export interface FlowSubmitContext<
 
 export interface FlowActionDefinition<TState, TServices = unknown> {
   id?: string;
-  handler?: (input: FlowHandlerContext<TState, TServices>) => MaybePromise<void | FlowTransitionResult<TState>>;
+  handler?: (
+    input: FlowHandlerContext<TState, TServices>
+  ) => MaybePromise<void | FlowTransitionResult<TState>>;
   label: string;
   to?: string;
 }
@@ -81,12 +83,16 @@ export interface FlowActionDefinition<TState, TServices = unknown> {
 export interface ChatFlowStepDefinition<TState, TServices = unknown> {
   actions?: ReadonlyArray<FlowActionDefinition<TState, TServices>>;
   message: string | ((input: { state: TState }) => string);
-  onEnter?: (input: FlowHandlerContext<TState, TServices>) => MaybePromise<void | FlowTransitionResult<TState>>;
+  onEnter?: (
+    input: FlowHandlerContext<TState, TServices>
+  ) => MaybePromise<void | FlowTransitionResult<TState>>;
   type: "chat";
 }
 
 export interface MiniAppFlowStepDefinition<TState, TData = unknown, TServices = unknown> {
-  onEnter?: (input: FlowHandlerContext<TState, TServices>) => MaybePromise<void | FlowTransitionResult<TState>>;
+  onEnter?: (
+    input: FlowHandlerContext<TState, TServices>
+  ) => MaybePromise<void | FlowTransitionResult<TState>>;
   onSubmit?: (
     input: FlowSubmitContext<TState, TData, TServices>
   ) => MaybePromise<void | FlowTransitionResult<TState>>;
@@ -377,7 +383,9 @@ export function isMiniAppStep<TState, TServices = unknown>(
   return step.type === "miniapp";
 }
 
-function freezeBotDefinition(bot: TeleforgeFlowBotDefinition): Readonly<TeleforgeFlowBotDefinition> {
+function freezeBotDefinition(
+  bot: TeleforgeFlowBotDefinition
+): Readonly<TeleforgeFlowBotDefinition> {
   return Object.freeze({
     ...(bot.command
       ? {
@@ -405,9 +413,11 @@ function assertStepExists(flowId: string, stepIds: string[], stepId: string, fie
   }
 }
 
-function freezeSteps<TState, TServices, TSteps extends Record<string, FlowStepDefinition<TState, TServices>>>(
-  steps: TSteps
-): Readonly<{ [K in keyof TSteps]: Readonly<TSteps[K]> }> {
+function freezeSteps<
+  TState,
+  TServices,
+  TSteps extends Record<string, FlowStepDefinition<TState, TServices>>
+>(steps: TSteps): Readonly<{ [K in keyof TSteps]: Readonly<TSteps[K]> }> {
   return Object.freeze(
     Object.fromEntries(
       Object.entries(steps).map(([stepId, step]) => [

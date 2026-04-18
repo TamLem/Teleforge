@@ -2,9 +2,9 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { config as loadDotenv } from "dotenv";
 import { createDiscoveredBotRuntime } from "teleforge";
 import { type BotRuntime } from "teleforge/bot";
-import { config as loadDotenv } from "dotenv";
 
 export interface StarterBotRuntimeOptions {
   flowSecret?: string;
@@ -21,7 +21,9 @@ export interface StarterBotConfig {
 
 loadStarterEnv();
 
-export function createStarterBotRuntime(options: StarterBotRuntimeOptions = {}): Promise<BotRuntime> {
+export function createStarterBotRuntime(
+  options: StarterBotRuntimeOptions = {}
+): Promise<BotRuntime> {
   const config = readStarterBotConfig(options);
 
   return createDiscoveredBotRuntime({

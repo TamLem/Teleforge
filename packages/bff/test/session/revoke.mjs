@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createSessionRoutes, executeBffRoute, telegramIdIdentityProvider } from "../../dist/index.js";
+import {
+  createSessionRoutes,
+  executeBffRoute,
+  telegramIdIdentityProvider
+} from "../../dist/index.js";
 import {
   createAuthenticatedTelegramContext,
   createIdentityAdapter,

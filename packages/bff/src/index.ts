@@ -97,7 +97,10 @@ export type {
 } from "./identity/types.js";
 export { createSessionRoutes } from "./routes/session.js";
 export { BffSessionError } from "./session/errors.js";
-export { createPhoneAuthExchangeHandler, createSessionExchangeHandler } from "./session/exchange.js";
+export {
+  createPhoneAuthExchangeHandler,
+  createSessionExchangeHandler
+} from "./session/exchange.js";
 export { withSessionValidation } from "./session/middleware.js";
 export { createSessionRefreshHandler } from "./session/refresh.js";
 export { createSessionRevokeHandler } from "./session/revoke.js";

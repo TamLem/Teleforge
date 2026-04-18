@@ -21,6 +21,7 @@
     "apps/task-shop/packages/**/*.tsx",
     "apps/task-shop/tests/**/*.ts",
     "apps/task-shop/tests/**/*.tsx",
+    "examples/starter-app/teleforge.config.ts",
     "examples/starter-app/apps/web/vite.config.ts",
     "examples/starter-app/apps/**/*.ts",
     "examples/starter-app/apps/**/*.tsx"

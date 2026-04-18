@@ -3,6 +3,7 @@ import https from "node:https";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { config as loadDotenv } from "dotenv";
 import {
   type BotRuntime,
   type BotInstance,
@@ -12,7 +13,6 @@ import {
   type TelegramReplyMarkup,
   type TelegramUpdate
 } from "teleforge/bot";
-import { config as loadDotenv } from "dotenv";
 
 import { createStarterBotRuntime, hasUsableToken, readStarterBotConfig } from "./runtime.js";
 

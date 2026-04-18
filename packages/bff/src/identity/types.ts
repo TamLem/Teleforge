@@ -35,8 +35,9 @@ export interface IdentityAdapter<TAppUser extends AppUser = AppUser> {
   update?: (appUserId: string, updates: Partial<TAppUser>) => Promise<TAppUser> | TAppUser;
 }
 
-export interface PhoneIdentityAdapter<TAppUser extends AppUser = AppUser>
-  extends IdentityAdapter<TAppUser> {
+export interface PhoneIdentityAdapter<
+  TAppUser extends AppUser = AppUser
+> extends IdentityAdapter<TAppUser> {
   findByPhoneNumber: (phoneNumber: string) => Promise<TAppUser | null> | TAppUser | null;
 }
 
@@ -61,18 +62,12 @@ export interface IdentityProvider<TAppUser extends AppUser = AppUser> {
   name: string;
   resolve: (
     input: IdentityProviderContext<TAppUser>
-  ) =>
-    | Promise<IdentityProviderResult<TAppUser> | null>
-    | IdentityProviderResult<TAppUser>
-    | null;
+  ) => Promise<IdentityProviderResult<TAppUser> | null> | IdentityProviderResult<TAppUser> | null;
 }
 
 export type CustomIdentityProviderResolver<TAppUser extends AppUser = AppUser> = (
   input: IdentityProviderContext<TAppUser>
-) =>
-  | Promise<IdentityProviderResult<TAppUser> | null>
-  | IdentityProviderResult<TAppUser>
-  | null;
+) => Promise<IdentityProviderResult<TAppUser> | null> | IdentityProviderResult<TAppUser> | null;
 
 export interface IdentityManager<TAppUser extends AppUser = AppUser> {
   adapter: IdentityAdapter<TAppUser>;
@@ -96,8 +91,10 @@ export interface IdentityResolutionOptions<TAppUser extends AppUser = AppUser> {
   providers: readonly IdentityProvider<TAppUser>[];
 }
 
-export interface PhoneAuthOptions<TAppUser extends AppUser = AppUser>
-  extends Omit<IdentityResolutionOptions<TAppUser>, "adapter" | "providers"> {
+export interface PhoneAuthOptions<TAppUser extends AppUser = AppUser> extends Omit<
+  IdentityResolutionOptions<TAppUser>,
+  "adapter" | "providers"
+> {
   adapter: PhoneIdentityAdapter<TAppUser>;
   secret: string;
 }

@@ -1,4 +1,3 @@
-import { createIdentityManager } from "./manager.js";
 import {
   getCachedIdentity,
   getIdentityCacheKey,
@@ -6,6 +5,7 @@ import {
   setCachedIdentity
 } from "./cache.js";
 import { BffIdentityError } from "./errors.js";
+import { createIdentityManager } from "./manager.js";
 
 import type {
   AppUser,

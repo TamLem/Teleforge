@@ -17,9 +17,8 @@ import {
   type MockProfile,
   type PartialMockProfile
 } from "./mock-server/types.js";
-import type { DiscoveredTeleforgeFlowSummary } from "./manifest.js";
 
-import type { TeleforgeManifest } from "./manifest.js";
+import type { DiscoveredTeleforgeFlowSummary, TeleforgeManifest } from "./manifest.js";
 
 export interface DevSimulatorOptions {
   autoloadApp?: boolean;
@@ -1328,7 +1327,13 @@ function createSimulatorUiHtml(options: {
             "\\ncommand: " +
             (flow.command || "none") +
             "\\nsteps: " +
-            String(flow.stepCount || 0);
+            String(flow.stepCount || 0) +
+            "\\nstep status: wired=" +
+            String(flow.wiredStepCount || 0) +
+            ", warnings=" +
+            String(flow.warningStepCount || 0) +
+            ", passive=" +
+            String(flow.passiveStepCount || 0);
           primary.style.whiteSpace = "pre-wrap";
           card.appendChild(primary);
 
@@ -1339,9 +1344,54 @@ function createSimulatorUiHtml(options: {
             (flow.initialStep || "unknown") +
             "\\nfinal: " +
             (flow.finalStep || flow.initialStep || "unknown") +
+            "\\nhandler wiring: " +
+            (flow.hasRuntimeHandlers ? "present" : "none") +
+            "\\nwiring gaps: " +
+            (flow.hasWiringGaps ? "yes" : "no") +
             (flow.component ? "\\ncomponent: " + flow.component : "");
           secondary.style.whiteSpace = "pre-wrap";
           card.appendChild(secondary);
+
+          if (Array.isArray(flow.steps) && flow.steps.length > 0) {
+            const stepList = document.createElement("div");
+            stepList.className = "flow-meta";
+            stepList.style.whiteSpace = "pre-wrap";
+            stepList.textContent = flow.steps
+              .map((step) => {
+                const parts = [
+                  step.id + " [" + step.status + "]",
+                  "type=" + step.type
+                ];
+
+                if (step.screen) {
+                  parts.push("screen=" + step.screen);
+                }
+
+                parts.push("enter=" + String(Boolean(step.resolvedOnEnter)));
+                parts.push("submit=" + String(Boolean(step.resolvedOnSubmit)));
+                parts.push(
+                  "actions=" +
+                    String(step.resolvedActionCount || 0) +
+                    "/" +
+                    String(step.actionCount || 0)
+                );
+
+                if (Array.isArray(step.unresolvedActionIds) && step.unresolvedActionIds.length > 0) {
+                  parts.push("missing=" + step.unresolvedActionIds.join(","));
+                }
+
+                if (
+                  Array.isArray(step.extraActionHandlerIds) &&
+                  step.extraActionHandlerIds.length > 0
+                ) {
+                  parts.push("extra=" + step.extraActionHandlerIds.join(","));
+                }
+
+                return parts.join(" | ");
+              })
+              .join("\\n");
+            card.appendChild(stepList);
+          }
 
           ids.debugFlows.appendChild(card);
         }

@@ -17,8 +17,8 @@ import type {
   PhoneAuthRouteOptions,
   SessionRouteOptions
 } from "./types.js";
-import type { AppUser, ResolvedIdentity } from "../identity/types.js";
 import type { BffRequestContext } from "../context/types.js";
+import type { AppUser, ResolvedIdentity } from "../identity/types.js";
 import type { BffHandler } from "../route/types.js";
 
 export function createSessionExchangeHandler<TAppUser extends AppUser = AppUser>(
@@ -41,7 +41,11 @@ export function createPhoneAuthExchangeHandler<TAppUser extends AppUser = AppUse
   options: PhoneAuthRouteOptions<TAppUser>
 ): BffHandler<PhoneAuthExchangeInput, ExchangeOutput<TAppUser>> {
   return async (context, input) => {
-    const identity = await resolvePhoneAuthIdentity(context, input?.phoneAuthToken ?? "", options.identity);
+    const identity = await resolvePhoneAuthIdentity(
+      context,
+      input?.phoneAuthToken ?? "",
+      options.identity
+    );
 
     if (!identity?.appUserId) {
       throwUnauthenticatedExchange(context);

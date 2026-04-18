@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -34,19 +35,54 @@ export interface DiscoveredTeleforgeFlowSummary {
   component?: string;
   filePath?: string;
   finalStep: string;
+  hasRuntimeHandlers: boolean;
+  hasWiringGaps: boolean;
   id: string;
   initialStep: string;
+  passiveStepCount: number;
   route?: string;
   stepCount: number;
+  steps: readonly DiscoveredTeleforgeFlowStepSummary[];
+  warningStepCount: number;
+  wiredStepCount: number;
+}
+
+export interface DiscoveredTeleforgeFlowActionSummary {
+  hasHandler: boolean;
+  handlerSource: "inline" | "module" | "none";
+  id: string;
+  isResolved: boolean;
+  label: string;
+  resolution: "handler" | "transition" | "none";
+  to?: string;
+}
+
+export interface DiscoveredTeleforgeFlowStepSummary {
+  actionCount: number;
+  actions: readonly DiscoveredTeleforgeFlowActionSummary[];
+  discoveredActionHandlerIds: readonly string[];
+  extraActionHandlerIds: readonly string[];
+  handlerFile?: string;
+  hasDiscoveredModule: boolean;
+  hasOnEnter: boolean;
+  hasOnSubmit: boolean;
+  hasRuntimeWiring: boolean;
+  hasWiringGaps: boolean;
+  id: string;
+  resolvedActionCount: number;
+  resolvedOnEnter: boolean;
+  resolvedOnSubmit: boolean;
+  screen?: string;
+  status: "passive" | "warning" | "wired";
+  type: "chat" | "miniapp";
+  unresolvedActionIds: readonly string[];
 }
 
 /**
  * Loads a Teleforge manifest from disk and narrows the runtime to the web frameworks supported by
  * `@teleforgex/devtools`.
  */
-export async function loadManifest(
-  cwd: string
-): Promise<{
+export async function loadManifest(cwd: string): Promise<{
   discoveredFlows: DiscoveredTeleforgeFlowSummary[];
   manifest: TeleforgeManifest;
   manifestPath: string;
@@ -76,9 +112,7 @@ export async function loadManifest(
   };
 }
 
-async function tryLoadTeleforgeConfig(
-  cwd: string
-): Promise<{
+async function tryLoadTeleforgeConfig(cwd: string): Promise<{
   discoveredFlows: DiscoveredTeleforgeFlowSummary[];
   manifest: CoreTeleforgeManifest;
   manifestPath: string;
@@ -95,6 +129,12 @@ async function tryLoadTeleforgeConfig(
         root: config.flows.root ?? "flows"
       })
     : [];
+  const flowRuntimeSummaries = config.flows
+    ? await loadFlowRuntimeSummaries({
+        app: config,
+        cwd
+      })
+    : [];
   const hydratedConfig = deriveConfigRoutes(config, flowModules);
   const result = validateManifest(teleforgeAppToManifest(hydratedConfig));
 
@@ -105,7 +145,7 @@ async function tryLoadTeleforgeConfig(
   }
 
   return {
-    discoveredFlows: summarizeFlows(flowModules),
+    discoveredFlows: summarizeFlows(flowModules, flowRuntimeSummaries),
     manifest: result.data,
     manifestPath: configPath
   };
@@ -220,17 +260,32 @@ interface RouteFlowDefinition {
   steps: Record<string, unknown>;
 }
 
-function summarizeFlows(flows: RouteFlowDefinition[]): DiscoveredTeleforgeFlowSummary[] {
-  return flows.map((flow) => ({
-    ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
-    ...(flow.miniApp?.component ? { component: flow.miniApp.component } : {}),
-    ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
-    finalStep: flow.finalStep ?? flow.initialStep,
-    id: flow.id,
-    initialStep: flow.initialStep,
-    ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
-    stepCount: Object.keys(flow.steps).length
-  }));
+function summarizeFlows(
+  flows: RouteFlowDefinition[],
+  runtimeSummaries: readonly DiscoveredTeleforgeFlowSummary[]
+): DiscoveredTeleforgeFlowSummary[] {
+  const runtimeSummariesById = new Map(runtimeSummaries.map((summary) => [summary.id, summary]));
+
+  return flows.map((flow) => {
+    const runtimeSummary = runtimeSummariesById.get(flow.id);
+
+    return {
+      ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
+      ...(flow.miniApp?.component ? { component: flow.miniApp.component } : {}),
+      ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
+      finalStep: flow.finalStep ?? flow.initialStep,
+      hasRuntimeHandlers: runtimeSummary?.hasRuntimeHandlers ?? false,
+      hasWiringGaps: runtimeSummary?.hasWiringGaps ?? false,
+      id: flow.id,
+      initialStep: flow.initialStep,
+      passiveStepCount: runtimeSummary?.passiveStepCount ?? Object.keys(flow.steps).length,
+      ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
+      stepCount: Object.keys(flow.steps).length,
+      steps: runtimeSummary?.steps ?? Object.freeze([]),
+      warningStepCount: runtimeSummary?.warningStepCount ?? 0,
+      wiredStepCount: runtimeSummary?.wiredStepCount ?? 0
+    };
+  });
 }
 
 function hasDiscoveredFlowSummaries(value: unknown): value is {
@@ -328,7 +383,15 @@ async function loadFlowModules(options: {
     const tsxImportPath = resolveTsxImportPath(options.cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      ["--import", tsxImportPath, "--input-type=module", "--eval", script, options.cwd, options.root],
+      [
+        "--import",
+        tsxImportPath,
+        "--input-type=module",
+        "--eval",
+        script,
+        options.cwd,
+        options.root
+      ],
       {
         cwd: options.cwd,
         env: process.env
@@ -343,6 +406,162 @@ async function loadFlowModules(options: {
       stderr.trim() || (error instanceof Error ? error.message : "Failed to load Teleforge flows.");
     throw new Error(message);
   }
+}
+
+interface RuntimeFlowActionSummary {
+  hasHandler: boolean;
+  handlerSource: "inline" | "module" | "none";
+  id: string;
+  label: string;
+  to?: string;
+}
+
+interface RuntimeFlowStepSummary {
+  actionCount: number;
+  actions: readonly RuntimeFlowActionSummary[];
+  discoveredActionHandlerIds: readonly string[];
+  handlerFile?: string;
+  hasDiscoveredModule: boolean;
+  hasOnEnter: boolean;
+  hasOnSubmit: boolean;
+  id: string;
+  resolvedOnEnter: boolean;
+  resolvedOnSubmit: boolean;
+  screen?: string;
+  type: "chat" | "miniapp";
+}
+
+interface RuntimeFlowSummary {
+  command?: string;
+  filePath?: string;
+  finalStep: string;
+  hasRuntimeHandlers: boolean;
+  id: string;
+  initialStep: string;
+  route?: string;
+  stepCount: number;
+  steps: readonly RuntimeFlowStepSummary[];
+}
+
+async function loadFlowRuntimeSummaries(options: {
+  app: TeleforgeAppConfig;
+  cwd: string;
+}): Promise<DiscoveredTeleforgeFlowSummary[]> {
+  const script = `
+    import { pathToFileURL } from "node:url";
+
+    const teleforgePath = process.argv[1];
+    const cwd = process.argv[2];
+    const app = JSON.parse(process.argv[3]);
+
+    const teleforge = await import(pathToFileURL(teleforgePath).href);
+    const flows = await teleforge.loadTeleforgeFlows({
+      app,
+      cwd
+    });
+    const handlers = await teleforge.loadTeleforgeFlowHandlers({
+      app,
+      cwd
+    });
+    const summaries = teleforge.createFlowRuntimeSummaries(flows, {
+      handlers
+    });
+
+    process.stdout.write(JSON.stringify(summaries));
+  `;
+
+  try {
+    const tsxImportPath = resolveTsxImportPath(options.cwd);
+    const teleforgeImportPath = resolveTeleforgeImportPath(options.cwd);
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      [
+        "--import",
+        tsxImportPath,
+        "--input-type=module",
+        "--eval",
+        script,
+        teleforgeImportPath,
+        options.cwd,
+        JSON.stringify({
+          flows: options.app.flows ?? {}
+        })
+      ],
+      {
+        cwd: options.cwd,
+        env: process.env
+      }
+    );
+
+    return createDiagnosticSummaries(JSON.parse(stdout) as RuntimeFlowSummary[]);
+  } catch (error) {
+    const stderr =
+      error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
+    const message =
+      stderr.trim() ||
+      (error instanceof Error ? error.message : "Failed to load Teleforge flow runtime summaries.");
+    throw new Error(message);
+  }
+}
+
+function createDiagnosticSummaries(
+  summaries: RuntimeFlowSummary[]
+): DiscoveredTeleforgeFlowSummary[] {
+  return summaries.map((summary) => {
+    const steps = summary.steps.map((step) => {
+      const actions = step.actions.map((action) => {
+        const isResolved = action.hasHandler || typeof action.to === "string";
+
+        return Object.freeze({
+          ...action,
+          isResolved,
+          resolution: action.hasHandler
+            ? ("handler" as const)
+            : typeof action.to === "string"
+              ? ("transition" as const)
+              : ("none" as const)
+        });
+      });
+      const actionIds = new Set(actions.map((action) => action.id));
+      const unresolvedActionIds = actions
+        .filter((action) => !action.isResolved)
+        .map((action) => action.id);
+      const extraActionHandlerIds = step.discoveredActionHandlerIds.filter(
+        (id) => !actionIds.has(id)
+      );
+      const resolvedActionCount = actions.filter((action) => action.isResolved).length;
+      const hasRuntimeWiring =
+        step.resolvedOnEnter || step.resolvedOnSubmit || resolvedActionCount > 0;
+      const hasWiringGaps = unresolvedActionIds.length > 0 || extraActionHandlerIds.length > 0;
+
+      return Object.freeze({
+        ...step,
+        actions: Object.freeze(actions),
+        extraActionHandlerIds: Object.freeze(extraActionHandlerIds),
+        hasRuntimeWiring,
+        hasWiringGaps,
+        resolvedActionCount,
+        status: hasWiringGaps
+          ? ("warning" as const)
+          : hasRuntimeWiring
+            ? ("wired" as const)
+            : ("passive" as const),
+        unresolvedActionIds: Object.freeze(unresolvedActionIds)
+      });
+    });
+    const warningStepCount = steps.filter((step) => step.status === "warning").length;
+    const wiredStepCount = steps.filter((step) => step.status === "wired").length;
+    const passiveStepCount = steps.filter((step) => step.status === "passive").length;
+
+    return Object.freeze({
+      ...summary,
+      hasWiringGaps: warningStepCount > 0,
+      passiveStepCount,
+      steps: Object.freeze(steps),
+      warningStepCount,
+      wiredStepCount
+    });
+  });
 }
 
 function createRoutesFromFlows(
@@ -417,6 +636,47 @@ function resolveTsxImportPath(cwd: string): string {
 
   throw new Error(
     'Teleforge could not resolve the "tsx" loader needed to read teleforge.config.ts.'
+  );
+}
+
+function resolveTeleforgeImportPath(cwd: string): string {
+  const requireCandidates = [
+    path.join(cwd, "__teleforge_runtime__.js"),
+    path.join(process.cwd(), "__teleforge_runtime__.js"),
+    path.join(resolveCurrentBundleDirectory(), "__teleforge_runtime__.js")
+  ];
+
+  for (const basePath of requireCandidates) {
+    try {
+      return createRequire(basePath).resolve("teleforge");
+    } catch {
+      continue;
+    }
+  }
+
+  const pathCandidates = [
+    path.resolve(
+      resolveCurrentBundleDirectory(),
+      "..",
+      "..",
+      "..",
+      "teleforge",
+      "dist",
+      "index.js"
+    ),
+    path.resolve(resolveCurrentBundleDirectory(), "..", "..", "..", "teleforge", "src", "index.ts"),
+    path.resolve(process.cwd(), "..", "teleforge", "dist", "index.js"),
+    path.resolve(process.cwd(), "..", "teleforge", "src", "index.ts")
+  ];
+
+  for (const candidate of pathCandidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    'Teleforge could not resolve the unified "teleforge" package needed to inspect discovered flows.'
   );
 }
 

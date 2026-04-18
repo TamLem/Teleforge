@@ -852,7 +852,10 @@ async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifes
       }
 
       for (const [name, version] of Object.entries(section)) {
-        if ((name !== "teleforge" && !name.startsWith("@teleforgex/")) || typeof version !== "string") {
+        if (
+          (name !== "teleforge" && !name.startsWith("@teleforgex/")) ||
+          typeof version !== "string"
+        ) {
           continue;
         }
         packages.set(name, version);

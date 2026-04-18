@@ -396,6 +396,14 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(stateBefore.flows[0]?.id, "start");
     assert.equal(stateBefore.flows[0]?.route, "/");
     assert.equal(stateBefore.flows[0]?.command, "start");
+    assert.equal(stateBefore.flows[0]?.hasRuntimeHandlers, false);
+    assert.equal(stateBefore.flows[0]?.hasWiringGaps, false);
+    assert.equal(stateBefore.flows[0]?.passiveStepCount, 1);
+    assert.equal(stateBefore.flows[0]?.wiredStepCount, 0);
+    assert.equal(stateBefore.flows[0]?.warningStepCount, 0);
+    assert.equal(stateBefore.flows[0]?.steps[0]?.id, "home");
+    assert.equal(stateBefore.flows[0]?.steps[0]?.status, "passive");
+    assert.equal(stateBefore.flows[0]?.steps[0]?.resolvedActionCount, 0);
     assert.match(stateBefore.debug.scenarioStoragePath, /teleforge-home[\\/]scenarios$/);
     assert.ok(stateBefore.fixtures.some((fixture) => fixture.id === "resume-flow"));
 

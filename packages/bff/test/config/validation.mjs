@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BffValidationError, createBffConfig, telegramIdIdentityProvider } from "../../dist/index.js";
+import {
+  BffValidationError,
+  createBffConfig,
+  telegramIdIdentityProvider
+} from "../../dist/index.js";
 import { createIdentityAdapter } from "../helpers/session.mjs";
 
 test("createBffConfig throws CONFIG_INVALID with field details when botToken is missing", () => {

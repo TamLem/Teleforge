@@ -8,7 +8,9 @@ import type {
 } from "./types.js";
 import type { PhoneAuthTokenPayload } from "@teleforgex/core";
 
-export function telegramIdIdentityProvider<TAppUser extends AppUser = AppUser>(): IdentityProvider<TAppUser> {
+export function telegramIdIdentityProvider<
+  TAppUser extends AppUser = AppUser
+>(): IdentityProvider<TAppUser> {
   return {
     name: "telegram-id",
     async resolve({ adapter, telegramUser }) {
@@ -19,7 +21,9 @@ export function telegramIdIdentityProvider<TAppUser extends AppUser = AppUser>()
   };
 }
 
-export function usernameIdentityProvider<TAppUser extends AppUser = AppUser>(): IdentityProvider<TAppUser> {
+export function usernameIdentityProvider<
+  TAppUser extends AppUser = AppUser
+>(): IdentityProvider<TAppUser> {
   return {
     name: "username",
     async resolve({ adapter, telegramUser }) {

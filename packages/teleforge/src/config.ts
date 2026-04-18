@@ -5,9 +5,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import type { TeleforgeAppConfig } from "@teleforgex/core";
 import { createFlowRoutes } from "./discovery.js";
+
 import type { TeleforgeFlowDefinition } from "./flow.js";
+import type { TeleforgeAppConfig } from "@teleforgex/core";
 
 const execFileAsync = promisify(execFile);
 const configCandidates = [
@@ -133,10 +134,7 @@ type LoadedRouteFlow = TeleforgeFlowDefinition<
   Record<string, import("./flow.js").FlowStepDefinition<unknown, unknown>>
 >;
 
-async function loadFlowModulesForConfig(
-  cwd: string,
-  root: string
-): Promise<LoadedRouteFlow[]> {
+async function loadFlowModulesForConfig(cwd: string, root: string): Promise<LoadedRouteFlow[]> {
   const script = `
     import { readdir } from "node:fs/promises";
     import path from "node:path";

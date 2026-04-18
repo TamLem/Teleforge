@@ -6,6 +6,11 @@ import { defineCoordinationConfig } from "@teleforgex/core";
 
 import { createFlowStartCommand, resolveFlowActionKey } from "./flow.js";
 
+import type {
+  CreateFlowStartCommandOptions,
+  FlowStepDefinition,
+  TeleforgeFlowDefinition
+} from "./flow.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
   CoordinationDefaults,
@@ -15,11 +20,6 @@ import type {
   ReturnToChatMetadata,
   UserFlowStateManager
 } from "@teleforgex/core";
-import type {
-  CreateFlowStartCommandOptions,
-  FlowStepDefinition,
-  TeleforgeFlowDefinition
-} from "./flow.js";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<
   unknown,
@@ -30,6 +30,7 @@ type AnyFlowDefinition = TeleforgeFlowDefinition<
 const FLOW_FILE_SUFFIXES = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"] as const;
 const HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
 const DEFAULT_FLOW_ROOT = "flows";
+type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
 
 export interface TeleforgeFlowConventions {
   handlersRoot?: string;
@@ -97,11 +98,11 @@ export interface DiscoveredFlowRuntimeSummary {
 }
 
 export interface DiscoveredFlowStepHandlerModule {
-  actions: Readonly<Record<string, Function>>;
+  actions: Readonly<Record<string, DiscoveredHandlerFunction>>;
   filePath: string;
   flowId: string;
-  onEnter?: Function;
-  onSubmit?: Function;
+  onEnter?: DiscoveredHandlerFunction;
+  onSubmit?: DiscoveredHandlerFunction;
   stepId: string;
 }
 
@@ -112,19 +113,23 @@ export interface CreateFlowRuntimeSummaryOptions {
 export interface CreateFlowCommandsOptions {
   buttonText?:
     | string
-    | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string | undefined> | string | undefined);
+    | ((
+        context: CommandContext,
+        flow: AnyFlowDefinition
+      ) => Promise<string | undefined> | string | undefined);
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
   messageOptions?: CreateFlowStartCommandOptions<unknown>["messageOptions"];
   requestWriteAccess?: boolean;
   returnText?:
     | string
-    | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string | undefined> | string | undefined);
+    | ((
+        context: CommandContext,
+        flow: AnyFlowDefinition
+      ) => Promise<string | undefined> | string | undefined);
   secret: string;
   stayInChat?: boolean;
   storage: UserFlowStateManager;
-  text?:
-    | string
-    | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
+  text?: string | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
   webAppUrl:
     | string
     | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
@@ -387,8 +392,10 @@ export function createFlowCoordinationConfigFromFlows(
   options: CreateFlowCoordinationConfigFromFlowsOptions
 ): ResolvedCoordinationConfig {
   const flows = normalizeDiscoveredFlows(options.flows);
-  const flowEntries: Record<string, { defaultStep: string; finalStep: string; onComplete?: string; steps: string[] }> =
-    {};
+  const flowEntries: Record<
+    string,
+    { defaultStep: string; finalStep: string; onComplete?: string; steps: string[] }
+  > = {};
   const routes: Record<string, RouteCoordinationConfig> = {};
 
   for (const flow of flows) {
@@ -500,10 +507,7 @@ function resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): stri
   return deriveHandlersRootFromFlowRoot(options.app?.flows?.root ?? DEFAULT_FLOW_ROOT);
 }
 
-async function collectFilesBySuffix(
-  root: string,
-  suffixes: readonly string[]
-): Promise<string[]> {
+async function collectFilesBySuffix(root: string, suffixes: readonly string[]): Promise<string[]> {
   const entries = await readdir(root, {
     withFileTypes: true
   });
@@ -565,21 +569,25 @@ async function loadFlowHandlerModule(
     );
   }
 
-  const actions: Record<string, Function> =
+  const actions: Record<string, DiscoveredHandlerFunction> =
     "actions" in module && module.actions && typeof module.actions === "object"
       ? (Object.fromEntries(
           Object.entries(module.actions as Record<string, unknown>).filter(
             ([key, value]) => typeof key === "string" && typeof value === "function"
           )
-        ) as Record<string, Function>)
+        ) as Record<string, DiscoveredHandlerFunction>)
       : {};
 
   return Object.freeze({
     actions: Object.freeze(actions),
     filePath,
     flowId,
-    ...(typeof module.onEnter === "function" ? { onEnter: module.onEnter as Function } : {}),
-    ...(typeof module.onSubmit === "function" ? { onSubmit: module.onSubmit as Function } : {}),
+    ...(typeof module.onEnter === "function"
+      ? { onEnter: module.onEnter as DiscoveredHandlerFunction }
+      : {}),
+    ...(typeof module.onSubmit === "function"
+      ? { onSubmit: module.onSubmit as DiscoveredHandlerFunction }
+      : {}),
     stepId
   });
 }
@@ -658,10 +666,7 @@ function isMissingPathError(error: unknown): boolean {
 }
 
 async function resolveFlowScopedValue<T>(
-  value:
-    | T
-    | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<T> | T)
-    | undefined,
+  value: T | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<T> | T) | undefined,
   context: CommandContext,
   flow: AnyFlowDefinition
 ): Promise<T | undefined> {

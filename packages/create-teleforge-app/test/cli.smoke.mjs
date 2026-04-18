@@ -22,7 +22,10 @@ test("generates SPA scaffold", async () => {
   const configSource = await readFile(configPath, "utf8");
   assert.match(configSource, /defineTeleforgeApp/);
   assert.doesNotMatch(configSource, /createFlowRoutes/);
-  assert.doesNotMatch(configSource, /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/);
+  assert.doesNotMatch(
+    configSource,
+    /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/
+  );
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
   assert.match(configSource, /mode": "spa"/);
   assert.match(configSource, /webFramework": "vite"/);
@@ -116,7 +119,10 @@ test("generates BFF scaffold", async () => {
   const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
   const configSource = await readFile(configPath, "utf8");
   assert.doesNotMatch(configSource, /createFlowRoutes/);
-  assert.doesNotMatch(configSource, /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/);
+  assert.doesNotMatch(
+    configSource,
+    /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/
+  );
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
   assert.match(configSource, /mode": "bff"/);
   assert.match(configSource, /webFramework": "nextjs"/);
@@ -180,10 +186,7 @@ test("generates scaffold with --link flag using link: protocol", async () => {
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
 
-  assert.equal(
-    rootPackage.dependencies.teleforge,
-    "link:/home/aj/hustle/tmf/packages/teleforge"
-  );
+  assert.equal(rootPackage.dependencies.teleforge, "link:/home/aj/hustle/tmf/packages/teleforge");
 });
 
 test("rejects project names that normalize to empty app metadata", async () => {

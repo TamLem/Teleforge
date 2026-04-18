@@ -35,7 +35,9 @@ test("phone auth exchange returns a session for an existing phone-mapped user", 
     method: "POST",
     path: "/phone/exchange"
   });
-  const context = await createAuthenticatedTelegramContext("https://example.com/api/phone/exchange");
+  const context = await createAuthenticatedTelegramContext(
+    "https://example.com/api/phone/exchange"
+  );
   const phoneAuthToken = await createSignedPhoneAuthToken(
     {
       phoneNumber: "+1 (202) 555-0199",
@@ -87,7 +89,9 @@ test("phone auth exchange auto-creates when phone lookup misses and autoCreate i
     method: "POST",
     path: "/phone/exchange"
   });
-  const context = await createAuthenticatedTelegramContext("https://example.com/api/phone/exchange");
+  const context = await createAuthenticatedTelegramContext(
+    "https://example.com/api/phone/exchange"
+  );
   const phoneAuthToken = await createSignedPhoneAuthToken(
     {
       phoneNumber: "+251 91 234 5678",
@@ -124,7 +128,9 @@ test("phone auth exchange rejects tokens for another Telegram user", async () =>
     method: "POST",
     path: "/phone/exchange"
   });
-  const context = await createAuthenticatedTelegramContext("https://example.com/api/phone/exchange");
+  const context = await createAuthenticatedTelegramContext(
+    "https://example.com/api/phone/exchange"
+  );
   const phoneAuthToken = await createSignedPhoneAuthToken(
     {
       phoneNumber: "+12025550199",
@@ -161,7 +167,9 @@ test("phone auth exchange rejects expired tokens", async () => {
     method: "POST",
     path: "/phone/exchange"
   });
-  const context = await createAuthenticatedTelegramContext("https://example.com/api/phone/exchange");
+  const context = await createAuthenticatedTelegramContext(
+    "https://example.com/api/phone/exchange"
+  );
   const phoneAuthToken = await createSignedPhoneAuthToken(
     {
       phoneNumber: "+12025550199",

@@ -1,7 +1,4 @@
-import {
-  createSignedPhoneAuthToken,
-  normalizePhoneNumber
-} from "@teleforgex/core";
+import { createSignedPhoneAuthToken, normalizePhoneNumber } from "@teleforgex/core";
 
 import type {
   TelegramContact,
@@ -82,7 +79,9 @@ export async function createPhoneAuthLink(options: CreatePhoneAuthLinkOptions): 
 }
 
 export function extractSharedPhoneContact(source: PhoneContactSource): SharedPhoneContact | null {
-  const message = isTelegramUpdate(source) ? source.message ?? source.edited_message ?? null : source;
+  const message = isTelegramUpdate(source)
+    ? (source.message ?? source.edited_message ?? null)
+    : source;
   const contact = message?.contact;
   const sender = message?.from;
 

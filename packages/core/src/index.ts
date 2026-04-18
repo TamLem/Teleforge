@@ -4,14 +4,8 @@
  * and event publishing.
  */
 export { ManifestValidationError } from "./errors/ManifestValidationError.js";
-export {
-  defineTeleforgeApp,
-  teleforgeAppToManifest
-} from "./app/types.js";
-export {
-  createSignedPhoneAuthToken,
-  verifySignedPhoneAuthToken
-} from "./auth/phone.js";
+export { defineTeleforgeApp, teleforgeAppToManifest } from "./app/types.js";
+export { createSignedPhoneAuthToken, verifySignedPhoneAuthToken } from "./auth/phone.js";
 export { normalizePhoneNumber } from "./utils/phone.js";
 export { EventErrorCodes, TeleforgeEventError } from "./events/errors.js";
 export { TeleforgeEventBus, type TeleforgeEventBusOptions } from "./events/bus.js";

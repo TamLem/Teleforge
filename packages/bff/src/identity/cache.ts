@@ -17,7 +17,9 @@ export function getIdentityCacheKey<TAppUser extends AppUser>(
   return `identity:${options.providers.map((provider) => provider.name).join(",")}:${telegramUser.id}:${telegramUser.username ?? "missing"}:${options.autoCreate}:${input.phoneAuthToken ?? ""}`;
 }
 
-export function getIdentityCacheTTL<TAppUser extends AppUser>(options: IdentityManager<TAppUser>): number {
+export function getIdentityCacheTTL<TAppUser extends AppUser>(
+  options: IdentityManager<TAppUser>
+): number {
   return options.cacheTTL ?? DEFAULT_IDENTITY_CACHE_TTL;
 }
 

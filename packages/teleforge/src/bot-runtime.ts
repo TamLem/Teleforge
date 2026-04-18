@@ -4,9 +4,9 @@ import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
 import { loadTeleforgeApp } from "./config.js";
 import { createFlowCommands, loadTeleforgeFlows } from "./discovery.js";
 
+import type { CreateFlowCommandsOptions } from "./discovery.js";
 import type { BotRuntime } from "@teleforgex/bot";
 import type { TeleforgeAppConfig } from "@teleforgex/core";
-import type { CreateFlowCommandsOptions } from "./discovery.js";
 
 export interface CreateDiscoveredBotRuntimeOptions {
   app?: TeleforgeAppConfig;

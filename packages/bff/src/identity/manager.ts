@@ -1,10 +1,6 @@
 import { BffIdentityError } from "./errors.js";
 
-import type {
-  AppUser,
-  IdentityManager,
-  IdentityResolutionOptions
-} from "./types.js";
+import type { AppUser, IdentityManager, IdentityResolutionOptions } from "./types.js";
 
 export function createIdentityManager<TAppUser extends AppUser = AppUser>(
   options: IdentityManager<TAppUser> | IdentityResolutionOptions<TAppUser>
