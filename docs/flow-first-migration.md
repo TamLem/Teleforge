@@ -35,6 +35,11 @@ Implemented in the repo now:
 - starter-app Mini App rendering through the framework-owned shell instead of app-local screen selection
 - generated scaffolds now emit one default Teleforge app shape instead of asking users to choose a public SPA versus BFF mode
 - generated Mini Apps now start from `TeleforgeMiniApp`, screen modules, and `teleforge.config.ts`
+- Mini App state snapshots now persist across in-app step transitions
+- real Mini App-to-chat handoff now flows back through `web_app_data` into the discovered bot runtime
+- convention-based server-hook discovery now exists for flow-scoped guard/loader/submit/action logic
+- the framework now exposes both an HTTP fetch bridge and a discovered server-hooks request handler
+- runtime summaries and devtools diagnostics now surface server-hook wiring alongside local handler completeness
 
 That means the migration is no longer blocked on primitives or on the initial app path. The remaining work is mostly about **making flows the primary runtime object everywhere**, not about inventing the base framework APIs.
 
@@ -574,20 +579,20 @@ Target outcome:
 
 Status:
 
-- partially complete
+- mostly complete
 - the framework-owned Mini App shell, screen registry, and screen discovery now exist
 - starter-app now renders through `TeleforgeMiniApp`
 - generated apps now follow the same screen-first Mini App shape
 - screen-level guard and loader hooks now execute through the framework-owned Mini App runtime
 - Mini App submit transitions and action execution now have framework-owned runtime helpers
-- the Mini App shell now owns intra-Mini-App step progression and explicit chat handoff state
-- persistent instance bridging and real return-to-chat/resume integration still need to move into the framework runtime
+- the Mini App shell now owns intra-Mini-App step progression
+- flow snapshots now persist across Mini App transitions
+- real return-to-chat/resume handoff now flows through Telegram `web_app_data` back into the discovered bot runtime
 
 Remaining sub-slices:
 
-1. Persist flow instance state across Mini App step transitions instead of keeping the current transition result in shell-local state only.
-2. Replace the current explicit chat handoff state with real return-to-chat/resume integration.
-3. Surface Mini App transition progress and handoff behavior more clearly in devtools.
+1. Surface Mini App transition progress and return-to-chat handoff behavior more clearly in devtools.
+2. Expand cross-surface resume coverage from the starter path to more complex multi-step flows.
 
 ### Slice 5. Optional server-hook discovery
 
@@ -608,12 +613,20 @@ Target outcome:
 
 - server-backed flow behavior becomes flow-shaped instead of app-wired glue code
 
-Planned sub-slices:
+Status:
 
-1. Define the runtime bridge/server contract for loaders, submits, actions, and transition resolution.
-2. Define convention roots for flow-scoped server hooks.
-3. Map flow step submit/action handlers onto bridge execution points.
-4. Surface server-hook requirements and gaps in runtime summaries and devtools.
+- partially complete
+- the runtime bridge contract now exists for loader, submit, and action execution
+- convention roots now resolve flow-scoped server hook modules
+- the framework now provides a fetch bridge plus a discovered server-hooks request handler
+- Mini App runtime execution can now delegate to authoritative server hooks
+- runtime summaries and devtools diagnostics now surface server-backed guard/loader/submit/action wiring
+
+Remaining sub-slices:
+
+1. Add flow-ownership, identity, and auth/session validation to the server-hook bridge path where flows require trusted access.
+2. Expand server-hook support beyond Mini App execution into richer end-to-end app routes when needed.
+3. Make the starter/example app path demonstrate a real server-backed flow, not just the bridge primitives.
 
 Public API rule for this slice:
 

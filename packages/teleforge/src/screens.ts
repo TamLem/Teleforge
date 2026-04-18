@@ -21,7 +21,9 @@ export interface TeleforgeScreenComponentProps<TState = unknown> {
 }
 
 export interface TeleforgeScreenRuntimeContext<TState = unknown>
-  extends Omit<TeleforgeScreenComponentProps<TState>, "loaderData"> {}
+  extends Omit<TeleforgeScreenComponentProps<TState>, "loaderData"> {
+  serverLoaderData?: unknown;
+}
 
 export interface TeleforgeScreenGuardBlock {
   allow: false;

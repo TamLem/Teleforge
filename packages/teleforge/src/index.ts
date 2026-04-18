@@ -28,6 +28,14 @@ export {
   useTeleforgeMiniAppRuntime
 } from "./miniapp-runtime.js";
 export {
+  createDiscoveredServerHooksHandler,
+  createFetchMiniAppServerBridge,
+  DEFAULT_SERVER_HOOKS_PATH,
+  executeTeleforgeServerHookAction,
+  executeTeleforgeServerHookLoad,
+  executeTeleforgeServerHookSubmit
+} from "./server-hooks.js";
+export {
   createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
@@ -35,10 +43,13 @@ export {
   createFlowRuntimeSummary,
   discoverScreenFiles,
   discoverFlowHandlerFiles,
+  discoverFlowServerHookFiles,
   discoverFlowFiles,
   loadTeleforgeScreens,
   loadTeleforgeFlowHandlers,
+  loadTeleforgeFlowServerHooks,
   loadTeleforgeFlows,
+  resolveFlowServerHooksRoot,
   resolveScreenRoot
 } from "./discovery.js";
 export {
@@ -73,13 +84,16 @@ export type {
   CreateFlowRoutesOptions,
   DiscoveredFlowActionSummary,
   DiscoveredFlowStepHandlerModule,
+  DiscoveredFlowStepServerHookModule,
   DiscoveredFlowModule,
   DiscoveredFlowRuntimeSummary,
   DiscoveredFlowStepSummary,
   DiscoverFlowHandlerFilesOptions,
+  DiscoverFlowServerHookFilesOptions,
   DiscoverFlowFilesOptions,
   DiscoverScreenFilesOptions,
   LoadTeleforgeFlowHandlersOptions,
+  LoadTeleforgeFlowServerHooksOptions,
   LoadTeleforgeFlowsOptions,
   LoadTeleforgeScreensOptions,
   TeleforgeFlowConventions
@@ -96,6 +110,17 @@ export type {
   TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
+export type {
+  CreateDiscoveredServerHooksHandlerOptions,
+  CreateFetchMiniAppServerBridgeOptions,
+  TeleforgeMiniAppServerActionInput,
+  TeleforgeMiniAppServerBridge,
+  TeleforgeMiniAppServerLoadAllowedResult,
+  TeleforgeMiniAppServerLoadBlockedResult,
+  TeleforgeMiniAppServerLoadInput,
+  TeleforgeMiniAppServerLoadResult,
+  TeleforgeMiniAppServerSubmitInput
+} from "./server-hooks.js";
 export type {
   BlockedMiniAppScreen,
   ChatHandoffMiniAppScreen,

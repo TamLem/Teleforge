@@ -1,10 +1,19 @@
-import { useLaunch } from "@teleforgex/web";
+import { useLaunchCoordination } from "@teleforgex/web";
 import { useEffect, useState } from "react";
 
 import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow.js";
 import { resolveMiniAppScreen } from "./screens.js";
+import {
+  executeTeleforgeServerHookAction,
+  executeTeleforgeServerHookLoad,
+  executeTeleforgeServerHookSubmit
+} from "./server-hooks.js";
 
-import type { DiscoveredFlowModule, DiscoveredFlowStepHandlerModule } from "./discovery.js";
+import type {
+  DiscoveredFlowModule,
+  DiscoveredFlowStepHandlerModule,
+  DiscoveredFlowStepServerHookModule
+} from "./discovery.js";
 import type { FlowActionDefinition, FlowTransitionResult, TeleforgeFlowDefinition } from "./flow.js";
 import type {
   DiscoveredScreenModule,
@@ -14,6 +23,7 @@ import type {
   TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
+import type { TeleforgeMiniAppServerBridge } from "./server-hooks.js";
 import type { ReactNode } from "react";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
@@ -29,6 +39,8 @@ export interface TeleforgeMiniAppProps {
   renderError?: (error: UnresolvedMiniAppScreen) => ReactNode;
   renderRuntimeError?: (error: RuntimeErrorMiniAppScreen) => ReactNode;
   screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>;
+  serverBridge?: TeleforgeMiniAppServerBridge;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
 }
 
 export interface UseTeleforgeMiniAppRuntimeOptions
@@ -68,6 +80,8 @@ export interface ExecuteMiniAppStepSubmitOptions<TData = unknown> {
   data: TData;
   handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
   resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
+  serverBridge?: TeleforgeMiniAppServerBridge;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   services?: unknown;
 }
 
@@ -75,6 +89,8 @@ export interface ExecuteMiniAppStepActionOptions {
   action: string;
   handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
   resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
+  serverBridge?: TeleforgeMiniAppServerBridge;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   services?: unknown;
 }
 
@@ -104,8 +120,22 @@ export type TeleforgeMiniAppRuntimeState =
   | RuntimeErrorMiniAppScreen
   | UnresolvedMiniAppRuntimeScreen;
 
+interface PersistedMiniAppSnapshot {
+  flowId: string;
+  routePath: string;
+  state: unknown;
+  stepId: string;
+  updatedAt: number;
+}
+
+const MINI_APP_CHAT_HANDOFF_TYPE = "teleforge_flow_handoff";
+const MINI_APP_SNAPSHOT_PREFIX = "teleforge:miniapp:";
+
 export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
-  const [activePathname, setActivePathname] = useState(() => props.pathname ?? resolveWindowPathname());
+  const launchCoordination = useLaunchCoordination();
+  const [activePathname, setActivePathname] = useState(
+    () => props.pathname ?? launchCoordination.entryRoute ?? resolveWindowPathname()
+  );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [handoff, setHandoff] = useState<ChatHandoffMiniAppScreen | null>(null);
   const resolution = useTeleforgeMiniAppRuntime({
@@ -119,6 +149,18 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
       setHandoff(null);
     }
   }, [props.pathname]);
+
+  useEffect(() => {
+    if (resolution.status === "ready") {
+      persistMiniAppSnapshot(launchCoordination.stateKey, {
+        flowId: resolution.flowId,
+        routePath: resolution.routePath,
+        state: resolution.state,
+        stepId: resolution.stepId,
+        updatedAt: Date.now()
+      });
+    }
+  }, [launchCoordination.stateKey, resolution]);
 
   if (handoff) {
     if (props.renderChatHandoff) {
@@ -178,8 +220,12 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
       runAction={(action: string) =>
         handleMiniAppAction({
           action,
+          flowContext: launchCoordination.rawFlowContext,
           onReturnToChat: props.onReturnToChat,
           resolution,
+          serverBridge: props.serverBridge,
+          serverHooks: props.serverHooks,
+          stateKey: launchCoordination.stateKey,
           setActivePathname,
           setHandoff,
           setIsTransitioning
@@ -192,8 +238,12 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
       submit={(data: unknown) =>
         handleMiniAppSubmit({
           data,
+          flowContext: launchCoordination.rawFlowContext,
           onReturnToChat: props.onReturnToChat,
           resolution,
+          serverBridge: props.serverBridge,
+          serverHooks: props.serverHooks,
+          stateKey: launchCoordination.stateKey,
           setActivePathname,
           setHandoff,
           setIsTransitioning
@@ -207,14 +257,17 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
 export function useTeleforgeMiniAppRuntime(
   options: UseTeleforgeMiniAppRuntimeOptions
 ): TeleforgeMiniAppRuntimeState {
-  const launch = useLaunch();
+  const launchCoordination = useLaunchCoordination();
   const pathname = options.pathname ?? resolveWindowPathname();
   const [state, setState] = useState<TeleforgeMiniAppRuntimeState>(() => {
-    const resolution = resolveMiniAppScreen({
-      flows: options.flows,
-      pathname,
-      screens: options.screens
-    });
+    const resolution = applyPersistedMiniAppSnapshot(
+      resolveMiniAppScreen({
+        flows: options.flows,
+        pathname,
+        screens: options.screens
+      }),
+      readPersistedMiniAppSnapshot(launchCoordination.stateKey)
+    );
 
     if ("reason" in resolution) {
       return createUnresolvedRuntimeState(resolution);
@@ -228,11 +281,14 @@ export function useTeleforgeMiniAppRuntime(
 
   useEffect(() => {
     let isCancelled = false;
-    const resolution = resolveMiniAppScreen({
-      flows: options.flows,
-      pathname,
-      screens: options.screens
-    });
+    const resolution = applyPersistedMiniAppSnapshot(
+      resolveMiniAppScreen({
+        flows: options.flows,
+        pathname,
+        screens: options.screens
+      }),
+      readPersistedMiniAppSnapshot(launchCoordination.stateKey)
+    );
 
     if ("reason" in resolution) {
       setState(createUnresolvedRuntimeState(resolution));
@@ -244,7 +300,10 @@ export function useTeleforgeMiniAppRuntime(
       status: "pending"
     });
 
-    loadMiniAppScreenRuntime(resolution)
+    loadMiniAppScreenRuntime(resolution, {
+      serverBridge: options.serverBridge,
+      serverHooks: options.serverHooks
+    })
       .then((nextState) => {
         if (!isCancelled) {
           setState(nextState);
@@ -266,15 +325,53 @@ export function useTeleforgeMiniAppRuntime(
     return () => {
       isCancelled = true;
     };
-  }, [launch.startParam, options.flows, pathname, options.screens]);
+  }, [launchCoordination.rawFlowContext, launchCoordination.stateKey, options.flows, pathname, options.screens]);
 
   return state;
 }
 
 export async function loadMiniAppScreenRuntime(
-  resolution: ResolvedMiniAppScreen
+  resolution: ResolvedMiniAppScreen,
+  options: {
+    serverBridge?: TeleforgeMiniAppServerBridge;
+    serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+    services?: unknown;
+  } = {}
 ): Promise<ReadyMiniAppScreen | BlockedMiniAppScreen> {
-  const context = createRuntimeContext(resolution);
+  const serverResult = options.serverBridge
+    ? await options.serverBridge.load({
+        flowId: resolution.flowId,
+        routePath: resolution.routePath,
+        screenId: resolution.screenId,
+        state: resolution.state,
+        stepId: resolution.stepId
+      })
+    : await executeTeleforgeServerHookLoad({
+        flow: resolution.flow,
+        hooks: options.serverHooks,
+        input: {
+          flowId: resolution.flowId,
+          routePath: resolution.routePath,
+          screenId: resolution.screenId,
+          state: resolution.state,
+          stepId: resolution.stepId
+        },
+        services: options.services
+      });
+  const nextResolution = {
+    ...resolution,
+    ...(serverResult.state !== undefined ? { state: serverResult.state } : {})
+  };
+
+  if (!serverResult.allow) {
+    return {
+      ...nextResolution,
+      block: serverResult.block,
+      status: "blocked"
+    };
+  }
+
+  const context = createRuntimeContext(nextResolution, serverResult.loaderData);
   const guardResult = resolution.screen.guard
     ? await resolution.screen.guard(context)
     : true;
@@ -282,7 +379,7 @@ export async function loadMiniAppScreenRuntime(
   if (guardResult !== true) {
     if (guardResult === false) {
       return {
-        ...resolution,
+        ...nextResolution,
         block: {
           allow: false
         },
@@ -291,18 +388,22 @@ export async function loadMiniAppScreenRuntime(
     }
 
     return {
-      ...resolution,
+      ...nextResolution,
       block: guardResult,
       status: "blocked"
     };
   }
 
   return {
-    ...resolution,
-    ...(resolution.screen.loader
+    ...nextResolution,
+    ...((nextResolution.screen.loader ?? resolution.screen.loader)
       ? {
-          loaderData: await resolution.screen.loader(context)
+          loaderData: await (nextResolution.screen.loader ?? resolution.screen.loader)?.(context)
         }
+      : serverResult.loaderData !== undefined
+        ? {
+            loaderData: serverResult.loaderData
+          }
       : {}),
     status: "ready"
   };
@@ -323,20 +424,32 @@ export async function executeMiniAppStepSubmit<TData = unknown>(
   const handlerModule = handlerIndex.get(
     createMiniAppHandlerKey(options.resolution.flowId, options.resolution.stepId)
   );
-  const onSubmit = step.onSubmit ?? handlerModule?.onSubmit;
-
-  if (!onSubmit) {
-    throw new Error(
-      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" does not define an onSubmit handler.`
-    );
-  }
-
-  const result = await onSubmit({
-    data: options.data,
-    flow: options.resolution.flow,
-    services: options.services,
-    state: options.resolution.state
-  });
+  const result = options.serverBridge
+    ? await options.serverBridge.submit({
+        data: options.data,
+        flowId: options.resolution.flowId,
+        state: options.resolution.state,
+        stepId: options.resolution.stepId
+      })
+    : options.serverHooks
+      ? await executeTeleforgeServerHookSubmit({
+          flow: options.resolution.flow,
+          hooks: options.serverHooks,
+          input: {
+            data: options.data,
+            flowId: options.resolution.flowId,
+            state: options.resolution.state,
+            stepId: options.resolution.stepId
+          },
+          services: options.services
+        })
+      : await resolveMiniAppSubmitResult({
+          data: options.data,
+          handlerModule,
+          resolution: options.resolution,
+          services: options.services,
+          step
+        });
 
   return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId);
 }
@@ -359,30 +472,44 @@ export async function executeMiniAppStepAction(
   const actionDefinition = (step.actions ?? []).find(
     (candidate) => resolveFlowActionKey(candidate) === options.action
   );
-  const actionHandler =
-    actionDefinition?.handler ?? handlerModule?.actions[options.action] ?? undefined;
-
-  if (!actionHandler && !actionDefinition?.to) {
-    throw new Error(
-      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" action "${options.action}" is not wired.`
-    );
-  }
-
-  const result = actionHandler
-    ? await actionHandler({
-        flow: options.resolution.flow,
-        services: options.services,
-        state: options.resolution.state
+  const result = options.serverBridge
+    ? await options.serverBridge.action({
+        action: options.action,
+        flowId: options.resolution.flowId,
+        state: options.resolution.state,
+        stepId: options.resolution.stepId
       })
-    : undefined;
+    : options.serverHooks
+      ? await executeTeleforgeServerHookAction({
+          flow: options.resolution.flow,
+          hooks: options.serverHooks,
+          input: {
+            action: options.action,
+            flowId: options.resolution.flowId,
+            state: options.resolution.state,
+            stepId: options.resolution.stepId
+          },
+          services: options.services
+        })
+      : await resolveMiniAppActionResult({
+          action: options.action,
+          actionDefinition,
+          handlerModule,
+          resolution: options.resolution,
+          services: options.services
+        });
 
   return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId, actionDefinition);
 }
 
 async function handleMiniAppSubmit(options: {
   data: unknown;
+  flowContext: string | null;
   onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
   resolution: ReadyMiniAppScreen;
+  serverBridge?: TeleforgeMiniAppServerBridge;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+  stateKey: string | null;
   setActivePathname: (pathname: string) => void;
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
   setIsTransitioning: (value: boolean) => void;
@@ -392,12 +519,16 @@ async function handleMiniAppSubmit(options: {
   try {
     const result = await executeMiniAppStepSubmit({
       data: options.data,
-      resolution: options.resolution
+      resolution: options.resolution,
+      serverBridge: options.serverBridge,
+      serverHooks: options.serverHooks
     });
 
     await applyMiniAppExecutionResult({
+      flowContext: options.flowContext,
       onReturnToChat: options.onReturnToChat,
       result,
+      stateKey: options.stateKey,
       setActivePathname: options.setActivePathname,
       setHandoff: options.setHandoff
     });
@@ -408,8 +539,12 @@ async function handleMiniAppSubmit(options: {
 
 async function handleMiniAppAction(options: {
   action: string;
+  flowContext: string | null;
   onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
   resolution: ReadyMiniAppScreen;
+  serverBridge?: TeleforgeMiniAppServerBridge;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+  stateKey: string | null;
   setActivePathname: (pathname: string) => void;
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
   setIsTransitioning: (value: boolean) => void;
@@ -419,12 +554,16 @@ async function handleMiniAppAction(options: {
   try {
     const result = await executeMiniAppStepAction({
       action: options.action,
-      resolution: options.resolution
+      resolution: options.resolution,
+      serverBridge: options.serverBridge,
+      serverHooks: options.serverHooks
     });
 
     await applyMiniAppExecutionResult({
+      flowContext: options.flowContext,
       onReturnToChat: options.onReturnToChat,
       result,
+      stateKey: options.stateKey,
       setActivePathname: options.setActivePathname,
       setHandoff: options.setHandoff
     });
@@ -434,35 +573,107 @@ async function handleMiniAppAction(options: {
 }
 
 async function applyMiniAppExecutionResult(options: {
+  flowContext: string | null;
   onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
   result: MiniAppStepExecutionResult;
+  stateKey: string | null;
   setActivePathname: (pathname: string) => void;
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
 }): Promise<void> {
   if (options.result.target === "miniapp") {
+    persistMiniAppSnapshot(options.stateKey, {
+      flowId: options.result.flow.id,
+      routePath: options.result.routePath,
+      state: options.result.state,
+      stepId: options.result.stepId,
+      updatedAt: Date.now()
+    });
     options.setHandoff(null);
+    syncBrowserPathname(options.result.routePath);
     options.setActivePathname(options.result.routePath);
     return;
   }
 
+  clearPersistedMiniAppSnapshot(options.stateKey);
+  const transmitted = await transmitMiniAppChatHandoff({
+    flowContext: options.flowContext,
+    result: options.result,
+    stateKey: options.stateKey
+  });
   await options.onReturnToChat?.(options.result);
   options.setHandoff({
     result: options.result,
     status: "chat_handoff"
   });
+
+  if (transmitted) {
+    closeTelegramMiniApp();
+  }
 }
 
 function createRuntimeContext(
-  resolution: ResolvedMiniAppScreen
+  resolution: ResolvedMiniAppScreen,
+  serverLoaderData?: unknown
 ): TeleforgeScreenRuntimeContext<unknown> {
   return {
     flow: resolution.flow,
     flowId: resolution.flowId,
     routePath: resolution.routePath,
     screenId: resolution.screenId,
+    ...(serverLoaderData !== undefined ? { serverLoaderData } : {}),
     state: resolution.state,
     stepId: resolution.stepId
   };
+}
+
+async function resolveMiniAppSubmitResult(options: {
+  data: unknown;
+  handlerModule: DiscoveredFlowStepHandlerModule | undefined;
+  resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
+  services?: unknown;
+  step: ReturnType<typeof getFlowStep<unknown, unknown>>;
+}): Promise<void | FlowTransitionResult<unknown>> {
+  const onSubmit = isMiniAppStep(options.step)
+    ? options.step.onSubmit ?? options.handlerModule?.onSubmit
+    : undefined;
+
+  if (!onSubmit) {
+    throw new Error(
+      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" does not define an onSubmit handler.`
+    );
+  }
+
+  return await onSubmit({
+    data: options.data,
+    flow: options.resolution.flow,
+    services: options.services,
+    state: options.resolution.state
+  }) as void | FlowTransitionResult<unknown>;
+}
+
+async function resolveMiniAppActionResult(options: {
+  action: string;
+  actionDefinition: FlowActionDefinition<unknown, unknown> | undefined;
+  handlerModule: DiscoveredFlowStepHandlerModule | undefined;
+  resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
+  services?: unknown;
+}): Promise<void | FlowTransitionResult<unknown>> {
+  const actionHandler =
+    options.actionDefinition?.handler ?? options.handlerModule?.actions[options.action] ?? undefined;
+
+  if (!actionHandler && !options.actionDefinition?.to) {
+    throw new Error(
+      `Flow "${options.resolution.flowId}" step "${options.resolution.stepId}" action "${options.action}" is not wired.`
+    );
+  }
+
+  return actionHandler
+    ? await actionHandler({
+        flow: options.resolution.flow,
+        services: options.services,
+        state: options.resolution.state
+      }) as void | FlowTransitionResult<unknown>
+    : undefined;
 }
 
 function createMiniAppHandlerIndex(
@@ -582,6 +793,118 @@ function createUnresolvedRuntimeState(
     ...resolution,
     status: "unresolved"
   };
+}
+
+function applyPersistedMiniAppSnapshot(
+  resolution: ResolvedMiniAppScreen | UnresolvedMiniAppScreen,
+  snapshot: PersistedMiniAppSnapshot | null
+): ResolvedMiniAppScreen | UnresolvedMiniAppScreen {
+  if ("reason" in resolution || !snapshot) {
+    return resolution;
+  }
+
+  if (snapshot.flowId !== resolution.flowId || snapshot.stepId !== resolution.stepId) {
+    return resolution;
+  }
+
+  return {
+    ...resolution,
+    routePath: snapshot.routePath,
+    state: structuredClone(snapshot.state)
+  };
+}
+
+function readPersistedMiniAppSnapshot(stateKey: string | null): PersistedMiniAppSnapshot | null {
+  if (!stateKey || typeof window === "undefined" || !window.sessionStorage) {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(`${MINI_APP_SNAPSHOT_PREFIX}${stateKey}`);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as PersistedMiniAppSnapshot;
+
+    if (
+      typeof parsed.flowId !== "string" ||
+      typeof parsed.routePath !== "string" ||
+      typeof parsed.stepId !== "string"
+    ) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistMiniAppSnapshot(
+  stateKey: string | null,
+  snapshot: PersistedMiniAppSnapshot
+): void {
+  if (!stateKey || typeof window === "undefined" || !window.sessionStorage) {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    `${MINI_APP_SNAPSHOT_PREFIX}${stateKey}`,
+    JSON.stringify(snapshot)
+  );
+}
+
+function clearPersistedMiniAppSnapshot(stateKey: string | null): void {
+  if (!stateKey || typeof window === "undefined" || !window.sessionStorage) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(`${MINI_APP_SNAPSHOT_PREFIX}${stateKey}`);
+}
+
+async function transmitMiniAppChatHandoff(options: {
+  flowContext: string | null;
+  result: ChatMiniAppTransitionResult;
+  stateKey: string | null;
+}): Promise<boolean> {
+  if (
+    !options.flowContext ||
+    !options.stateKey ||
+    typeof window === "undefined" ||
+    typeof window.Telegram?.WebApp?.sendData !== "function"
+  ) {
+    return false;
+  }
+
+  window.Telegram.WebApp.sendData(
+    JSON.stringify({
+      flowContext: options.flowContext,
+      state: options.result.state,
+      stateKey: options.stateKey,
+      stepId: options.result.stepId,
+      type: MINI_APP_CHAT_HANDOFF_TYPE
+    })
+  );
+
+  return true;
+}
+
+function closeTelegramMiniApp(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.Telegram?.WebApp?.close?.();
+}
+
+function syncBrowserPathname(pathname: string): void {
+  if (typeof window === "undefined" || window.location.pathname === pathname) {
+    return;
+  }
+
+  window.history.replaceState(window.history.state, "", pathname);
 }
 
 function DefaultMiniAppBlocked(options: { error: BlockedMiniAppScreen }) {

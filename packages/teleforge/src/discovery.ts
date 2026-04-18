@@ -37,6 +37,7 @@ type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
 export interface TeleforgeFlowConventions {
   handlersRoot?: string;
   root?: string;
+  serverHooksRoot?: string;
 }
 
 export interface DiscoverFlowFilesOptions {
@@ -58,6 +59,16 @@ export interface DiscoverFlowHandlerFilesOptions {
 }
 
 export interface LoadTeleforgeFlowHandlersOptions extends DiscoverFlowHandlerFilesOptions {}
+
+export interface DiscoverFlowServerHookFilesOptions {
+  app?: {
+    flows?: TeleforgeFlowConventions;
+  };
+  cwd: string;
+  root?: string;
+}
+
+export interface LoadTeleforgeFlowServerHooksOptions extends DiscoverFlowServerHookFilesOptions {}
 
 export interface DiscoverScreenFilesOptions {
   app?: {
@@ -133,7 +144,7 @@ export async function loadTeleforgeScreens(
 
 export interface DiscoveredFlowActionSummary {
   hasHandler: boolean;
-  handlerSource: "inline" | "module" | "none";
+  handlerSource: "inline" | "module" | "none" | "server";
   id: string;
   label: string;
   to?: string;
@@ -143,6 +154,7 @@ export interface DiscoveredFlowStepSummary {
   actionCount: number;
   actions: readonly DiscoveredFlowActionSummary[];
   discoveredActionHandlerIds: readonly string[];
+  discoveredServerActionIds: readonly string[];
   handlerFile?: string;
   hasDiscoveredModule: boolean;
   hasOnEnter: boolean;
@@ -150,7 +162,12 @@ export interface DiscoveredFlowStepSummary {
   id: string;
   resolvedOnEnter: boolean;
   resolvedOnSubmit: boolean;
+  resolvedServerGuard: boolean;
+  resolvedServerLoader: boolean;
+  resolvedServerSubmit: boolean;
   screen?: string;
+  serverHookFile?: string;
+  hasServerHookModule: boolean;
   type: "chat" | "miniapp";
 }
 
@@ -175,8 +192,19 @@ export interface DiscoveredFlowStepHandlerModule {
   stepId: string;
 }
 
+export interface DiscoveredFlowStepServerHookModule {
+  actions: Readonly<Record<string, DiscoveredHandlerFunction>>;
+  filePath: string;
+  flowId: string;
+  guard?: DiscoveredHandlerFunction;
+  loader?: DiscoveredHandlerFunction;
+  onSubmit?: DiscoveredHandlerFunction;
+  stepId: string;
+}
+
 export interface CreateFlowRuntimeSummaryOptions {
   handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
 }
 
 export interface CreateFlowCommandsOptions {
@@ -317,6 +345,59 @@ export async function loadTeleforgeFlowHandlers(
   return discovered;
 }
 
+export async function discoverFlowServerHookFiles(
+  options: DiscoverFlowServerHookFilesOptions
+): Promise<string[]> {
+  const root = resolveFlowServerHooksRoot(options);
+  const absoluteRoot = path.resolve(options.cwd, root);
+
+  try {
+    return await collectFilesBySuffix(absoluteRoot, HANDLER_FILE_SUFFIXES);
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export async function loadTeleforgeFlowServerHooks(
+  options: LoadTeleforgeFlowServerHooksOptions
+): Promise<DiscoveredFlowStepServerHookModule[]> {
+  const files = await discoverFlowServerHookFiles(options);
+  const root = path.resolve(options.cwd, resolveFlowServerHooksRoot(options));
+  const discovered: DiscoveredFlowStepServerHookModule[] = [];
+  const seenKeys = new Map<string, string>();
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath);
+    const segments = relativePath.split(path.sep);
+
+    if (segments.length !== 2) {
+      throw new Error(
+        `Flow server-hook module "${filePath}" must live at <serverHooksRoot>/<flowId>/<stepId>.<ext>.`
+      );
+    }
+
+    const flowId = segments[0];
+    const stepId = stripKnownExtension(segments[1], HANDLER_FILE_SUFFIXES);
+    const key = `${flowId}:${stepId}`;
+    const existing = seenKeys.get(key);
+
+    if (existing) {
+      throw new Error(
+        `Duplicate flow step server hook "${key}" discovered in "${existing}" and "${filePath}".`
+      );
+    }
+
+    seenKeys.set(key, filePath);
+    discovered.push(await loadFlowServerHookModule(filePath, flowId, stepId));
+  }
+
+  return discovered;
+}
+
 export function createFlowCommands(options: CreateFlowCommandsOptions): BotCommandDefinition[] {
   const commands: BotCommandDefinition[] = [];
 
@@ -373,20 +454,25 @@ export function createFlowRuntimeSummary(
   const flow = "flow" in flowOrModule ? flowOrModule.flow : flowOrModule;
   const filePath = "filePath" in flowOrModule ? flowOrModule.filePath : undefined;
   const handlerIndex = createFlowHandlerIndex(options.handlers ?? []);
+  const serverHookIndex = createFlowServerHookIndex(options.serverHooks ?? []);
   const steps = Object.entries(flow.steps).map(([stepId, step]) => {
     const discoveredHandler = handlerIndex.get(`${flow.id}:${stepId}`);
+    const discoveredServerHook = serverHookIndex.get(`${flow.id}:${stepId}`);
 
     if (step.type === "chat") {
       const actions = (step.actions ?? []).map((action) =>
         Object.freeze({
           hasHandler:
             typeof action.handler === "function" ||
-            typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function",
+            typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function" ||
+            typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function",
           handlerSource:
             typeof action.handler === "function"
               ? ("inline" as const)
               : typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function"
                 ? ("module" as const)
+                : typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function"
+                  ? ("server" as const)
                 : ("none" as const),
           id: resolveFlowActionKey(action),
           label: action.label,
@@ -398,32 +484,66 @@ export function createFlowRuntimeSummary(
         actionCount: actions.length,
         actions,
         discoveredActionHandlerIds: Object.freeze(Object.keys(discoveredHandler?.actions ?? {})),
+        discoveredServerActionIds: Object.freeze(Object.keys(discoveredServerHook?.actions ?? {})),
         ...(discoveredHandler?.filePath ? { handlerFile: discoveredHandler.filePath } : {}),
         hasDiscoveredModule: Boolean(discoveredHandler),
+        hasServerHookModule: Boolean(discoveredServerHook),
         hasOnEnter: typeof step.onEnter === "function",
         hasOnSubmit: false,
         id: stepId,
         resolvedOnEnter:
           typeof step.onEnter === "function" || typeof discoveredHandler?.onEnter === "function",
         resolvedOnSubmit: false,
+        resolvedServerGuard: false,
+        resolvedServerLoader: false,
+        resolvedServerSubmit: false,
+        ...(discoveredServerHook?.filePath ? { serverHookFile: discoveredServerHook.filePath } : {}),
         type: "chat" as const
       });
     }
 
+    const actions = (step.actions ?? []).map((action) =>
+      Object.freeze({
+        hasHandler:
+          typeof action.handler === "function" ||
+          typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function" ||
+          typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function",
+        handlerSource:
+          typeof action.handler === "function"
+            ? ("inline" as const)
+            : typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function"
+              ? ("module" as const)
+              : typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function"
+                ? ("server" as const)
+                : ("none" as const),
+        id: resolveFlowActionKey(action),
+        label: action.label,
+        ...(action.to ? { to: action.to } : {})
+      })
+    );
+
     return Object.freeze({
-      actionCount: 0,
-      actions: Object.freeze([]),
+      actionCount: actions.length,
+      actions: Object.freeze(actions),
       discoveredActionHandlerIds: Object.freeze(Object.keys(discoveredHandler?.actions ?? {})),
+      discoveredServerActionIds: Object.freeze(Object.keys(discoveredServerHook?.actions ?? {})),
       ...(discoveredHandler?.filePath ? { handlerFile: discoveredHandler.filePath } : {}),
       hasDiscoveredModule: Boolean(discoveredHandler),
+      hasServerHookModule: Boolean(discoveredServerHook),
       hasOnEnter: typeof step.onEnter === "function",
       hasOnSubmit: typeof step.onSubmit === "function",
       id: stepId,
       resolvedOnEnter:
         typeof step.onEnter === "function" || typeof discoveredHandler?.onEnter === "function",
       resolvedOnSubmit:
-        typeof step.onSubmit === "function" || typeof discoveredHandler?.onSubmit === "function",
+        typeof step.onSubmit === "function" ||
+        typeof discoveredHandler?.onSubmit === "function" ||
+        typeof discoveredServerHook?.onSubmit === "function",
+      resolvedServerGuard: typeof discoveredServerHook?.guard === "function",
+      resolvedServerLoader: typeof discoveredServerHook?.loader === "function",
+      resolvedServerSubmit: typeof discoveredServerHook?.onSubmit === "function",
       ...(step.screen ? { screen: step.screen } : {}),
+      ...(discoveredServerHook?.filePath ? { serverHookFile: discoveredServerHook.filePath } : {}),
       type: "miniapp" as const
     });
   });
@@ -432,6 +552,9 @@ export function createFlowRuntimeSummary(
     (step) =>
       step.resolvedOnEnter ||
       step.resolvedOnSubmit ||
+      step.resolvedServerGuard ||
+      step.resolvedServerLoader ||
+      step.resolvedServerSubmit ||
       step.actions.some((action) => action.hasHandler)
   );
 
@@ -576,6 +699,18 @@ function resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): stri
   return deriveHandlersRootFromFlowRoot(options.app?.flows?.root ?? DEFAULT_FLOW_ROOT);
 }
 
+export function resolveFlowServerHooksRoot(options: DiscoverFlowServerHookFilesOptions): string {
+  if (options.root) {
+    return options.root;
+  }
+
+  if (options.app?.flows?.serverHooksRoot) {
+    return options.app.flows.serverHooksRoot;
+  }
+
+  return deriveServerHooksRootFromFlowRoot(options.app?.flows?.root ?? DEFAULT_FLOW_ROOT);
+}
+
 async function collectFilesBySuffix(root: string, suffixes: readonly string[]): Promise<string[]> {
   const entries = await readdir(root, {
     withFileTypes: true
@@ -672,6 +807,52 @@ async function loadFlowHandlerModule(
   });
 }
 
+async function loadFlowServerHookModule(
+  filePath: string,
+  flowId: string,
+  stepId: string
+): Promise<DiscoveredFlowStepServerHookModule> {
+  const loaded = await import(pathToFileURL(filePath).href);
+  const candidate = loaded.default ?? loaded.serverHook ?? loaded.stepServerHook ?? loaded;
+  const module =
+    candidate &&
+    typeof candidate === "object" &&
+    "default" in candidate &&
+    candidate.default &&
+    typeof candidate.default === "object"
+      ? candidate.default
+      : candidate;
+
+  if (!module || typeof module !== "object") {
+    throw new Error(
+      `Flow server-hook module "${filePath}" must export an object or named hook exports.`
+    );
+  }
+
+  const actions: Record<string, DiscoveredHandlerFunction> =
+    "actions" in module && module.actions && typeof module.actions === "object"
+      ? (Object.fromEntries(
+          Object.entries(module.actions as Record<string, unknown>).filter(
+            ([key, value]) => typeof key === "string" && typeof value === "function"
+          )
+        ) as Record<string, DiscoveredHandlerFunction>)
+      : {};
+
+  return Object.freeze({
+    actions: Object.freeze(actions),
+    filePath,
+    flowId,
+    ...(typeof module.guard === "function" ? { guard: module.guard as DiscoveredHandlerFunction } : {}),
+    ...(typeof module.loader === "function"
+      ? { loader: module.loader as DiscoveredHandlerFunction }
+      : {}),
+    ...(typeof module.onSubmit === "function"
+      ? { onSubmit: module.onSubmit as DiscoveredHandlerFunction }
+      : {}),
+    stepId
+  });
+}
+
 function isFlowDefinition(value: unknown): value is AnyFlowDefinition {
   return (
     typeof value === "object" &&
@@ -722,6 +903,18 @@ function createFlowHandlerIndex(
   return index;
 }
 
+function createFlowServerHookIndex(
+  serverHooks: Iterable<DiscoveredFlowStepServerHookModule>
+): Map<string, DiscoveredFlowStepServerHookModule> {
+  const index = new Map<string, DiscoveredFlowStepServerHookModule>();
+
+  for (const hook of serverHooks) {
+    index.set(`${hook.flowId}:${hook.stepId}`, hook);
+  }
+
+  return index;
+}
+
 function deriveHandlersRootFromFlowRoot(flowRoot: string): string {
   const normalized = flowRoot.replace(/\\/g, "/");
   if (normalized.endsWith("/flows")) {
@@ -729,6 +922,20 @@ function deriveHandlersRootFromFlowRoot(flowRoot: string): string {
   }
 
   return `${normalized}-handlers`;
+}
+
+function deriveServerHooksRootFromFlowRoot(flowRoot: string): string {
+  const normalized = flowRoot.replace(/\\/g, "/");
+
+  if (normalized.includes("/bot/") && normalized.endsWith("/flows")) {
+    return normalized.replace("/bot/", "/api/").replace(/\/flows$/, "/flow-hooks");
+  }
+
+  if (normalized.endsWith("/flows")) {
+    return normalized.replace(/\/flows$/, "/flow-hooks");
+  }
+
+  return "apps/api/src/flow-hooks";
 }
 
 function stripKnownExtension(fileName: string, extensions: readonly string[]): string {

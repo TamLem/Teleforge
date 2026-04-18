@@ -1,4 +1,5 @@
 export * from "@teleforgex/web";
+export { createFetchMiniAppServerBridge } from "./server-hooks.js";
 export {
   executeMiniAppStepAction,
   executeMiniAppStepSubmit,
@@ -38,6 +39,16 @@ export type {
   ScreenMiniAppTransitionResult,
   TeleforgeMiniAppRuntimeState
 } from "./miniapp-runtime.js";
+export type {
+  CreateFetchMiniAppServerBridgeOptions,
+  TeleforgeMiniAppServerActionInput,
+  TeleforgeMiniAppServerBridge,
+  TeleforgeMiniAppServerLoadAllowedResult,
+  TeleforgeMiniAppServerLoadBlockedResult,
+  TeleforgeMiniAppServerLoadInput,
+  TeleforgeMiniAppServerLoadResult,
+  TeleforgeMiniAppServerSubmitInput
+} from "./server-hooks.js";
 export type {
   ChatFlowStepDefinition,
   FlowActionDefinition,

@@ -447,3 +447,162 @@ export default defineFlow({
   assert.ok(launchedUrl);
   assert.match(launchedUrl, /tgWebAppStartParam=/);
 });
+
+test("createDiscoveredBotRuntime resumes a Mini App handoff into the next chat step", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-handoff-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "runtime-handoff-app",
+    name: "Runtime Handoff App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "runtime_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+    mode: "spa",
+    webFramework: "vite"
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "checkout.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "checkout",
+  initialStep: "catalog",
+  state: {
+    itemId: null
+  },
+  bot: {
+    command: {
+      buttonText: "Open Checkout",
+      command: "checkout",
+      description: "Open checkout flow",
+      text: "Continue in checkout"
+    }
+  },
+  miniApp: {
+    route: "/checkout"
+  },
+  steps: {
+    catalog: {
+      screen: "checkout.catalog",
+      type: "miniapp"
+    },
+    review: {
+      message: ({ state }) => state.itemId ? "Review " + state.itemId : "Review",
+      type: "chat"
+    }
+  }
+});
+`
+  );
+
+  const runtime = await createDiscoveredBotRuntime({
+    cwd: tmpRoot,
+    flowSecret: "coord-secret",
+    miniAppUrl: "https://example.ngrok.app"
+  });
+  const sent = [];
+
+  runtime.bindBot({
+    async sendMessage(chatId, text, options) {
+      sent.push({ chatId, options, text });
+      return {
+        chat: {
+          id: chatId
+        },
+        message_id: sent.length,
+        text
+      };
+    }
+  });
+
+  await runtime.handle({
+    message: {
+      chat: {
+        id: 101,
+        type: "private"
+      },
+      from: {
+        first_name: "Preview",
+        id: 22
+      },
+      message_id: 1,
+      text: "/checkout"
+    },
+    update_id: 1
+  });
+
+  const launchedUrl = sent[0]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
+  assert.ok(launchedUrl);
+
+  const launchUrl = new URL(launchedUrl);
+  const flowContext = launchUrl.searchParams.get("tgWebAppStartParam");
+  assert.ok(flowContext);
+
+  const stateKey = JSON.parse(
+    Buffer.from(
+      flowContext.split(".")[1].replace(/-/g, "+").replace(/_/g, "/").padEnd(
+        Math.ceil(flowContext.split(".")[1].length / 4) * 4,
+        "="
+      ),
+      "base64"
+    ).toString("utf8")
+  ).payload.stateKey;
+
+  await runtime.handle({
+    message: {
+      chat: {
+        id: 101,
+        type: "private"
+      },
+      from: {
+        first_name: "Preview",
+        id: 22
+      },
+      message_id: 2,
+      web_app_data: {
+        button_text: "Return to chat",
+        data: JSON.stringify({
+          flowContext,
+          state: {
+            itemId: "sku_123"
+          },
+          stateKey,
+          stepId: "review",
+          type: "teleforge_flow_handoff"
+        })
+      }
+    },
+    update_id: 2
+  });
+
+  assert.equal(sent[1]?.text, "✅ Returned to chat");
+  assert.equal(sent[2]?.text, "Review sku_123");
+});

@@ -19,6 +19,7 @@ export interface TeleforgeMiniAppConfig extends Omit<TeleforgeManifest["miniApp"
 export interface TeleforgeFlowConventions {
   handlersRoot?: string;
   root?: string;
+  serverHooksRoot?: string;
 }
 
 export interface TeleforgeAppConfig {

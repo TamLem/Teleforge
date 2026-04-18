@@ -1,6 +1,9 @@
 import {
+  createDefaultReturnHandlers,
   createBotRuntime,
   createFlowCallback,
+  extractFlowContext,
+  handleMiniAppReturnData,
   handleFlowCallback,
   sendFlowInit
 } from "@teleforgex/bot";
@@ -23,12 +26,14 @@ import type {
   BotInstance,
   BotRuntime,
   CallbackQueryHandler,
-  CommandContext
+  CommandContext,
+  WebAppDataHandler
 } from "@teleforgex/bot";
 import type { TeleforgeAppConfig } from "@teleforgex/core";
 
 const FLOW_STATE_PAYLOAD_KEY = "__teleforge_flow_state";
 const MAX_FLOW_TRANSITIONS = 12;
+const MINI_APP_CHAT_HANDOFF_TYPE = "teleforge_flow_handoff";
 
 export interface CreateDiscoveredBotRuntimeOptions {
   app?: TeleforgeAppConfig;
@@ -92,6 +97,16 @@ export async function createDiscoveredBotRuntime(
       storage
     })
   );
+  runtime.router.onWebAppData(
+    createDiscoveredFlowWebAppDataHandler({
+      flows,
+      handlers,
+      miniAppUrl: options.miniAppUrl,
+      secret: options.flowSecret,
+      services: options.services,
+      storage
+    })
+  );
 
   return runtime;
 }
@@ -111,6 +126,17 @@ interface CreateDiscoveredFlowCallbackHandlerOptions {
   secret: string;
   services?: unknown;
   storage: UserFlowStateManager;
+}
+
+interface CreateDiscoveredFlowWebAppDataHandlerOptions
+  extends CreateDiscoveredFlowCallbackHandlerOptions {}
+
+interface MiniAppChatHandoffPayload {
+  flowContext: string;
+  state: unknown;
+  stateKey: string;
+  stepId: string;
+  type: typeof MINI_APP_CHAT_HANDOFF_TYPE;
 }
 
 function createChatEntryCommands(options: CreateChatEntryCommandsOptions): BotCommandDefinition[] {
@@ -260,6 +286,77 @@ function createDiscoveredFlowCallbackHandler(
   };
 }
 
+function createDiscoveredFlowWebAppDataHandler(
+  options: CreateDiscoveredFlowWebAppDataHandlerOptions
+): WebAppDataHandler {
+  const flows = new Map(options.flows.map(({ flow }) => [flow.id, flow]));
+  const handlerIndex = createHandlerIndex(options.handlers);
+
+  return async (context) => {
+    const handoff = parseMiniAppChatHandoffPayload(context.payload);
+
+    if (handoff) {
+      const flowContext = extractFlowContext(handoff.flowContext, options.secret);
+
+      if (!flowContext || flowContext.payload.stateKey !== handoff.stateKey) {
+        await context.answer("Could not verify Mini App handoff payload");
+        return;
+      }
+
+      const flow = flows.get(flowContext.flowId);
+
+      if (!flow) {
+        await context.answer("Unknown flow.");
+        return;
+      }
+
+      const persisted = await options.storage.getState(handoff.stateKey);
+
+      if (!persisted) {
+        await context.answer("Flow expired before chat handoff");
+        return;
+      }
+
+      await options.storage.advanceStep(handoff.stateKey, handoff.stepId, {
+        [FLOW_STATE_PAYLOAD_KEY]: cloneFlowState(handoff.state)
+      });
+
+      await context.answer("Returned to chat");
+      await enterDiscoveredFlowStep(
+        {
+          chatId: persisted.chatId ?? context.chat.id,
+          flow,
+          handlers: options.handlers,
+          miniAppUrl: options.miniAppUrl,
+          secret: options.secret,
+          services: options.services,
+          state: cloneFlowState(handoff.state),
+          stateKey: handoff.stateKey,
+          storage: options.storage
+        },
+        {
+          bot: requireBoundBot(context.bot, flow.id),
+          handlerIndex
+        }
+      );
+      return;
+    }
+
+    const handled = await handleMiniAppReturnData(
+      context,
+      options.storage,
+      options.secret,
+      createDefaultReturnHandlers(context)
+    );
+
+    if (handled) {
+      return;
+    }
+
+    await context.answer("Received Mini App data");
+  };
+}
+
 async function enterDiscoveredFlowStep(
   options: {
     chatId: number | string;
@@ -392,6 +489,31 @@ function createHandlerIndex(
   handlers: readonly DiscoveredFlowStepHandlerModule[]
 ): ReadonlyMap<string, DiscoveredFlowStepHandlerModule> {
   return new Map(handlers.map((handler) => [`${handler.flowId}:${handler.stepId}`, handler]));
+}
+
+function parseMiniAppChatHandoffPayload(payload: unknown): MiniAppChatHandoffPayload | null {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("type" in payload) ||
+    payload.type !== MINI_APP_CHAT_HANDOFF_TYPE ||
+    !("flowContext" in payload) ||
+    typeof payload.flowContext !== "string" ||
+    !("stateKey" in payload) ||
+    typeof payload.stateKey !== "string" ||
+    !("stepId" in payload) ||
+    typeof payload.stepId !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    flowContext: payload.flowContext,
+    state: "state" in payload ? payload.state : undefined,
+    stateKey: payload.stateKey,
+    stepId: payload.stepId,
+    type: MINI_APP_CHAT_HANDOFF_TYPE
+  };
 }
 
 function readPersistedFlowState(

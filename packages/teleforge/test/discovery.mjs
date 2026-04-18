@@ -13,8 +13,10 @@ import {
   createFlowRuntimeSummary,
   defineFlow,
   discoverFlowHandlerFiles,
+  discoverFlowServerHookFiles,
   discoverFlowFiles,
   loadTeleforgeFlowHandlers,
+  loadTeleforgeFlowServerHooks,
   loadTeleforgeFlows
 } from "../dist/index.js";
 import { handleMiniAppReturn } from "../dist/bot.js";
@@ -457,4 +459,112 @@ export const actions = {
   assert.equal(summary?.steps[0]?.actions[0]?.handlerSource, "module");
   assert.equal(summary?.steps[1]?.hasDiscoveredModule, true);
   assert.equal(summary?.steps[1]?.resolvedOnSubmit, true);
+});
+
+test("discoverFlowServerHookFiles and loadTeleforgeFlowServerHooks resolve convention-based server hooks", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-flow-server-hooks-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const hooksRoot = path.join(tmpRoot, "apps", "api", "src", "flow-hooks", "checkout");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await mkdir(hooksRoot, { recursive: true });
+
+  await writeFile(
+    path.join(flowsRoot, "checkout.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "checkout",
+  initialStep: "catalog",
+  state: {},
+  bot: {
+    command: {
+      command: "checkout",
+      text: "Open checkout"
+    }
+  },
+  miniApp: {
+    route: "/checkout"
+  },
+  steps: {
+    catalog: {
+      actions: [
+        {
+          id: "refresh",
+          label: "Refresh"
+        }
+      ],
+      screen: "catalog",
+      type: "miniapp"
+    }
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(hooksRoot, "catalog.mjs"),
+    `export function guard() {
+  return true;
+}
+
+export function loader() {
+  return {
+    heading: "Server heading"
+  };
+}
+
+export function onSubmit() {
+  return {};
+}
+
+export const actions = {
+  refresh() {
+    return {};
+  }
+};
+`
+  );
+
+  const hookFiles = await discoverFlowServerHookFiles({
+    app: {
+      flows: {
+        root: "apps/bot/src/flows",
+        serverHooksRoot: "apps/api/src/flow-hooks"
+      }
+    },
+    cwd: tmpRoot
+  });
+
+  assert.equal(hookFiles.length, 1);
+  assert.match(hookFiles[0], /catalog\.mjs$/);
+
+  const serverHooks = await loadTeleforgeFlowServerHooks({
+    app: {
+      flows: {
+        root: "apps/bot/src/flows",
+        serverHooksRoot: "apps/api/src/flow-hooks"
+      }
+    },
+    cwd: tmpRoot
+  });
+  const flows = await loadTeleforgeFlows({
+    app: {
+      flows: {
+        root: "apps/bot/src/flows",
+        serverHooksRoot: "apps/api/src/flow-hooks"
+      }
+    },
+    cwd: tmpRoot
+  });
+  const summary = createFlowRuntimeSummaries(flows, { serverHooks })[0];
+
+  assert.equal(serverHooks.length, 1);
+  assert.equal(serverHooks[0]?.flowId, "checkout");
+  assert.equal(summary?.steps[0]?.hasServerHookModule, true);
+  assert.equal(summary?.steps[0]?.resolvedServerGuard, true);
+  assert.equal(summary?.steps[0]?.resolvedServerLoader, true);
+  assert.equal(summary?.steps[0]?.resolvedServerSubmit, true);
+  assert.deepEqual(summary?.steps[0]?.discoveredServerActionIds, ["refresh"]);
+  assert.equal(summary?.steps[0]?.actions[0]?.handlerSource, "server");
 });

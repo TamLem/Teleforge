@@ -193,7 +193,10 @@ Current migration progress already reflects part of this direction:
 - `TeleforgeMiniApp` provides a framework-owned shell for flow-aware screen resolution
 - screen modules can now carry framework-owned guard and loader hooks
 - Mini App submit and action transitions now have framework-owned execution helpers
-- the Mini App shell now owns intra-Mini-App step progression and explicit chat handoff state
+- the Mini App shell now owns intra-Mini-App step progression
+- Mini App state snapshots now persist across in-app transitions
+- Mini App-to-chat handoff now returns through Telegram `web_app_data` into the discovered bot runtime
+- optional server hooks can now be discovered by convention and reached through a framework-owned bridge
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
 
 ## Desired Outcome

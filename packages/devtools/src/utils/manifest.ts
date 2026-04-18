@@ -49,7 +49,7 @@ export interface DiscoveredTeleforgeFlowSummary {
 
 export interface DiscoveredTeleforgeFlowActionSummary {
   hasHandler: boolean;
-  handlerSource: "inline" | "module" | "none";
+  handlerSource: "inline" | "module" | "none" | "server";
   id: string;
   isResolved: boolean;
   label: string;
@@ -61,21 +61,28 @@ export interface DiscoveredTeleforgeFlowStepSummary {
   actionCount: number;
   actions: readonly DiscoveredTeleforgeFlowActionSummary[];
   discoveredActionHandlerIds: readonly string[];
+  discoveredServerActionIds: readonly string[];
+  extraServerActionIds: readonly string[];
   extraActionHandlerIds: readonly string[];
   handlerFile?: string;
   hasDiscoveredModule: boolean;
   hasOnEnter: boolean;
   hasOnSubmit: boolean;
   hasRuntimeWiring: boolean;
+  hasServerHookModule: boolean;
   hasWiringGaps: boolean;
   id: string;
   resolvedActionCount: number;
   resolvedOnEnter: boolean;
   resolvedOnSubmit: boolean;
+  resolvedServerGuard: boolean;
+  resolvedServerLoader: boolean;
+  resolvedServerSubmit: boolean;
   screen?: string;
   screenFilePath?: string;
   screenResolved?: boolean;
   screenTitle?: string;
+  serverHookFile?: string;
   status: "passive" | "warning" | "wired";
   type: "chat" | "miniapp";
   unresolvedActionIds: readonly string[];
@@ -453,7 +460,7 @@ async function loadFlowModules(options: {
 
 interface RuntimeFlowActionSummary {
   hasHandler: boolean;
-  handlerSource: "inline" | "module" | "none";
+  handlerSource: "inline" | "module" | "none" | "server";
   id: string;
   label: string;
   to?: string;
@@ -463,14 +470,20 @@ interface RuntimeFlowStepSummary {
   actionCount: number;
   actions: readonly RuntimeFlowActionSummary[];
   discoveredActionHandlerIds: readonly string[];
+  discoveredServerActionIds: readonly string[];
   handlerFile?: string;
   hasDiscoveredModule: boolean;
+  hasServerHookModule: boolean;
   hasOnEnter: boolean;
   hasOnSubmit: boolean;
   id: string;
   resolvedOnEnter: boolean;
   resolvedOnSubmit: boolean;
+  resolvedServerGuard: boolean;
+  resolvedServerLoader: boolean;
+  resolvedServerSubmit: boolean;
   screen?: string;
+  serverHookFile?: string;
   type: "chat" | "miniapp";
 }
 
@@ -568,8 +581,13 @@ async function loadFlowRuntimeSummaries(options: {
       app,
       cwd
     });
+    const serverHooks = await teleforge.loadTeleforgeFlowServerHooks({
+      app,
+      cwd
+    });
     const summaries = teleforge.createFlowRuntimeSummaries(flows, {
-      handlers
+      handlers,
+      serverHooks
     });
 
     process.stdout.write(JSON.stringify(summaries));
@@ -634,15 +652,25 @@ function createDiagnosticSummaries(
       const extraActionHandlerIds = step.discoveredActionHandlerIds.filter(
         (id) => !actionIds.has(id)
       );
+      const extraServerActionIds = step.discoveredServerActionIds.filter((id) => !actionIds.has(id));
       const resolvedActionCount = actions.filter((action) => action.isResolved).length;
       const hasRuntimeWiring =
-        step.resolvedOnEnter || step.resolvedOnSubmit || resolvedActionCount > 0;
-      const hasWiringGaps = unresolvedActionIds.length > 0 || extraActionHandlerIds.length > 0;
+        step.resolvedOnEnter ||
+        step.resolvedOnSubmit ||
+        step.resolvedServerGuard ||
+        step.resolvedServerLoader ||
+        step.resolvedServerSubmit ||
+        resolvedActionCount > 0;
+      const hasWiringGaps =
+        unresolvedActionIds.length > 0 ||
+        extraActionHandlerIds.length > 0 ||
+        extraServerActionIds.length > 0;
 
       return Object.freeze({
         ...step,
         actions: Object.freeze(actions),
         extraActionHandlerIds: Object.freeze(extraActionHandlerIds),
+        extraServerActionIds: Object.freeze(extraServerActionIds),
         hasRuntimeWiring,
         hasWiringGaps,
         resolvedActionCount,

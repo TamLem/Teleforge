@@ -1379,12 +1379,19 @@ function createSimulatorUiHtml(options: {
 
                 parts.push("enter=" + String(Boolean(step.resolvedOnEnter)));
                 parts.push("submit=" + String(Boolean(step.resolvedOnSubmit)));
+                parts.push("serverGuard=" + String(Boolean(step.resolvedServerGuard)));
+                parts.push("serverLoader=" + String(Boolean(step.resolvedServerLoader)));
+                parts.push("serverSubmit=" + String(Boolean(step.resolvedServerSubmit)));
                 parts.push(
                   "actions=" +
                     String(step.resolvedActionCount || 0) +
                     "/" +
                     String(step.actionCount || 0)
                 );
+
+                if (step.serverHookFile) {
+                  parts.push("serverFile=" + step.serverHookFile);
+                }
 
                 if (Array.isArray(step.unresolvedActionIds) && step.unresolvedActionIds.length > 0) {
                   parts.push("missing=" + step.unresolvedActionIds.join(","));
@@ -1395,6 +1402,13 @@ function createSimulatorUiHtml(options: {
                   step.extraActionHandlerIds.length > 0
                 ) {
                   parts.push("extra=" + step.extraActionHandlerIds.join(","));
+                }
+
+                if (
+                  Array.isArray(step.extraServerActionIds) &&
+                  step.extraServerActionIds.length > 0
+                ) {
+                  parts.push("serverExtra=" + step.extraServerActionIds.join(","));
                 }
 
                 return parts.join(" | ");

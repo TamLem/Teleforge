@@ -11,6 +11,7 @@ test("loadManifest supports teleforge.config.ts deriving routes from imported fl
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-devtools-manifest-"));
   const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
   const handlersRoot = path.join(tmpRoot, "apps", "bot", "src", "flow-handlers", "start");
+  const serverHooksRoot = path.join(tmpRoot, "apps", "api", "src", "flow-hooks", "start");
   const screensRoot = path.join(tmpRoot, "apps", "web", "src", "screens");
   const nodeModulesRoot = path.join(tmpRoot, "node_modules");
   const teleforgeIndexUrl = pathToFileURL(
@@ -28,6 +29,7 @@ test("loadManifest supports teleforge.config.ts deriving routes from imported fl
 
   await mkdir(flowsRoot, { recursive: true });
   await mkdir(handlersRoot, { recursive: true });
+  await mkdir(serverHooksRoot, { recursive: true });
   await mkdir(screensRoot, { recursive: true });
   await mkdir(nodeModulesRoot, { recursive: true });
   await symlink(teleforgePackagePath, path.join(nodeModulesRoot, "teleforge"), "dir");
@@ -100,6 +102,19 @@ export default defineFlow({
 `
   );
   await writeFile(
+    path.join(serverHooksRoot, "home.ts"),
+    `export function guard() {
+  return true;
+}
+
+export function loader() {
+  return {
+    heading: "Authoritative Home"
+  };
+}
+`
+  );
+  await writeFile(
     path.join(screensRoot, "home.screen.tsx"),
     `import { defineScreen } from "teleforge/web";
 
@@ -123,7 +138,8 @@ export default defineTeleforgeApp({
     version: "1.0.0"
   },
   flows: {
-    root: "apps/bot/src/flows"
+    root: "apps/bot/src/flows",
+    serverHooksRoot: "apps/api/src/flow-hooks"
   },
   bot: {
     tokenEnv: "BOT_TOKEN",
@@ -167,6 +183,9 @@ export default defineTeleforgeApp({
   assert.equal(loaded.discoveredFlows[0]?.steps[0]?.actions[1]?.resolution, "handler");
   assert.equal(loaded.discoveredFlows[0]?.steps[1]?.status, "wired");
   assert.equal(loaded.discoveredFlows[0]?.steps[1]?.resolvedOnSubmit, true);
+  assert.equal(loaded.discoveredFlows[0]?.steps[1]?.resolvedServerGuard, true);
+  assert.equal(loaded.discoveredFlows[0]?.steps[1]?.resolvedServerLoader, true);
+  assert.match(loaded.discoveredFlows[0]?.steps[1]?.serverHookFile ?? "", /home\.ts$/);
   assert.equal(loaded.discoveredFlows[0]?.steps[1]?.screenResolved, true);
   assert.equal(loaded.discoveredFlows[0]?.steps[1]?.screenTitle, "Home");
   assert.match(loaded.discoveredFlows[0]?.steps[1]?.screenFilePath ?? "", /home\.screen\.tsx$/);
