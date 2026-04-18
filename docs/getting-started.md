@@ -133,19 +133,14 @@ pnpm --filter create-teleforge-app build
 Generate a project:
 
 ```bash
-node packages/create-teleforge-app/dist/cli.js my-app --mode spa
-node packages/create-teleforge-app/dist/cli.js my-bff-app --mode bff
+node packages/create-teleforge-app/dist/cli.js my-app
 ```
-
-Use `spa` when the Mini App can talk to your existing backend directly.
-
-Use `bff` when you want a Telegram-aware backend layer with route middleware, identity/session helpers, and service adapters.
 
 You should see:
 
 - a new project directory
 - `apps/web`, `apps/bot`, and `apps/api`
-- `teleforge.app.json`
+- `teleforge.config.ts`
 - `.env.example`
 - root scripts for `pnpm run dev`, `pnpm run dev:public`, and `pnpm run doctor`
 - baseline bot and web smoke tests behind `pnpm test`
@@ -176,7 +171,7 @@ teleforge dev --open
 
 You should see:
 
-- Teleforge validate `teleforge.app.json`
+- Teleforge load and validate `teleforge.config.ts`
 - the simulator shell boot in a normal browser
 - a chat pane and an idle Mini App panel
 - real local bot command handling when `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
@@ -188,7 +183,7 @@ You should see:
 - a debug panel showing the current mode, active scenario, latest event, and profile snapshot
 - saved scenarios available for reloading transcript plus Telegram state from `~/.teleforge/scenarios`
 
-If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to manifest-level `/start` and `/help` behavior.
+If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to default `/start` and `/help` behavior.
 
 By default, the embedded Mini App stays closed until you send `/start`, click a `web_app` button, or press `Open App`. If you want the iframe to load immediately for UI work, run:
 
@@ -213,7 +208,7 @@ If you want to open the app in Telegram instead of only in the local browser:
 3. Put the token in your `.env` as `BOT_TOKEN`.
 4. Leave `MINI_APP_URL` blank unless you need to force a fixed override. During `teleforge dev`, Teleforge injects the resolved local or public URL into the companion bot automatically.
 
-For the polling-first scaffolds and repo examples, the minimum bot configuration in `teleforge.app.json` is:
+For the polling-first scaffolds and repo examples, the minimum bot configuration in `teleforge.config.ts` is:
 
 - `bot.username`
 - `bot.tokenEnv`

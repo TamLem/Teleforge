@@ -5,9 +5,9 @@ This guide is for developers building Telegram Mini Apps and bots with the curre
 It focuses on the implemented workflow in this repository:
 
 - scaffold a project
-- choose the right runtime mode
+- start from the default Teleforge app shape
 - run locally with Teleforge devtools
-- build Mini App, bot, and BFF features with the shipped packages
+- build Mini App, bot, and optional server-hook features with the shipped packages
 - validate and test before release
 
 Use this guide as the hub. The new step-by-step companions are:
@@ -37,39 +37,16 @@ The framework is most useful when you need some combination of:
 - coordinated chat-to-Mini-App flows
 - a Telegram-aware BFF layer in front of existing services
 
-## Choose a Runtime Mode
+## Scaffolded App Shape
 
-Teleforge currently supports two app shapes from the scaffold generator.
+The current generator now emits one default Teleforge app shape.
 
-### SPA Mode
+Generated apps use:
 
-Use `spa` mode when:
-
-- your Mini App can talk directly to your existing APIs
-- you do not need a dedicated BFF layer in the same workspace
-- Vite is the simplest fit for your frontend
-
-Generated SPA apps use:
-
-- `apps/web` with Vite
-- `apps/bot` for Telegram command handling
-- `apps/api` as a placeholder surface when you need backend endpoints later
-- `teleforge.app.json` as the source-of-truth manifest
-
-### BFF Mode
-
-Use `bff` mode when:
-
-- you want a Telegram-aware server edge in front of downstream APIs
-- you need session exchange, identity resolution, or service adapters
-- you want request validation and launch metadata available server-side
-
-Generated BFF apps use:
-
-- `apps/web` with Next.js
-- `apps/bot` for Telegram command handling
-- `apps/api` for framework-aware backend routes
-- `teleforge.app.json` as the source-of-truth manifest
+- `apps/web` with the Teleforge Mini App shell and screen modules
+- `apps/bot` for flow definitions and bot runtime execution
+- `apps/api` as an optional placeholder when flows later need trusted server hooks or a webhook surface
+- `teleforge.config.ts` as the source-of-truth app definition
 
 ## Create a Project
 
@@ -82,8 +59,7 @@ pnpm --filter create-teleforge-app build
 Generate a new app:
 
 ```bash
-node packages/create-teleforge-app/dist/cli.js my-app --mode spa
-node packages/create-teleforge-app/dist/cli.js my-bff-app --mode bff
+node packages/create-teleforge-app/dist/cli.js my-app
 ```
 
 The generated workspace includes:
@@ -91,7 +67,7 @@ The generated workspace includes:
 - `apps/web`
 - `apps/bot`
 - `apps/api`
-- `teleforge.app.json`
+- `teleforge.config.ts`
 - `.env.example`
 - root scripts for Teleforge development, diagnostics, and baseline tests
 
@@ -356,7 +332,7 @@ export function ThemedScreen() {
 When route access depends on launch mode or client capabilities:
 
 - use `useRouteGuard()` for imperative checks
-- use `useManifestGuard()` when route requirements already live in `teleforge.app.json`
+- use `useManifestGuard()` when route requirements already live in derived route config
 - use `LaunchModeBoundary` from `@teleforgex/ui` for view-level fallbacks
 
 This is the pattern Teleforge uses for flows like compact/fullscreen checkout protection.

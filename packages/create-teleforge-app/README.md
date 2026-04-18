@@ -7,18 +7,17 @@ Greenfield Teleforge project generator for new apps and examples.
 ```bash
 pnpm install
 pnpm run build
-node dist/cli.js my-app --mode spa
-node dist/cli.js my-bff-app --mode bff
+node dist/cli.js my-app
 ```
 
-Interactive mode is supported when `--mode` or the target directory is omitted.
+Pass `--yes` to skip prompts.
 
 ## Supported Output
 
-- `apps/web` with either Vite (`spa`) or Next.js (`bff`)
-- `apps/bot` starter runtime and `start` command handler
-- `apps/api` starter routes and webhook placeholder
-- `teleforge.app.json`
+- `apps/web` with the Teleforge Mini App shell, first screen module, and Vite delivery runtime
+- `apps/bot` starter runtime and `start` flow
+- `apps/api` starter server-hook and webhook placeholders
+- `teleforge.config.ts`
 - `.env.example`
 - root workspace scripts for `teleforge dev`, `teleforge dev --public --live`, and `teleforge doctor`
 

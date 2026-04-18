@@ -186,6 +186,13 @@ The problem is not that the pieces do not exist. The problem is that developers 
 
 The flow-first direction reframes those pieces behind one framework model.
 
+Current migration progress already reflects part of this direction:
+
+- shared `defineFlow()` definitions can now be used on bot and Mini App surfaces
+- Mini App screens can be registered through `defineScreen()`
+- `TeleforgeMiniApp` provides a framework-owned shell for flow-aware screen resolution
+- the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
+
 ## Desired Outcome
 
 The desired developer experience is:

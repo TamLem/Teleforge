@@ -10,30 +10,21 @@ const execFileAsync = promisify(execFile);
 const repoRoot = process.cwd();
 const cliPath = path.join(repoRoot, "dist", "cli.js");
 
-test("generates SPA scaffold", async () => {
-  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-spa-"));
-  const projectName = "sample-spa";
+test("generates the unified Teleforge scaffold", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-app-"));
+  const projectName = "sample-app";
 
-  await execFileAsync("node", [cliPath, projectName, "--mode", "spa", "--yes"], {
+  await execFileAsync("node", [cliPath, projectName, "--yes"], {
     cwd: tmpRoot
   });
 
   const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
   const configSource = await readFile(configPath, "utf8");
   assert.match(configSource, /defineTeleforgeApp/);
-  assert.doesNotMatch(configSource, /createFlowRoutes/);
-  assert.doesNotMatch(
-    configSource,
-    /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/
-  );
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
-  assert.match(configSource, /mode": "spa"/);
-  assert.match(configSource, /webFramework": "vite"/);
-  assert.match(configSource, /path: "\/settings"/);
-
-  const webPackagePath = path.join(tmpRoot, projectName, "apps", "web", "package.json");
-  const webPackage = JSON.parse(await readFile(webPackagePath, "utf8"));
-  assert.equal(webPackage.scripts.dev, "vite");
+  assert.match(configSource, /mode: "spa"/);
+  assert.match(configSource, /webFramework: "vite"/);
+  assert.doesNotMatch(configSource, /routes:/);
 
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
@@ -42,6 +33,10 @@ test("generates SPA scaffold", async () => {
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
   );
+
+  const webPackagePath = path.join(tmpRoot, projectName, "apps", "web", "package.json");
+  const webPackage = JSON.parse(await readFile(webPackagePath, "utf8"));
+  assert.equal(webPackage.scripts.dev, "vite");
 
   const startFlowPath = path.join(
     tmpRoot,
@@ -53,135 +48,65 @@ test("generates SPA scaffold", async () => {
     "start.flow.ts"
   );
   const startFlow = await readFile(startFlowPath, "utf8");
-  assert.match(startFlow, /defineFlow/);
+  assert.match(startFlow, /import \{ defineFlow \} from "teleforge\/web"/);
   assert.match(startFlow, /command: "start"/);
-  assert.match(startFlow, /component: "pages\/Home"/);
+  assert.match(startFlow, /component: "screens\/home"/);
+  assert.match(startFlow, /screen: "home"/);
   assert.match(startFlow, /route: "\/"/);
+
+  const runtimePath = path.join(tmpRoot, projectName, "apps", "bot", "src", "runtime.ts");
+  const runtimeSource = await readFile(runtimePath, "utf8");
+  assert.match(runtimeSource, /createDiscoveredBotRuntime/);
 
   const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
   const botTest = await readFile(botTestPath, "utf8");
   assert.match(botTest, /startFlow/);
   assert.match(botTest, /bot entry command/);
 
-  const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");
-  const webTest = await readFile(webTestPath, "utf8");
-  assert.match(webTest, /import React from "react"/);
-  assert.match(webTest, /renderToStaticMarkup/);
-
-  const homePagePath = path.join(tmpRoot, projectName, "apps", "web", "src", "pages", "Home.tsx");
-  const homePage = await readFile(homePagePath, "utf8");
-  assert.match(homePage, /import React from "react"/);
-  assert.match(homePage, /requireLaunchMode\(\["inline", "compact", "fullscreen"\]\)/);
-  assert.match(homePage, /inline, compact, and fullscreen launch modes/);
-
-  const settingsPagePath = path.join(
-    tmpRoot,
-    projectName,
-    "apps",
-    "web",
-    "src",
-    "pages",
-    "Settings.tsx"
-  );
-  const settingsPage = await readFile(settingsPagePath, "utf8");
-  assert.match(settingsPage, /import React from "react"/);
-
   const appPath = path.join(tmpRoot, projectName, "apps", "web", "src", "App.tsx");
   const appSource = await readFile(appPath, "utf8");
-  assert.match(appSource, /import React, \{ useEffect, useState \} from "react"/);
+  assert.match(appSource, /framework-owned Mini App runtime/);
+  assert.match(appSource, /Screen: home/);
 
-  const runtimePath = path.join(tmpRoot, projectName, "apps", "bot", "src", "runtime.ts");
-  const runtimeSource = await readFile(runtimePath, "utf8");
-  assert.match(runtimeSource, /createDiscoveredBotRuntime/);
+  const mainPath = path.join(tmpRoot, projectName, "apps", "web", "src", "main.tsx");
+  const mainSource = await readFile(mainPath, "utf8");
+  assert.match(mainSource, /TeleforgeMiniApp/);
+  assert.match(mainSource, /startFlow/);
+  assert.match(mainSource, /homeScreen/);
 
-  const guardPath = path.join(
+  const screenPath = path.join(
     tmpRoot,
     projectName,
     "apps",
     "web",
     "src",
-    "guards",
-    "launchMode.ts"
+    "screens",
+    "home.screen.tsx"
   );
-  const guard = await readFile(guardPath, "utf8");
-  assert.match(guard, /typeof window === "undefined"/);
-  assert.match(guard, /if \(mode === "unknown"\) return null/);
-});
-
-test("generates BFF scaffold", async () => {
-  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-bff-"));
-  const projectName = "sample-bff";
-
-  await execFileAsync("node", [cliPath, projectName, "--mode", "bff", "--yes"], {
-    cwd: tmpRoot
-  });
-
-  const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
-  const configSource = await readFile(configPath, "utf8");
-  assert.doesNotMatch(configSource, /createFlowRoutes/);
-  assert.doesNotMatch(
-    configSource,
-    /import startFlow from "\.\/apps\/bot\/src\/flows\/start\.flow\.ts"/
-  );
-  assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
-  assert.match(configSource, /mode": "bff"/);
-  assert.match(configSource, /webFramework": "nextjs"/);
-  assert.match(configSource, /apiRoutes": "apps\/api\/src\/routes"/);
-
-  const nextPagePath = path.join(
-    tmpRoot,
-    projectName,
-    "apps",
-    "web",
-    "app",
-    "settings",
-    "page.tsx"
-  );
-  const nextPage = await readFile(nextPagePath, "utf8");
-  assert.match(nextPage, /SettingsPage/);
-  assert.match(nextPage, /\.\.\/\.\.\/src\/pages\/Settings/);
-
-  const nextConfigPath = path.join(tmpRoot, projectName, "apps", "web", "next.config.mjs");
-  const nextConfig = await readFile(nextConfigPath, "utf8");
-  assert.match(nextConfig, /nextConfig/);
-
-  const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
-  const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
-  assert.equal(rootPackage.devDependencies.tsx, "^4.19.2");
-  assert.equal(rootPackage.dependencies.teleforge, "^0.1.0");
-  assert.equal(
-    rootPackage.scripts.test,
-    "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
-  );
-
-  const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
-  const botTest = await readFile(botTestPath, "utf8");
-  assert.match(botTest, /Open Sample Bff/);
-  assert.match(botTest, /startFlow/);
+  const screenSource = await readFile(screenPath, "utf8");
+  assert.match(screenSource, /defineScreen/);
+  assert.match(screenSource, /id: "home"/);
 
   const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");
   const webTest = await readFile(webTestPath, "utf8");
-  assert.match(webTest, /import React from "react"/);
-  assert.match(webTest, /Welcome to Sample Bff/);
+  assert.match(webTest, /renderToStaticMarkup/);
+  assert.match(webTest, /Screen: home/);
 
-  const homePagePath = path.join(tmpRoot, projectName, "apps", "web", "src", "pages", "Home.tsx");
-  const homePage = await readFile(homePagePath, "utf8");
-  assert.match(homePage, /requireLaunchMode\(\["inline", "compact", "fullscreen"\]\)/);
-
-  const runtimePath = path.join(tmpRoot, projectName, "apps", "bot", "src", "runtime.ts");
-  const runtimeSource = await readFile(runtimePath, "utf8");
-  assert.match(runtimeSource, /createDiscoveredBotRuntime/);
+  const readmePath = path.join(tmpRoot, projectName, "README.md");
+  const readme = await readFile(readmePath, "utf8");
+  assert.match(readme, /apps\/web.*Mini App shell, screens, and styles/);
+  assert.match(readme, /apps\/web\/src\/screens\/home\.screen\.tsx/);
+  assert.doesNotMatch(readme, /Next\.js BFF web/);
+  assert.doesNotMatch(readme, /settings/i);
 });
 
 test("generates scaffold with --link flag using link: protocol", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-link-"));
   const projectName = "linked-app";
 
-  await execFileAsync(
-    "node",
-    [cliPath, projectName, "--mode", "spa", "--yes", "--link", "/home/aj/hustle/tmf"],
-    { cwd: tmpRoot }
-  );
+  await execFileAsync("node", [cliPath, projectName, "--yes", "--link", "/home/aj/hustle/tmf"], {
+    cwd: tmpRoot
+  });
 
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
@@ -194,7 +119,7 @@ test("rejects project names that normalize to empty app metadata", async () => {
 
   await assert.rejects(
     () =>
-      execFileAsync("node", [cliPath, "!!!", "--mode", "spa", "--yes"], {
+      execFileAsync("node", [cliPath, "!!!", "--yes"], {
         cwd: tmpRoot
       }),
     /must contain at least one letter or number/

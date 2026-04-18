@@ -1364,7 +1364,17 @@ function createSimulatorUiHtml(options: {
                 ];
 
                 if (step.screen) {
-                  parts.push("screen=" + step.screen);
+                  parts.push(
+                    "screen=" + step.screen + (step.screenResolved === false ? " (missing)" : "")
+                  );
+                }
+
+                if (step.screenTitle) {
+                  parts.push("title=" + step.screenTitle);
+                }
+
+                if (step.screenFilePath) {
+                  parts.push("screenFile=" + step.screenFilePath);
                 }
 
                 parts.push("enter=" + String(Boolean(step.resolvedOnEnter)));

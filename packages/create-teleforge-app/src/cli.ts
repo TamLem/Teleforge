@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
-import { stdin as input, stdout as output } from "node:process";
-import { createInterface } from "node:readline/promises";
+import { stdout as output } from "node:process";
 
-import { generateProject, type GeneratorMode } from "./generator.js";
+import { generateProject } from "./generator.js";
 
 interface CliOptions {
   targetDir?: string;
-  mode?: GeneratorMode;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
   overwrite: boolean;
@@ -49,17 +47,6 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
 
-    if (arg === "--mode" || arg === "-m") {
-      options.mode = parseMode(argv[index + 1]);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--mode=")) {
-      options.mode = parseMode(arg.split("=")[1]);
-      continue;
-    }
-
     if (arg === "--link") {
       const value = argv[index + 1];
       if (!value || value.startsWith("-")) {
@@ -84,20 +71,11 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-function parseMode(value?: string): GeneratorMode {
-  if (value === "spa" || value === "bff") {
-    return value;
-  }
-
-  throw new Error(`Expected --mode to be "spa" or "bff", received "${value ?? ""}".`);
-}
-
 function printHelp(): void {
   output.write(`create-teleforge-app\n\n`);
   output.write(`Usage:\n`);
   output.write(`  create-teleforge-app <project-name> [options]\n\n`);
   output.write(`Options:\n`);
-  output.write(`  -m, --mode <spa|bff>          Select the web runtime mode\n`);
   output.write(
     `  --overwrite                   Remove an existing target directory before generating\n`
   );
@@ -106,49 +84,24 @@ function printHelp(): void {
   output.write(`  -h, --help                    Show help\n`);
 }
 
-async function promptForMissing(
-  options: CliOptions
-): Promise<Required<Pick<CliOptions, "targetDir" | "mode">>> {
+async function promptForMissing(options: CliOptions): Promise<Required<Pick<CliOptions, "targetDir">>> {
   if (options.yes) {
     if (!options.targetDir) {
       throw new Error("Project name is required when using --yes.");
     }
 
     return {
-      targetDir: options.targetDir,
-      mode: options.mode ?? "spa"
+      targetDir: options.targetDir
     };
   }
 
-  if (!input.isTTY || !output.isTTY) {
-    throw new Error(
-      "Missing required arguments in a non-interactive terminal. Pass --mode and a project name."
-    );
+  if (!options.targetDir) {
+    throw new Error("Project name is required.");
   }
 
-  const prompt = createInterface({ input, output });
-
-  try {
-    const targetDir = options.targetDir?.trim() || (await prompt.question("Project name: ")).trim();
-
-    if (!targetDir) {
-      throw new Error("Project name is required.");
-    }
-
-    const mode = options.mode ?? (await promptMode(prompt));
-
-    return {
-      targetDir,
-      mode
-    };
-  } finally {
-    prompt.close();
-  }
-}
-
-async function promptMode(prompt: ReturnType<typeof createInterface>): Promise<GeneratorMode> {
-  const answer = (await prompt.question("Template mode (spa/bff) [spa]: ")).trim().toLowerCase();
-  return answer === "bff" ? "bff" : "spa";
+  return {
+    targetDir: options.targetDir.trim()
+  };
 }
 
 async function run(): Promise<void> {
@@ -163,13 +116,11 @@ async function run(): Promise<void> {
   const result = await generateProject({
     cwd: process.cwd(),
     targetDir: resolved.targetDir,
-    mode: resolved.mode,
     overwrite: options.overwrite,
     linkPath: options.linkPath
   });
 
   output.write(`\nCreated Teleforge project in ${result.targetDir}\n`);
-  output.write(`Mode: ${result.mode.toUpperCase()}\n`);
   output.write(`Files written: ${result.fileCount}\n\n`);
   output.write(`Next steps:\n`);
   output.write(`  cd ${result.relativeTargetDir}\n`);

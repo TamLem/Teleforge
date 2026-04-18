@@ -3,12 +3,9 @@ import path from "node:path";
 
 import { buildProjectFiles } from "./templates.js";
 
-export type GeneratorMode = "spa" | "bff";
-
 interface GenerateProjectOptions {
   cwd: string;
   targetDir: string;
-  mode: GeneratorMode;
   overwrite: boolean;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
@@ -16,7 +13,6 @@ interface GenerateProjectOptions {
 
 interface GenerateProjectResult {
   fileCount: number;
-  mode: GeneratorMode;
   relativeTargetDir: string;
   targetDir: string;
 }
@@ -62,7 +58,6 @@ export async function generateProject(
     appId,
     appName,
     botUsername,
-    mode: options.mode,
     linkPath: options.linkPath
   });
 
@@ -74,7 +69,6 @@ export async function generateProject(
 
   return {
     fileCount: Object.keys(files).length,
-    mode: options.mode,
     relativeTargetDir,
     targetDir
   };

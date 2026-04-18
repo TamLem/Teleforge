@@ -33,6 +33,8 @@ Implemented in the repo now:
 - convention-based screen discovery for Mini App screens
 - a framework-owned Mini App shell and screen registry entrypoint
 - starter-app Mini App rendering through the framework-owned shell instead of app-local screen selection
+- generated scaffolds now emit one default Teleforge app shape instead of asking users to choose a public SPA versus BFF mode
+- generated Mini Apps now start from `TeleforgeMiniApp`, screen modules, and `teleforge.config.ts`
 
 That means the migration is no longer blocked on primitives or on the initial app path. The remaining work is mostly about **making flows the primary runtime object everywhere**, not about inventing the base framework APIs.
 
@@ -360,7 +362,8 @@ Status:
 - devtools can boot config-derived flow routes
 - simulator workspace bot execution works with the unified package path
 - devtools now surface discovered flow summaries plus step-level handler completeness in the simulator and loader output
-- devtools still do not explain screen resolution, backend hooks, or Mini App/backend execution readiness beyond chat-handler diagnostics
+- devtools now surface resolved Mini App screen ownership for discovered steps
+- devtools still do not explain backend hooks or Mini App/backend execution readiness beyond chat and screen diagnostics
 
 ### 6. Rebuild scaffolding around the new model
 
@@ -375,10 +378,11 @@ Generated apps should work without manual command registration as the first edit
 
 Status:
 
-- mostly complete for the bot/runtime path
+- mostly complete
 - generated apps now use the framework-owned discovered runtime helper
 - generated config no longer imports flow modules to build routes
-- remaining work is around deeper flow handler conventions, not basic app boot
+- generated apps now start from one Mini App shell + screen model instead of a public mode switch
+- remaining work is around deeper flow execution and server-hook conventions, not basic app boot
 
 ### 7. Rewrite docs and examples as V2-first
 
@@ -420,11 +424,10 @@ That is the main missing jump from “framework scaffolding” to “flow-first 
 
 ### 2. Devtools are ahead on visibility, but not yet on full execution insight
 
-Devtools can now boot config-derived apps, surface discovered flow summaries, and show step-level handler diagnostics.
+Devtools can now boot config-derived apps, surface discovered flow summaries, show step-level handler diagnostics, and point Mini App steps at their resolved screen modules.
 
 But the simulator and diagnostics should eventually understand:
 
-- which screens or pages resolve for each Mini App step
 - which optional server hooks exist for a flow
 - where a flow is incomplete because a screen, server hook, or Mini App execution surface is missing
 
@@ -472,12 +475,11 @@ The foundation phase is now complete enough that the next order should focus on 
 
 ### Revised next order
 
-1. Build the Mini App shell/runtime and screen registry behind one default Teleforge app model.
-2. Finish Mini App screen resolution, loader/guard execution, and step submit/return handling.
-3. Add optional server-hook discovery and execution where flows need server-side work.
-4. Migrate Task Shop or another non-trivial example onto the same flow-first runtime model.
-5. Extend devtools visibility across screen and server-hook resolution.
-6. Rewrite the main docs around the now-concrete flow-first path.
+1. Finish Mini App screen resolution, loader/guard execution, and step submit/return handling.
+2. Add optional server-hook discovery and execution where flows need server-side work.
+3. Migrate Task Shop or another non-trivial example onto the same flow-first runtime model.
+4. Extend devtools visibility across screen and server-hook resolution.
+5. Rewrite the main docs around the now-concrete flow-first path.
 
 This order is better because it finishes the actual framework model before spending more effort on documentation polish or further transitional helpers.
 
@@ -569,6 +571,14 @@ This should cover:
 Target outcome:
 
 - Teleforge can own Mini App step execution, not just route metadata
+
+Status:
+
+- partially complete
+- the framework-owned Mini App shell, screen registry, and screen discovery now exist
+- starter-app now renders through `TeleforgeMiniApp`
+- generated apps now follow the same screen-first Mini App shape
+- loader execution, guard execution, submit handling, and return transitions still need to move into the framework runtime
 
 Planned sub-slices:
 

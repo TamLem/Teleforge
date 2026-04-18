@@ -73,9 +73,18 @@ export interface DiscoveredTeleforgeFlowStepSummary {
   resolvedOnEnter: boolean;
   resolvedOnSubmit: boolean;
   screen?: string;
+  screenFilePath?: string;
+  screenResolved?: boolean;
+  screenTitle?: string;
   status: "passive" | "warning" | "wired";
   type: "chat" | "miniapp";
   unresolvedActionIds: readonly string[];
+}
+
+interface DiscoveredTeleforgeScreenSummary {
+  filePath: string;
+  id: string;
+  title?: string;
 }
 
 /**
@@ -135,6 +144,12 @@ async function tryLoadTeleforgeConfig(cwd: string): Promise<{
         cwd
       })
     : [];
+  const screenSummaries = config.miniApp
+    ? await loadScreenSummaries({
+        app: config,
+        cwd
+      })
+    : [];
   const hydratedConfig = deriveConfigRoutes(config, flowModules);
   const result = validateManifest(teleforgeAppToManifest(hydratedConfig));
 
@@ -145,7 +160,7 @@ async function tryLoadTeleforgeConfig(cwd: string): Promise<{
   }
 
   return {
-    discoveredFlows: summarizeFlows(flowModules, flowRuntimeSummaries),
+    discoveredFlows: summarizeFlows(flowModules, flowRuntimeSummaries, screenSummaries),
     manifest: result.data,
     manifestPath: configPath
   };
@@ -262,12 +277,40 @@ interface RouteFlowDefinition {
 
 function summarizeFlows(
   flows: RouteFlowDefinition[],
-  runtimeSummaries: readonly DiscoveredTeleforgeFlowSummary[]
+  runtimeSummaries: readonly DiscoveredTeleforgeFlowSummary[],
+  screenSummaries: readonly DiscoveredTeleforgeScreenSummary[]
 ): DiscoveredTeleforgeFlowSummary[] {
   const runtimeSummariesById = new Map(runtimeSummaries.map((summary) => [summary.id, summary]));
+  const screenSummariesById = new Map(screenSummaries.map((summary) => [summary.id, summary]));
 
   return flows.map((flow) => {
     const runtimeSummary = runtimeSummariesById.get(flow.id);
+    const steps = (runtimeSummary?.steps ?? []).map((step) => {
+      if (!step.screen) {
+        return step;
+      }
+
+      const screenSummary = screenSummariesById.get(step.screen);
+      const screenResolved = Boolean(screenSummary);
+      const hasWiringGaps = step.hasWiringGaps || !screenResolved;
+      const status = hasWiringGaps
+        ? ("warning" as const)
+        : step.hasRuntimeWiring
+          ? ("wired" as const)
+          : ("passive" as const);
+
+      return Object.freeze({
+        ...step,
+        hasWiringGaps,
+        ...(screenSummary ? { screenFilePath: screenSummary.filePath } : {}),
+        screenResolved,
+        ...(screenSummary?.title ? { screenTitle: screenSummary.title } : {}),
+        status
+      });
+    });
+    const warningStepCount = steps.filter((step) => step.status === "warning").length;
+    const wiredStepCount = steps.filter((step) => step.status === "wired").length;
+    const passiveStepCount = steps.filter((step) => step.status === "passive").length;
 
     return {
       ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
@@ -275,15 +318,15 @@ function summarizeFlows(
       ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
       finalStep: flow.finalStep ?? flow.initialStep,
       hasRuntimeHandlers: runtimeSummary?.hasRuntimeHandlers ?? false,
-      hasWiringGaps: runtimeSummary?.hasWiringGaps ?? false,
+      hasWiringGaps: warningStepCount > 0,
       id: flow.id,
       initialStep: flow.initialStep,
-      passiveStepCount: runtimeSummary?.passiveStepCount ?? Object.keys(flow.steps).length,
+      passiveStepCount: runtimeSummary ? passiveStepCount : Object.keys(flow.steps).length,
       ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
       stepCount: Object.keys(flow.steps).length,
-      steps: runtimeSummary?.steps ?? Object.freeze([]),
-      warningStepCount: runtimeSummary?.warningStepCount ?? 0,
-      wiredStepCount: runtimeSummary?.wiredStepCount ?? 0
+      steps: Object.freeze(steps),
+      warningStepCount,
+      wiredStepCount
     };
   });
 }
@@ -441,6 +484,68 @@ interface RuntimeFlowSummary {
   route?: string;
   stepCount: number;
   steps: readonly RuntimeFlowStepSummary[];
+}
+
+async function loadScreenSummaries(options: {
+  app: TeleforgeAppConfig;
+  cwd: string;
+}): Promise<DiscoveredTeleforgeScreenSummary[]> {
+  const script = `
+    import { pathToFileURL } from "node:url";
+
+    const teleforgePath = process.argv[1];
+    const cwd = process.argv[2];
+    const app = JSON.parse(process.argv[3]);
+
+    const teleforge = await import(pathToFileURL(teleforgePath).href);
+    const screens = await teleforge.loadTeleforgeScreens({
+      app,
+      cwd
+    });
+
+    process.stdout.write(
+      JSON.stringify(
+        screens.map((entry) => ({
+          filePath: entry.filePath,
+          id: entry.screen.id,
+          title: entry.screen.title
+        }))
+      )
+    );
+  `;
+
+  try {
+    const tsxImportPath = resolveTsxImportPath(options.cwd);
+    const teleforgeImportPath = resolveTeleforgeImportPath(options.cwd);
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      [
+        "--import",
+        tsxImportPath,
+        "--input-type=module",
+        "--eval",
+        script,
+        teleforgeImportPath,
+        options.cwd,
+        JSON.stringify({
+          miniApp: options.app.miniApp
+        })
+      ],
+      {
+        cwd: options.cwd,
+        env: process.env
+      }
+    );
+
+    return JSON.parse(stdout) as DiscoveredTeleforgeScreenSummary[];
+  } catch (error) {
+    const stderr =
+      error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
+    const message =
+      stderr.trim() ||
+      (error instanceof Error ? error.message : "Failed to load Teleforge screen summaries.");
+    throw new Error(message);
+  }
 }
 
 async function loadFlowRuntimeSummaries(options: {

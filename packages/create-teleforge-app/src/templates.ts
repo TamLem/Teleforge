@@ -1,10 +1,7 @@
-import type { GeneratorMode } from "./generator.js";
-
 interface BuildProjectFilesOptions {
   appId: string;
   appName: string;
   botUsername: string;
-  mode: GeneratorMode;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
 }
@@ -78,24 +75,20 @@ ${doctor}
 
 ## Structure
 
-- \`apps/web\`: Mini App surface (${options.mode === "spa" ? "Vite SPA" : "Next.js BFF web"})
-- \`apps/bot\`: Bot runtime, flow definitions, and simulator bridge export in \`src/runtime.ts\`
-- \`apps/api\`: optional API and webhook placeholder routes
+- \`apps/web\`: Mini App shell, screens, and styles
+- \`apps/bot\`: Bot runtime, discovered flows, and simulator bridge export in \`src/runtime.ts\`
+- \`apps/api\`: optional server-hook and webhook placeholders
 - \`teleforge.config.ts\`: App definition
 
 ## Read These Files First
 
-- \`teleforge.config.ts\`: source of truth for flow discovery, routes, launch modes, and capabilities
-- \`apps/bot/src/flows/start.flow.ts\`: the first bot flow users hit, including its bot entry command
-- \`apps/bot/src/runtime.ts\`: where discovered flows are loaded into the bot runtime
-- \`apps/web/src/App.tsx\` (${options.mode === "spa" ? "SPA router shell" : "client page composition"}) and \`apps/web/src/pages/*\`: where Mini App UI actually changes
+- \`teleforge.config.ts\`: source of truth for app identity, flow discovery, and Mini App defaults
+- \`apps/bot/src/flows/start.flow.ts\`: the first flow users hit, including its bot entry command and Mini App route
+- \`apps/bot/src/runtime.ts\`: where Teleforge discovers flows and boots the bot runtime
+- \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint
+- \`apps/web/src/screens/home.screen.tsx\`: the first Mini App screen module
 
-Config strings are conventions, not magic auto-imports:
-
-- \`flows.root: "apps/bot/src/flows"\` tells Teleforge where to discover \`*.flow.ts\` modules
-- \`component: "pages/Home"\` conventionally maps to \`apps/web/src/pages/Home.tsx\`
-
-You still compose advanced runtime behavior in code yourself, but basic bot entry commands can now come directly from discovered flow definitions.
+The scaffold intentionally starts with one flow and one screen. Add more flow files and screen modules as the app grows.
 
 ## Dev Workflow
 
@@ -114,10 +107,10 @@ You still compose advanced runtime behavior in code yourself, but basic bot entr
 - \`dev\` and \`dev:public\` inject the resolved local or public URL into the companion bot automatically
 - the generated \`apps/api\` files are placeholders; webhook mode only makes sense once the primary web runtime actually serves \`/api/webhook\`
 
-## Modes
+## Runtime Notes
 
-- \`/\`: available in inline, compact, and fullscreen launch modes
-- \`/settings\`: fullscreen-only sample route with additional guard requirements
+- \`/\`: the generated start flow launches the Mini App here
+- \`apps/api\`: stays optional until you need trusted server hooks or a real webhook surface
 `;
 }
 
@@ -145,22 +138,6 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
 }
 
 function generatedConfig(options: BuildProjectFilesOptions): string {
-  const runtime =
-    options.mode === "spa"
-      ? {
-          mode: "spa",
-          webFramework: "vite",
-          build: {
-            outDir: "dist",
-            basePath: "/"
-          }
-        }
-      : {
-          mode: "bff",
-          webFramework: "nextjs",
-          apiRoutes: "apps/api/src/routes"
-        };
-
   return `import { defineTeleforgeApp } from "teleforge";
 
 export default defineTeleforgeApp({
@@ -172,7 +149,14 @@ export default defineTeleforgeApp({
   flows: {
     root: "apps/bot/src/flows"
   },
-  runtime: ${JSON.stringify(runtime, null, 2)},
+  runtime: {
+    mode: "spa",
+    webFramework: "vite",
+    build: {
+      outDir: "dist",
+      basePath: "/"
+    }
+  },
   bot: {
     username: ${JSON.stringify(options.botUsername)},
     tokenEnv: "BOT_TOKEN",
@@ -185,22 +169,8 @@ export default defineTeleforgeApp({
     entry: "apps/web/src/main.tsx",
     launchModes: ["inline", "compact", "fullscreen"],
     defaultMode: "inline",
-    capabilities: ["write_access", "read_access"]
-  },
-  routes: [
-    {
-      path: "/settings",
-      component: "pages/Settings",
-      launchModes: ["fullscreen"],
-      guards: ["auth", "write_access"]
-    }
-  ],
-  permissions: [
-    {
-      capability: "write_access",
-      description: "Post messages on user's behalf"
-    }
-  ]
+    capabilities: ["read_access"]
+  }
 });
 `;
 }
@@ -722,7 +692,7 @@ export function hasUsableToken(value: string | undefined): value is string {
 }
 
 function botStartFlowTs(appName: string): string {
-  return `import { defineFlow } from "teleforge";
+  return `import { defineFlow } from "teleforge/web";
 
 export default defineFlow({
   id: "start",
@@ -737,8 +707,7 @@ export default defineFlow({
     }
   },
   miniApp: {
-    component: "pages/Home",
-    guards: ["auth"],
+    component: "screens/home",
     launchModes: ["inline", "compact", "fullscreen"],
     route: "/"
   },
@@ -772,10 +741,6 @@ test("start flow declares the bot entry command", () => {
 }
 
 function generatedWebFiles(options: BuildProjectFilesOptions): Record<string, string> {
-  return options.mode === "spa" ? spaWebFiles(options) : bffWebFiles(options);
-}
-
-function spaWebFiles(options: BuildProjectFilesOptions): Record<string, string> {
   return {
     "apps/web/index.html": spaIndexHtml(options.appName),
     "apps/web/package.json": stringifyJson({
@@ -799,11 +764,9 @@ function spaWebFiles(options: BuildProjectFilesOptions): Record<string, string> 
         vite: "^5.4.10"
       }
     }),
-    "apps/web/src/App.tsx": spaAppTsx(options.appName),
-    "apps/web/src/guards/launchMode.ts": launchModeGuardTs(),
-    "apps/web/src/main.tsx": spaMainTsx(),
-    "apps/web/src/pages/Home.tsx": homePageTsx(options.appName),
-    "apps/web/src/pages/Settings.tsx": settingsPageTsx(),
+    "apps/web/src/App.tsx": webAppTsx(options.appName),
+    "apps/web/src/main.tsx": webMainTsx(),
+    "apps/web/src/screens/home.screen.tsx": homeScreenTsx(),
     "apps/web/src/styles.css": webStylesCss(),
     "apps/web/test/home.test.tsx": homePageTestTs(options.appName),
     "apps/web/tsconfig.json": stringifyJson({
@@ -815,55 +778,6 @@ function spaWebFiles(options: BuildProjectFilesOptions): Record<string, string> 
       include: ["src/**/*.ts", "src/**/*.tsx"]
     }),
     "apps/web/vite.config.ts": viteConfigTs()
-  };
-}
-
-function bffWebFiles(options: BuildProjectFilesOptions): Record<string, string> {
-  return {
-    "apps/web/app/globals.css": webStylesCss(),
-    "apps/web/app/layout.tsx": nextLayoutTsx(options.appName),
-    "apps/web/app/page.tsx": nextPageTsx("Home", "../src/pages/Home"),
-    "apps/web/app/settings/page.tsx": nextPageTsx("Settings", "../../src/pages/Settings"),
-    "apps/web/next-env.d.ts": `/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n`,
-    "apps/web/next.config.mjs": `const nextConfig = {};\n\nexport default nextConfig;\n`,
-    "apps/web/package.json": stringifyJson({
-      name: "@app/web",
-      private: true,
-      version: "1.0.0",
-      type: "module",
-      scripts: {
-        dev: "next dev",
-        build: "next build",
-        start: "next start"
-      },
-      dependencies: {
-        next: "^14.2.15",
-        react: "^18.3.1",
-        "react-dom": "^18.3.1"
-      },
-      devDependencies: {
-        "@types/react": "^18.3.12",
-        "@types/react-dom": "^18.3.1"
-      }
-    }),
-    "apps/web/src/guards/launchMode.ts": launchModeGuardTs(),
-    "apps/web/src/main.tsx": nextEntryPointTs(),
-    "apps/web/src/pages/Home.tsx": homePageTsx(options.appName),
-    "apps/web/src/pages/Settings.tsx": settingsPageTsx(),
-    "apps/web/test/home.test.tsx": homePageTestTs(options.appName),
-    "apps/web/tsconfig.json": stringifyJson({
-      extends: "../../tsconfig.base.json",
-      compilerOptions: {
-        jsx: "preserve",
-        allowJs: false,
-        incremental: true,
-        module: "ESNext",
-        moduleResolution: "Bundler",
-        isolatedModules: true,
-        plugins: [{ name: "next" }]
-      },
-      include: ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"]
-    })
   };
 }
 
@@ -893,151 +807,64 @@ export default defineConfig({
 `;
 }
 
-function spaMainTsx(): string {
+function webMainTsx(): string {
   return `import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { TeleforgeMiniApp } from "teleforge/web";
+
+import startFlow from "../../bot/src/flows/start.flow.js";
+
+import homeScreen from "./screens/home.screen.js";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <TeleforgeMiniApp flows={[startFlow]} screens={[homeScreen]} />
   </React.StrictMode>
 );
 `;
 }
 
-function spaAppTsx(appName: string): string {
-  return `import React, { useEffect, useState } from "react";
-import { HomePage } from "./pages/Home";
-import { SettingsPage } from "./pages/Settings";
-
-function resolveRoute(pathname: string) {
-  return pathname === "/settings" ? "settings" : "home";
-}
+function webAppTsx(appName: string): string {
+  return `import React from "react";
 
 export default function App() {
-  const [route, setRoute] = useState(() => resolveRoute(window.location.pathname));
-
-  useEffect(() => {
-    const handlePopState = () => setRoute(resolveRoute(window.location.pathname));
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  const navigate = (pathname: string) => {
-    window.history.pushState({}, "", pathname);
-    setRoute(resolveRoute(pathname));
-  };
-
   return (
     <main className="shell">
       <header className="hero">
         <p className="eyebrow">Teleforge Starter</p>
         <h1>${appName}</h1>
         <p className="lede">
-          Generated with the SPA scaffold. The sample routes mirror the Teleforge config launch-mode rules.
+          Generated with the unified Teleforge scaffold. This screen is mounted through the
+          framework-owned Mini App runtime instead of an app-local router.
         </p>
-        <nav className="nav">
-          <button type="button" onClick={() => navigate("/")}>
-            Home
-          </button>
-          <button type="button" onClick={() => navigate("/settings")}>
-            Settings
-          </button>
-        </nav>
       </header>
-      <section className="card">{route === "settings" ? <SettingsPage /> : <HomePage />}</section>
+      <section className="card stack">
+        <p className="badge">Screen: home</p>
+        <h2>Welcome to ${appName}</h2>
+        <p>
+          Start from flows and screens. Add more \`.flow.ts\` modules in \`apps/bot/src/flows\`
+          and more \`.screen.tsx\` modules in \`apps/web/src/screens\` as the product grows.
+        </p>
+      </section>
     </main>
   );
 }
 `;
 }
 
-function nextLayoutTsx(appName: string): string {
-  return `import "./globals.css";
-import type { ReactNode } from "react";
+function homeScreenTsx(): string {
+  return `import { defineScreen } from "teleforge/web";
 
-export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <main className="shell">
-          <header className="hero">
-            <p className="eyebrow">Teleforge Starter</p>
-            <h1>${appName}</h1>
-            <p className="lede">
-              Generated with the BFF scaffold. Sample routes mirror the Teleforge config launch-mode rules.
-            </p>
-            <nav className="nav">
-              <a href="/">Home</a>
-              <a href="/settings">Settings</a>
-            </nav>
-          </header>
-          <section className="card">{children}</section>
-        </main>
-      </body>
-    </html>
-  );
-}
-`;
-}
+import App from "../App.js";
 
-function nextPageTsx(pageName: "Home" | "Settings", importPath: string): string {
-  return `"use client";
-
-import { ${pageName}Page } from "${importPath}";
-
-export default function Page() {
-  return <${pageName}Page />;
-}
-`;
-}
-
-function nextEntryPointTs(): string {
-  return `export { HomePage } from "./pages/Home";
-export { SettingsPage } from "./pages/Settings";
-`;
-}
-
-function homePageTsx(appName: string): string {
-  return `import React from "react";
-import { requireLaunchMode } from "../guards/launchMode";
-
-export function HomePage() {
-  requireLaunchMode(["inline", "compact", "fullscreen"]);
-
-  return (
-    <div className="stack">
-      <p className="badge">Route: /</p>
-      <h2>Welcome to ${appName}</h2>
-      <p>
-        This sample page is available in inline, compact, and fullscreen launch modes and demonstrates an auth
-        guard.
-      </p>
-    </div>
-  );
-}
-`;
-}
-
-function settingsPageTsx(): string {
-  return `import React from "react";
-import { requireLaunchMode } from "../guards/launchMode";
-
-export function SettingsPage() {
-  requireLaunchMode(["fullscreen"]);
-
-  return (
-    <div className="stack">
-      <p className="badge">Route: /settings</p>
-      <h2>Settings</h2>
-      <p>
-        This page is restricted to fullscreen mode and maps to the config's stronger capability requirements.
-      </p>
-    </div>
-  );
-}
+export default defineScreen({
+  component() {
+    return <App />;
+  },
+  id: "home",
+  title: "Home"
+});
 `;
 }
 
@@ -1047,44 +874,14 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { HomePage } from "../src/pages/Home";
+import App from "../src/App";
 
-test("home page renders the welcome screen", () => {
-  const html = renderToStaticMarkup(<HomePage />);
+test("home screen renders the welcome screen", () => {
+  const html = renderToStaticMarkup(<App />);
 
   assert.match(html, /Welcome to ${appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/);
-  assert.match(html, /Route: \\//);
+  assert.match(html, /Screen: home/);
 });
-`;
-}
-
-function launchModeGuardTs(): string {
-  return `import { useLaunch } from "teleforge/web";
-
-function normalizeLaunchMode(mode: string | null): string | null {
-  if (mode === "full") return "fullscreen";
-  if (mode === "unknown") return null;
-  return mode;
-}
-
-export function requireLaunchMode(allowedModes: string[]) {
-  if (typeof window === "undefined") return true;
-
-  const { isReady, mode: rawMode } = useLaunch();
-  const mode = normalizeLaunchMode(rawMode);
-
-  if (!isReady) return true;
-
-  if (mode === null) return true;
-
-  if (!allowedModes.includes(mode)) {
-    throw new Error(
-      \`Route requires launch mode: \${allowedModes.join(", ")} (received: \${rawMode ?? "unavailable"})\`
-    );
-  }
-
-  return true;
-}
 `;
 }
 
