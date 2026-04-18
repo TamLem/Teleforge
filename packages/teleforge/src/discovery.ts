@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { defineCoordinationConfig } from "@teleforgex/core";
 
-import { createFlowStartCommand } from "./flow.js";
+import { createFlowStartCommand, resolveFlowActionKey } from "./flow.js";
 
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
@@ -28,9 +28,11 @@ type AnyFlowDefinition = TeleforgeFlowDefinition<
 >;
 
 const FLOW_FILE_SUFFIXES = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"] as const;
+const HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
 const DEFAULT_FLOW_ROOT = "flows";
 
 export interface TeleforgeFlowConventions {
+  handlersRoot?: string;
   root?: string;
 }
 
@@ -44,9 +46,67 @@ export interface DiscoverFlowFilesOptions {
 
 export interface LoadTeleforgeFlowsOptions extends DiscoverFlowFilesOptions {}
 
+export interface DiscoverFlowHandlerFilesOptions {
+  app?: {
+    flows?: TeleforgeFlowConventions;
+  };
+  cwd: string;
+  root?: string;
+}
+
+export interface LoadTeleforgeFlowHandlersOptions extends DiscoverFlowHandlerFilesOptions {}
+
 export interface DiscoveredFlowModule {
   filePath: string;
   flow: AnyFlowDefinition;
+}
+
+export interface DiscoveredFlowActionSummary {
+  hasHandler: boolean;
+  handlerSource: "inline" | "module" | "none";
+  id: string;
+  label: string;
+  to?: string;
+}
+
+export interface DiscoveredFlowStepSummary {
+  actionCount: number;
+  actions: readonly DiscoveredFlowActionSummary[];
+  discoveredActionHandlerIds: readonly string[];
+  handlerFile?: string;
+  hasDiscoveredModule: boolean;
+  hasOnEnter: boolean;
+  hasOnSubmit: boolean;
+  id: string;
+  resolvedOnEnter: boolean;
+  resolvedOnSubmit: boolean;
+  screen?: string;
+  type: "chat" | "miniapp";
+}
+
+export interface DiscoveredFlowRuntimeSummary {
+  command?: string;
+  filePath?: string;
+  finalStep: string;
+  hasRuntimeHandlers: boolean;
+  id: string;
+  initialStep: string;
+  route?: string;
+  stepCount: number;
+  steps: readonly DiscoveredFlowStepSummary[];
+}
+
+export interface DiscoveredFlowStepHandlerModule {
+  actions: Readonly<Record<string, Function>>;
+  filePath: string;
+  flowId: string;
+  onEnter?: Function;
+  onSubmit?: Function;
+  stepId: string;
+}
+
+export interface CreateFlowRuntimeSummaryOptions {
+  handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
 }
 
 export interface CreateFlowCommandsOptions {
@@ -130,6 +190,59 @@ export async function loadTeleforgeFlows(
   return discovered;
 }
 
+export async function discoverFlowHandlerFiles(
+  options: DiscoverFlowHandlerFilesOptions
+): Promise<string[]> {
+  const root = resolveFlowHandlersRoot(options);
+  const absoluteRoot = path.resolve(options.cwd, root);
+
+  try {
+    return await collectFilesBySuffix(absoluteRoot, HANDLER_FILE_SUFFIXES);
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export async function loadTeleforgeFlowHandlers(
+  options: LoadTeleforgeFlowHandlersOptions
+): Promise<DiscoveredFlowStepHandlerModule[]> {
+  const files = await discoverFlowHandlerFiles(options);
+  const root = path.resolve(options.cwd, resolveFlowHandlersRoot(options));
+  const discovered: DiscoveredFlowStepHandlerModule[] = [];
+  const seenKeys = new Map<string, string>();
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath);
+    const segments = relativePath.split(path.sep);
+
+    if (segments.length !== 2) {
+      throw new Error(
+        `Flow handler module "${filePath}" must live at <handlersRoot>/<flowId>/<stepId>.<ext>.`
+      );
+    }
+
+    const flowId = segments[0];
+    const stepId = stripKnownExtension(segments[1], HANDLER_FILE_SUFFIXES);
+    const key = `${flowId}:${stepId}`;
+    const existing = seenKeys.get(key);
+
+    if (existing) {
+      throw new Error(
+        `Duplicate flow step handler "${key}" discovered in "${existing}" and "${filePath}".`
+      );
+    }
+
+    seenKeys.set(key, filePath);
+    discovered.push(await loadFlowHandlerModule(filePath, flowId, stepId));
+  }
+
+  return discovered;
+}
+
 export function createFlowCommands(options: CreateFlowCommandsOptions): BotCommandDefinition[] {
   const commands: BotCommandDefinition[] = [];
 
@@ -177,6 +290,97 @@ export function createFlowCommands(options: CreateFlowCommandsOptions): BotComma
   }
 
   return commands;
+}
+
+export function createFlowRuntimeSummary(
+  flowOrModule: AnyFlowDefinition | DiscoveredFlowModule,
+  options: CreateFlowRuntimeSummaryOptions = {}
+): DiscoveredFlowRuntimeSummary {
+  const flow = "flow" in flowOrModule ? flowOrModule.flow : flowOrModule;
+  const filePath = "filePath" in flowOrModule ? flowOrModule.filePath : undefined;
+  const handlerIndex = createFlowHandlerIndex(options.handlers ?? []);
+  const steps = Object.entries(flow.steps).map(([stepId, step]) => {
+    const discoveredHandler = handlerIndex.get(`${flow.id}:${stepId}`);
+
+    if (step.type === "chat") {
+      const actions = (step.actions ?? []).map((action) =>
+        Object.freeze({
+          hasHandler:
+            typeof action.handler === "function" ||
+            typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function",
+          handlerSource:
+            typeof action.handler === "function"
+              ? ("inline" as const)
+              : typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function"
+                ? ("module" as const)
+                : ("none" as const),
+          id: resolveFlowActionKey(action),
+          label: action.label,
+          ...(action.to ? { to: action.to } : {})
+        })
+      );
+
+      return Object.freeze({
+        actionCount: actions.length,
+        actions,
+        discoveredActionHandlerIds: Object.freeze(Object.keys(discoveredHandler?.actions ?? {})),
+        ...(discoveredHandler?.filePath ? { handlerFile: discoveredHandler.filePath } : {}),
+        hasDiscoveredModule: Boolean(discoveredHandler),
+        hasOnEnter: typeof step.onEnter === "function",
+        hasOnSubmit: false,
+        id: stepId,
+        resolvedOnEnter:
+          typeof step.onEnter === "function" || typeof discoveredHandler?.onEnter === "function",
+        resolvedOnSubmit: false,
+        type: "chat" as const
+      });
+    }
+
+    return Object.freeze({
+      actionCount: 0,
+      actions: Object.freeze([]),
+      discoveredActionHandlerIds: Object.freeze(Object.keys(discoveredHandler?.actions ?? {})),
+      ...(discoveredHandler?.filePath ? { handlerFile: discoveredHandler.filePath } : {}),
+      hasDiscoveredModule: Boolean(discoveredHandler),
+      hasOnEnter: typeof step.onEnter === "function",
+      hasOnSubmit: typeof step.onSubmit === "function",
+      id: stepId,
+      resolvedOnEnter:
+        typeof step.onEnter === "function" || typeof discoveredHandler?.onEnter === "function",
+      resolvedOnSubmit:
+        typeof step.onSubmit === "function" || typeof discoveredHandler?.onSubmit === "function",
+      ...(step.screen ? { screen: step.screen } : {}),
+      type: "miniapp" as const
+    });
+  });
+
+  const hasRuntimeHandlers = steps.some(
+    (step) =>
+      step.resolvedOnEnter ||
+      step.resolvedOnSubmit ||
+      step.actions.some((action) => action.hasHandler)
+  );
+
+  return Object.freeze({
+    ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
+    ...(filePath ? { filePath } : {}),
+    finalStep: String(flow.finalStep),
+    hasRuntimeHandlers,
+    id: flow.id,
+    initialStep: String(flow.initialStep),
+    ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
+    stepCount: steps.length,
+    steps: Object.freeze(steps)
+  });
+}
+
+export function createFlowRuntimeSummaries(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>,
+  options: CreateFlowRuntimeSummaryOptions = {}
+): DiscoveredFlowRuntimeSummary[] {
+  return normalizeDiscoveredFlowsWithMetadata(flows).map((flow) =>
+    createFlowRuntimeSummary(flow, options)
+  );
 }
 
 export function createFlowCoordinationConfigFromFlows(
@@ -284,7 +488,22 @@ function resolveFlowRoot(options: DiscoverFlowFilesOptions): string {
   return options.root ?? options.app?.flows?.root ?? DEFAULT_FLOW_ROOT;
 }
 
-async function collectFlowFiles(root: string): Promise<string[]> {
+function resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): string {
+  if (options.root) {
+    return options.root;
+  }
+
+  if (options.app?.flows?.handlersRoot) {
+    return options.app.flows.handlersRoot;
+  }
+
+  return deriveHandlersRootFromFlowRoot(options.app?.flows?.root ?? DEFAULT_FLOW_ROOT);
+}
+
+async function collectFilesBySuffix(
+  root: string,
+  suffixes: readonly string[]
+): Promise<string[]> {
   const entries = await readdir(root, {
     withFileTypes: true
   });
@@ -294,17 +513,21 @@ async function collectFlowFiles(root: string): Promise<string[]> {
     const target = path.join(root, entry.name);
 
     if (entry.isDirectory()) {
-      files.push(...(await collectFlowFiles(target)));
+      files.push(...(await collectFilesBySuffix(target, suffixes)));
       continue;
     }
 
-    if (FLOW_FILE_SUFFIXES.some((suffix) => entry.name.endsWith(suffix))) {
+    if (suffixes.some((suffix) => entry.name.endsWith(suffix))) {
       files.push(target);
     }
   }
 
   files.sort();
   return files;
+}
+
+async function collectFlowFiles(root: string): Promise<string[]> {
+  return collectFilesBySuffix(root, FLOW_FILE_SUFFIXES);
 }
 
 async function loadFlowDefinition(filePath: string): Promise<AnyFlowDefinition> {
@@ -318,6 +541,47 @@ async function loadFlowDefinition(filePath: string): Promise<AnyFlowDefinition> 
   }
 
   return candidate;
+}
+
+async function loadFlowHandlerModule(
+  filePath: string,
+  flowId: string,
+  stepId: string
+): Promise<DiscoveredFlowStepHandlerModule> {
+  const loaded = await import(pathToFileURL(filePath).href);
+  const candidate = loaded.default ?? loaded.handler ?? loaded.stepHandler ?? loaded;
+  const module =
+    candidate &&
+    typeof candidate === "object" &&
+    "default" in candidate &&
+    candidate.default &&
+    typeof candidate.default === "object"
+      ? candidate.default
+      : candidate;
+
+  if (!module || typeof module !== "object") {
+    throw new Error(
+      `Flow handler module "${filePath}" must export an object or named handler exports.`
+    );
+  }
+
+  const actions: Record<string, Function> =
+    "actions" in module && module.actions && typeof module.actions === "object"
+      ? (Object.fromEntries(
+          Object.entries(module.actions as Record<string, unknown>).filter(
+            ([key, value]) => typeof key === "string" && typeof value === "function"
+          )
+        ) as Record<string, Function>)
+      : {};
+
+  return Object.freeze({
+    actions: Object.freeze(actions),
+    filePath,
+    flowId,
+    ...(typeof module.onEnter === "function" ? { onEnter: module.onEnter as Function } : {}),
+    ...(typeof module.onSubmit === "function" ? { onSubmit: module.onSubmit as Function } : {}),
+    stepId
+  });
 }
 
 function isFlowDefinition(value: unknown): value is AnyFlowDefinition {
@@ -344,6 +608,49 @@ function normalizeDiscoveredFlows(
   }
 
   return normalized;
+}
+
+function normalizeDiscoveredFlowsWithMetadata(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
+): Array<AnyFlowDefinition | DiscoveredFlowModule> {
+  const normalized: Array<AnyFlowDefinition | DiscoveredFlowModule> = [];
+
+  for (const item of flows) {
+    normalized.push(item);
+  }
+
+  return normalized;
+}
+
+function createFlowHandlerIndex(
+  handlers: Iterable<DiscoveredFlowStepHandlerModule>
+): Map<string, DiscoveredFlowStepHandlerModule> {
+  const index = new Map<string, DiscoveredFlowStepHandlerModule>();
+
+  for (const handler of handlers) {
+    index.set(`${handler.flowId}:${handler.stepId}`, handler);
+  }
+
+  return index;
+}
+
+function deriveHandlersRootFromFlowRoot(flowRoot: string): string {
+  const normalized = flowRoot.replace(/\\/g, "/");
+  if (normalized.endsWith("/flows")) {
+    return normalized.replace(/\/flows$/, "/flow-handlers");
+  }
+
+  return `${normalized}-handlers`;
+}
+
+function stripKnownExtension(fileName: string, extensions: readonly string[]): string {
+  for (const extension of extensions) {
+    if (fileName.endsWith(extension)) {
+      return fileName.slice(0, -extension.length);
+    }
+  }
+
+  return fileName;
 }
 
 function isMissingPathError(error: unknown): boolean {

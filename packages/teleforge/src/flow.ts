@@ -72,6 +72,7 @@ export interface FlowSubmitContext<
 }
 
 export interface FlowActionDefinition<TState, TServices = unknown> {
+  id?: string;
   handler?: (input: FlowHandlerContext<TState, TServices>) => MaybePromise<void | FlowTransitionResult<TState>>;
   label: string;
   to?: string;
@@ -215,7 +216,19 @@ export function defineFlow<
 
   for (const [stepId, step] of Object.entries(flow.steps)) {
     if (step.type === "chat") {
+      const seenActionKeys = new Set<string>();
+
       for (const action of step.actions ?? []) {
+        const actionKey = resolveFlowActionKey(action);
+
+        if (seenActionKeys.has(actionKey)) {
+          throw new Error(
+            `Flow "${flow.id}" step "${stepId}" defines duplicate action key "${actionKey}".`
+          );
+        }
+
+        seenActionKeys.add(actionKey);
+
         if (action.to) {
           assertStepExists(flow.id, stepIds, action.to, `steps.${stepId}.actions.to`);
         }
@@ -235,6 +248,22 @@ export function defineFlow<
     state: flow.state,
     steps
   }) as TeleforgeFlowDefinition<TState, TServices, TSteps>;
+}
+
+export function resolveFlowActionKey<TState, TServices = unknown>(
+  action: FlowActionDefinition<TState, TServices>
+): string {
+  if (typeof action.id === "string" && action.id.trim().length > 0) {
+    return action.id.trim();
+  }
+
+  const normalized = action.label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized.length > 0 ? normalized : "action";
 }
 
 export function createFlowCoordinationConfig<

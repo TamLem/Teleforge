@@ -9,8 +9,12 @@ import {
   createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
+  createFlowRuntimeSummaries,
+  createFlowRuntimeSummary,
   defineFlow,
+  discoverFlowHandlerFiles,
   discoverFlowFiles,
+  loadTeleforgeFlowHandlers,
   loadTeleforgeFlows
 } from "../dist/index.js";
 import { handleMiniAppReturn } from "../dist/bot.js";
@@ -276,4 +280,181 @@ test("createFlowRoutes derives manifest routes from flow miniapp metadata", () =
   assert.deepEqual(routes[1]?.launchModes, ["inline", "compact", "fullscreen"]);
   assert.equal(routes[1]?.coordination?.flow?.flowId, "start");
   assert.equal(routes[1]?.coordination?.entryPoints[0]?.type, "bot_command");
+});
+
+test("createFlowRuntimeSummary exposes step-level handler wiring", () => {
+  const flow = defineFlow({
+    id: "checkout",
+    initialStep: "welcome",
+    state: {},
+    bot: {
+      command: {
+        command: "checkout",
+        text: "Open checkout"
+      }
+    },
+    miniApp: {
+      route: "/checkout"
+    },
+    steps: {
+      welcome: {
+        actions: [
+          {
+            label: "Choose item",
+            to: "catalog"
+          },
+          {
+            handler({ state }) {
+              return {
+                state
+              };
+            },
+            label: "Fast lane"
+          }
+        ],
+        message: "Welcome",
+        onEnter({ state }) {
+          return {
+            state
+          };
+        },
+        type: "chat"
+      },
+      catalog: {
+        onSubmit({ state }) {
+          return {
+            state
+          };
+        },
+        screen: "catalog",
+        type: "miniapp"
+      }
+    }
+  });
+
+  const summary = createFlowRuntimeSummary(flow);
+  const summaries = createFlowRuntimeSummaries([flow]);
+
+  assert.equal(summary.id, "checkout");
+  assert.equal(summary.command, "checkout");
+  assert.equal(summary.route, "/checkout");
+  assert.equal(summary.stepCount, 2);
+  assert.equal(summary.hasRuntimeHandlers, true);
+  assert.equal(summary.steps[0]?.id, "welcome");
+  assert.equal(summary.steps[0]?.hasOnEnter, true);
+  assert.equal(summary.steps[0]?.actionCount, 2);
+  assert.equal(summary.steps[0]?.actions[0]?.hasHandler, false);
+  assert.equal(summary.steps[0]?.actions[1]?.hasHandler, true);
+  assert.equal(summary.steps[1]?.type, "miniapp");
+  assert.equal(summary.steps[1]?.screen, "catalog");
+  assert.equal(summary.steps[1]?.hasOnSubmit, true);
+  assert.equal(summaries.length, 1);
+  assert.equal(summaries[0]?.id, "checkout");
+});
+
+test("discoverFlowHandlerFiles and loadTeleforgeFlowHandlers resolve convention-based step handlers", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-flow-handlers-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const handlersRoot = path.join(tmpRoot, "apps", "bot", "src", "flow-handlers", "checkout");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await mkdir(handlersRoot, { recursive: true });
+
+  await writeFile(
+    path.join(flowsRoot, "checkout.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "checkout",
+  initialStep: "welcome",
+  state: {},
+  bot: {
+    command: {
+      command: "checkout",
+      text: "Open checkout"
+    }
+  },
+  miniApp: {
+    route: "/checkout"
+  },
+  steps: {
+    welcome: {
+      actions: [
+        {
+          id: "fast-lane",
+          label: "Fast lane"
+        }
+      ],
+      message: "Welcome",
+      type: "chat"
+    },
+    catalog: {
+      screen: "catalog",
+      type: "miniapp"
+    }
+  }
+});
+`
+  );
+
+  await writeFile(
+    path.join(handlersRoot, "welcome.mjs"),
+    `export const onEnter = () => ({});
+export const actions = {
+  "fast-lane": () => ({})
+};
+`
+  );
+
+  await writeFile(
+    path.join(handlersRoot, "catalog.mjs"),
+    `export default {
+  onSubmit() {
+    return {};
+  }
+};
+`
+  );
+
+  const handlerFiles = await discoverFlowHandlerFiles({
+    app: {
+      flows: {
+        root: "apps/bot/src/flows"
+      }
+    },
+    cwd: tmpRoot
+  });
+
+  assert.equal(handlerFiles.length, 2);
+  assert.match(handlerFiles[0], /catalog\.mjs$/);
+  assert.match(handlerFiles[1], /welcome\.mjs$/);
+
+  const handlers = await loadTeleforgeFlowHandlers({
+    app: {
+      flows: {
+        root: "apps/bot/src/flows"
+      }
+    },
+    cwd: tmpRoot
+  });
+  const flows = await loadTeleforgeFlows({
+    app: {
+      flows: {
+        root: "apps/bot/src/flows"
+      }
+    },
+    cwd: tmpRoot
+  });
+  const summary = createFlowRuntimeSummaries(flows, { handlers })[0];
+
+  assert.equal(handlers.length, 2);
+  assert.equal(handlers[0]?.flowId, "checkout");
+  assert.equal(summary?.hasRuntimeHandlers, true);
+  assert.equal(summary?.steps[0]?.hasDiscoveredModule, true);
+  assert.equal(summary?.steps[0]?.resolvedOnEnter, true);
+  assert.deepEqual(summary?.steps[0]?.discoveredActionHandlerIds, ["fast-lane"]);
+  assert.equal(summary?.steps[0]?.actions[0]?.handlerSource, "module");
+  assert.equal(summary?.steps[1]?.hasDiscoveredModule, true);
+  assert.equal(summary?.steps[1]?.resolvedOnSubmit, true);
 });

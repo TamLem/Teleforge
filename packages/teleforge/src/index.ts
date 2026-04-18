@@ -26,7 +26,11 @@ export {
   createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
+  createFlowRuntimeSummaries,
+  createFlowRuntimeSummary,
+  discoverFlowHandlerFiles,
   discoverFlowFiles,
+  loadTeleforgeFlowHandlers,
   loadTeleforgeFlows
 } from "./discovery.js";
 export { loadTeleforgeApp, loadTeleforgeAppFromFile, resolveTeleforgeConfigPath } from "./config.js";
@@ -49,9 +53,16 @@ export type {
 export type {
   CreateFlowCommandsOptions,
   CreateFlowCoordinationConfigFromFlowsOptions,
+  CreateFlowRuntimeSummaryOptions,
   CreateFlowRoutesOptions,
+  DiscoveredFlowActionSummary,
+  DiscoveredFlowStepHandlerModule,
   DiscoveredFlowModule,
+  DiscoveredFlowRuntimeSummary,
+  DiscoveredFlowStepSummary,
+  DiscoverFlowHandlerFilesOptions,
   DiscoverFlowFilesOptions,
+  LoadTeleforgeFlowHandlersOptions,
   LoadTeleforgeFlowsOptions,
   TeleforgeFlowConventions
 } from "./discovery.js";
