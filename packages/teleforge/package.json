@@ -32,6 +32,12 @@
       "require": "./dist/core.cjs",
       "default": "./dist/core.js"
     },
+    "./core/browser": {
+      "types": "./dist/core-browser.d.ts",
+      "import": "./dist/core-browser.js",
+      "require": "./dist/core-browser.cjs",
+      "default": "./dist/core-browser.js"
+    },
     "./devtools": {
       "types": "./dist/devtools.d.ts",
       "import": "./dist/devtools.js",
@@ -49,6 +55,12 @@
       "import": "./dist/web.js",
       "require": "./dist/web.cjs",
       "default": "./dist/web.js"
+    },
+    "./server-hooks": {
+      "types": "./dist/server-hooks.d.ts",
+      "import": "./dist/server-hooks.js",
+      "require": "./dist/server-hooks.cjs",
+      "default": "./dist/server-hooks.js"
     }
   },
   "bin": {

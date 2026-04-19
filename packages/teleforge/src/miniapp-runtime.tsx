@@ -1,20 +1,14 @@
 import { useLaunchCoordination } from "@teleforgex/web";
 import { useEffect, useState } from "react";
 
-import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow.js";
+import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
 import { resolveMiniAppScreen } from "./screens.js";
-import {
-  executeTeleforgeServerHookAction,
-  executeTeleforgeServerHookLoad,
-  executeTeleforgeServerHookSubmit
-} from "./server-hooks.js";
 
 import type {
   DiscoveredFlowModule,
-  DiscoveredFlowStepHandlerModule,
-  DiscoveredFlowStepServerHookModule
+  DiscoveredFlowStepHandlerModule
 } from "./discovery.js";
-import type { FlowActionDefinition, FlowTransitionResult, TeleforgeFlowDefinition } from "./flow.js";
+import type { FlowActionDefinition, FlowTransitionResult, TeleforgeFlowDefinition } from "./flow-definition.js";
 import type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,
@@ -23,7 +17,7 @@ import type {
   TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
-import type { TeleforgeMiniAppServerBridge } from "./server-hooks.js";
+import type { TeleforgeMiniAppServerBridge } from "./server-bridge.js";
 import type { ReactNode } from "react";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
@@ -40,7 +34,6 @@ export interface TeleforgeMiniAppProps {
   renderRuntimeError?: (error: RuntimeErrorMiniAppScreen) => ReactNode;
   screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>;
   serverBridge?: TeleforgeMiniAppServerBridge;
-  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
 }
 
 export interface UseTeleforgeMiniAppRuntimeOptions
@@ -81,7 +74,6 @@ export interface ExecuteMiniAppStepSubmitOptions<TData = unknown> {
   handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
   resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
   serverBridge?: TeleforgeMiniAppServerBridge;
-  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   stateKey?: string | null;
   services?: unknown;
 }
@@ -91,7 +83,6 @@ export interface ExecuteMiniAppStepActionOptions {
   handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
   resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
   serverBridge?: TeleforgeMiniAppServerBridge;
-  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   stateKey?: string | null;
   services?: unknown;
 }
@@ -226,7 +217,6 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
           onReturnToChat: props.onReturnToChat,
           resolution,
           serverBridge: props.serverBridge,
-          serverHooks: props.serverHooks,
           stateKey: launchCoordination.stateKey,
           setActivePathname,
           setHandoff,
@@ -244,7 +234,6 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
           onReturnToChat: props.onReturnToChat,
           resolution,
           serverBridge: props.serverBridge,
-          serverHooks: props.serverHooks,
           stateKey: launchCoordination.stateKey,
           setActivePathname,
           setHandoff,
@@ -304,7 +293,6 @@ export function useTeleforgeMiniAppRuntime(
 
     loadMiniAppScreenRuntime(resolution, {
       serverBridge: options.serverBridge,
-      serverHooks: options.serverHooks,
       stateKey: launchCoordination.stateKey
     })
       .then((nextState) => {
@@ -337,7 +325,6 @@ export async function loadMiniAppScreenRuntime(
   resolution: ResolvedMiniAppScreen,
   options: {
     serverBridge?: TeleforgeMiniAppServerBridge;
-    serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
     stateKey?: string | null;
     services?: unknown;
   } = {}
@@ -351,19 +338,7 @@ export async function loadMiniAppScreenRuntime(
         ...(options.stateKey ? { stateKey: options.stateKey } : {}),
         stepId: resolution.stepId
       })
-    : await executeTeleforgeServerHookLoad({
-        flow: resolution.flow,
-        hooks: options.serverHooks,
-        input: {
-          flowId: resolution.flowId,
-          routePath: resolution.routePath,
-          screenId: resolution.screenId,
-          state: resolution.state,
-          ...(options.stateKey ? { stateKey: options.stateKey } : {}),
-          stepId: resolution.stepId
-        },
-        services: options.services
-      });
+    : { allow: true as const };
   const nextResolution = {
     ...resolution,
     ...(serverResult.state !== undefined ? { state: serverResult.state } : {})
@@ -438,26 +413,13 @@ export async function executeMiniAppStepSubmit<TData = unknown>(
         ...(options.stateKey ? { stateKey: options.stateKey } : {}),
         stepId: options.resolution.stepId
       })
-    : options.serverHooks
-      ? await executeTeleforgeServerHookSubmit({
-          flow: options.resolution.flow,
-          hooks: options.serverHooks,
-          input: {
-            data: options.data,
-            flowId: options.resolution.flowId,
-            state: options.resolution.state,
-            ...(options.stateKey ? { stateKey: options.stateKey } : {}),
-            stepId: options.resolution.stepId
-          },
-          services: options.services
-        })
-      : await resolveMiniAppSubmitResult({
-          data: options.data,
-          handlerModule,
-          resolution: options.resolution,
-          services: options.services,
-          step
-        });
+    : await resolveMiniAppSubmitResult({
+        data: options.data,
+        handlerModule,
+        resolution: options.resolution,
+        services: options.services,
+        step
+      });
 
   return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId);
 }
@@ -488,26 +450,13 @@ export async function executeMiniAppStepAction(
         ...(options.stateKey ? { stateKey: options.stateKey } : {}),
         stepId: options.resolution.stepId
       })
-    : options.serverHooks
-      ? await executeTeleforgeServerHookAction({
-          flow: options.resolution.flow,
-          hooks: options.serverHooks,
-          input: {
-            action: options.action,
-            flowId: options.resolution.flowId,
-            state: options.resolution.state,
-            ...(options.stateKey ? { stateKey: options.stateKey } : {}),
-            stepId: options.resolution.stepId
-          },
-          services: options.services
-        })
-      : await resolveMiniAppActionResult({
-          action: options.action,
-          actionDefinition,
-          handlerModule,
-          resolution: options.resolution,
-          services: options.services
-        });
+    : await resolveMiniAppActionResult({
+        action: options.action,
+        actionDefinition,
+        handlerModule,
+        resolution: options.resolution,
+        services: options.services
+      });
 
   return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId, actionDefinition);
 }
@@ -518,7 +467,6 @@ async function handleMiniAppSubmit(options: {
   onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
   resolution: ReadyMiniAppScreen;
   serverBridge?: TeleforgeMiniAppServerBridge;
-  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   stateKey: string | null;
   setActivePathname: (pathname: string) => void;
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
@@ -531,7 +479,6 @@ async function handleMiniAppSubmit(options: {
       data: options.data,
       resolution: options.resolution,
       serverBridge: options.serverBridge,
-      serverHooks: options.serverHooks,
       stateKey: options.stateKey
     });
 
@@ -554,7 +501,6 @@ async function handleMiniAppAction(options: {
   onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
   resolution: ReadyMiniAppScreen;
   serverBridge?: TeleforgeMiniAppServerBridge;
-  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   stateKey: string | null;
   setActivePathname: (pathname: string) => void;
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
@@ -567,7 +513,6 @@ async function handleMiniAppAction(options: {
       action: options.action,
       resolution: options.resolution,
       serverBridge: options.serverBridge,
-      serverHooks: options.serverHooks,
       stateKey: options.stateKey
     });
 

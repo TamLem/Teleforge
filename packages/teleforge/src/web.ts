@@ -1,5 +1,5 @@
 export * from "@teleforgex/web";
-export { createFetchMiniAppServerBridge } from "./server-hooks.js";
+export { createFetchMiniAppServerBridge } from "./server-bridge.js";
 export {
   executeMiniAppStepAction,
   executeMiniAppStepSubmit,
@@ -48,7 +48,7 @@ export type {
   TeleforgeMiniAppServerLoadInput,
   TeleforgeMiniAppServerLoadResult,
   TeleforgeMiniAppServerSubmitInput
-} from "./server-hooks.js";
+} from "./server-bridge.js";
 export type {
   ChatFlowStepDefinition,
   FlowActionDefinition,

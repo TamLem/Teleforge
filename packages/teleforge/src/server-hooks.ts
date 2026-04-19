@@ -1,72 +1,66 @@
 import { loadTeleforgeApp } from "./config.js";
 import { loadTeleforgeFlowServerHooks, loadTeleforgeFlows } from "./discovery.js";
-import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow.js";
+import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
 
 import type { DiscoveredFlowStepServerHookModule, DiscoveredFlowModule } from "./discovery.js";
-import type { FlowTransitionResult, TeleforgeFlowDefinition } from "./flow.js";
+import type { FlowTransitionResult, TeleforgeFlowDefinition } from "./flow-definition.js";
 import type { TeleforgeScreenGuardBlock } from "./screens.js";
+import type {
+  TeleforgeMiniAppServerLoadInput,
+  TeleforgeMiniAppServerLoadResult,
+  TeleforgeMiniAppServerSubmitInput,
+  TeleforgeMiniAppServerActionInput
+} from "./server-bridge.js";
 import type { UserFlowState, UserFlowStateManager } from "@teleforgex/core";
+
+export {
+  createFetchMiniAppServerBridge,
+  DEFAULT_SERVER_HOOKS_PATH
+} from "./server-bridge.js";
+
+export type {
+  CreateFetchMiniAppServerBridgeOptions,
+  TeleforgeMiniAppServerActionInput,
+  TeleforgeMiniAppServerBridge,
+  TeleforgeMiniAppServerLoadAllowedResult,
+  TeleforgeMiniAppServerLoadBlockedResult,
+  TeleforgeMiniAppServerLoadInput,
+  TeleforgeMiniAppServerLoadResult,
+  TeleforgeMiniAppServerSubmitInput
+} from "./server-bridge.js";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
 type MaybePromise<T> = Promise<T> | T;
 
-export const DEFAULT_SERVER_HOOKS_PATH = "/api/teleforge/flow-hooks";
 const FLOW_STATE_PAYLOAD_KEY = "__teleforge_flow_state";
 
-export interface TeleforgeMiniAppServerLoadInput {
-  flowId: string;
-  routePath: string;
-  screenId: string;
-  state: unknown;
-  stateKey?: string;
-  stepId: string;
-}
+type TeleforgeServerHookRequest =
+  | {
+      kind: "load";
+      input: TeleforgeMiniAppServerLoadInput;
+    }
+  | {
+      kind: "submit";
+      input: TeleforgeMiniAppServerSubmitInput;
+    }
+  | {
+      kind: "action";
+      input: TeleforgeMiniAppServerActionInput;
+    };
 
-export interface TeleforgeMiniAppServerSubmitInput {
-  data: unknown;
-  flowId: string;
-  state: unknown;
-  stateKey?: string;
-  stepId: string;
-}
-
-export interface TeleforgeMiniAppServerActionInput {
-  action: string;
-  flowId: string;
-  state: unknown;
-  stateKey?: string;
-  stepId: string;
-}
-
-export interface TeleforgeMiniAppServerLoadAllowedResult {
-  allow: true;
-  loaderData?: unknown;
-  state?: unknown;
-}
-
-export interface TeleforgeMiniAppServerLoadBlockedResult {
-  allow: false;
-  block: TeleforgeScreenGuardBlock;
-  state?: unknown;
-}
-
-export type TeleforgeMiniAppServerLoadResult =
-  | TeleforgeMiniAppServerLoadAllowedResult
-  | TeleforgeMiniAppServerLoadBlockedResult;
-
-export interface TeleforgeMiniAppServerBridge {
-  action(input: TeleforgeMiniAppServerActionInput): Promise<void | FlowTransitionResult<unknown>>;
-  load(input: TeleforgeMiniAppServerLoadInput): Promise<TeleforgeMiniAppServerLoadResult>;
-  submit(
-    input: TeleforgeMiniAppServerSubmitInput
-  ): Promise<void | FlowTransitionResult<unknown>>;
-}
-
-export interface CreateFetchMiniAppServerBridgeOptions {
-  basePath?: string;
-  fetch?: typeof fetch;
-  headers?: HeadersInit | (() => MaybePromise<HeadersInit | undefined> | undefined);
-}
+type TeleforgeServerHookResponse =
+  | {
+      kind: "load";
+      result: TeleforgeMiniAppServerLoadResult;
+    }
+  | {
+      kind: "submit";
+      result: void | FlowTransitionResult<unknown>;
+    }
+  | {
+      kind: "action";
+      result: void | FlowTransitionResult<unknown>;
+    };
 
 export interface CreateDiscoveredServerHooksHandlerOptions {
   basePath?: string;
@@ -102,92 +96,6 @@ export interface TeleforgeServerHookTrustOptions {
   validate?: (context: TeleforgeServerHookTrustContext) => MaybePromise<void>;
 }
 
-type TeleforgeServerHookRequest =
-  | {
-      kind: "load";
-      input: TeleforgeMiniAppServerLoadInput;
-    }
-  | {
-      kind: "submit";
-      input: TeleforgeMiniAppServerSubmitInput;
-    }
-  | {
-      kind: "action";
-      input: TeleforgeMiniAppServerActionInput;
-    };
-
-type TeleforgeServerHookResponse =
-  | {
-      kind: "load";
-      result: TeleforgeMiniAppServerLoadResult;
-    }
-  | {
-      kind: "submit";
-      result: void | FlowTransitionResult<unknown>;
-    }
-  | {
-      kind: "action";
-      result: void | FlowTransitionResult<unknown>;
-    };
-
-export function createFetchMiniAppServerBridge(
-  options: CreateFetchMiniAppServerBridgeOptions = {}
-): TeleforgeMiniAppServerBridge {
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-
-  if (typeof fetchImpl !== "function") {
-    throw new Error("Teleforge could not resolve a fetch implementation for the server bridge.");
-  }
-
-  const basePath = options.basePath ?? DEFAULT_SERVER_HOOKS_PATH;
-  const resolveHeaders = options.headers;
-
-  return Object.freeze({
-    action: async (
-      input: TeleforgeMiniAppServerActionInput
-    ): Promise<void | FlowTransitionResult<unknown>> => {
-      const payload = await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "action" }>>(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "action"
-        },
-        resolveHeaders
-      );
-      return payload.result;
-    },
-    load: async (
-      input: TeleforgeMiniAppServerLoadInput
-    ): Promise<TeleforgeMiniAppServerLoadResult> => {
-      const payload = await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "load" }>>(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "load"
-        },
-        resolveHeaders
-      );
-      return payload.result;
-    },
-    submit: async (
-      input: TeleforgeMiniAppServerSubmitInput
-    ): Promise<void | FlowTransitionResult<unknown>> => {
-      const payload = await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "submit" }>>(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "submit"
-        },
-        resolveHeaders
-      );
-      return payload.result;
-    }
-  });
-}
-
 export async function createDiscoveredServerHooksHandler(
   options: CreateDiscoveredServerHooksHandlerOptions
 ): Promise<(request: Request) => Promise<Response | null>> {
@@ -201,7 +109,7 @@ export async function createDiscoveredServerHooksHandler(
     cwd: options.cwd
   });
   const state: TeleforgeDiscoveredServerHooksHandlerState = {
-    basePath: options.basePath ?? DEFAULT_SERVER_HOOKS_PATH,
+    basePath: options.basePath ?? "/api/teleforge/flow-hooks",
     flows,
     hooks,
     ...(options.services !== undefined ? { services: options.services } : {}),
@@ -319,34 +227,6 @@ export async function executeTeleforgeServerHookAction(options: {
     services: options.services,
     state: options.input.state
   })) as void | FlowTransitionResult<unknown>;
-}
-
-async function postServerHookRequest<TResponse extends TeleforgeServerHookResponse>(
-  fetchImpl: typeof fetch,
-  basePath: string,
-  payload: TeleforgeServerHookRequest,
-  resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
-): Promise<TResponse> {
-  const headers = await resolveBridgeHeaders(resolveHeaders);
-  const response = await fetchImpl(basePath, {
-    body: JSON.stringify(payload),
-    headers: {
-      "content-type": "application/json",
-      ...headers
-    },
-    method: "POST"
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(
-      message.trim().length > 0
-        ? message
-        : `Teleforge server bridge request failed with ${response.status}.`
-    );
-  }
-
-  return (await response.json()) as TResponse;
 }
 
 async function handleDiscoveredServerHooksRequest(
@@ -477,24 +357,6 @@ function normalizeServerGuardBlock(result: unknown): TeleforgeScreenGuardBlock {
   return {
     allow: false
   };
-}
-
-async function resolveBridgeHeaders(
-  resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
-): Promise<Record<string, string>> {
-  if (!resolveHeaders) {
-    return {};
-  }
-
-  const raw = typeof resolveHeaders === "function" ? await resolveHeaders() : resolveHeaders;
-  const headers = new Headers(raw);
-  const normalized: Record<string, string> = {};
-
-  headers.forEach((value, key) => {
-    normalized[key] = value;
-  });
-
-  return normalized;
 }
 
 async function resolveTrustedExecutionInput(

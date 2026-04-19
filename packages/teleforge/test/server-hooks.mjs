@@ -16,6 +16,13 @@ import {
   resolveMiniAppScreen
 } from "../dist/index.js";
 import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
+import {
+  createDiscoveredServerHooksHandler as createHandlerFromSubpath,
+  createFetchMiniAppServerBridge as createBridgeFromSubpath,
+  executeTeleforgeServerHookAction,
+  executeTeleforgeServerHookLoad,
+  executeTeleforgeServerHookSubmit
+} from "../dist/server-hooks.js";
 
 test("loadMiniAppScreenRuntime exposes server loader data to local screen loaders", async () => {
   const flow = defineFlow({
@@ -508,3 +515,13 @@ export const actions = {
     }
   };
 }
+
+test("teleforge/server-hooks subpath exports expected server-hook functions", () => {
+  assert.equal(typeof createHandlerFromSubpath, "function");
+  assert.equal(typeof createBridgeFromSubpath, "function");
+  assert.equal(typeof executeTeleforgeServerHookLoad, "function");
+  assert.equal(typeof executeTeleforgeServerHookSubmit, "function");
+  assert.equal(typeof executeTeleforgeServerHookAction, "function");
+  assert.equal(typeof createHandlerFromSubpath, "function");
+  assert.equal(typeof createBridgeFromSubpath, "function");
+});
