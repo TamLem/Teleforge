@@ -197,6 +197,8 @@ Current migration progress already reflects part of this direction:
 - Mini App state snapshots now persist across in-app transitions
 - Mini App-to-chat handoff now returns through Telegram `web_app_data` into the discovered bot runtime
 - optional server hooks can now be discovered by convention and reached through a framework-owned bridge
+- optional server hooks now support trusted actor and flow-ownership enforcement when apps need authoritative execution
+- runtime continuity state (route/step/stateKey plus handoff/resume status) is now exposed in simulator diagnostics
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
 
 ## Desired Outcome

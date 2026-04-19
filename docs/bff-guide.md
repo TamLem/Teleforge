@@ -1,24 +1,29 @@
-# BFF Mode Guide
+# Server Hooks and BFF Internals
 
-This guide explains what BFF mode means in Teleforge and how to turn the generated scaffold into something useful.
+This guide explains the current server-side implementation layer in Teleforge.
 
-## What BFF Mode Is
+It is an advanced guide. The default public app model is still:
 
-In Teleforge, BFF mode means:
+- flows
+- screens
+- optional server hooks
+
+## What This Layer Is
+
+In the current repo, the server-side layer means:
 
 - the Mini App still lives in `apps/web`
-- the project also owns a Telegram-aware backend layer
+- the project may also own a Telegram-aware backend layer
 - that backend can validate Telegram launch context, enforce auth and launch-mode rules, and talk to downstream services
 
-Use BFF mode when the Mini App should not talk directly to every backend service by itself.
+Use this layer when the Mini App should not talk directly to every backend service by itself or when a flow step needs trusted server authority.
 
 ## What the Scaffold Gives You
 
-The generated BFF scaffold gives you:
+The generated scaffold gives you:
 
-- `apps/web` with Next.js
 - `apps/api` with placeholder route objects
-- `teleforge.app.json` with `runtime.mode: "bff"` and `runtime.apiRoutes`
+- `teleforge.config.ts`
 
 Important: the generated `apps/api` routes are **placeholders**, not a fully wired production server.
 
@@ -26,13 +31,13 @@ They show where your backend logic can live, but you still need to connect those
 
 ## The Practical Mental Model
 
-Think of BFF mode as three layers:
+Think of the current server-side implementation as three layers:
 
 1. **web UI** in `apps/web`
 2. **BFF route definitions** in your server layer
 3. **adapters/services** that talk to your actual backend systems
 
-Teleforge's BFF package helps with layer 2.
+`@teleforgex/bff` currently helps with layer 2, while the flow-first runtime is moving toward convention-based server hooks on top of it.
 
 ## Smallest Useful Route
 
@@ -190,7 +195,7 @@ export const phoneExchangeRoute = defineBffRoute({
 
 The request body should include `{ phoneAuthToken }`. For the bot-side half of the flow, use the contact-request and link-signing helpers from `@teleforgex/bot`.
 
-## What to Build First in BFF Mode
+## What to Build First
 
 The highest-value first steps are:
 

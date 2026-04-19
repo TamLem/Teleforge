@@ -34,6 +34,7 @@ Test:
 - route rendering
 - hook-driven launch mode behavior
 - guards and fallback views
+- `TeleforgeMiniApp` screen resolution and step progression
 - state transformations that do not require a real browser
 
 The scaffold's page render test is the simplest example.
@@ -47,6 +48,7 @@ In this repo, `apps/task-shop/tests/integration` is the best example:
 - command -> Mini App -> return flow
 - resume-state behavior
 - `web_app_data` handling
+- server-backed flow behavior where a step needs trusted execution
 
 ## Running Tests
 
@@ -79,6 +81,7 @@ This is the fastest way to validate:
 - callback behavior
 - Mini App route behavior
 - coordination entry and return flows
+- step progression and handoff/resume behavior
 
 ## Testing Against Real Telegram
 
@@ -98,7 +101,8 @@ When adding a feature:
 1. add a bot or web smoke test next to the generated examples
 2. validate the flow in the simulator
 3. add an integration test if the feature crosses chat + Mini App boundaries
-4. use live Telegram only for final behavior checks
+4. add a server-hook bridge test if the feature needs trusted guards/loaders/submits/actions
+5. use live Telegram only for final behavior checks
 
 ## Good First Tests
 

@@ -139,11 +139,14 @@ node packages/create-teleforge-app/dist/cli.js my-app
 You should see:
 
 - a new project directory
-- `apps/web`, `apps/bot`, and `apps/api`
+- `apps/web`, `apps/bot`, and optional `apps/api`
 - `teleforge.config.ts`
 - `.env.example`
 - root scripts for `pnpm run dev`, `pnpm run dev:public`, and `pnpm run doctor`
 - baseline bot and web smoke tests behind `pnpm test`
+- `apps/bot/src/flows/start.flow.ts` as the first flow entry
+- `apps/web/src/main.tsx` booting `TeleforgeMiniApp`
+- `apps/web/src/screens/home.screen.tsx` as the first screen module
 
 ## 3. Run Local Development
 
@@ -182,6 +185,7 @@ You should see:
 - Telegram-like theme, viewport, launch, and user state injected into the embedded app
 - a debug panel showing the current mode, active scenario, latest event, and profile snapshot
 - saved scenarios available for reloading transcript plus Telegram state from `~/.teleforge/scenarios`
+- flow, screen, and server-hook wiring summaries in the simulator diagnostics for discovered apps
 
 If your workspace does not have `apps/bot/src/runtime.ts`, the simulator still works, but chat falls back to default `/start` and `/help` behavior.
 
@@ -255,6 +259,18 @@ Webhook mode is optional and more constrained than the polling flow:
 - use it only when your primary web runtime serves `/api/webhook`
 - the shipped starter and Task Shop examples do not use webhook mode
 - the generated scaffold includes webhook placeholders, but that does not make webhook mode active by itself
+
+## 7. Understand the Generated Shape
+
+The current generated path is intentionally framework-shaped:
+
+- `teleforge.config.ts`: app identity, flow roots, Mini App defaults, and optional server-hook roots
+- `apps/bot/src/flows/*.flow.ts`: user journeys, bot entry commands, and Mini App step metadata
+- `apps/web/src/screens/*.screen.tsx`: Mini App screens registered through `defineScreen()`
+- `apps/web/src/main.tsx`: the framework-owned `TeleforgeMiniApp` shell
+- `apps/api`: optional server-hook or webhook surface only when the flow needs trusted server execution
+
+That means you normally start by editing a flow and a screen, not by wiring separate bot/web/backend runtimes manually.
 
 ## 6. Verify the First Run
 

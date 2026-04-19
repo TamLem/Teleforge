@@ -98,7 +98,13 @@ export type {
   LoadTeleforgeScreensOptions,
   TeleforgeFlowConventions
 } from "./discovery.js";
-export type { CreateDiscoveredBotRuntimeOptions } from "./bot-runtime.js";
+export type {
+  CreateDiscoveredBotRuntimeOptions,
+  DiscoveredBotRuntime,
+  DiscoveredFlowRuntimeDebugState,
+  DiscoveredFlowRuntimeMiniAppDebugState,
+  DiscoveredFlowRuntimeSessionDebugState
+} from "./bot-runtime.js";
 export type { LoadedTeleforgeApp } from "./config.js";
 export type {
   DiscoveredScreenModule,
@@ -119,7 +125,9 @@ export type {
   TeleforgeMiniAppServerLoadBlockedResult,
   TeleforgeMiniAppServerLoadInput,
   TeleforgeMiniAppServerLoadResult,
-  TeleforgeMiniAppServerSubmitInput
+  TeleforgeMiniAppServerSubmitInput,
+  TeleforgeServerHookTrustContext,
+  TeleforgeServerHookTrustOptions
 } from "./server-hooks.js";
 export type {
   BlockedMiniAppScreen,

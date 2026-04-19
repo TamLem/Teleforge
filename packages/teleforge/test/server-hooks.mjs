@@ -15,6 +15,7 @@ import {
   loadMiniAppScreenRuntime,
   resolveMiniAppScreen
 } from "../dist/index.js";
+import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
 
 test("loadMiniAppScreenRuntime exposes server loader data to local screen loaders", async () => {
   const flow = defineFlow({
@@ -183,6 +184,185 @@ test("executeMiniAppStepSubmit and executeMiniAppStepAction honor the configured
 });
 
 test("createDiscoveredServerHooksHandler serves convention-discovered flow hooks through the fetch bridge", async () => {
+  const fixture = await createDiscoveredServerHookFixture();
+  const bridge = fixture.createBridge();
+
+  const loadResult = await bridge.load({
+    flowId: "inventory",
+    routePath: "/inventory",
+    screenId: "inventory.catalog",
+    state: {
+      itemId: null,
+      refreshed: false
+    },
+    stepId: "catalog"
+  });
+  const submitResult = await bridge.submit({
+    data: {
+      itemId: "sku_123"
+    },
+    flowId: "inventory",
+    state: {
+      itemId: null,
+      refreshed: false
+    },
+    stepId: "catalog"
+  });
+  const actionResult = await bridge.action({
+    action: "refresh",
+    flowId: "inventory",
+    state: {
+      itemId: null,
+      refreshed: false
+    },
+    stepId: "catalog"
+  });
+
+  assert.deepEqual(loadResult, {
+    allow: true,
+    loaderData: {
+      heading: "Authoritative inventory"
+    }
+  });
+  assert.deepEqual(submitResult, {
+    state: {
+      itemId: "sku_123",
+      refreshed: false
+    },
+    to: "confirm"
+  });
+  assert.deepEqual(actionResult, {
+    state: {
+      itemId: null,
+      refreshed: true
+    },
+    to: "done"
+  });
+});
+
+test("createDiscoveredServerHooksHandler enforces trusted actor ownership and state keys", async () => {
+  const flowState = new UserFlowStateManager(
+    createFlowStorage({
+      backend: "memory",
+      defaultTTL: 900,
+      namespace: "teleforge-server-hooks-trust-test"
+    })
+  );
+  const stateKey = await flowState.startFlow("user_1", "inventory", "catalog", {
+    __teleforge_flow_state: {
+      itemId: null,
+      refreshed: false
+    }
+  });
+  const fixture = await createDiscoveredServerHookFixture({
+    trust: {
+      flowState,
+      requireActor: true,
+      requireStateKey: true,
+      resolveActorId(request) {
+        return request.headers.get("x-actor-id");
+      }
+    }
+  });
+
+  const anonymousBridge = fixture.createBridge();
+  const foreignBridge = fixture.createBridge({
+    "x-actor-id": "user_2"
+  });
+  const ownerBridge = fixture.createBridge({
+    "x-actor-id": "user_1"
+  });
+
+  await assert.rejects(
+    async () =>
+      anonymousBridge.submit({
+        data: {
+          itemId: "sku_1"
+        },
+        flowId: "inventory",
+        state: {
+          itemId: null,
+          refreshed: false
+        },
+        stateKey,
+        stepId: "catalog"
+      }),
+    /requires an authenticated actor/
+  );
+
+  await assert.rejects(
+    async () =>
+      ownerBridge.submit({
+        data: {
+          itemId: "sku_1"
+        },
+        flowId: "inventory",
+        state: {
+          itemId: null,
+          refreshed: false
+        },
+        stepId: "catalog"
+      }),
+    /requires a stateKey/
+  );
+
+  await assert.rejects(
+    async () =>
+      foreignBridge.submit({
+        data: {
+          itemId: "sku_1"
+        },
+        flowId: "inventory",
+        state: {
+          itemId: null,
+          refreshed: false
+        },
+        stateKey,
+        stepId: "catalog"
+      }),
+    /does not own flow state/
+  );
+
+  await assert.rejects(
+    async () =>
+      ownerBridge.submit({
+        data: {
+          itemId: "sku_1"
+        },
+        flowId: "inventory",
+        state: {
+          itemId: "stale",
+          refreshed: false
+        },
+        stateKey,
+        stepId: "catalog"
+      }),
+    /does not match the provided runtime state/
+  );
+
+  const result = await ownerBridge.submit({
+    data: {
+      itemId: "sku_999"
+    },
+    flowId: "inventory",
+    state: {
+      itemId: null,
+      refreshed: false
+    },
+    stateKey,
+    stepId: "catalog"
+  });
+
+  assert.deepEqual(result, {
+    state: {
+      itemId: "sku_999",
+      refreshed: false
+    },
+    to: "confirm"
+  });
+});
+
+async function createDiscoveredServerHookFixture(options = {}) {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-server-hooks-"));
   const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
 
@@ -311,65 +491,20 @@ export const actions = {
   );
 
   const handler = await createDiscoveredServerHooksHandler({
-    cwd: tmpRoot
-  });
-  const bridge = createFetchMiniAppServerBridge({
-    async fetch(input, init) {
-      const request = new Request(`https://example.com${String(input)}`, init);
-      const response = await handler(request);
-      return response ?? new Response("Missing route", { status: 404 });
-    }
+    cwd: tmpRoot,
+    ...options
   });
 
-  const loadResult = await bridge.load({
-    flowId: "inventory",
-    routePath: "/inventory",
-    screenId: "inventory.catalog",
-    state: {
-      itemId: null,
-      refreshed: false
-    },
-    stepId: "catalog"
-  });
-  const submitResult = await bridge.submit({
-    data: {
-      itemId: "sku_123"
-    },
-    flowId: "inventory",
-    state: {
-      itemId: null,
-      refreshed: false
-    },
-    stepId: "catalog"
-  });
-  const actionResult = await bridge.action({
-    action: "refresh",
-    flowId: "inventory",
-    state: {
-      itemId: null,
-      refreshed: false
-    },
-    stepId: "catalog"
-  });
-
-  assert.deepEqual(loadResult, {
-    allow: true,
-    loaderData: {
-      heading: "Authoritative inventory"
+  return {
+    createBridge(headers) {
+      return createFetchMiniAppServerBridge({
+        async fetch(input, init) {
+          const request = new Request(`https://example.com${String(input)}`, init);
+          const response = await handler(request);
+          return response ?? new Response("Missing route", { status: 404 });
+        },
+        headers
+      });
     }
-  });
-  assert.deepEqual(submitResult, {
-    state: {
-      itemId: "sku_123",
-      refreshed: false
-    },
-    to: "confirm"
-  });
-  assert.deepEqual(actionResult, {
-    state: {
-      itemId: null,
-      refreshed: true
-    },
-    to: "done"
-  });
-});
+  };
+}

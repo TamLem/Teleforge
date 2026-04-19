@@ -17,7 +17,7 @@ Use the narrative docs first if you are trying to understand how the framework f
 - [Flow-First Execution Handoff Plan](./flow-first-execution-plan.md): takeover-grade execution plan for the remaining V2 implementation gaps after the current continuity and server-hook slices
 - [Build Your First Feature](./first-feature.md): guided command + route tutorial for scaffolded apps
 - [Flow Coordination](./flow-coordination.md): annotated walkthrough of Teleforge's chat -> Mini App -> chat lifecycle using Task Shop
-- [BFF Mode Guide](./bff-guide.md): practical guide for turning the generated BFF scaffold into a real backend surface
+- [Server Hooks and BFF Internals](./bff-guide.md): advanced guide for the current server-side implementation layer and optional server-backed flow hooks
 - [Shared Phone Auth](./shared-phone-auth.md): end-to-end phone-number auth flow using bot contact sharing, Mini App launch tokens, and BFF session exchange
 - [Testing](./testing.md): how Teleforge apps are tested and how to add your own bot/web/integration tests
 - [Deployment](./deployment.md): production build, hosting, polling vs webhook, and rollout checklist

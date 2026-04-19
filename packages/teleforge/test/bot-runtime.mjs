@@ -576,6 +576,17 @@ export default defineFlow({
     ).toString("utf8")
   ).payload.stateKey;
 
+  const launchDebugState = runtime.getFlowRuntimeDebugState();
+  assert.equal(launchDebugState.sessions.length, 1);
+  assert.equal(launchDebugState.sessions[0]?.flowId, "checkout");
+  assert.equal(launchDebugState.sessions[0]?.stateKey, stateKey);
+  assert.equal(launchDebugState.sessions[0]?.currentStepId, "catalog");
+  assert.equal(launchDebugState.sessions[0]?.currentStepType, "miniapp");
+  assert.equal(launchDebugState.sessions[0]?.currentRoute, "/checkout");
+  assert.equal(launchDebugState.sessions[0]?.miniApp.pendingChatHandoff, true);
+  assert.equal(launchDebugState.sessions[0]?.miniApp.lastLaunchStepId, "catalog");
+  assert.equal(launchDebugState.sessions[0]?.snapshotStateAvailable, true);
+
   await runtime.handle({
     message: {
       chat: {
@@ -605,4 +616,13 @@ export default defineFlow({
 
   assert.equal(sent[1]?.text, "✅ Returned to chat");
   assert.equal(sent[2]?.text, "Review sku_123");
+
+  const resumedDebugState = runtime.getFlowRuntimeDebugState();
+  assert.equal(resumedDebugState.sessions.length, 1);
+  assert.equal(resumedDebugState.sessions[0]?.stateKey, stateKey);
+  assert.equal(resumedDebugState.sessions[0]?.currentStepId, "review");
+  assert.equal(resumedDebugState.sessions[0]?.currentStepType, "chat");
+  assert.equal(resumedDebugState.sessions[0]?.miniApp.pendingChatHandoff, false);
+  assert.equal(resumedDebugState.sessions[0]?.miniApp.resumedStepId, "review");
+  assert.equal(resumedDebugState.sessions[0]?.snapshotStateAvailable, true);
 });

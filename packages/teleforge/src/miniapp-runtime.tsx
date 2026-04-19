@@ -82,6 +82,7 @@ export interface ExecuteMiniAppStepSubmitOptions<TData = unknown> {
   resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
   serverBridge?: TeleforgeMiniAppServerBridge;
   serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+  stateKey?: string | null;
   services?: unknown;
 }
 
@@ -91,6 +92,7 @@ export interface ExecuteMiniAppStepActionOptions {
   resolution: ResolvedMiniAppScreen | ReadyMiniAppScreen;
   serverBridge?: TeleforgeMiniAppServerBridge;
   serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+  stateKey?: string | null;
   services?: unknown;
 }
 
@@ -302,7 +304,8 @@ export function useTeleforgeMiniAppRuntime(
 
     loadMiniAppScreenRuntime(resolution, {
       serverBridge: options.serverBridge,
-      serverHooks: options.serverHooks
+      serverHooks: options.serverHooks,
+      stateKey: launchCoordination.stateKey
     })
       .then((nextState) => {
         if (!isCancelled) {
@@ -335,6 +338,7 @@ export async function loadMiniAppScreenRuntime(
   options: {
     serverBridge?: TeleforgeMiniAppServerBridge;
     serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+    stateKey?: string | null;
     services?: unknown;
   } = {}
 ): Promise<ReadyMiniAppScreen | BlockedMiniAppScreen> {
@@ -344,6 +348,7 @@ export async function loadMiniAppScreenRuntime(
         routePath: resolution.routePath,
         screenId: resolution.screenId,
         state: resolution.state,
+        ...(options.stateKey ? { stateKey: options.stateKey } : {}),
         stepId: resolution.stepId
       })
     : await executeTeleforgeServerHookLoad({
@@ -354,6 +359,7 @@ export async function loadMiniAppScreenRuntime(
           routePath: resolution.routePath,
           screenId: resolution.screenId,
           state: resolution.state,
+          ...(options.stateKey ? { stateKey: options.stateKey } : {}),
           stepId: resolution.stepId
         },
         services: options.services
@@ -429,6 +435,7 @@ export async function executeMiniAppStepSubmit<TData = unknown>(
         data: options.data,
         flowId: options.resolution.flowId,
         state: options.resolution.state,
+        ...(options.stateKey ? { stateKey: options.stateKey } : {}),
         stepId: options.resolution.stepId
       })
     : options.serverHooks
@@ -439,6 +446,7 @@ export async function executeMiniAppStepSubmit<TData = unknown>(
             data: options.data,
             flowId: options.resolution.flowId,
             state: options.resolution.state,
+            ...(options.stateKey ? { stateKey: options.stateKey } : {}),
             stepId: options.resolution.stepId
           },
           services: options.services
@@ -477,6 +485,7 @@ export async function executeMiniAppStepAction(
         action: options.action,
         flowId: options.resolution.flowId,
         state: options.resolution.state,
+        ...(options.stateKey ? { stateKey: options.stateKey } : {}),
         stepId: options.resolution.stepId
       })
     : options.serverHooks
@@ -487,6 +496,7 @@ export async function executeMiniAppStepAction(
             action: options.action,
             flowId: options.resolution.flowId,
             state: options.resolution.state,
+            ...(options.stateKey ? { stateKey: options.stateKey } : {}),
             stepId: options.resolution.stepId
           },
           services: options.services
@@ -521,7 +531,8 @@ async function handleMiniAppSubmit(options: {
       data: options.data,
       resolution: options.resolution,
       serverBridge: options.serverBridge,
-      serverHooks: options.serverHooks
+      serverHooks: options.serverHooks,
+      stateKey: options.stateKey
     });
 
     await applyMiniAppExecutionResult({
@@ -556,7 +567,8 @@ async function handleMiniAppAction(options: {
       action: options.action,
       resolution: options.resolution,
       serverBridge: options.serverBridge,
-      serverHooks: options.serverHooks
+      serverHooks: options.serverHooks,
+      stateKey: options.stateKey
     });
 
     await applyMiniAppExecutionResult({

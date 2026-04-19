@@ -14,6 +14,7 @@ interface BotRuntime {
       options?: Record<string, unknown>
     ): Promise<Record<string, unknown>>;
   }): void;
+  getFlowRuntimeDebugState?: () => unknown | Promise<unknown>;
   getCommands(): Array<{ command: string }>;
   handle(update: TelegramUpdate): Promise<void>;
 }
@@ -156,7 +157,8 @@ async function main(): Promise<void> {
           id: request.id,
           result: {
             commands: registeredCommands,
-            messages: []
+            messages: [],
+            runtimeState: await readRuntimeState(runtime)
           }
         });
         return;
@@ -195,7 +197,8 @@ async function main(): Promise<void> {
         id: request.id,
         result: {
           commands: registeredCommands,
-          messages: capturedMessages
+          messages: capturedMessages,
+          runtimeState: await readRuntimeState(runtime)
         }
       });
     } catch (error) {
@@ -315,7 +318,16 @@ function writeResponse(payload: {
   result?: {
     commands: string[];
     messages: CapturedTelegramMessage[];
+    runtimeState?: unknown;
   };
 }): void {
   process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
+async function readRuntimeState(runtime: BotRuntime): Promise<unknown | undefined> {
+  if (typeof runtime.getFlowRuntimeDebugState !== "function") {
+    return undefined;
+  }
+
+  return runtime.getFlowRuntimeDebugState();
 }

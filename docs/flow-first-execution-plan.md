@@ -45,13 +45,23 @@ Implemented already:
 - convention-based flow server hooks
 - Mini App fetch bridge plus discovered server-hook request handler
 - devtools flow/screen/server-hook diagnostics
+- trusted server-hook bridge enforcement with actor/state ownership checks
+- runtime continuity tracking in the discovered bot runtime (stateKey, route, step, handoff/resume state)
+- simulator debug continuity diagnostics sourced from workspace runtime state
 
 Still incomplete at the framework level:
 
-- trusted auth/ownership enforcement in the server-hook bridge path
-- richer return-to-chat and resume visibility in devtools
 - migration of a complex real app onto the new runtime
 - main docs cutover away from V1/package-first guidance
+
+## Progress Update (2026-04-18)
+
+Workstream status:
+
+- Workstream 1: complete
+- Workstream 2: complete (with the pre-existing unrelated simulator timeout still present)
+- Workstream 3: pending
+- Workstream 4: pending
 
 ## Execution Order
 

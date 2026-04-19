@@ -3,7 +3,8 @@ import http from "node:http";
 import {
   createSimulatorBotBridge,
   type CapturedTelegramMessage,
-  type SimulatorBotBridge
+  type SimulatorBotBridge,
+  type SimulatorBotRuntimeState
 } from "./dev-simulator-bot.js";
 import {
   createDevSimulatorScenarioStorage,
@@ -303,6 +304,8 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     const commandHints = bridge
       ? await bridge.getCommands()
       : manifestCommands.map((command) => command.command);
+    const flowRuntime = bridge ? await bridge.getRuntimeState() : null;
+    const flowRuntimeSummary = summarizeFlowRuntimeState(flowRuntime);
     const scenarioStorage = await resolveScenarioStorage();
 
     return {
@@ -315,6 +318,10 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         appOpen,
         commandCount: commandHints.length,
         discoveredFlowCount: discoveredFlows.length,
+        flowRuntime,
+        flowRuntimeSessionCount: flowRuntimeSummary.sessionCount,
+        pendingMiniAppHandoffCount: flowRuntimeSummary.pendingMiniAppHandoffCount,
+        resumedFlowSessionCount: flowRuntimeSummary.resumedFlowSessionCount,
         latestEvent: eventLog[0] ?? null,
         lastAction,
         miniAppUrl: `${appBasePath}/`,
@@ -577,6 +584,33 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       )
     );
   }
+}
+
+function summarizeFlowRuntimeState(flowRuntime: SimulatorBotRuntimeState | null): {
+  pendingMiniAppHandoffCount: number;
+  resumedFlowSessionCount: number;
+  sessionCount: number;
+} {
+  const sessions = Array.isArray(flowRuntime?.sessions) ? flowRuntime.sessions : [];
+
+  let pendingMiniAppHandoffCount = 0;
+  let resumedFlowSessionCount = 0;
+
+  for (const session of sessions) {
+    if (session?.miniApp?.pendingChatHandoff) {
+      pendingMiniAppHandoffCount += 1;
+    }
+
+    if (typeof session?.miniApp?.resumedStepId === "string" && session.miniApp.resumedStepId) {
+      resumedFlowSessionCount += 1;
+    }
+  }
+
+  return {
+    pendingMiniAppHandoffCount,
+    resumedFlowSessionCount,
+    sessionCount: sessions.length
+  };
 }
 
 function toTranscriptEntries(messages: CapturedTelegramMessage[]): SimulatorTranscriptEntry[] {
@@ -1126,6 +1160,7 @@ function createSimulatorUiHtml(options: {
             <div id="debug-summary" class="log">Loading debug state…</div>
             <div class="controls">
               <label>Discovered Flows<div id="debug-flows" class="flow-list"><p class="hint">Waiting for simulator state…</p></div></label>
+              <label>Flow Continuity<div id="debug-continuity" class="log">Waiting for simulator state…</div></label>
               <label>Last Action<div id="debug-last-action" class="log">No simulator actions yet.</div></label>
               <label>Profile Snapshot<div id="debug-profile" class="log">Waiting for simulator state…</div></label>
             </div>
@@ -1144,6 +1179,7 @@ function createSimulatorUiHtml(options: {
         appVersion: document.getElementById("app-version"),
         chatInput: document.getElementById("chat-input"),
         colorScheme: document.getElementById("color-scheme"),
+        debugContinuity: document.getElementById("debug-continuity"),
         debugLastAction: document.getElementById("debug-last-action"),
         debugFlows: document.getElementById("debug-flows"),
         debugProfile: document.getElementById("debug-profile"),
@@ -1273,11 +1309,15 @@ function createSimulatorUiHtml(options: {
         const latestEvent = debug.latestEvent
           ? debug.latestEvent.name + " @ " + debug.latestEvent.at
           : "No events yet";
+        const flowRuntime = debug.flowRuntime || null;
 
         ids.debugSummary.textContent = [
           "Mode: " + (payload.chat?.mode || "manifest"),
           "Commands: " + String(debug.commandCount ?? payload.chat?.commandHints?.length ?? 0),
           "Discovered Flows: " + String(debug.discoveredFlowCount ?? payload.flows?.length ?? 0),
+          "Flow Sessions: " + String(debug.flowRuntimeSessionCount ?? flowRuntime?.sessions?.length ?? 0),
+          "Pending Handoffs: " + String(debug.pendingMiniAppHandoffCount ?? 0),
+          "Resumed Sessions: " + String(debug.resumedFlowSessionCount ?? 0),
           "Mini App Open: " + String(Boolean(debug.appOpen)),
           "Mini App URL: " + (debug.miniAppUrl || appBasePath + "/"),
           "Active Scenario: " + (debug.activeScenarioName || "None"),
@@ -1286,6 +1326,9 @@ function createSimulatorUiHtml(options: {
           "Latest Event: " + latestEvent
         ].join("\\n");
 
+        ids.debugContinuity.textContent = flowRuntime
+          ? JSON.stringify(flowRuntime, null, 2)
+          : "No workspace flow runtime diagnostics available.";
         ids.debugLastAction.textContent = debug.lastAction
           ? JSON.stringify(debug.lastAction, null, 2)
           : "No simulator actions yet.";

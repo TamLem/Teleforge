@@ -1,6 +1,6 @@
 # Teleforge Developer Guide
 
-This guide is for developers building Telegram Mini Apps and bots with the current Teleforge V1 stack.
+This guide is for developers building Telegram Mini Apps and bots with the current shipped Teleforge stack.
 
 It focuses on the implemented workflow in this repository:
 
@@ -16,7 +16,7 @@ Use this guide as the hub. The new step-by-step companions are:
 - [Flow-First Developer Experience](./flow-first-dx.md)
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
-- [BFF Mode Guide](./bff-guide.md)
+- [Server Hooks and BFF Internals](./bff-guide.md)
 - [Shared Phone Auth](./shared-phone-auth.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
@@ -35,7 +35,7 @@ The framework is most useful when you need some combination of:
 - secure `initData` validation
 - route-level launch-mode and capability guards
 - coordinated chat-to-Mini-App flows
-- a Telegram-aware BFF layer in front of existing services
+- optional trusted server hooks in front of existing services when a flow needs server authority
 
 ## Scaffolded App Shape
 
@@ -199,6 +199,15 @@ Run `teleforge doctor` before assuming Telegram, HTTPS, or manifest issues are a
 
 ## Package Roles
 
+The default app path is now the unified `teleforge` package plus `teleforge/web`.
+
+Generated apps start from:
+
+- `teleforge` for `defineTeleforgeApp()`, `defineFlow()`, discovered runtime helpers, and config loading
+- `teleforge/web` for `TeleforgeMiniApp`, `defineScreen()`, and browser-safe Mini App execution helpers
+
+The lower-level `@teleforgex/*` packages still exist and are useful when you need direct access to the underlying layers.
+
 Teleforge is organized as layered packages with `@teleforgex/core` at the center.
 
 ### `@teleforgex/core`
@@ -222,7 +231,7 @@ Use web for React-side Telegram integration:
 - `useTheme()` for Telegram theme values and CSS variables
 - `useMainButton()` and `useBackButton()` for native controls
 - route guards such as `useRouteGuard()` and `useManifestGuard()`
-- coordination helpers such as `CoordinationProvider`, `FlowResumeProvider`, `returnToChat()`, and `resumeFlow()`
+- lower-level launch, theme, guard, and Telegram capability hooks under the framework-owned shell
 
 ### `@teleforgex/ui`
 
@@ -245,7 +254,9 @@ Use bot for Telegram update handling:
 
 ### `@teleforgex/bff`
 
-Use BFF for Telegram-aware backend routes:
+This is an advanced implementation package rather than the default public app shape.
+
+Use it when you need direct access to the current Telegram-aware server-side implementation layer:
 
 - `defineBffRoute()`
 - `createBffConfig()`
@@ -255,6 +266,12 @@ Use BFF for Telegram-aware backend routes:
 - request context creation
 - provider-based identity resolution
 - session and phone-auth exchange helpers
+
+For app authors, the preferred public framing is still:
+
+- flows
+- screens
+- optional server hooks
 
 ### `@teleforgex/devtools`
 
@@ -361,8 +378,21 @@ runtime.router.onWebAppData(async (context) => {
 
 Mini App-side:
 
-- use the coordination helpers from `@teleforgex/web` when the result should go back to chat
-- use the BFF or your own API when the result should stay in the app session
+- use the framework-owned `TeleforgeMiniApp` path when the result should progress the flow or return to chat
+- use optional server hooks when the result needs trusted server execution
+- use lower-level `@teleforgex/web` hooks only when you need direct control outside the default shell
+
+### Optional Server Hooks
+
+`apps/api` is optional until a flow step needs trusted server execution such as:
+
+- authoritative guards
+- authoritative loaders
+- trusted submit handlers
+- trusted action handlers
+- webhook delivery
+
+The current framework runtime can now discover flow-scoped server hooks by convention and execute them through a framework-owned bridge. Use the lower-level `@teleforgex/bff` package when you need its request context, identity, or session primitives directly.
 
 ### BFF Route Definition
 
@@ -433,13 +463,18 @@ This is the right pattern when phone number is the app's primary login key but T
 
 ## Flow Coordination
 
-Teleforge V1 includes chat/Mini App coordination primitives for flows that begin in chat, continue in a Mini App, and return to chat later.
+The current framework path now owns more of the chat/Mini App lifecycle directly.
 
-Use these pieces together:
+That includes:
 
-- `@teleforgex/core` for route coordination metadata and flow-state contracts
-- `@teleforgex/web` for `CoordinationProvider`, `FlowResumeProvider`, `ResumeIndicator`, `returnToChat()`, and `resumeFlow()`
-- `@teleforgex/bot` for reply primitives and `web_app_data` handling
+- discovered flow entry from bot commands
+- Mini App screen resolution through `TeleforgeMiniApp`
+- Mini App step progression
+- persisted Mini App state snapshots
+- structured return-to-chat handoff through `web_app_data`
+- optional server-hook execution for trusted flow steps
+
+The lower-level coordination primitives still exist, but they are no longer the default first stop for new app code.
 
 The full reference implementation lives in [`apps/task-shop`](../apps/task-shop/README.md).
 

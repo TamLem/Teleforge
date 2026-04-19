@@ -316,11 +316,59 @@ test("dev simulator chat API supports /start transcript and app-open actions", a
 
 export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
   const runtime = createBotRuntime();
+  const flowRuntime = {
+    sessions: [] as Array<{
+      chatId: string;
+      currentRoute: string | null;
+      currentStepId: string;
+      currentStepType: "chat" | "miniapp";
+      flowId: string;
+      lastUpdatedAt: string;
+      miniApp: {
+        lastHandoffAt: string | null;
+        lastLaunchAt: string | null;
+        lastLaunchRoute: string | null;
+        lastLaunchStepId: string | null;
+        lastResumeAt: string | null;
+        pendingChatHandoff: boolean;
+        resumedStepId: string | null;
+      };
+      snapshotStateAvailable: boolean;
+      stateKey: string;
+      userId: string;
+    }>,
+    updatedAt: null as string | null
+  };
   runtime.registerCommands([
     {
       command: "start",
       description: "Start the Mini App",
       async handler(context) {
+        const now = new Date().toISOString();
+        flowRuntime.updatedAt = now;
+        flowRuntime.sessions = [
+          {
+            chatId: String(context.chat.id),
+            currentRoute: "/__teleforge/app/",
+            currentStepId: "catalog",
+            currentStepType: "miniapp",
+            flowId: "task-flow",
+            lastUpdatedAt: now,
+            miniApp: {
+              lastHandoffAt: null,
+              lastLaunchAt: now,
+              lastLaunchRoute: "/__teleforge/app/",
+              lastLaunchStepId: "catalog",
+              lastResumeAt: null,
+              pendingChatHandoff: true,
+              resumedStepId: null
+            },
+            snapshotStateAvailable: true,
+            stateKey: "flow:task-flow:1",
+            userId: String(context.user.id)
+          }
+        ];
+
         await context.reply(
           "Welcome to Spa Dev Check. Launch the Mini App to continue.",
           {
@@ -351,6 +399,28 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     await context.answer("ack");
     await context.reply("Callback handled: " + context.data);
   });
+  runtime.router.onWebAppData(async (context) => {
+    const session = flowRuntime.sessions[0];
+    if (session) {
+      const now = new Date().toISOString();
+      const nextStepId =
+        context.payload && typeof context.payload.stepId === "string"
+          ? context.payload.stepId
+          : "review";
+      session.currentRoute = null;
+      session.currentStepId = nextStepId;
+      session.currentStepType = "chat";
+      session.lastUpdatedAt = now;
+      session.miniApp.lastHandoffAt = now;
+      session.miniApp.lastResumeAt = now;
+      session.miniApp.pendingChatHandoff = false;
+      session.miniApp.resumedStepId = nextStepId;
+      flowRuntime.updatedAt = now;
+    }
+
+    await context.reply("web_app_data handled: " + JSON.stringify(context.payload ?? {}));
+  });
+  (runtime as any).getFlowRuntimeDebugState = () => flowRuntime;
   return runtime;
 }
 `
@@ -404,6 +474,10 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(stateBefore.flows[0]?.steps[0]?.id, "home");
     assert.equal(stateBefore.flows[0]?.steps[0]?.status, "passive");
     assert.equal(stateBefore.flows[0]?.steps[0]?.resolvedActionCount, 0);
+    assert.equal(stateBefore.debug.flowRuntimeSessionCount, 0);
+    assert.equal(stateBefore.debug.pendingMiniAppHandoffCount, 0);
+    assert.equal(stateBefore.debug.resumedFlowSessionCount, 0);
+    assert.deepEqual(stateBefore.debug.flowRuntime?.sessions ?? [], []);
     assert.match(stateBefore.debug.scenarioStoragePath, /teleforge-home[\\/]scenarios$/);
     assert.ok(stateBefore.fixtures.some((fixture) => fixture.id === "resume-flow"));
 
@@ -442,6 +516,15 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(lastEntry?.buttons?.[0]?.text, "Open Spa Dev Check");
     assert.equal(lastEntry?.buttons?.[1]?.kind, "callback");
     assert.equal(lastEntry?.buttons?.[1]?.value, "task:confirm");
+    assert.equal(stateAfter.debug.flowRuntimeSessionCount, 1);
+    assert.equal(stateAfter.debug.pendingMiniAppHandoffCount, 1);
+    assert.equal(stateAfter.debug.resumedFlowSessionCount, 0);
+    assert.equal(stateAfter.debug.flowRuntime?.sessions?.[0]?.stateKey, "flow:task-flow:1");
+    assert.equal(stateAfter.debug.flowRuntime?.sessions?.[0]?.currentStepId, "catalog");
+    assert.equal(
+      stateAfter.debug.flowRuntime?.sessions?.[0]?.miniApp?.pendingChatHandoff,
+      true
+    );
 
     const callbackState = await requestJson(
       `http://127.0.0.1:${port}/__teleforge/api/chat/callback`,
@@ -472,6 +555,53 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     const replayEntry = replayState.transcript.at(-1);
     assert.equal(replayEntry?.text, "Callback handled: task:confirm");
     assert.equal(replayState.debug.lastAction.kind, "callback");
+
+    const webAppDataState = await requestJson(
+      `http://127.0.0.1:${port}/__teleforge/api/chat/web-app-data`,
+      {
+        body: JSON.stringify({
+          data: JSON.stringify({
+            stateKey: "flow:task-flow:1",
+            stepId: "review"
+          })
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+
+    const webAppDataEntry = webAppDataState.transcript.at(-1);
+    assert.equal(webAppDataEntry?.role, "bot");
+    assert.match(webAppDataEntry?.text ?? "", /web_app_data handled/);
+    assert.equal(webAppDataState.debug.lastAction.kind, "web_app_data");
+    assert.equal(webAppDataState.debug.flowRuntimeSessionCount, 1);
+    assert.equal(webAppDataState.debug.pendingMiniAppHandoffCount, 0);
+    assert.equal(webAppDataState.debug.resumedFlowSessionCount, 1);
+    assert.equal(webAppDataState.debug.flowRuntime?.sessions?.[0]?.currentStepId, "review");
+    assert.equal(
+      webAppDataState.debug.flowRuntime?.sessions?.[0]?.miniApp?.pendingChatHandoff,
+      false
+    );
+    assert.equal(
+      webAppDataState.debug.flowRuntime?.sessions?.[0]?.miniApp?.resumedStepId,
+      "review"
+    );
+
+    const replayWebAppDataState = await requestJson(
+      `http://127.0.0.1:${port}/__teleforge/api/chat/replay`,
+      {
+        body: JSON.stringify({}),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+    const replayWebAppDataEntry = replayWebAppDataState.transcript.at(-1);
+    assert.match(replayWebAppDataEntry?.text ?? "", /web_app_data handled/);
+    assert.equal(replayWebAppDataState.debug.lastAction.kind, "web_app_data");
 
     const openedState = await requestJson(
       `http://127.0.0.1:${port}/__teleforge/api/chat/open-app`,

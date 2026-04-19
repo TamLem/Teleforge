@@ -15,9 +15,9 @@ In practice, there are always two surfaces:
 
 Teleforge is built around that split. It gives you:
 
-- `@teleforgex/bot` for the chat side
-- `@teleforgex/web` and `@teleforgex/ui` for the Mini App side
-- shared coordination and validation helpers so those two surfaces can work together cleanly
+- a framework-owned bot/runtime path for the chat side
+- `teleforge/web` for the current Mini App shell path
+- shared coordination, validation, and optional server-hook helpers so those surfaces can work together cleanly
 
 ## What Telegram Sends to the Mini App
 
@@ -66,7 +66,7 @@ Typical flow:
 Teleforge supports that in two layers:
 
 - simple app-to-bot payloads through Telegram `sendData`
-- richer coordinated flows through `completeFlow()`, `returnToChat()`, `handleMiniAppReturnData()`, and flow-state helpers
+- richer coordinated flows where Mini App progress is persisted and structured handoff returns to chat through the discovered bot runtime
 
 ## Contact Sharing and Phone Auth
 
@@ -77,8 +77,8 @@ Teleforge uses that capability for optional shared phone-number auth:
 1. the bot asks for a self-shared contact
 2. the bot validates that the contact belongs to the sending Telegram user
 3. the bot signs a short-lived phone-auth token into the Mini App launch URL
-4. the Mini App forwards that token to the BFF
-5. the BFF resolves app identity by normalized phone number and can issue an app session
+4. the Mini App forwards that token to the server-side exchange route
+5. the server-side layer resolves app identity by normalized phone number and can issue an app session
 
 This is separate from `web_app_data`:
 

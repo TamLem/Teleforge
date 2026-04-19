@@ -1,6 +1,6 @@
 # Teleforge Architecture
 
-This document describes the current Teleforge V1 architecture as implemented in this repository.
+This document describes the current Teleforge architecture as implemented in this repository.
 
 It is intentionally limited to shipped behavior. It does not describe plugin APIs, future payment abstractions, or other aspirational work that is not part of the current codebase.
 
@@ -12,14 +12,14 @@ At a high level:
 
 ```text
 Telegram Client
-  -> Mini App runtime (@teleforgex/web + @teleforgex/ui)
-  -> Bot runtime (@teleforgex/bot)
-  -> Optional BFF runtime (@teleforgex/bff)
+  -> Framework-owned Mini App shell (teleforge/web)
+  -> Framework-owned discovered bot runtime (teleforge)
+  -> Optional server-hook bridge/runtime
   -> Shared contracts and validation (@teleforgex/core)
   -> Local iteration tooling (@teleforgex/devtools)
 ```
 
-The framework is organized so that application code can share one manifest and one set of flow contracts across these surfaces.
+The framework is organized so that application code can share one app config and one set of flow contracts across these surfaces.
 
 ## Package Dependency Graph
 
@@ -33,6 +33,9 @@ The implemented package graph is:
 
 @teleforgex/web
   <- @teleforgex/ui
+
+teleforge
+  <- built on the internal layers above
 
 create-teleforge-app
   generates workspaces that consume the packages above
@@ -49,15 +52,15 @@ Implications:
 
 ## Runtime Surfaces
 
-Teleforge V1 supports three main runtime surfaces.
+Teleforge currently exposes three practical runtime surfaces.
 
 ### Mini App Runtime
 
-The Mini App runtime lives in the browser and is built from:
+The Mini App runtime lives in the browser and is now normally entered through:
 
-- `@teleforgex/web`
-- `@teleforgex/ui`
-- your app code in `apps/web`
+- `teleforge/web`
+- `TeleforgeMiniApp`
+- discovered screen modules in `apps/web/src/screens`
 
 Responsibilities:
 
@@ -65,14 +68,14 @@ Responsibilities:
 - interpret launch mode and capabilities
 - react to theme and viewport changes
 - drive native controls like Main Button and Back Button
+- resolve flow steps to screens
+- persist Mini App continuity state
 - coordinate chat handoff and flow resume
+- optionally delegate trusted execution to server hooks
 
 ### Bot Runtime
 
-The bot runtime lives in Node and is built from:
-
-- `@teleforgex/bot`
-- your bot code in `apps/bot`
+The bot runtime lives in Node and is now normally entered through discovered flows plus the framework-owned runtime helper in `teleforge`.
 
 Responsibilities:
 
@@ -80,32 +83,34 @@ Responsibilities:
 - respond to `web_app_data`
 - generate chat entry points into Mini Apps
 - resume or complete coordinated flows
+- accept structured Mini App handoff payloads through `web_app_data`
 - run via polling or webhook adapters
 
-### BFF Runtime
+### Optional Server-Hook Runtime
 
-The BFF runtime is optional and lives server-side. It is built from:
+The server-side runtime is optional and should be thought of as server hooks, not as a separate user-facing app mode.
 
-- `@teleforgex/bff`
-- your app code in `apps/api`
+Today it is built from:
+
+- convention-discovered hook modules in `apps/api`
+- a framework-owned server-hook bridge in `teleforge`
+- lower-level request/session/identity helpers in `@teleforgex/bff` when needed
 
 Responsibilities:
 
-- validate Telegram identity server-side
-- expose Telegram-aware backend routes
-- enforce launch-mode/auth constraints at the API layer
-- resolve app identity through provider-based identity management
-- exchange/refresh/revoke app sessions
+- execute trusted guards and loaders
+- execute trusted submit/action handlers
+- validate Telegram identity server-side where needed
+- enforce launch-mode/auth/session constraints where needed
 - invoke downstream services through adapters
 
-## The Manifest as Source of Truth
+## App Config as Source of Truth
 
-`teleforge.app.json` is the shared manifest used across the stack.
+`teleforge.config.ts` is now the primary app definition used across the stack.
 
 It drives:
 
-- runtime mode (`spa` or `bff`)
-- web framework choice
+- flow roots and conventions
 - bot metadata
 - Mini App launch modes
 - route definitions and guards
@@ -115,38 +120,11 @@ In practice, the manifest is consumed by:
 
 - the scaffold generator
 - `teleforge dev` and `teleforge doctor`
+- `teleforge.config.ts` loading and route derivation
 - core schema validation
 - route/guard logic in app code
 
-This keeps Telegram-specific route and capability metadata out of ad hoc constants spread across the repo.
-
-## SPA vs BFF Modes
-
-### SPA Mode
-
-In SPA mode:
-
-```text
-Telegram Client
-  -> Mini App (Vite)
-  -> your existing APIs or direct backend endpoints
-  -> Bot remains separate
-```
-
-Use this when you do not need a dedicated Telegram-aware backend layer in the same app workspace.
-
-### BFF Mode
-
-In BFF mode:
-
-```text
-Telegram Client
-  -> Mini App (Next.js)
-  -> Teleforge BFF routes
-  -> service adapters / downstream APIs
-```
-
-Use this when request context, auth translation, and route middleware belong close to the app.
+The config is then converted into manifest/runtime metadata internally where older layers still need it.
 
 ## Core Contracts
 
@@ -201,14 +179,14 @@ This package is responsible for:
 - route guards
 - flow resume and return-to-chat helpers
 
-Typical entry points are:
+Typical low-level entry points are:
 
 - `useTelegram()`
 - `useLaunch()`
 - `useTheme()`
 - `useMainButton()`
 - `useManifestGuard()`
-- `CoordinationProvider`
+- `useRouteGuard()`
 
 ### `@teleforgex/ui`
 
@@ -241,9 +219,9 @@ The bot layer is where chat-native entry points usually start. It can:
 - receive structured payloads back
 - reconnect users to saved flows
 
-## BFF Layer
+## Server Layer
 
-`@teleforgex/bff` provides a Telegram-aware backend-for-frontend surface.
+`@teleforgex/bff` still provides the current Telegram-aware backend implementation surface, but the public framework model should be read as optional server hooks rather than a visible `BFF mode`.
 
 Its architecture has four main parts:
 

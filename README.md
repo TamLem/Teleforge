@@ -13,7 +13,7 @@ If you are new to the repo, start here:
 - [Developer Guide](./docs/developer-guide.md)
 - [Build Your First Feature](./docs/first-feature.md)
 - [Flow Coordination](./docs/flow-coordination.md)
-- [BFF Mode Guide](./docs/bff-guide.md)
+- [Server Hooks and BFF Internals](./docs/bff-guide.md)
 - [Shared Phone Auth](./docs/shared-phone-auth.md)
 - [Testing](./docs/testing.md)
 - [Deployment](./docs/deployment.md)
@@ -27,7 +27,7 @@ If you are new to the repo, start here:
 
 - `packages/core`: manifest schema, validation, launch parsing, events, and flow-state primitives
 - `packages/bot`: command routing, WebApp data handling, and webhook helpers
-- `packages/bff`: Telegram-aware BFF routes, adapters, context, and session/auth helpers
+- `packages/bff`: Telegram-aware server-side implementation helpers, adapters, context, and session/auth primitives
 - `packages/create-teleforge-app`: scaffold generator for new Teleforge apps
 - `packages/devtools`: `teleforge dev`, `teleforge mock`, and `teleforge doctor`
 - `packages/ui`: Telegram-native React UI components

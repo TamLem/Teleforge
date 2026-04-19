@@ -35,6 +35,38 @@ const FLOW_STATE_PAYLOAD_KEY = "__teleforge_flow_state";
 const MAX_FLOW_TRANSITIONS = 12;
 const MINI_APP_CHAT_HANDOFF_TYPE = "teleforge_flow_handoff";
 
+export interface DiscoveredFlowRuntimeMiniAppDebugState {
+  lastHandoffAt: string | null;
+  lastLaunchAt: string | null;
+  lastLaunchRoute: string | null;
+  lastLaunchStepId: string | null;
+  lastResumeAt: string | null;
+  pendingChatHandoff: boolean;
+  resumedStepId: string | null;
+}
+
+export interface DiscoveredFlowRuntimeSessionDebugState {
+  chatId: string | null;
+  currentRoute: string | null;
+  currentStepId: string;
+  currentStepType: "chat" | "miniapp";
+  flowId: string;
+  lastUpdatedAt: string;
+  miniApp: DiscoveredFlowRuntimeMiniAppDebugState;
+  snapshotStateAvailable: boolean;
+  stateKey: string;
+  userId: string;
+}
+
+export interface DiscoveredFlowRuntimeDebugState {
+  sessions: readonly DiscoveredFlowRuntimeSessionDebugState[];
+  updatedAt: string | null;
+}
+
+export interface DiscoveredBotRuntime extends BotRuntime {
+  getFlowRuntimeDebugState(): DiscoveredFlowRuntimeDebugState;
+}
+
 export interface CreateDiscoveredBotRuntimeOptions {
   app?: TeleforgeAppConfig;
   commandOptions?: Omit<CreateFlowCommandsOptions, "flows" | "secret" | "storage" | "webAppUrl">;
@@ -48,7 +80,7 @@ export interface CreateDiscoveredBotRuntimeOptions {
 
 export async function createDiscoveredBotRuntime(
   options: CreateDiscoveredBotRuntimeOptions
-): Promise<BotRuntime> {
+): Promise<DiscoveredBotRuntime> {
   const cwd = options.cwd ?? process.cwd();
   const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
   const flows = await loadTeleforgeFlows({
@@ -60,6 +92,8 @@ export async function createDiscoveredBotRuntime(
     cwd
   });
   const runtime = createBotRuntime();
+  const debugTracker = createFlowRuntimeDebugTracker();
+  const miniAppEntryFlows = flows.filter(({ flow }) => isMiniAppEntryFlow(flow));
   const storage =
     options.storage ??
     new UserFlowStateManager(
@@ -70,16 +104,22 @@ export async function createDiscoveredBotRuntime(
       })
     );
   runtime.registerCommands(
-    createFlowCommands({
-      ...(options.commandOptions ?? {}),
-      flows: flows.filter(({ flow }) => isMiniAppEntryFlow(flow)),
-      secret: options.flowSecret,
-      storage,
-      webAppUrl: options.miniAppUrl
+    createTrackedMiniAppEntryCommands({
+      commands: createFlowCommands({
+        ...(options.commandOptions ?? {}),
+        flows: miniAppEntryFlows,
+        secret: options.flowSecret,
+        storage,
+        webAppUrl: options.miniAppUrl
+      }),
+      debugTracker,
+      flows: miniAppEntryFlows,
+      storage
     })
   );
   runtime.registerCommands(
     createChatEntryCommands({
+      debugTracker,
       flows: flows.filter(({ flow }) => !isMiniAppEntryFlow(flow)),
       handlers,
       secret: options.flowSecret,
@@ -89,6 +129,7 @@ export async function createDiscoveredBotRuntime(
   );
   runtime.router.onCallbackQuery(
     createDiscoveredFlowCallbackHandler({
+      debugTracker,
       flows,
       handlers,
       miniAppUrl: options.miniAppUrl,
@@ -99,6 +140,7 @@ export async function createDiscoveredBotRuntime(
   );
   runtime.router.onWebAppData(
     createDiscoveredFlowWebAppDataHandler({
+      debugTracker,
       flows,
       handlers,
       miniAppUrl: options.miniAppUrl,
@@ -108,10 +150,14 @@ export async function createDiscoveredBotRuntime(
     })
   );
 
-  return runtime;
+  const discoveredRuntime = runtime as DiscoveredBotRuntime;
+  discoveredRuntime.getFlowRuntimeDebugState = () => debugTracker.snapshot();
+
+  return discoveredRuntime;
 }
 
 interface CreateChatEntryCommandsOptions {
+  debugTracker: FlowRuntimeDebugTracker;
   flows: readonly DiscoveredFlowModule[];
   handlers: readonly DiscoveredFlowStepHandlerModule[];
   secret: string;
@@ -120,6 +166,7 @@ interface CreateChatEntryCommandsOptions {
 }
 
 interface CreateDiscoveredFlowCallbackHandlerOptions {
+  debugTracker: FlowRuntimeDebugTracker;
   flows: readonly DiscoveredFlowModule[];
   handlers: readonly DiscoveredFlowStepHandlerModule[];
   miniAppUrl: string;
@@ -137,6 +184,51 @@ interface MiniAppChatHandoffPayload {
   stateKey: string;
   stepId: string;
   type: typeof MINI_APP_CHAT_HANDOFF_TYPE;
+}
+
+interface CreateTrackedMiniAppEntryCommandsOptions {
+  commands: readonly BotCommandDefinition[];
+  debugTracker: FlowRuntimeDebugTracker;
+  flows: readonly DiscoveredFlowModule[];
+  storage: UserFlowStateManager;
+}
+
+function createTrackedMiniAppEntryCommands(
+  options: CreateTrackedMiniAppEntryCommandsOptions
+): BotCommandDefinition[] {
+  const miniAppFlowsByCommand = new Map<string, TeleforgeFlowDefinition<unknown, unknown>>();
+
+  for (const { flow } of options.flows) {
+    const command = flow.bot?.command?.command;
+    if (command) {
+      miniAppFlowsByCommand.set(command, flow);
+    }
+  }
+
+  return options.commands.map((command) => {
+    const flow = miniAppFlowsByCommand.get(command.command);
+
+    if (!flow) {
+      return command;
+    }
+
+    const entryStepId = String(flow.bot?.command?.entryStep ?? flow.initialStep);
+
+    return {
+      ...command,
+      async handler(context) {
+        await command.handler(context);
+        options.debugTracker.trackMiniAppLaunch({
+          chatId: String(context.chat.id),
+          flow,
+          snapshotStateAvailable: true,
+          stateKey: options.storage.createStateKey(String(context.user.id), flow.id),
+          stepId: entryStepId,
+          userId: String(context.user.id)
+        });
+      }
+    };
+  });
 }
 
 function createChatEntryCommands(options: CreateChatEntryCommandsOptions): BotCommandDefinition[] {
@@ -159,24 +251,35 @@ function createChatEntryCommands(options: CreateChatEntryCommandsOptions): BotCo
         command: command.command,
         description: command.description,
         async handler(context) {
+          const initialState = cloneFlowState(flow.state);
+          const userId = String(context.user.id);
           const stateKey = await options.storage.startFlow(
-            String(context.user.id),
+            userId,
             flow.id,
             entryStep,
             {
-              [FLOW_STATE_PAYLOAD_KEY]: cloneFlowState(flow.state)
+              [FLOW_STATE_PAYLOAD_KEY]: initialState
             },
             String(context.chat.id)
           );
+          options.debugTracker.trackStep({
+            chatId: String(context.chat.id),
+            flow,
+            snapshotStateAvailable: true,
+            stateKey,
+            stepId: entryStep,
+            userId
+          });
 
           await enterDiscoveredFlowStep(
             {
               chatId: context.chat.id,
+              debugTracker: options.debugTracker,
               flow,
               handlers: options.handlers,
               secret: options.secret,
               services: options.services,
-              state: cloneFlowState(flow.state),
+              state: initialState,
               stateKey,
               storage: options.storage
             },
@@ -265,10 +368,19 @@ function createDiscoveredFlowCallbackHandler(
     await options.storage.advanceStep(stateKey, nextStepId, {
       [FLOW_STATE_PAYLOAD_KEY]: nextState
     });
+    options.debugTracker.trackStep({
+      chatId: String(chatId),
+      flow,
+      snapshotStateAvailable: true,
+      stateKey,
+      stepId: nextStepId,
+      userId: String(context.user.id)
+    });
     await context.answer();
     await enterDiscoveredFlowStep(
       {
         chatId,
+        debugTracker: options.debugTracker,
         flow,
         handlers: options.handlers,
         miniAppUrl: options.miniAppUrl,
@@ -320,11 +432,20 @@ function createDiscoveredFlowWebAppDataHandler(
       await options.storage.advanceStep(handoff.stateKey, handoff.stepId, {
         [FLOW_STATE_PAYLOAD_KEY]: cloneFlowState(handoff.state)
       });
+      options.debugTracker.trackMiniAppHandoff({
+        chatId: String(persisted.chatId ?? context.chat.id),
+        flow,
+        snapshotStateAvailable: true,
+        stateKey: handoff.stateKey,
+        stepId: handoff.stepId,
+        userId: String(context.user?.id ?? persisted.userId)
+      });
 
       await context.answer("Returned to chat");
       await enterDiscoveredFlowStep(
         {
           chatId: persisted.chatId ?? context.chat.id,
+          debugTracker: options.debugTracker,
           flow,
           handlers: options.handlers,
           miniAppUrl: options.miniAppUrl,
@@ -360,6 +481,7 @@ function createDiscoveredFlowWebAppDataHandler(
 async function enterDiscoveredFlowStep(
   options: {
     chatId: number | string;
+    debugTracker: FlowRuntimeDebugTracker;
     flow: TeleforgeFlowDefinition<unknown, unknown>;
     handlers: readonly DiscoveredFlowStepHandlerModule[];
     miniAppUrl?: string | null;
@@ -379,6 +501,7 @@ async function enterDiscoveredFlowStep(
   let currentStepId = String(
     (await options.storage.getState(options.stateKey))?.stepId ?? options.flow.initialStep
   );
+  const chatId = String(options.chatId);
 
   for (let iteration = 0; iteration < MAX_FLOW_TRANSITIONS; iteration += 1) {
     const step = getFlowStep(options.flow, currentStepId);
@@ -404,6 +527,13 @@ async function enterDiscoveredFlowStep(
         [FLOW_STATE_PAYLOAD_KEY]: currentState
       });
       currentStepId = redirectedStepId;
+      options.debugTracker.trackStep({
+        chatId,
+        flow: options.flow,
+        snapshotStateAvailable: true,
+        stateKey: options.stateKey,
+        stepId: redirectedStepId
+      });
 
       if (redirectedStepId !== previousStepId) {
         continue;
@@ -411,6 +541,13 @@ async function enterDiscoveredFlowStep(
     }
 
     if (step.type === "chat") {
+      options.debugTracker.trackStep({
+        chatId,
+        flow: options.flow,
+        snapshotStateAvailable: true,
+        stateKey: options.stateKey,
+        stepId: currentStepId
+      });
       await sendChatStepMessage(
         runtime.bot,
         options.flow,
@@ -428,6 +565,13 @@ async function enterDiscoveredFlowStep(
       );
     }
 
+    options.debugTracker.trackMiniAppLaunch({
+      chatId,
+      flow: options.flow,
+      snapshotStateAvailable: true,
+      stateKey: options.stateKey,
+      stepId: currentStepId
+    });
     await sendFlowInit(runtime.bot, {
       buttonText: options.flow.bot?.command?.buttonText,
       chatId: options.chatId,
@@ -489,6 +633,152 @@ function createHandlerIndex(
   handlers: readonly DiscoveredFlowStepHandlerModule[]
 ): ReadonlyMap<string, DiscoveredFlowStepHandlerModule> {
   return new Map(handlers.map((handler) => [`${handler.flowId}:${handler.stepId}`, handler]));
+}
+
+interface FlowRuntimeDebugTracker {
+  snapshot(): DiscoveredFlowRuntimeDebugState;
+  trackMiniAppHandoff(input: FlowRuntimeDebugEventInput): void;
+  trackMiniAppLaunch(input: FlowRuntimeDebugEventInput): void;
+  trackStep(input: FlowRuntimeDebugEventInput): void;
+}
+
+interface FlowRuntimeDebugEventInput {
+  chatId?: string;
+  flow: TeleforgeFlowDefinition<unknown, unknown>;
+  snapshotStateAvailable: boolean;
+  stateKey: string;
+  stepId: string;
+  userId?: string;
+}
+
+interface MutableDiscoveredFlowRuntimeSessionDebugState extends DiscoveredFlowRuntimeSessionDebugState {
+  miniApp: DiscoveredFlowRuntimeMiniAppDebugState;
+}
+
+function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
+  const sessions = new Map<string, MutableDiscoveredFlowRuntimeSessionDebugState>();
+  let updatedAt: string | null = null;
+
+  function ensureSession(
+    input: FlowRuntimeDebugEventInput
+  ): MutableDiscoveredFlowRuntimeSessionDebugState {
+    const existing = sessions.get(input.stateKey);
+
+    if (existing) {
+      if (input.userId) {
+        existing.userId = input.userId;
+      }
+
+      if (input.chatId) {
+        existing.chatId = input.chatId;
+      }
+
+      return existing;
+    }
+
+    const step = getFlowStep(input.flow, input.stepId);
+    const route = resolveFlowStepRoute(input.flow, input.stepId);
+    const now = new Date().toISOString();
+    const created: MutableDiscoveredFlowRuntimeSessionDebugState = {
+      chatId: input.chatId ?? null,
+      currentRoute: step.type === "miniapp" ? route : null,
+      currentStepId: input.stepId,
+      currentStepType: step.type,
+      flowId: input.flow.id,
+      lastUpdatedAt: now,
+      miniApp: {
+        lastHandoffAt: null,
+        lastLaunchAt: null,
+        lastLaunchRoute: null,
+        lastLaunchStepId: null,
+        lastResumeAt: null,
+        pendingChatHandoff: false,
+        resumedStepId: null
+      },
+      snapshotStateAvailable: input.snapshotStateAvailable,
+      stateKey: input.stateKey,
+      userId: input.userId ?? "unknown"
+    };
+    sessions.set(input.stateKey, created);
+    updatedAt = now;
+    return created;
+  }
+
+  function touch(session: MutableDiscoveredFlowRuntimeSessionDebugState): void {
+    const now = new Date().toISOString();
+    session.lastUpdatedAt = now;
+    updatedAt = now;
+  }
+
+  return {
+    snapshot() {
+      return {
+        sessions: Object.freeze(
+          [...sessions.values()]
+            .map((session) =>
+              Object.freeze({
+                ...session,
+                miniApp: Object.freeze({ ...session.miniApp })
+              })
+            )
+            .sort((left, right) =>
+              `${left.flowId}:${left.stateKey}`.localeCompare(`${right.flowId}:${right.stateKey}`)
+            )
+        ),
+        updatedAt
+      };
+    },
+    trackMiniAppHandoff(input) {
+      const session = ensureSession(input);
+      const step = getFlowStep(input.flow, input.stepId);
+
+      session.currentStepId = input.stepId;
+      session.currentStepType = step.type;
+      session.currentRoute = step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
+      session.snapshotStateAvailable = session.snapshotStateAvailable || input.snapshotStateAvailable;
+      session.miniApp.lastHandoffAt = new Date().toISOString();
+      session.miniApp.lastResumeAt = session.miniApp.lastHandoffAt;
+      session.miniApp.pendingChatHandoff = false;
+      session.miniApp.resumedStepId = input.stepId;
+      touch(session);
+    },
+    trackMiniAppLaunch(input) {
+      const session = ensureSession(input);
+      const route = resolveFlowStepRoute(input.flow, input.stepId);
+
+      session.currentStepId = input.stepId;
+      session.currentStepType = "miniapp";
+      session.currentRoute = route;
+      session.snapshotStateAvailable = session.snapshotStateAvailable || input.snapshotStateAvailable;
+      session.miniApp.lastLaunchAt = new Date().toISOString();
+      session.miniApp.lastLaunchRoute = route;
+      session.miniApp.lastLaunchStepId = input.stepId;
+      session.miniApp.pendingChatHandoff = true;
+      touch(session);
+    },
+    trackStep(input) {
+      const session = ensureSession(input);
+      const step = getFlowStep(input.flow, input.stepId);
+
+      session.currentStepId = input.stepId;
+      session.currentStepType = step.type;
+      session.currentRoute = step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
+      session.snapshotStateAvailable = session.snapshotStateAvailable || input.snapshotStateAvailable;
+
+      if (step.type === "chat") {
+        session.miniApp.pendingChatHandoff = false;
+      }
+
+      touch(session);
+    }
+  };
+}
+
+function resolveFlowStepRoute(
+  flow: TeleforgeFlowDefinition<unknown, unknown>,
+  stepId: string
+): string | null {
+  return flow.miniApp?.stepRoutes?.[stepId] ?? flow.miniApp?.route ?? null;
 }
 
 function parseMiniAppChatHandoffPayload(payload: unknown): MiniAppChatHandoffPayload | null {

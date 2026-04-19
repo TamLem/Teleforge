@@ -5,16 +5,20 @@ import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow.js";
 import type { DiscoveredFlowStepServerHookModule, DiscoveredFlowModule } from "./discovery.js";
 import type { FlowTransitionResult, TeleforgeFlowDefinition } from "./flow.js";
 import type { TeleforgeScreenGuardBlock } from "./screens.js";
+import type { UserFlowState, UserFlowStateManager } from "@teleforgex/core";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
+type MaybePromise<T> = Promise<T> | T;
 
 export const DEFAULT_SERVER_HOOKS_PATH = "/api/teleforge/flow-hooks";
+const FLOW_STATE_PAYLOAD_KEY = "__teleforge_flow_state";
 
 export interface TeleforgeMiniAppServerLoadInput {
   flowId: string;
   routePath: string;
   screenId: string;
   state: unknown;
+  stateKey?: string;
   stepId: string;
 }
 
@@ -22,6 +26,7 @@ export interface TeleforgeMiniAppServerSubmitInput {
   data: unknown;
   flowId: string;
   state: unknown;
+  stateKey?: string;
   stepId: string;
 }
 
@@ -29,6 +34,7 @@ export interface TeleforgeMiniAppServerActionInput {
   action: string;
   flowId: string;
   state: unknown;
+  stateKey?: string;
   stepId: string;
 }
 
@@ -59,12 +65,14 @@ export interface TeleforgeMiniAppServerBridge {
 export interface CreateFetchMiniAppServerBridgeOptions {
   basePath?: string;
   fetch?: typeof fetch;
+  headers?: HeadersInit | (() => MaybePromise<HeadersInit | undefined> | undefined);
 }
 
 export interface CreateDiscoveredServerHooksHandlerOptions {
   basePath?: string;
   cwd: string;
   services?: unknown;
+  trust?: TeleforgeServerHookTrustOptions;
 }
 
 interface TeleforgeDiscoveredServerHooksHandlerState {
@@ -72,6 +80,26 @@ interface TeleforgeDiscoveredServerHooksHandlerState {
   flows: readonly DiscoveredFlowModule[];
   hooks: readonly DiscoveredFlowStepServerHookModule[];
   services?: unknown;
+  trust: TeleforgeServerHookTrustOptions;
+}
+
+export interface TeleforgeServerHookTrustContext {
+  actorId: string | null;
+  flowId: string;
+  kind: "action" | "load" | "submit";
+  request: Request;
+  state: unknown;
+  stateKey: string | null;
+  stepId: string;
+  storedState: UserFlowState | null;
+}
+
+export interface TeleforgeServerHookTrustOptions {
+  flowState?: UserFlowStateManager;
+  requireActor?: boolean;
+  requireStateKey?: boolean;
+  resolveActorId?: (request: Request) => MaybePromise<string | null | undefined>;
+  validate?: (context: TeleforgeServerHookTrustContext) => MaybePromise<void>;
 }
 
 type TeleforgeServerHookRequest =
@@ -112,6 +140,7 @@ export function createFetchMiniAppServerBridge(
   }
 
   const basePath = options.basePath ?? DEFAULT_SERVER_HOOKS_PATH;
+  const resolveHeaders = options.headers;
 
   return Object.freeze({
     action: async (
@@ -123,7 +152,8 @@ export function createFetchMiniAppServerBridge(
         {
           input,
           kind: "action"
-        }
+        },
+        resolveHeaders
       );
       return payload.result;
     },
@@ -136,7 +166,8 @@ export function createFetchMiniAppServerBridge(
         {
           input,
           kind: "load"
-        }
+        },
+        resolveHeaders
       );
       return payload.result;
     },
@@ -149,7 +180,8 @@ export function createFetchMiniAppServerBridge(
         {
           input,
           kind: "submit"
-        }
+        },
+        resolveHeaders
       );
       return payload.result;
     }
@@ -172,7 +204,8 @@ export async function createDiscoveredServerHooksHandler(
     basePath: options.basePath ?? DEFAULT_SERVER_HOOKS_PATH,
     flows,
     hooks,
-    ...(options.services !== undefined ? { services: options.services } : {})
+    ...(options.services !== undefined ? { services: options.services } : {}),
+    trust: options.trust ?? {}
   };
 
   return async (request: Request) => handleDiscoveredServerHooksRequest(request, state);
@@ -291,12 +324,15 @@ export async function executeTeleforgeServerHookAction(options: {
 async function postServerHookRequest<TResponse extends TeleforgeServerHookResponse>(
   fetchImpl: typeof fetch,
   basePath: string,
-  payload: TeleforgeServerHookRequest
+  payload: TeleforgeServerHookRequest,
+  resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
 ): Promise<TResponse> {
+  const headers = await resolveBridgeHeaders(resolveHeaders);
   const response = await fetchImpl(basePath, {
     body: JSON.stringify(payload),
     headers: {
-      "content-type": "application/json"
+      "content-type": "application/json",
+      ...headers
     },
     method: "POST"
   });
@@ -325,9 +361,15 @@ async function handleDiscoveredServerHooksRequest(
 
   try {
     const payload = (await request.json()) as TeleforgeServerHookRequest;
-    const response = await executeDiscoveredServerHookRequest(payload, state);
+    const response = await executeDiscoveredServerHookRequest(payload, request, state);
     return jsonResponse(response);
   } catch (error) {
+    if (error instanceof TeleforgeServerHookRequestError) {
+      return new Response(error.message, {
+        status: error.statusCode
+      });
+    }
+
     return new Response(
       error instanceof Error ? error.message : "Teleforge server hook execution failed.",
       {
@@ -339,9 +381,11 @@ async function handleDiscoveredServerHooksRequest(
 
 async function executeDiscoveredServerHookRequest(
   request: TeleforgeServerHookRequest,
+  sourceRequest: Request,
   state: TeleforgeDiscoveredServerHooksHandlerState
 ): Promise<TeleforgeServerHookResponse> {
   const flow = findDiscoveredFlow(state.flows, request.input.flowId);
+  const trusted = await resolveTrustedExecutionInput(sourceRequest, request, state.trust);
 
   switch (request.kind) {
     case "load":
@@ -350,7 +394,11 @@ async function executeDiscoveredServerHookRequest(
         result: await executeTeleforgeServerHookLoad({
           flow,
           hooks: state.hooks,
-          input: request.input,
+          input: {
+            ...request.input,
+            state: trusted.state,
+            ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
+          },
           services: state.services
         })
       };
@@ -360,7 +408,11 @@ async function executeDiscoveredServerHookRequest(
         result: await executeTeleforgeServerHookSubmit({
           flow,
           hooks: state.hooks,
-          input: request.input,
+          input: {
+            ...request.input,
+            state: trusted.state,
+            ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
+          },
           services: state.services
         })
       };
@@ -370,7 +422,11 @@ async function executeDiscoveredServerHookRequest(
         result: await executeTeleforgeServerHookAction({
           flow,
           hooks: state.hooks,
-          input: request.input,
+          input: {
+            ...request.input,
+            state: trusted.state,
+            ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
+          },
           services: state.services
         })
       };
@@ -421,6 +477,153 @@ function normalizeServerGuardBlock(result: unknown): TeleforgeScreenGuardBlock {
   return {
     allow: false
   };
+}
+
+async function resolveBridgeHeaders(
+  resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
+): Promise<Record<string, string>> {
+  if (!resolveHeaders) {
+    return {};
+  }
+
+  const raw = typeof resolveHeaders === "function" ? await resolveHeaders() : resolveHeaders;
+  const headers = new Headers(raw);
+  const normalized: Record<string, string> = {};
+
+  headers.forEach((value, key) => {
+    normalized[key] = value;
+  });
+
+  return normalized;
+}
+
+async function resolveTrustedExecutionInput(
+  request: Request,
+  hookRequest: TeleforgeServerHookRequest,
+  trust: TeleforgeServerHookTrustOptions
+): Promise<{ state: unknown; stateKey: string | null }> {
+  const actorId = await resolveActorId(request, trust.resolveActorId);
+  const stateKey =
+    "stateKey" in hookRequest.input && typeof hookRequest.input.stateKey === "string"
+      ? hookRequest.input.stateKey
+      : null;
+
+  if (trust.requireActor && !actorId) {
+    throw new TeleforgeServerHookRequestError(
+      "Teleforge server-hook request requires an authenticated actor.",
+      401
+    );
+  }
+
+  if (trust.requireStateKey && !stateKey) {
+    throw new TeleforgeServerHookRequestError(
+      "Teleforge server-hook request requires a stateKey.",
+      400
+    );
+  }
+
+  let storedState: UserFlowState | null = null;
+  let authoritativeState = hookRequest.input.state;
+
+  if (trust.flowState && stateKey) {
+    storedState = await trust.flowState.getState(stateKey);
+
+    if (!storedState) {
+      throw new TeleforgeServerHookRequestError(
+        `Teleforge flow state "${stateKey}" was not found or expired.`,
+        404
+      );
+    }
+
+    if (storedState.flowId !== hookRequest.input.flowId) {
+      throw new TeleforgeServerHookRequestError(
+        `Flow state "${stateKey}" does not belong to flow "${hookRequest.input.flowId}".`,
+        409
+      );
+    }
+
+    if (storedState.stepId !== hookRequest.input.stepId) {
+      throw new TeleforgeServerHookRequestError(
+        `Flow state "${stateKey}" is on step "${storedState.stepId}", not "${hookRequest.input.stepId}".`,
+        409
+      );
+    }
+
+    if (actorId && storedState.userId !== actorId) {
+      throw new TeleforgeServerHookRequestError(
+        `Authenticated actor "${actorId}" does not own flow state "${stateKey}".`,
+        403
+      );
+    }
+
+    const storedFlowState =
+      FLOW_STATE_PAYLOAD_KEY in storedState.payload
+        ? structuredClone(storedState.payload[FLOW_STATE_PAYLOAD_KEY])
+        : undefined;
+
+    if (storedFlowState !== undefined) {
+      if (
+        hookRequest.input.state !== undefined &&
+        !isJsonEqual(hookRequest.input.state, storedFlowState)
+      ) {
+        throw new TeleforgeServerHookRequestError(
+          `Flow state "${stateKey}" does not match the provided runtime state.`,
+          409
+        );
+      }
+
+      authoritativeState = storedFlowState;
+    }
+  }
+
+  const trustContext: TeleforgeServerHookTrustContext = {
+    actorId,
+    flowId: hookRequest.input.flowId,
+    kind: hookRequest.kind,
+    request,
+    state: authoritativeState,
+    stateKey,
+    stepId: hookRequest.input.stepId,
+    storedState
+  };
+
+  await trust.validate?.(trustContext);
+
+  return {
+    state: authoritativeState,
+    stateKey
+  };
+}
+
+async function resolveActorId(
+  request: Request,
+  resolver: TeleforgeServerHookTrustOptions["resolveActorId"]
+): Promise<string | null> {
+  if (!resolver) {
+    return null;
+  }
+
+  const resolved = await resolver(request);
+  const actorId = typeof resolved === "string" ? resolved.trim() : "";
+  return actorId.length > 0 ? actorId : null;
+}
+
+function isJsonEqual(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+class TeleforgeServerHookRequestError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number
+  ) {
+    super(message);
+    this.name = "TeleforgeServerHookRequestError";
+  }
 }
 
 function jsonResponse(body: TeleforgeServerHookResponse): Response {

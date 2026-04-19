@@ -8,15 +8,32 @@ import { createDefaultProfile, type MockProfile } from "./mock-server/types.js";
 
 export interface SimulatorBotBridge {
   cleanup(): Promise<void>;
+  getRuntimeState(): Promise<SimulatorBotRuntimeState | null>;
   sendCallbackData(data: string, profile: MockProfile): Promise<SimulatorBotResponse>;
   getCommands(): Promise<string[]>;
   sendCommand(text: string, profile: MockProfile): Promise<SimulatorBotResponse>;
   sendWebAppData(data: string, profile: MockProfile): Promise<SimulatorBotResponse>;
 }
 
-interface SimulatorBotResponse {
+export interface SimulatorBotRuntimeState {
+  sessions?: Array<{
+    currentRoute?: string | null;
+    currentStepId?: string;
+    currentStepType?: string;
+    flowId?: string;
+    miniApp?: {
+      pendingChatHandoff?: boolean;
+      resumedStepId?: string | null;
+    };
+    stateKey?: string;
+  }>;
+  updatedAt?: string | null;
+}
+
+export interface SimulatorBotResponse {
   commands: string[];
   messages: CapturedTelegramMessage[];
+  runtimeState?: SimulatorBotRuntimeState;
 }
 
 export interface CapturedTelegramMessage {
@@ -154,6 +171,8 @@ class WorkerBackedSimulatorBotBridge implements SimulatorBotBridge {
 
   private readonly responses: readline.Interface;
 
+  private runtimeState: SimulatorBotRuntimeState | null = null;
+
   private requestCounter = 0;
 
   constructor(child: ChildProcessWithoutNullStreams) {
@@ -198,39 +217,70 @@ class WorkerBackedSimulatorBotBridge implements SimulatorBotBridge {
   }
 
   async getCommands(): Promise<string[]> {
-    const response = await this.request({
-      id: this.createRequestId(),
-      profile: createWorkerProfile(),
-      type: "status"
-    });
+    const response = this.captureRuntimeState(
+      await this.request({
+        id: this.createRequestId(),
+        profile: createWorkerProfile(),
+        type: "status"
+      })
+    );
     return response.commands;
   }
 
+  async getRuntimeState(): Promise<SimulatorBotRuntimeState | null> {
+    if (this.runtimeState) {
+      return this.runtimeState;
+    }
+
+    this.captureRuntimeState(
+      await this.request({
+        id: this.createRequestId(),
+        profile: createWorkerProfile(),
+        type: "status"
+      })
+    );
+    return this.runtimeState;
+  }
+
   async sendCommand(text: string, profile: MockProfile): Promise<SimulatorBotResponse> {
-    return this.request({
-      id: this.createRequestId(),
-      profile,
-      text,
-      type: "command"
-    });
+    return this.captureRuntimeState(
+      await this.request({
+        id: this.createRequestId(),
+        profile,
+        text,
+        type: "command"
+      })
+    );
   }
 
   async sendCallbackData(data: string, profile: MockProfile): Promise<SimulatorBotResponse> {
-    return this.request({
-      data,
-      id: this.createRequestId(),
-      profile,
-      type: "callback_data"
-    });
+    return this.captureRuntimeState(
+      await this.request({
+        data,
+        id: this.createRequestId(),
+        profile,
+        type: "callback_data"
+      })
+    );
   }
 
   async sendWebAppData(data: string, profile: MockProfile): Promise<SimulatorBotResponse> {
-    return this.request({
-      data,
-      id: this.createRequestId(),
-      profile,
-      type: "web_app_data"
-    });
+    return this.captureRuntimeState(
+      await this.request({
+        data,
+        id: this.createRequestId(),
+        profile,
+        type: "web_app_data"
+      })
+    );
+  }
+
+  private captureRuntimeState(response: SimulatorBotResponse): SimulatorBotResponse {
+    if (response.runtimeState) {
+      this.runtimeState = response.runtimeState;
+    }
+
+    return response;
   }
 
   private createRequestId(): string {

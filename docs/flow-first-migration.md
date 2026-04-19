@@ -41,7 +41,9 @@ Implemented in the repo now:
 - real Mini App-to-chat handoff now flows back through `web_app_data` into the discovered bot runtime
 - convention-based server-hook discovery now exists for flow-scoped guard/loader/submit/action logic
 - the framework now exposes both an HTTP fetch bridge and a discovered server-hooks request handler
+- server-hook execution now supports trusted actor + ownership enforcement with state-key validation
 - runtime summaries and devtools diagnostics now surface server-hook wiring alongside local handler completeness
+- simulator diagnostics now expose flow continuity runtime state, including step/route/stateKey and handoff/resume visibility
 
 That means the migration is no longer blocked on primitives or on the initial app path. The remaining work is mostly about **making flows the primary runtime object everywhere**, not about inventing the base framework APIs.
 

@@ -16,7 +16,7 @@ Start with the guides first.
 - [Flow-First V2 Migration Plan](./flow-first-migration.md)
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
-- [BFF Mode Guide](./bff-guide.md)
+- [Server Hooks and BFF Internals](./bff-guide.md)
 - [Shared Phone Auth](./shared-phone-auth.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
