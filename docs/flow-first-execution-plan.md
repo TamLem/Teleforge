@@ -1,6 +1,6 @@
 # Flow-First Execution Handoff Plan
 
-This document is the takeover plan for the remaining V2 flow-first implementation work after commit `88597a8` (`Add Mini App continuity and flow server hooks`).
+This document is the takeover plan for the remaining V2 flow-first implementation work.
 
 It is written for another execution agent picking up the repo mid-migration. It assumes the reader already understands the direction in:
 
@@ -9,9 +9,7 @@ It is written for another execution agent picking up the repo mid-migration. It 
 
 ## Baseline
 
-Start from:
-
-- commit `88597a8`
+Treat commit `88597a8` (`Add Mini App continuity and flow server hooks`) as the last fully verified framework checkpoint before the current real-app migration work.
 
 Verified at that checkpoint:
 
@@ -23,7 +21,7 @@ Known repo state at that checkpoint:
 
 - `teleforge` package tests pass
 - docs build passes
-- `@teleforgex/devtools` manifest coverage for the new flow/server-hook work passes
+- `@teleforgex/devtools` coverage for the new flow/server-hook work passes
 - one older devtools simulator test still flakes independently:
   - `packages/devtools/test/dev.mjs`
   - `dev logs upstream app 500 responses for simulator app requests`
@@ -54,27 +52,42 @@ Still incomplete at the framework level:
 - migration of a complex real app onto the new runtime
 - main docs cutover away from V1/package-first guidance
 
-## Progress Update (2026-04-18)
+## Progress Update (2026-04-19)
 
 Workstream status:
 
 - Workstream 1: complete
 - Workstream 2: complete (with the pre-existing unrelated simulator timeout still present)
-- Workstream 3: pending
+- Workstream 3: in progress, verification passing in the working tree
 - Workstream 4: pending
+
+Current repo reality:
+
+- `apps/task-shop` is now substantially migrated in the working tree to the flow-first model
+- the app now has a `teleforge.config.ts` path, discovered flows, discovered screens, and framework-owned runtime wiring
+- the legacy manifest/manual coordination path has been removed from the migrated slice in the working tree
+- the browser-safe `teleforge/web` split has landed, with server execution moved behind a dedicated `teleforge/server-hooks` entry
+- current verification passes for both the framework package and the migrated Task Shop app:
+  - `npx --yes pnpm@10.15.0 --filter teleforge test`
+  - `npx --yes pnpm@10.15.0 --dir apps/task-shop test`
+
+Delegation note:
+
+- several OpenCode delegation attempts were made for this workstream
+- early runs hit environment/launch issues, then later runs stalled in repeated exploration without producing an implementation patch
+- no delegated result was accepted, so do not treat delegation attempts as implementation progress
 
 ## Execution Order
 
 Do the remaining work in this order:
 
-1. Trusted server-hook bridge enforcement
-2. Devtools visibility for return-to-chat and resume state
-3. Complex example migration, preferably `apps/task-shop`
-4. Main docs cutover and cleanup
+1. Finish the remaining Task Shop migration cleanup on the real trusted runtime path
+2. Cut over the main framework docs away from V1/package-first guidance
+3. Do final package-surface cleanup only where it makes the unified framework story simpler
 
-This order matters. The complex example should land on the real trusted runtime path, not on a temporary bridge without ownership checks.
+This order matters. The complex example is now far enough along to prove the runtime path, so the next value is turning that implementation state into the public framework story.
 
-## Workstream 1: Trusted Server-Hook Bridge Enforcement
+## Completed Workstream 1: Trusted Server-Hook Bridge Enforcement
 
 Goal:
 
@@ -134,7 +147,7 @@ Verification:
 - targeted `@teleforgex/bff` tests if any shared validation code is reused
 - `npx --yes pnpm@10.15.0 lint`
 
-## Workstream 2: Devtools Return-To-Chat And Resume Visibility
+## Completed Workstream 2: Devtools Return-To-Chat And Resume Visibility
 
 Goal:
 
@@ -174,7 +187,7 @@ Verification:
 - `npx --yes pnpm@10.15.0 --filter @teleforgex/devtools test`
 - if the existing flaky simulator test still fails, document that explicitly and keep the new assertions isolated from it
 
-## Workstream 3: Complex Example Migration
+## Active Workstream 3: Complex Example Migration
 
 Goal:
 
@@ -202,18 +215,41 @@ Migration targets:
 - prove guarded screens, trusted submit/action paths, and real resume behavior
 - reduce or remove app-local coordination glue that duplicates framework behavior
 
-Recommended sub-order:
+Current implementation state:
 
-1. Port one non-trivial Task Shop flow first
-2. Convert its screens
-3. Convert any trusted server logic
-4. Only then remove the old wiring for that flow
+- `apps/task-shop/teleforge.config.ts` exists in the working tree
+- Task Shop flow modules and screen modules now drive the migrated slice
+- the bot runtime path has been moved to discovered framework ownership
+- legacy app-local coordination and manifest-era wiring for the migrated slice has been removed in the working tree
+- the browser-safe `teleforge/web` surface now stays browser-only, while server execution is exposed separately through `teleforge/server-hooks`
+- tests have been rewritten toward the new flow/screen runtime shape and are currently passing
+
+Immediate follow-up tasks:
+
+1. Clean up any remaining Task Shop migration gaps and stale legacy references.
+2. Keep the Mini App bridge authoring model simple:
+  - browser code should keep using the public Mini App runtime/bridge surface
+  - server-only request handling should stay behind a server entrypoint rather than leaking into the browser path
+3. Capture the migrated example in the main framework docs and reference docs.
+4. Run targeted simulator/manual checks if the Task Shop flow needs a stronger end-to-end continuity proof than the current integration tests.
+
+Current acceptance state:
+
+- importing `teleforge/web` from a browser app does not externalize Node builtins
+- the browser path does not transitively depend on server-only code
+- Task Shop bot and web tests pass on the migrated flow-first path
+- the migrated app demonstrates flow-owned screens, submit/action handling, and return-to-chat continuity without legacy coordination glue for the migrated slice
+
+Remaining acceptance work:
+
+- make sure the migrated example is reflected consistently in the main docs
+- close any leftover app-specific cleanup gaps that are no longer needed after the migration
 
 Do not attempt a one-shot full app rewrite unless the current code proves unusually shallow.
 
 Verification:
 
-- app-specific build/tests
+- `npx --yes pnpm@10.15.0 --dir apps/task-shop test`
 - `npx --yes pnpm@10.15.0 lint`
 - targeted simulator/manual dev checks if the example has complicated resume paths
 
@@ -235,6 +271,14 @@ Docs constraints:
 - flows, screens, handlers, and optional server hooks should appear before package topology
 - `BFF` should remain an implementation detail or migration term, not a primary app concept
 - do not describe SPA vs Next.js style mode choices as the V2 story
+
+Detailed follow-up tasks:
+
+- rewrite the getting-started flow around `teleforge.config.ts`, flows, screens, and handlers
+- update the architecture docs to describe one framework-owned Mini App runtime rather than package assembly
+- remove stale references to manifest-first or explicit frontend mode choices
+- keep the public explanation focused on flows, screens, handlers, and optional server hooks
+- document Task Shop as the complex migration proof point now that the current migrated slice passes verification
 
 Verification:
 
@@ -264,7 +308,7 @@ Good commit boundaries:
 
 - trusted server-hook enforcement
 - devtools handoff/resume visibility
-- Task Shop flow migration
+- Task Shop flow migration plus browser-safe package split
 - docs cutover
 
 ## Definition Of Done

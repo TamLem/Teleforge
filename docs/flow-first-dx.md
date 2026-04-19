@@ -201,6 +201,23 @@ Current migration progress already reflects part of this direction:
 - runtime continuity state (route/step/stateKey plus handoff/resume status) is now exposed in simulator diagnostics
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
 
+Current implementation status:
+
+- the framework path is ahead of the complex-app migration path
+- `apps/task-shop` is now the active proving ground for whether this DX works on a real app
+- the working tree now contains a substantial Task Shop conversion to `teleforge.config.ts`, discovered flows, discovered screens, and framework-owned runtime wiring
+- the browser-safe/runtime-split cleanup has landed: browser Mini App code can stay on `teleforge/web`, while server flow-hook execution is exposed separately through `teleforge/server-hooks`
+- the current migrated slice now passes both framework and app-level verification
+
+That matters for DX because the unified package only feels coherent if the developer can import the obvious browser entry without learning internal runtime boundaries, while still having a clear server-side entry when trusted execution is needed.
+
+The next refinement for this DX is therefore:
+
+- keep the single-framework mental model
+- keep browser authors on a browser-safe `teleforge/web` surface
+- keep server-only execution behind framework-owned server hooks and server entrypoints
+- make the public docs and examples catch up with the now-working runtime path
+
 ## Desired Outcome
 
 The desired developer experience is:

@@ -15,6 +15,7 @@
     "packages/*/tsup.config.ts",
     "packages/create-teleforge-app/src/**/*.ts",
     "apps/task-shop/apps/web/vite.config.ts",
+    "apps/task-shop/teleforge.config.ts",
     "apps/task-shop/apps/**/*.ts",
     "apps/task-shop/apps/**/*.tsx",
     "apps/task-shop/packages/**/*.ts",

@@ -1,79 +1,81 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import test from "node:test";
 
 import {
-  createTaskShopFlowResolver,
-  getTaskShopFlowId,
-  getTaskShopResumeSnapshot,
-  persistTaskShopFlowState,
-  resolveTaskShopResumeRoute
-} from "../../apps/web/src/flowResume.ts";
+  createFlowRuntimeSummaries,
+  loadTeleforgeApp,
+  loadTeleforgeFlows,
+  loadTeleforgeScreens,
+  resolveMiniAppScreen
+} from "../../../../packages/teleforge/dist/index.js";
 
-test("Task Shop flow resolver restores checkout state from injected storage", async () => {
-  const storage = createMemoryStorage();
+test("Task Shop loads its Teleforge app config and derives routes from flows", async () => {
+  const workspaceRoot = resolveTaskShopWorkspaceRoot();
+  const loaded = await loadTeleforgeApp(workspaceRoot);
 
-  persistTaskShopFlowState({
-    items: [
-      {
-        category: "Setup",
-        difficulty: "Easy",
-        estimatedTime: "20m",
-        id: "task-001",
-        price: 10,
-        quantity: 1,
-        title: "Build Mini App Scaffold"
-      }
-    ],
-    lastOrder: null,
-    now: 100,
-    route: "/checkout",
-    storage,
-    userId: "42"
-  });
-
-  const flowState = await createTaskShopFlowResolver(storage)(getTaskShopFlowId());
-
-  assert.ok(flowState);
-  assert.equal(resolveTaskShopResumeRoute(flowState), "/checkout");
-  assert.equal(getTaskShopResumeSnapshot(flowState).items[0]?.id, "task-001");
+  assert.equal(path.basename(loaded.appPath), "teleforge.config.ts");
+  assert.equal(loaded.app.app.id, "task-shop");
+  assert.deepEqual(
+    loaded.app.routes?.map((route) => route.path),
+    ["/"]
+  );
 });
 
-test("Task Shop flow resolver records completed flows for fresh-start recovery", async () => {
-  const storage = createMemoryStorage();
-
-  persistTaskShopFlowState({
-    items: [],
-    lastOrder: {
-      currency: "Stars",
-      items: [],
-      total: 0,
-      type: "order_completed"
-    },
-    now: 100,
-    route: "/success",
-    storage,
-    userId: "42"
+test("Task Shop discovery exposes both bot flows and all migrated Mini App screens", async () => {
+  const workspaceRoot = resolveTaskShopWorkspaceRoot();
+  const loaded = await loadTeleforgeApp(workspaceRoot);
+  const flows = await loadTeleforgeFlows({
+    app: loaded.app,
+    cwd: workspaceRoot
   });
+  const screens = await loadTeleforgeScreens({
+    app: loaded.app,
+    cwd: workspaceRoot
+  });
+  const summaries = createFlowRuntimeSummaries(flows);
 
-  const flowState = await createTaskShopFlowResolver(storage)(getTaskShopFlowId());
-
-  assert.ok(flowState);
-  assert.equal(flowState.stepId, "completed");
-  assert.equal(getTaskShopResumeSnapshot(flowState).lastOrder?.type, "order_completed");
+  assert.deepEqual(
+    flows.map((entry) => entry.flow.id).sort(),
+    ["task-shop-browse", "task-shop-tasks"]
+  );
+  assert.deepEqual(
+    screens.map((entry) => entry.screen.id).sort(),
+    ["task-shop.cart", "task-shop.catalog", "task-shop.checkout", "task-shop.success"]
+  );
+  assert.equal(summaries.find((summary) => summary.id === "task-shop-browse")?.stepCount, 5);
 });
 
-function createMemoryStorage() {
-  const values = new Map();
+test("Task Shop discovery resolves flow routes to the migrated screen ids", async () => {
+  const workspaceRoot = resolveTaskShopWorkspaceRoot();
+  const loaded = await loadTeleforgeApp(workspaceRoot);
+  const flows = await loadTeleforgeFlows({
+    app: loaded.app,
+    cwd: workspaceRoot
+  });
+  const screens = await loadTeleforgeScreens({
+    app: loaded.app,
+    cwd: workspaceRoot
+  });
 
-  return {
-    getItem(key) {
-      return values.get(key) ?? null;
-    },
-    removeItem(key) {
-      values.delete(key);
-    },
-    setItem(key, value) {
-      values.set(key, value);
-    }
-  };
+  const cartResolution = resolveMiniAppScreen({
+    flows,
+    pathname: "/cart",
+    screens
+  });
+  const successResolution = resolveMiniAppScreen({
+    flows,
+    pathname: "/success",
+    screens
+  });
+
+  assert.ok(!("reason" in cartResolution));
+  assert.ok(!("reason" in successResolution));
+  assert.equal(cartResolution.screenId, "task-shop.cart");
+  assert.equal(successResolution.screenId, "task-shop.success");
+});
+
+function resolveTaskShopWorkspaceRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 }

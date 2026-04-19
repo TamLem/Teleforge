@@ -29,6 +29,36 @@ export interface OrderPayload {
   type: "order_completed";
 }
 
+export interface TaskShopFlowState {
+  cart: CartItem[];
+  lastOrder: OrderPayload | null;
+}
+
+export type TaskShopSubmitPayload =
+  | {
+      taskId: string;
+      type: "add-item";
+    }
+  | {
+      type: "browse";
+    }
+  | {
+      type: "go-to-cart";
+    }
+  | {
+      type: "go-to-checkout";
+    }
+  | {
+      taskId: string;
+      type: "remove-item";
+    }
+  | {
+      type: "complete-order";
+    }
+  | {
+      type: "start-over";
+    };
+
 export const mockTasks: Task[] = [
   {
     category: "Setup",
@@ -41,7 +71,7 @@ export const mockTasks: Task[] = [
   },
   {
     category: "Bot",
-    description: "Register slash commands and a start flow with @teleforgex/bot.",
+    description: "Register slash commands and a start flow with the unified teleforge package.",
     difficulty: "Beginner",
     estimatedTime: "20 min",
     id: "task-002",
@@ -85,3 +115,78 @@ export const mockTasks: Task[] = [
     title: "Deploy to Production"
   }
 ];
+
+export function addTaskToCart(cart: readonly CartItem[], taskId: string): CartItem[] {
+  const task = getTaskById(taskId);
+  const existing = cart.find((item) => item.id === taskId);
+
+  if (!existing) {
+    return [
+      ...cart,
+      {
+        ...task,
+        quantity: 1
+      }
+    ];
+  }
+
+  return cart.map((item) =>
+    item.id === taskId
+      ? {
+          ...item,
+          quantity: item.quantity + 1
+        }
+      : item
+  );
+}
+
+export function removeTaskFromCart(cart: readonly CartItem[], taskId: string): CartItem[] {
+  return cart.flatMap((item) => {
+    if (item.id !== taskId) {
+      return [item];
+    }
+
+    if (item.quantity <= 1) {
+      return [];
+    }
+
+    return [
+      {
+        ...item,
+        quantity: item.quantity - 1
+      }
+    ];
+  });
+}
+
+export function createOrderFromCart(cart: readonly CartItem[]): OrderPayload {
+  return {
+    currency: "Stars",
+    items: cart.map((item) => ({
+      id: item.id,
+      price: item.price,
+      quantity: item.quantity,
+      title: item.title
+    })),
+    total: getCartTotal(cart),
+    type: "order_completed"
+  };
+}
+
+export function getCartCount(cart: readonly CartItem[]): number {
+  return cart.reduce((sum, item) => sum + item.quantity, 0);
+}
+
+export function getCartTotal(cart: readonly CartItem[]): number {
+  return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+}
+
+export function getTaskById(taskId: string): Task {
+  const task = mockTasks.find((entry) => entry.id === taskId);
+
+  if (!task) {
+    throw new Error(`Unknown task "${taskId}".`);
+  }
+
+  return task;
+}

@@ -1,4 +1,4 @@
-import { TgButton, TgCard, TgText } from "@teleforgex/ui";
+import { TgButton, TgCard, TgText } from "teleforge/ui";
 
 import type { Task } from "@task-shop/types";
 

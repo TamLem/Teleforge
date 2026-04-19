@@ -735,8 +735,7 @@ function createRoutesFromFlows(
           flowId: flow.id,
           ...(flow.miniApp.requestWriteAccess ? { requestWriteAccess: true } : {})
         },
-        ...(flow.miniApp.returnToChat ? { returnToChat: flow.miniApp.returnToChat } : {}),
-        ...(flow.miniApp.stepRoutes ? { stepRoutes: flow.miniApp.stepRoutes } : {})
+        ...(flow.miniApp.returnToChat ? { returnToChat: flow.miniApp.returnToChat } : {})
       },
       ...(flow.miniApp.description ? { description: flow.miniApp.description } : {}),
       ...(flow.miniApp.guards ? { guards: [...flow.miniApp.guards] } : {}),

@@ -51,7 +51,10 @@ export default defineFlow({
   miniApp: {
     component: "pages/Home",
     launchModes: ["inline", "compact", "fullscreen"],
-    route: "/"
+    route: "/",
+    stepRoutes: {
+      home: "/home"
+    }
   },
   steps: {
     welcome: {
@@ -193,4 +196,5 @@ export default defineTeleforgeApp({
   assert.equal(loaded.manifest.routes[0]?.path, "/");
   assert.equal(loaded.manifest.routes[0]?.component, "pages/Home");
   assert.equal(loaded.manifest.routes[0]?.coordination?.flow?.flowId, "start");
+  assert.deepEqual(Object.keys(loaded.manifest.routes[0]?.coordination ?? {}), ["entryPoints", "flow"]);
 });

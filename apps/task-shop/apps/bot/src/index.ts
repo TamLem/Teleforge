@@ -7,7 +7,7 @@ import { config as loadDotenv } from "dotenv";
 import { createTaskShopBotRuntime, readTaskShopBotConfig } from "./runtime.js";
 import { createPollingBot, createPreviewBot } from "./telegram.js";
 
-import type { BotRuntime, TelegramUpdate } from "@teleforgex/bot";
+import type { BotRuntime, TelegramUpdate } from "teleforge/bot";
 
 loadTaskShopEnv();
 
@@ -15,7 +15,7 @@ const botConfig = readTaskShopBotConfig();
 const pollDebug = botConfig.pollDebug;
 
 async function main() {
-  const runtime = createTaskShopBotRuntime(botConfig);
+  const runtime = await createTaskShopBotRuntime(botConfig);
   const token = botConfig.token;
 
   if (!token) {
@@ -123,37 +123,6 @@ function createPreviewUpdates(): TelegramUpdate[] {
         text: "/tasks"
       },
       update_id: 2
-    },
-    {
-      message: {
-        chat: {
-          id: 1,
-          type: "private"
-        },
-        date: Math.floor(Date.now() / 1000),
-        from: {
-          first_name: "Preview",
-          id: 1,
-          username: "preview_user"
-        },
-        message_id: 3,
-        web_app_data: {
-          data: JSON.stringify({
-            currency: "Stars",
-            items: [
-              {
-                id: "task-001",
-                price: 10,
-                quantity: 1,
-                title: "Build Mini App Scaffold"
-              }
-            ],
-            total: 10,
-            type: "order_completed"
-          })
-        }
-      },
-      update_id: 3
     }
   ];
 }

@@ -1,20 +1,21 @@
 # Task Shop
 
-Reference Teleforge sample app that exercises the full V1 stack with a simple task marketplace flow.
+Reference Teleforge sample app that exercises the flow-first runtime with a simple task marketplace flow.
 
 ## What It Covers
 
-- `@teleforgex/bot`: `/start`, `/tasks`, and `web_app_data` order handling
-- `@teleforgex/web`: launch data, theme, and checkout mode protection
-- `@teleforgex/ui`: Telegram-native cards, buttons, typography, and boundaries
-- `@teleforgex/core`: `publishToBot()` and Ed25519 initData validation
+- `teleforge/bot`: `/start`, `/tasks`, and `web_app_data` order handling
+- `teleforge/web`: browser-safe Mini App runtime, launch data, theme, and checkout mode protection
+- `teleforge/ui`: Telegram-native cards, buttons, typography, and boundaries
+- `teleforge/core/browser`: Ed25519 initData validation (browser-safe)
+- `teleforge/server-hooks`: server-side flow hooks with trusted bridge enforcement
 
 ## Structure
 
 - `apps/bot`: Telegram long-polling bot runtime, plus `src/runtime.ts` for simulator chat execution
 - `apps/web`: Vite Mini App with browse, cart, checkout, and success routes
 - `packages/types`: shared task and order types
-- `teleforge.app.json`: manifest for the sample workspace
+- `teleforge.config.ts`: flow-first app configuration replacing the legacy manifest
 
 ## Setup
 

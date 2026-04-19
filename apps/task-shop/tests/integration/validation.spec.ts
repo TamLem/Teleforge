@@ -2,6 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { validateInitDataEd25519 } from "../../../../packages/core/dist/validation/ed25519.js";
+import {
+  executeMiniAppStepAction,
+  executeMiniAppStepSubmit,
+  resolveMiniAppScreen
+} from "../../../../packages/teleforge/dist/index.js";
+import { createOrderFromCart } from "../../packages/types/src/index.ts";
+import taskShopBrowseFlow from "../../apps/bot/src/flows/task-shop-browse.flow.ts";
+import cartScreen from "../../apps/web/src/screens/cart.screen.tsx";
+import catalogScreen from "../../apps/web/src/screens/catalog.screen.tsx";
+import checkoutScreen from "../../apps/web/src/screens/checkout.screen.tsx";
+import successScreen from "../../apps/web/src/screens/success.screen.tsx";
 
 import { integrationConfig } from "./config.ts";
 import { createEd25519SampleVector } from "./fixtures/initData.samples.ts";
@@ -10,7 +21,6 @@ import {
   assertQueryParam,
   assertWebAppButton
 } from "./helpers/assertions.ts";
-import { openMiniApp, restoreMiniApp } from "./helpers/puppeteer.ts";
 import { createMockTelegramHarness } from "./helpers/telegram.ts";
 
 test("config defaults to mock mode without live credentials", () => {
@@ -18,13 +28,13 @@ test("config defaults to mock mode without live credentials", () => {
 });
 
 test("bot /start responds with a Mini App button", async () => {
-  const harness = createMockTelegramHarness();
+  const harness = await createMockTelegramHarness();
 
   await harness.sendCommand("/start");
 
   const [message] = harness.getMessages();
   assert.ok(message);
-  assertMessageIncludes(message.text ?? "", "Continue in Mini App");
+  assertMessageIncludes(message.text ?? "", "Welcome to Task Shop");
   assertWebAppButton(message, "Open Task Shop");
   const buttonUrl = message.options?.reply_markup?.inline_keyboard?.[0]?.[0]?.web_app?.url;
   assert.ok(buttonUrl);
@@ -34,7 +44,7 @@ test("bot /start responds with a Mini App button", async () => {
 });
 
 test("bot /tasks lists the mock task catalogue", async () => {
-  const harness = createMockTelegramHarness();
+  const harness = await createMockTelegramHarness();
 
   await harness.sendCommand("/tasks");
 
@@ -45,21 +55,8 @@ test("bot /tasks lists the mock task catalogue", async () => {
   assertMessageIncludes(message.text ?? "", "Deploy to Production");
 });
 
-test("bot persists coordinated flow state across /start and /tasks", async () => {
-  const harness = createMockTelegramHarness();
-
-  await harness.sendCommand("/start");
-  await harness.sendCommand("/tasks");
-
-  const messages = harness.getMessages();
-  const catalogue = messages.at(-1);
-  assert.ok(catalogue);
-  assertMessageIncludes(catalogue.text ?? "", "Resuming flow task-shop-browse");
-  assertMessageIncludes(catalogue.text ?? "", "State version: 1");
-});
-
-test("bot handles coordinated Mini App return payloads end-to-end", async () => {
-  const harness = createMockTelegramHarness();
+test("bot handles Teleforge Mini App chat handoff payloads", async () => {
+  const harness = await createMockTelegramHarness();
 
   await harness.sendCommand("/start");
 
@@ -70,8 +67,10 @@ test("bot handles coordinated Mini App return payloads end-to-end", async () => 
   assert.ok(flowContext);
 
   await harness.sendWebAppData({
-    data: {
-      order: {
+    flowContext,
+    state: {
+      cart: [],
+      lastOrder: {
         currency: "Stars",
         items: [
           {
@@ -85,23 +84,19 @@ test("bot handles coordinated Mini App return payloads end-to-end", async () => 
         type: "order_completed"
       }
     },
-    flowContext,
-    result: "completed",
-    returnMessage: "Task Shop order returned to chat.",
     stateKey: decodeStateKey(flowContext),
-    type: "miniapp_return"
+    stepId: "completed",
+    type: "teleforge_flow_handoff"
   });
 
-  const messages = harness.getMessages();
-  const summary = messages.at(-2);
+  const summary = harness.getMessages().at(-1);
   assert.ok(summary);
-  assertMessageIncludes(summary.text ?? "", "Task Shop return received");
-  assertMessageIncludes(summary.text ?? "", "Flow: task-shop-browse");
-  assertWebAppButton(summary, "Start New Task");
+  assertMessageIncludes(summary.text ?? "", "Task Shop order confirmed.");
+  assertMessageIncludes(summary.text ?? "", "Total: 10 Stars");
 });
 
 test("bot handles unknown commands gracefully", async () => {
-  const harness = createMockTelegramHarness();
+  const harness = await createMockTelegramHarness();
 
   await harness.sendCommand("/unknown");
 
@@ -109,68 +104,8 @@ test("bot handles unknown commands gracefully", async () => {
   assert.equal(message.text, "Unknown command. Use /help for available commands.");
 });
 
-test("order payload produces a summary reply", async () => {
-  const harness = createMockTelegramHarness();
-
-  await harness.sendWebAppData({
-    currency: "Stars",
-    items: [
-      {
-        id: "task-001",
-        price: 10,
-        quantity: 1,
-        title: "Build Mini App Scaffold"
-      }
-    ],
-    total: 10,
-    type: "order_completed"
-  });
-
-  const [summary] = harness.getMessages();
-  assert.ok(summary);
-  assertMessageIncludes(summary.text ?? "", "Task Shop order received");
-  assertMessageIncludes(summary.text ?? "", "Build Mini App Scaffold x1");
-});
-
-test("order payload completes an active stored flow", async () => {
-  const harness = createMockTelegramHarness();
-
-  await harness.sendCommand("/start");
-  await harness.sendWebAppData({
-    currency: "Stars",
-    items: [
-      {
-        id: "task-001",
-        price: 10,
-        quantity: 1,
-        title: "Build Mini App Scaffold"
-      }
-    ],
-    total: 10,
-    type: "order_completed"
-  });
-
-  const summary = harness.getMessages().at(-2);
-  assert.ok(summary);
-  assertMessageIncludes(summary.text ?? "", "Completed flow: task-shop-browse");
-});
-
-test("order payload receives acknowledgment reply", async () => {
-  const harness = createMockTelegramHarness();
-
-  await harness.sendWebAppData({
-    currency: "Stars",
-    items: [],
-    total: 0,
-    type: "order_completed"
-  });
-
-  const messages = harness.getMessages();
-  assert.equal(messages.at(-1)?.text, "✅ Order confirmed");
-});
-
-test("non-order web_app_data falls back to generic acknowledgment", async () => {
-  const harness = createMockTelegramHarness();
+test("non-handoff web_app_data falls back to generic acknowledgment", async () => {
+  const harness = await createMockTelegramHarness();
 
   await harness.sendWebAppData({
     type: "unknown"
@@ -180,56 +115,98 @@ test("non-order web_app_data falls back to generic acknowledgment", async () => 
   assert.equal(message.text, "✅ Received Mini App data");
 });
 
-test("mock Mini App session adds tasks to the cart", async () => {
-  const app = await openMiniApp();
-  app.addTask("task-001");
-  app.addTask("task-001");
+test("Task Shop Mini App flow advances through catalog, cart, checkout, success, and chat handoff", async () => {
+  const screens = [catalogScreen, cartScreen, checkoutScreen, successScreen];
 
-  assert.equal(app.getItems()[0]?.quantity, 2);
-  assert.equal(app.getTotal(), 20);
+  const addResult = await executeMiniAppStepSubmit({
+    data: {
+      taskId: "task-001",
+      type: "add-item"
+    },
+    resolution: resolveTaskShopScreen("/", screens)
+  });
+
+  assert.equal(addResult.target, "miniapp");
+  assert.equal(addResult.stepId, "catalog");
+  assert.equal(addResult.routePath, "/");
+  assert.equal(addResult.state.cart[0]?.quantity, 1);
+
+  const cartResult = await executeMiniAppStepSubmit({
+    data: {
+      type: "go-to-cart"
+    },
+    resolution: resolveTaskShopScreen("/", screens, addResult.state)
+  });
+
+  assert.equal(cartResult.target, "miniapp");
+  assert.equal(cartResult.stepId, "cart");
+  assert.equal(cartResult.routePath, "/cart");
+
+  const checkoutResult = await executeMiniAppStepSubmit({
+    data: {
+      type: "go-to-checkout"
+    },
+    resolution: resolveTaskShopScreen("/cart", screens, cartResult.state)
+  });
+
+  assert.equal(checkoutResult.target, "miniapp");
+  assert.equal(checkoutResult.stepId, "checkout");
+  assert.equal(checkoutResult.routePath, "/checkout");
+
+  const successResult = await executeMiniAppStepSubmit({
+    data: {
+      type: "complete-order"
+    },
+    resolution: resolveTaskShopScreen("/checkout", screens, checkoutResult.state)
+  });
+
+  assert.equal(successResult.target, "miniapp");
+  assert.equal(successResult.stepId, "success");
+  assert.equal(successResult.routePath, "/success");
+  assert.deepEqual(successResult.state.lastOrder, createOrderFromCart(checkoutResult.state.cart));
+
+  const chatResult = await executeMiniAppStepAction({
+    action: "return-to-chat",
+    resolution: resolveTaskShopScreen("/success", screens, successResult.state)
+  });
+
+  assert.equal(chatResult.target, "chat");
+  assert.equal(chatResult.stepId, "completed");
+  assert.deepEqual(chatResult.state.lastOrder, successResult.state.lastOrder);
 });
 
-test("mock Mini App session removes tasks from the cart", async () => {
-  const app = await openMiniApp();
-  app.addTask("task-001");
-  app.addTask("task-001");
-  app.removeTask("task-001");
+test("Task Shop Mini App success step can reset back to a fresh catalog", async () => {
+  const screens = [catalogScreen, cartScreen, checkoutScreen, successScreen];
+  const orderState = {
+    cart: [],
+    lastOrder: createOrderFromCart([
+      {
+        category: "Setup",
+        description: "Create a new Telegram Mini App workspace with the Teleforge CLI.",
+        difficulty: "Beginner",
+        estimatedTime: "15 min",
+        id: "task-001",
+        price: 10,
+        quantity: 2,
+        title: "Build Mini App Scaffold"
+      }
+    ])
+  };
 
-  assert.equal(app.getItems()[0]?.quantity, 1);
-});
+  const result = await executeMiniAppStepSubmit({
+    data: {
+      type: "start-over"
+    },
+    resolution: resolveTaskShopScreen("/success", screens, orderState)
+  });
 
-test("cart snapshot can be restored across reloads", async () => {
-  const app = await openMiniApp();
-  app.addTask("task-002");
-  app.addTask("task-003");
-
-  const restored = restoreMiniApp(app.serialize());
-
-  assert.equal(restored.getItems().length, 2);
-  assert.equal(restored.getTotal(), 27);
-});
-
-test("checkout is blocked in inline mode", async () => {
-  const app = await openMiniApp();
-  assert.equal(app.canCheckout("inline"), false);
-});
-
-test("checkout is allowed in compact and fullscreen modes", async () => {
-  const app = await openMiniApp();
-  assert.equal(app.canCheckout("compact"), true);
-  assert.equal(app.canCheckout("fullscreen"), true);
-});
-
-test("checkout clears the cart and stores the last order", async () => {
-  const app = await openMiniApp();
-  app.addTask("task-004");
-  app.addTask("task-005");
-
-  const order = app.checkout();
-
-  assert.equal(order.total, 38);
-  assert.equal(app.getItems().length, 0);
-  assert.equal(app.getLastOrder()?.type, "order_completed");
+  assert.equal(result.target, "miniapp");
+  assert.equal(result.stepId, "catalog");
+  assert.equal(result.routePath, "/");
+  assert.deepEqual(result.state, {
+    cart: [],
+    lastOrder: null
+  });
 });
 
 test("Ed25519 validation accepts a valid initData vector with hex public key", async () => {
@@ -316,4 +293,19 @@ function decodeStateKey(flowContext: string): string {
   };
 
   return parsed.payload?.stateKey ?? "";
+}
+
+function resolveTaskShopScreen(pathname: string, screens: unknown[], state = taskShopBrowseFlow.state) {
+  const resolution = resolveMiniAppScreen({
+    flows: [taskShopBrowseFlow],
+    pathname,
+    screens
+  });
+
+  assert.ok(!("reason" in resolution));
+
+  return {
+    ...resolution,
+    state
+  };
 }

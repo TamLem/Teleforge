@@ -7,7 +7,7 @@ import type {
   TelegramMessage,
   TelegramReplyMarkup,
   TelegramUpdate
-} from "@teleforgex/bot";
+} from "teleforge/bot";
 
 interface TelegramApiResponse<T> {
   description?: string;

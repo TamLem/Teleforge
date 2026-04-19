@@ -1,4 +1,4 @@
-# Teleforge V1 Integration Audit
+# Teleforge V2 Integration Audit
 
 ## Purpose
 
@@ -58,5 +58,5 @@ Validate the Task Shop sample app and the underlying Teleforge V1 framework in t
 
 ## Notes
 
-- `@teleforgex/core/browser` exists specifically to keep browser bundles free of Node-only manifest and HMAC code.
+- `teleforge/core/browser` provides Ed25519 validation while keeping browser bundles free of Node-only code.
 - The integration suite is mock-first by design so it can run in CI without secret material.

@@ -18,12 +18,9 @@
     "test:integration": "find tests/integration -name '*.spec.ts' -exec node --import tsx --test {} +"
   },
   "dependencies": {
-    "@task-shop/types": "workspace:*",
-    "@teleforgex/bot": "link:../../packages/bot",
-    "@teleforgex/core": "link:../../packages/core"
+    "@task-shop/types": "workspace:*"
   },
   "devDependencies": {
-    "@teleforgex/devtools": "link:../../packages/devtools",
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
     "@types/node": "^24.0.0",
@@ -31,6 +28,7 @@
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.31.0",
     "prettier": "^3.5.3",
+    "teleforge": "link:../../packages/teleforge",
     "tsx": "^4.20.6",
     "typescript": "^5.8.3"
   }

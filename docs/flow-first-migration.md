@@ -2,7 +2,7 @@
 
 This document describes how Teleforge moves from the current V1 architecture to the flow-first framework model described in [Flow-First Developer Experience](./flow-first-dx.md).
 
-For the remaining implementation work after commit `88597a8`, use [Flow-First Execution Handoff Plan](./flow-first-execution-plan.md).
+For the remaining implementation work, use [Flow-First Execution Handoff Plan](./flow-first-execution-plan.md).
 
 This is a **breaking V2 migration plan**. It assumes **no backward compatibility requirement** for:
 
@@ -41,11 +41,39 @@ Implemented in the repo now:
 - real Mini App-to-chat handoff now flows back through `web_app_data` into the discovered bot runtime
 - convention-based server-hook discovery now exists for flow-scoped guard/loader/submit/action logic
 - the framework now exposes both an HTTP fetch bridge and a discovered server-hooks request handler
+- the unified package now separates browser-safe Mini App imports from server-only flow-hook execution via `teleforge/web` and `teleforge/server-hooks`
 - server-hook execution now supports trusted actor + ownership enforcement with state-key validation
 - runtime summaries and devtools diagnostics now surface server-hook wiring alongside local handler completeness
 - simulator diagnostics now expose flow continuity runtime state, including step/route/stateKey and handoff/resume visibility
 
 That means the migration is no longer blocked on primitives or on the initial app path. The remaining work is mostly about **making flows the primary runtime object everywhere**, not about inventing the base framework APIs.
+
+## Current Implementation Status (2026-04-19)
+
+The framework migration is ahead of the real-app migration.
+
+Framework status:
+
+- the flow-first bot, Mini App, continuity, and trusted server-hook primitives are in place
+- the starter app and scaffold path already prove the new authoring model on the base path
+- simulator diagnostics now expose the continuity data needed to debug handoff and resume
+
+Real-app migration status:
+
+- `apps/task-shop` is the active proving ground for the complex example migration
+- the working tree now contains a substantial migration to `teleforge.config.ts`, discovered flow modules, discovered screen modules, and framework-owned runtime wiring
+- the legacy manifest/manual coordination path has been removed from the migrated slice in the working tree
+- the current migrated slice now passes package-level and app-level verification
+
+Current verification snapshot:
+
+- `npx --yes pnpm@10.15.0 --filter teleforge test` passes
+- `npx --yes pnpm@10.15.0 --dir apps/task-shop test` passes
+
+Immediate implication:
+
+- the browser-safe package split is no longer the blocker
+- the next slice is public docs cutover plus any remaining example cleanup needed to make the migrated app the obvious reference path
 
 ## Migration Goal
 
@@ -315,7 +343,8 @@ Status:
 - flow actions now support stable action ids for external handler binding
 - framework-owned chat-step execution now exists in the discovered bot runtime
 - browser-safe flow definition exports now exist for Mini App-side consumption
-- what does not exist yet is full framework-owned step execution across Mini App and backend surfaces
+- framework-owned step execution now exists across the primary bot, Mini App, and server-hook surfaces for the current migration path
+- remaining work is more about API cleanup, docs, and broader example coverage than missing core execution primitives
 
 ### 4. Add convention-based discovery
 
@@ -339,7 +368,7 @@ Status:
 - step-handler discovery now exists, including convention-based external step handler modules
 - screen discovery now exists for Mini App screen modules
 - discovered bot runtime now executes chat-entry flows and callback-driven transitions through discovered handlers
-- backend-hook discovery does not exist yet
+- convention-based server-hook discovery now exists for flow-scoped guard/loader/submit/action execution
 
 ### 5. Make devtools load the app model
 
@@ -372,7 +401,8 @@ Status:
 - simulator workspace bot execution works with the unified package path
 - devtools now surface discovered flow summaries plus step-level handler completeness in the simulator and loader output
 - devtools now surface resolved Mini App screen ownership for discovered steps
-- devtools still do not explain backend hooks or Mini App/backend execution readiness beyond chat and screen diagnostics
+- devtools now surface server-hook wiring and runtime continuity state
+- the remaining gap is clearer public documentation and any additional simulator/manual proof needed beyond the current passing Task Shop integration coverage
 
 ### 6. Rebuild scaffolding around the new model
 
@@ -406,52 +436,47 @@ Status:
 
 - partially complete
 - starter-app is now on the discovered-flow runtime path
-- Task Shop still reflects the older, more manually assembled model
+- Task Shop is now migrated enough in the working tree to act as the current complex-example proof point
 - docs direction exists, but the main narrative is not fully rewritten yet
 
 ## What Is Still Wrong
 
 The remaining migration work is no longer about basic framework wiring. It is about closing the last major conceptual gaps.
 
-### 1. Flow discovery stops at route and command derivation
+### 1. The unified package surface is cleaner, but still needs final public-shape cleanup
 
-The framework can now discover flows and derive:
+The framework runtime split is now materially in place:
 
-- bot entry commands
-- coordination config
-- flow-owned Mini App routes
-- external step handler modules
-- chat-step execution and callback-driven transitions inside the framework-owned bot runtime
+- browser-facing `teleforge/web` imports can stay on the browser-safe path
+- server-only flow-hook execution can be reached through `teleforge/server-hooks`
 
-But it still does not discover or execute:
+The remaining package-level work is smaller:
 
-- optional server-backed flow hooks derived from flow definitions
-- Mini App submit/return handling from flow definitions
-- full Mini App loader/guard/submit execution from flow definitions
+- keep the unified package feeling simple despite the runtime split
+- prune any leftover public exports that still reveal internal migration-era structure
+- keep the browser/server boundary easy to understand in docs and examples
 
-That is the main missing jump from “framework scaffolding” to “flow-first application runtime”.
-
-### 2. Devtools are ahead on visibility, but not yet on full execution insight
+### 2. Devtools are ahead on visibility, but the public narrative still lags the runtime
 
 Devtools can now boot config-derived apps, surface discovered flow summaries, show step-level handler diagnostics, and point Mini App steps at their resolved screen modules.
 
-But the simulator and diagnostics should eventually understand:
+They also now surface:
 
-- which optional server hooks exist for a flow
-- where a flow is incomplete because a screen, server hook, or Mini App execution surface is missing
+- server-hook wiring
+- continuity state including step, route, state key, handoff, and resume visibility
 
-Until that happens, the runtime path is ahead of the devtools story.
+The remaining issue is less about visibility and more about making the docs and example guidance catch up with the runtime that now exists.
 
 ### 3. Non-trivial example migration is still missing
 
-The starter app is aligned now, but Teleforge still lacks a migrated complex example that proves:
+The starter app is aligned now, but Teleforge still lacks an accepted migrated complex example that proves:
 
 - multi-step flows
 - guarded Mini App routes
 - server-assisted flows where needed
 - realistic return-to-chat and resume behavior
 
-Task Shop or an equivalent example needs to become that proof point.
+Task Shop is the active proof point, and the current migrated slice now passes verification in the working tree.
 
 ### 4. The docs still describe too much of the old mental model
 
@@ -484,11 +509,10 @@ The foundation phase is now complete enough that the next order should focus on 
 
 ### Revised next order
 
-1. Finish Mini App screen resolution, loader/guard execution, and step submit/return handling.
-2. Add optional server-hook discovery and execution where flows need server-side work.
-3. Migrate Task Shop or another non-trivial example onto the same flow-first runtime model.
-4. Extend devtools visibility across screen and server-hook resolution.
-5. Rewrite the main docs around the now-concrete flow-first path.
+1. Rewrite the main docs around the now-concrete flow-first path.
+2. Finish any remaining Task Shop cleanup needed after the verified migration slice.
+3. Do any final package cleanup needed to keep the unified framework surface simple.
+4. Strengthen simulator/manual proof only where the migrated example needs more than the current integration coverage.
 
 This order is better because it finishes the actual framework model before spending more effort on documentation polish or further transitional helpers.
 
@@ -625,12 +649,13 @@ Status:
 - the framework now provides a fetch bridge plus a discovered server-hooks request handler
 - Mini App runtime execution can now delegate to authoritative server hooks
 - runtime summaries and devtools diagnostics now surface server-backed guard/loader/submit/action wiring
+- trusted actor, ownership, and state-key enforcement now exist for authoritative server-hook execution
 
 Remaining sub-slices:
 
-1. Add flow-ownership, identity, and auth/session validation to the server-hook bridge path where flows require trusted access.
+1. Keep the browser-facing package surface clean so trusted server-hook execution remains server-only from the app author's perspective.
 2. Expand server-hook support beyond Mini App execution into richer end-to-end app routes when needed.
-3. Make the starter/example app path demonstrate a real server-backed flow, not just the bridge primitives.
+3. Keep the complex example and docs using the same server-hook authoring story instead of letting them drift apart.
 
 Public API rule for this slice:
 
@@ -655,11 +680,18 @@ Target outcome:
 
 - the repo has one serious example that demonstrates the V2 model end to end
 
+Current status:
+
+- in progress in the working tree
+- Task Shop is substantially migrated to the flow-first runtime
+- the browser-safe package split has landed
+- current verification passes for both the Teleforge package and the migrated Task Shop app
+
 Planned sub-slices:
 
-1. Port one multi-step Task Shop flow onto `defineFlow()`.
-2. Replace hand-wired bot/runtime glue with discovered handlers and screen registration.
-3. Prove guarded screens, backend-assisted transitions, and resume behavior from the framework path.
+1. Close any remaining Task Shop migration gaps after the now-passing verification slice.
+2. Prove guarded screens, backend-assisted transitions, and resume behavior from the framework path wherever current coverage is still too thin.
+3. Use Task Shop as the concrete docs/example proof point for the flow-first runtime.
 
 ### Slice 7. Documentation cutover
 
@@ -681,6 +713,7 @@ Planned sub-slices:
 1. Rewrite getting started around `teleforge.config.ts`, `flows/*`, screens, and handler conventions.
 2. Rewrite framework guides around screen runtime, discovered execution, and optional server hooks instead of package assembly or mode choices.
 3. Demote V1/package-boundary docs to migration or internal architecture references only.
+4. Update the example/reference docs to describe the now-verified Task Shop migration state and the remaining follow-up tasks.
 
 ## Current-to-V2 Mapping
 
