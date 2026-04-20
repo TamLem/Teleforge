@@ -4,15 +4,20 @@ import test from "node:test";
 import { decryptState, encryptState } from "../../dist/index.js";
 
 const sampleState = {
+  chatId: "1001",
   createdAt: 1,
+  currentSurface: "chat",
   expiresAt: 2,
   flowId: "task-shop",
-  payload: {
+  instanceId: "inst_test",
+  lastTransitionAt: 1,
+  revision: 1,
+  state: {
     source: "start"
   },
+  status: "active",
   stepId: "catalog",
-  userId: "42",
-  version: 1
+  userId: "42"
 };
 
 test("encryptState and decryptState round-trip a flow state", () => {

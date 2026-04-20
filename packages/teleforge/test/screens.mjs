@@ -365,3 +365,122 @@ test("executeMiniAppStepAction resolves discovered handler actions for Mini App 
     refreshed: true
   });
 });
+
+test("loadMiniAppScreenRuntime merges launch payload into state after server returns", async () => {
+  const flow = defineFlow({
+    id: "shop-catalogue",
+    initialStep: "checkout",
+    state: {
+      orderId: null,
+      selectedItem: null
+    },
+    miniApp: {
+      route: "/shop",
+      stepRoutes: {
+        checkout: "/shop/checkout"
+      }
+    },
+    steps: {
+      checkout: {
+        screen: "shop.checkout",
+        type: "miniapp"
+      }
+    }
+  });
+
+  const screen = defineScreen({
+    component: () => null,
+    id: "shop.checkout"
+  });
+
+  const resolution = resolveMiniAppScreen({
+    flows: [flow],
+    pathname: "/shop/checkout",
+    screens: [screen]
+  });
+
+  assert.ok(!("reason" in resolution));
+  assert.deepEqual(resolution.state, { orderId: null, selectedItem: null });
+
+  const runtime = await loadMiniAppScreenRuntime(resolution, {
+    flowContext: {
+      flowId: "shop-catalogue",
+      payload: {
+        route: "/shop/checkout",
+        selectedItem: "task-1",
+        stateKey: "flow:user_1:shop-catalogue",
+        stepId: "checkout"
+      },
+      stepId: "checkout"
+    },
+    serverBridge: {
+      async action() {},
+      async chatHandoff() {},
+      async load(input) {
+        return {
+          allow: true,
+          state: input.state
+        };
+      },
+      async submit() {}
+    }
+  });
+
+  assert.equal(runtime.status, "ready");
+  assert.equal(runtime.state.selectedItem, "task-1");
+  assert.equal(runtime.state.orderId, null);
+});
+
+test("loadMiniAppScreenRuntime does not merge reserved keys from launch payload", async () => {
+  const flow = defineFlow({
+    id: "test-flow",
+    initialStep: "step1",
+    state: { value: 0 },
+    miniApp: {
+      route: "/test",
+      stepRoutes: {
+        step1: "/test/step1"
+      }
+    },
+    steps: {
+      step1: {
+        screen: "test.step1",
+        type: "miniapp"
+      }
+    }
+  });
+
+  const screen = defineScreen({
+    component: () => null,
+    id: "test.step1"
+  });
+
+  const resolution = resolveMiniAppScreen({
+    flows: [flow],
+    pathname: "/test/step1",
+    screens: [screen]
+  });
+
+  assert.ok(!("reason" in resolution));
+
+  const runtime = await loadMiniAppScreenRuntime(resolution, {
+    flowContext: {
+      flowId: "test-flow",
+      payload: {
+        flowId: "should-not-overwrite",
+        route: "/should-not-overwrite",
+        stateKey: "should-not-overwrite",
+        stepId: "should-not-overwrite",
+        value: 42
+      },
+      stepId: "step1"
+    }
+  });
+
+  assert.equal(runtime.status, "ready");
+  assert.equal(runtime.state.value, 42);
+  assert.equal(runtime.state.flowId, undefined);
+  assert.equal(runtime.state.route, undefined);
+  assert.equal(runtime.state.stateKey, undefined);
+  assert.equal(runtime.state.stepId, undefined);
+});
