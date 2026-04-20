@@ -31,9 +31,8 @@ import type {
   CommandContext,
   WebAppDataHandler
 } from "@teleforgex/bot";
-import type { TeleforgeAppConfig } from "@teleforgex/core";
+import type { FlowInstance, TeleforgeAppConfig } from "@teleforgex/core";
 
-const FLOW_STATE_PAYLOAD_KEY = "__teleforge_flow_state";
 const MAX_FLOW_TRANSITIONS = 12;
 const MINI_APP_CHAT_HANDOFF_TYPE = "teleforge_flow_handoff";
 
@@ -67,6 +66,7 @@ export interface DiscoveredFlowRuntimeDebugState {
 
 export interface DiscoveredBotRuntime extends BotRuntime {
   getFlowRuntimeDebugState(): DiscoveredFlowRuntimeDebugState;
+  getStorage(): UserFlowStateManager;
   handleChatHandoff(input: {
     flowContext: string;
     state: unknown;
@@ -167,19 +167,11 @@ export async function createDiscoveredBotRuntime(
 
   const discoveredRuntime = runtime as DiscoveredBotRuntime;
   discoveredRuntime.getFlowRuntimeDebugState = () => debugTracker.snapshot();
+  discoveredRuntime.getStorage = () => storage;
   discoveredRuntime.handleChatHandoff = async (input) => {
-    console.log("[teleforge:bot-runtime] handleChatHandoff called:", {
-      flowContext: input.flowContext.substring(0, 30) + "...",
-      stateKey: input.stateKey,
-      stepId: input.stepId
-    });
     const flowContext = extractFlowContext(input.flowContext, options.flowSecret);
 
     if (!flowContext || flowContext.payload.stateKey !== input.stateKey) {
-      console.log("[teleforge:bot-runtime] handleChatHandoff: flow context verification failed", {
-        hasFlowContext: !!flowContext,
-        stateKeyMatch: flowContext?.payload.stateKey === input.stateKey
-      });
       throw new Error("Could not verify chat handoff flow context.");
     }
 
@@ -189,22 +181,23 @@ export async function createDiscoveredBotRuntime(
       throw new Error(`Unknown flow "${flowContext.flowId}" in chat handoff.`);
     }
 
-    const persisted = await storage.getState(input.stateKey);
+    const persisted = await storage.getInstance(input.stateKey);
 
     if (!persisted) {
       throw new Error("Flow state expired before chat handoff.");
     }
 
-    console.log("[teleforge:bot-runtime] handleChatHandoff: state found, advancing step", {
+    console.log("[teleforge:bot-runtime] chat handoff:", {
       chatId: persisted.chatId,
-      flowId: flow.id,
-      stepId: input.stepId
+      flowId: persisted.flowId,
+      persistedState: JSON.stringify(persisted.state),
+      persistedStepId: persisted.stepId,
+      targetStepId: input.stepId,
+      incomingState: JSON.stringify(input.state)
     });
 
     const handlerIndex = createHandlerIndex(handlers);
-    await storage.advanceStep(input.stateKey, input.stepId, {
-      [FLOW_STATE_PAYLOAD_KEY]: cloneFlowState(input.state)
-    });
+    await storage.advanceStep(input.stateKey, input.stepId, cloneFlowState(input.state) as Record<string, unknown>, "chat");
     debugTracker.trackMiniAppHandoff({
       chatId: String(persisted.chatId ?? ""),
       flow,
@@ -223,7 +216,7 @@ export async function createDiscoveredBotRuntime(
       throw new Error("Bot instance unavailable for chat handoff. Call bindBot() first.");
     }
 
-    console.log("[teleforge:bot-runtime] handleChatHandoff: entering flow step", {
+    console.log("[teleforge:bot-runtime] entering flow step:", {
       chatId,
       flowId: flow.id,
       stepId: input.stepId
@@ -350,13 +343,11 @@ function createChatEntryCommands(options: CreateChatEntryCommandsOptions): BotCo
         async handler(context) {
           const initialState = cloneFlowState(flow.state);
           const userId = String(context.user.id);
-          const stateKey = await options.storage.startFlow(
-            userId,
+          const { key: stateKey } = await options.storage.startInstance(
+            String(context.user.id),
             flow.id,
-            entryStep,
-            {
-              [FLOW_STATE_PAYLOAD_KEY]: initialState
-            },
+            flow.initialStep,
+            initialState as Record<string, unknown>,
             String(context.chat.id)
           );
           options.debugTracker.trackStep({
@@ -436,7 +427,7 @@ function createDiscoveredFlowCallbackHandler(
       return;
     }
 
-    const currentState = readPersistedFlowState(flow, persisted.payload);
+    const currentState = readPersistedFlowState(flow, persisted);
     const handlerModule = handlerIndex.get(`${flow.id}:${stepId}`);
     const actionHandler =
       action.handler ?? handlerModule?.actions[resolveFlowActionKey(action)] ?? undefined;
@@ -463,9 +454,7 @@ function createDiscoveredFlowCallbackHandler(
       return;
     }
 
-    await options.storage.advanceStep(stateKey, nextStepId, {
-      [FLOW_STATE_PAYLOAD_KEY]: nextState
-    });
+    await options.storage.advanceStep(stateKey, nextStepId, nextState as Record<string, unknown>);
     options.debugTracker.trackStep({
       chatId: String(chatId),
       flow,
@@ -520,16 +509,14 @@ function createDiscoveredFlowWebAppDataHandler(
         return;
       }
 
-      const persisted = await options.storage.getState(handoff.stateKey);
+      const persisted = await options.storage.getInstance(handoff.stateKey);
 
       if (!persisted) {
         await context.answer("Flow expired before chat handoff");
         return;
       }
 
-      await options.storage.advanceStep(handoff.stateKey, handoff.stepId, {
-        [FLOW_STATE_PAYLOAD_KEY]: cloneFlowState(handoff.state)
-      });
+      await options.storage.advanceStep(handoff.stateKey, handoff.stepId, cloneFlowState(handoff.state) as Record<string, unknown>);
       options.debugTracker.trackMiniAppHandoff({
         chatId: String(persisted.chatId ?? context.chat.id),
         flow,
@@ -597,7 +584,7 @@ async function enterDiscoveredFlowStep(
   const handlerIndex = runtime.handlerIndex ?? createHandlerIndex(options.handlers);
   let currentState = cloneFlowState(options.state);
   let currentStepId = String(
-    (await options.storage.getState(options.stateKey))?.stepId ?? options.flow.initialStep
+    (await options.storage.getInstance(options.stateKey))?.stepId ?? options.flow.initialStep
   );
   const chatId = String(options.chatId);
 
@@ -621,9 +608,7 @@ async function enterDiscoveredFlowStep(
           ? result.to
           : currentStepId;
 
-      await options.storage.advanceStep(options.stateKey, redirectedStepId, {
-        [FLOW_STATE_PAYLOAD_KEY]: currentState
-      });
+      await options.storage.advanceStep(options.stateKey, redirectedStepId, currentState as Record<string, unknown>);
       currentStepId = redirectedStepId;
       options.debugTracker.trackStep({
         chatId,
@@ -646,9 +631,7 @@ async function enterDiscoveredFlowStep(
         stateKey: options.stateKey,
         stepId: currentStepId
       });
-      await options.storage.advanceStep(options.stateKey, currentStepId, {
-        [FLOW_STATE_PAYLOAD_KEY]: currentState
-      });
+      await options.storage.advanceStep(options.stateKey, currentStepId, currentState as Record<string, unknown>);
       await sendChatStepMessage(
         runtime.bot,
         options.flow,
@@ -738,6 +721,14 @@ async function sendChatStepMessage(
           secret
         )
   ]);
+
+  console.log("[teleforge:bot-runtime] sendChatStepMessage:", {
+    chatId,
+    flowId: flow.id,
+    state: JSON.stringify(state),
+    text: text.substring(0, 100),
+    buttonCount: buttons.length
+  });
 
   await bot.sendMessage(chatId, text, {
     ...(buttons.length > 0
@@ -934,10 +925,10 @@ function parseMiniAppChatHandoffPayload(payload: unknown): MiniAppChatHandoffPay
 
 function readPersistedFlowState(
   flow: TeleforgeFlowDefinition<unknown, unknown>,
-  payload: Record<string, unknown>
+  instance: FlowInstance
 ): unknown {
-  return FLOW_STATE_PAYLOAD_KEY in payload
-    ? cloneFlowState(payload[FLOW_STATE_PAYLOAD_KEY])
+  return instance.state && Object.keys(instance.state).length > 0
+    ? cloneFlowState(instance.state)
     : cloneFlowState(flow.state);
 }
 

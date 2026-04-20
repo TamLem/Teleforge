@@ -18,7 +18,47 @@ import type {
   UnresolvedMiniAppScreen
 } from "./screens.js";
 import type { TeleforgeMiniAppServerBridge } from "./server-bridge.js";
+import type { FlowContext } from "@teleforgex/core/browser";
 import type { ReactNode } from "react";
+
+function resolveScreenWithStandaloneFallback(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>,
+  screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>,
+  pathname: string,
+  launchCoordination: { flowContext: FlowContext | null; stateKey: string | null }
+): ResolvedMiniAppScreen | UnresolvedMiniAppScreen {
+  const result = resolveMiniAppScreen({ flows, pathname, screens });
+
+  if (!("reason" in result)) {
+    return result;
+  }
+
+  if (launchCoordination.flowContext || launchCoordination.stateKey) {
+    return result;
+  }
+
+  if (result.reason !== "missing_miniapp_step") {
+    return result;
+  }
+
+  const flow = result.flow;
+  if (!flow) {
+    return result;
+  }
+
+  for (const [stepId, step] of Object.entries(flow.steps)) {
+    if (isMiniAppStep(step)) {
+      const stepRoute = (flow.miniApp?.stepRoutes as Record<string, string> | undefined)?.[stepId];
+      return resolveMiniAppScreen({
+        flows: [flow],
+        pathname: stepRoute ?? flow.miniApp?.route ?? pathname,
+        screens
+      });
+    }
+  }
+
+  return result;
+}
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
 
@@ -251,13 +291,11 @@ export function useTeleforgeMiniAppRuntime(
   const launchCoordination = useLaunchCoordination();
   const pathname = options.pathname ?? resolveWindowPathname();
   const [state, setState] = useState<TeleforgeMiniAppRuntimeState>(() => {
-    const resolution = applyPersistedMiniAppSnapshot(
-      resolveMiniAppScreen({
-        flows: options.flows,
-        pathname,
-        screens: options.screens
-      }),
-      readPersistedMiniAppSnapshot(launchCoordination.stateKey)
+    const resolution = resolveScreenWithStandaloneFallback(
+      options.flows,
+      options.screens,
+      pathname,
+      launchCoordination
     );
 
     if ("reason" in resolution) {
@@ -265,20 +303,21 @@ export function useTeleforgeMiniAppRuntime(
     }
 
     return {
-      resolution,
+      resolution: applyPersistedMiniAppSnapshot(
+        resolution,
+        readPersistedMiniAppSnapshot(launchCoordination.stateKey)
+      ),
       status: "pending"
     };
   });
 
   useEffect(() => {
     let isCancelled = false;
-    const resolution = applyPersistedMiniAppSnapshot(
-      resolveMiniAppScreen({
-        flows: options.flows,
-        pathname,
-        screens: options.screens
-      }),
-      readPersistedMiniAppSnapshot(launchCoordination.stateKey)
+    const resolution = resolveScreenWithStandaloneFallback(
+      options.flows,
+      options.screens,
+      pathname,
+      launchCoordination
     );
 
     if ("reason" in resolution) {
@@ -287,11 +326,15 @@ export function useTeleforgeMiniAppRuntime(
     }
 
     setState({
-      resolution,
+      resolution: applyPersistedMiniAppSnapshot(
+        resolution,
+        readPersistedMiniAppSnapshot(launchCoordination.stateKey)
+      ),
       status: "pending"
     });
 
     loadMiniAppScreenRuntime(resolution, {
+      flowContext: launchCoordination.flowContext,
       serverBridge: options.serverBridge,
       stateKey: launchCoordination.stateKey
     })
@@ -324,6 +367,7 @@ export function useTeleforgeMiniAppRuntime(
 export async function loadMiniAppScreenRuntime(
   resolution: ResolvedMiniAppScreen,
   options: {
+    flowContext?: FlowContext | null;
     serverBridge?: TeleforgeMiniAppServerBridge;
     stateKey?: string | null;
     services?: unknown;
@@ -339,9 +383,17 @@ export async function loadMiniAppScreenRuntime(
         stepId: resolution.stepId
       })
     : { allow: true as const };
+
+  const baseState =
+    serverResult.state !== undefined
+      ? serverResult.state
+      : resolution.state;
+
+  const mergedState = mergeLaunchPayloadStateInto(baseState, options.flowContext ?? null);
+
   const nextResolution = {
     ...resolution,
-    ...(serverResult.state !== undefined ? { state: serverResult.state } : {})
+    state: mergedState
   };
 
   if (!serverResult.allow) {
@@ -472,6 +524,12 @@ async function handleMiniAppSubmit(options: {
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
   setIsTransitioning: (value: boolean) => void;
 }): Promise<void> {
+  console.log("[teleforge:miniapp] submit:", {
+    data: JSON.stringify(options.data),
+    flowId: options.resolution.flowId,
+    stepId: options.resolution.stepId
+  });
+
   options.setIsTransitioning(true);
 
   try {
@@ -480,6 +538,12 @@ async function handleMiniAppSubmit(options: {
       resolution: options.resolution,
       serverBridge: options.serverBridge,
       stateKey: options.stateKey
+    });
+
+    console.log("[teleforge:miniapp] submit result:", {
+      stepId: result.stepId,
+      state: JSON.stringify(result.state),
+      target: result.target
     });
 
     await applyMiniAppExecutionResult({
@@ -555,20 +619,34 @@ async function applyMiniAppExecutionResult(options: {
   }
 
   clearPersistedMiniAppSnapshot(options.stateKey);
-  console.log("[teleforge:miniapp] transmitting chat handoff", {
-    flowContext: options.flowContext,
-    hasServerBridge: !!options.serverBridge,
-    stateKey: options.stateKey,
-    stepId: options.result.stepId,
-    target: options.result.stepId
-  });
+
+  if (!options.flowContext || !options.stateKey) {
+    console.log("[teleforge:miniapp] standalone mode: skipping chat handoff");
+    const chatStep = getFlowStep(options.result.flow, options.result.stepId) as Record<string, unknown>;
+    const fallbackScreen = chatStep?.miniApp ? (chatStep.miniApp as Record<string, unknown>).screen as string | undefined : undefined;
+
+    if (fallbackScreen) {
+      console.log("[teleforge:miniapp] standalone: rendering miniapp fallback for chat step:", fallbackScreen);
+      options.setHandoff(null);
+      return;
+    }
+
+    options.setHandoff(null);
+    return;
+  }
+
   const transmitted = await transmitMiniAppChatHandoff({
     flowContext: options.flowContext,
     result: options.result,
     serverBridge: options.serverBridge,
     stateKey: options.stateKey
   });
-  console.log("[teleforge:miniapp] chat handoff transmitted:", transmitted);
+  console.log("[teleforge:miniapp] chat handoff:", {
+    stepId: options.result.stepId,
+    state: JSON.stringify(options.result.state),
+    target: options.result.target,
+    transmitted
+  });
   await options.onReturnToChat?.(options.result);
   options.setHandoff({
     result: options.result,
@@ -980,4 +1058,35 @@ function resolveWindowPathname(): string {
   }
 
   return window.location.pathname;
+}
+
+function mergeLaunchPayloadStateInto(
+  baseState: unknown,
+  flowContext: FlowContext | null
+): unknown {
+  if (!flowContext || !flowContext.payload) {
+    return baseState;
+  }
+
+  const RESERVED_KEYS = new Set(["stateKey", "flowId", "stepId", "route"]);
+  const launchPayload = flowContext.payload as Record<string, unknown>;
+  const relevantPayload: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(launchPayload)) {
+    if (!RESERVED_KEYS.has(key)) {
+      relevantPayload[key] = value;
+    }
+  }
+
+  if (Object.keys(relevantPayload).length === 0) {
+    return baseState;
+  }
+
+  const base =
+    typeof baseState === "object" && baseState !== null ? baseState : {};
+
+  return {
+    ...base,
+    ...relevantPayload
+  };
 }

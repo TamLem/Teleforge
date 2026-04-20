@@ -79,6 +79,9 @@ export interface FlowActionDefinition<TState, TServices = unknown> {
 export interface ChatFlowStepDefinition<TState, TServices = unknown> {
   actions?: ReadonlyArray<FlowActionDefinition<TState, TServices>>;
   message: string | ((input: { state: TState }) => string);
+  miniApp?: {
+    screen: string;
+  };
   onEnter?: (
     input: FlowHandlerContext<TState, TServices>
   ) => MaybePromise<void | FlowTransitionResult<TState>>;

@@ -209,7 +209,7 @@ test("createFlowStartCommand launches a persisted miniapp flow", async () => {
 
   assert.equal(restored?.flowId, "order");
   assert.equal(restored?.stepId, "catalog");
-  assert.equal(restored?.payload.source, "order");
+  assert.equal(restored?.state?.source, "order");
 });
 
 test("createFlowStartCommand rejects chat entry steps", () => {

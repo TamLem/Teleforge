@@ -229,6 +229,10 @@ test("createDiscoveredServerHooksHandler serves convention-discovered flow hooks
     allow: true,
     loaderData: {
       heading: "Authoritative inventory"
+    },
+    state: {
+      itemId: null,
+      refreshed: false
     }
   });
   assert.deepEqual(submitResult, {
@@ -255,11 +259,9 @@ test("createDiscoveredServerHooksHandler enforces trusted actor ownership and st
       namespace: "teleforge-server-hooks-trust-test"
     })
   );
-  const stateKey = await flowState.startFlow("user_1", "inventory", "catalog", {
-    __teleforge_flow_state: {
-      itemId: null,
-      refreshed: false
-    }
+  const { key: stateKey } = await flowState.startInstance("user_1", "inventory", "catalog", {
+    itemId: null,
+    refreshed: false
   });
   const fixture = await createDiscoveredServerHookFixture({
     trust: {

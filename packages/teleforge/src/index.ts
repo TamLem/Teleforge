@@ -3,7 +3,8 @@ export {
   teleforgeAppToManifest,
   type TeleforgeAppConfig,
   type TeleforgeAppIdentity,
-  type TeleforgeMiniAppConfig
+  type TeleforgeMiniAppConfig,
+  UserFlowStateManager
 } from "@teleforgex/core";
 
 export type {
