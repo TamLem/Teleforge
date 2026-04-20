@@ -65,7 +65,7 @@ export type {
 } from "./coordination/types.js";
 export type { ValidationError, ValidationResult } from "./coordination/validate.js";
 export type { FlowStateResolver, ResumeFlowError, ResumeFlowResult } from "./storage/resume.js";
-export type { UserFlowState } from "./storage/types.js";
+export type { FlowInstance, FlowInstanceStatus, FlowInstanceSurface } from "./storage/types.js";
 export type {
   Ed25519ValidationOptions,
   ValidateInitDataFailure,

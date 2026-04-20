@@ -7,6 +7,7 @@ import { config as loadDotenv } from "dotenv";
 import { createTaskShopBotRuntime, readTaskShopBotConfig } from "./runtime.js";
 import { createPollingBot, createPreviewBot } from "./telegram.js";
 
+import { startHooksServer } from "@task-shop/api";
 import type { BotRuntime, TelegramUpdate } from "teleforge/bot";
 
 loadTaskShopEnv();
@@ -17,6 +18,11 @@ const pollDebug = botConfig.pollDebug;
 async function main() {
   const runtime = await createTaskShopBotRuntime(botConfig);
   const token = botConfig.token;
+
+  await startHooksServer({
+    cwd: botConfig.workspaceRoot,
+    onChatHandoff: (input) => runtime.handleChatHandoff(input)
+  });
 
   if (!token) {
     await runPreview(runtime);
@@ -120,7 +126,7 @@ function createPreviewUpdates(): TelegramUpdate[] {
           username: "preview_user"
         },
         message_id: 2,
-        text: "/tasks"
+        text: "/shop"
       },
       update_id: 2
     }

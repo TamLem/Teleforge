@@ -6,6 +6,7 @@ import type { DiscoveredFlowStepServerHookModule, DiscoveredFlowModule } from ".
 import type { FlowTransitionResult, TeleforgeFlowDefinition } from "./flow-definition.js";
 import type { TeleforgeScreenGuardBlock } from "./screens.js";
 import type {
+  TeleforgeMiniAppServerChatHandoffInput,
   TeleforgeMiniAppServerLoadInput,
   TeleforgeMiniAppServerLoadResult,
   TeleforgeMiniAppServerSubmitInput,
@@ -22,6 +23,7 @@ export type {
   CreateFetchMiniAppServerBridgeOptions,
   TeleforgeMiniAppServerActionInput,
   TeleforgeMiniAppServerBridge,
+  TeleforgeMiniAppServerChatHandoffInput,
   TeleforgeMiniAppServerLoadAllowedResult,
   TeleforgeMiniAppServerLoadBlockedResult,
   TeleforgeMiniAppServerLoadInput,
@@ -46,6 +48,10 @@ type TeleforgeServerHookRequest =
   | {
       kind: "action";
       input: TeleforgeMiniAppServerActionInput;
+    }
+  | {
+      kind: "chatHandoff";
+      input: TeleforgeMiniAppServerChatHandoffInput;
     };
 
 type TeleforgeServerHookResponse =
@@ -60,11 +66,16 @@ type TeleforgeServerHookResponse =
   | {
       kind: "action";
       result: void | FlowTransitionResult<unknown>;
+    }
+  | {
+      kind: "chatHandoff";
+      result: void;
     };
 
 export interface CreateDiscoveredServerHooksHandlerOptions {
   basePath?: string;
   cwd: string;
+  onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
   services?: unknown;
   trust?: TeleforgeServerHookTrustOptions;
 }
@@ -73,6 +84,7 @@ interface TeleforgeDiscoveredServerHooksHandlerState {
   basePath: string;
   flows: readonly DiscoveredFlowModule[];
   hooks: readonly DiscoveredFlowStepServerHookModule[];
+  onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
   services?: unknown;
   trust: TeleforgeServerHookTrustOptions;
 }
@@ -112,6 +124,7 @@ export async function createDiscoveredServerHooksHandler(
     basePath: options.basePath ?? "/api/teleforge/flow-hooks",
     flows,
     hooks,
+    ...(options.onChatHandoff ? { onChatHandoff: options.onChatHandoff } : {}),
     ...(options.services !== undefined ? { services: options.services } : {}),
     trust: options.trust ?? {}
   };
@@ -264,6 +277,23 @@ async function executeDiscoveredServerHookRequest(
   sourceRequest: Request,
   state: TeleforgeDiscoveredServerHooksHandlerState
 ): Promise<TeleforgeServerHookResponse> {
+  if (request.kind === "chatHandoff") {
+    console.log("[teleforge:server-hooks] chatHandoff request received:", {
+      stepId: request.input.stepId,
+      stateKey: request.input.stateKey
+    });
+    if (!state.onChatHandoff) {
+      throw new TeleforgeServerHookRequestError(
+        "Teleforge server-hook handler does not have a chat handoff handler configured.",
+        501
+      );
+    }
+
+    await state.onChatHandoff(request.input);
+    console.log("[teleforge:server-hooks] chatHandoff onChatHandoff completed");
+    return { kind: "chatHandoff", result: undefined };
+  }
+
   const flow = findDiscoveredFlow(state.flows, request.input.flowId);
   const trusted = await resolveTrustedExecutionInput(sourceRequest, request, state.trust);
 
@@ -361,7 +391,7 @@ function normalizeServerGuardBlock(result: unknown): TeleforgeScreenGuardBlock {
 
 async function resolveTrustedExecutionInput(
   request: Request,
-  hookRequest: TeleforgeServerHookRequest,
+  hookRequest: Exclude<TeleforgeServerHookRequest, { kind: "chatHandoff" }>,
   trust: TeleforgeServerHookTrustOptions
 ): Promise<{ state: unknown; stateKey: string | null }> {
   const actorId = await resolveActorId(request, trust.resolveActorId);

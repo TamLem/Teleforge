@@ -4,15 +4,16 @@ Reference Teleforge sample app that exercises the flow-first runtime with a simp
 
 ## What It Covers
 
-- `teleforge/bot`: `/start`, `/tasks`, and `web_app_data` order handling
-- `teleforge/web`: browser-safe Mini App runtime, launch data, theme, and checkout mode protection
+- `teleforge/bot`: `/start` (Mini App entry), `/shop` (chat catalogue with deep-link buttons), and `web_app_data` order handling
+- `teleforge/web`: browser-safe Mini App runtime, launch coordination, theme, and checkout mode protection
 - `teleforge/ui`: Telegram-native cards, buttons, typography, and boundaries
 - `teleforge/core/browser`: Ed25519 initData validation (browser-safe)
 - `teleforge/server-hooks`: server-side flow hooks with trusted bridge enforcement
 
 ## Structure
 
-- `apps/bot`: Telegram long-polling bot runtime, plus `src/runtime.ts` for simulator chat execution
+- `apps/bot`: Telegram long-polling bot runtime and hooks server
+- `apps/api`: HTTP hooks server for Mini App server bridge requests
 - `apps/web`: Vite Mini App with browse, cart, checkout, and success routes
 - `packages/types`: shared task and order types
 - `teleforge.config.ts`: flow-first app configuration replacing the legacy manifest

@@ -18,8 +18,8 @@ test("Task Shop loads its Teleforge app config and derives routes from flows", a
   assert.equal(path.basename(loaded.appPath), "teleforge.config.ts");
   assert.equal(loaded.app.app.id, "task-shop");
   assert.deepEqual(
-    loaded.app.routes?.map((route) => route.path),
-    ["/"]
+    loaded.app.routes?.map((route) => route.path).sort(),
+    ["/", "/shop"]
   );
 });
 
@@ -38,11 +38,11 @@ test("Task Shop discovery exposes both bot flows and all migrated Mini App scree
 
   assert.deepEqual(
     flows.map((entry) => entry.flow.id).sort(),
-    ["task-shop-browse", "task-shop-tasks"]
+    ["shop-catalogue", "task-shop-browse"]
   );
   assert.deepEqual(
     screens.map((entry) => entry.screen.id).sort(),
-    ["task-shop.cart", "task-shop.catalog", "task-shop.checkout", "task-shop.success"]
+    ["shop.checkout", "task-shop.cart", "task-shop.catalog", "task-shop.checkout", "task-shop.success"]
   );
   assert.equal(summaries.find((summary) => summary.id === "task-shop-browse")?.stepCount, 5);
 });

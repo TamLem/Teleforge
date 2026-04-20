@@ -3,8 +3,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { config as loadDotenv } from "dotenv";
-import { createDiscoveredBotRuntime } from "teleforge";
+import { createDiscoveredBotRuntime, type DiscoveredBotRuntime } from "teleforge";
 import { type BotRuntime } from "teleforge/bot";
+
+export type { DiscoveredBotRuntime };
 
 export interface TaskShopBotRuntimeOptions {
   flowSecret?: string;
@@ -24,7 +26,7 @@ loadTaskShopEnv();
 
 export function createTaskShopBotRuntime(
   options: TaskShopBotRuntimeOptions = {}
-): Promise<BotRuntime> {
+): Promise<DiscoveredBotRuntime> {
   const config = readTaskShopBotConfig(options);
 
   return createDiscoveredBotRuntime({

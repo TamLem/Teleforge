@@ -121,6 +121,7 @@ export type {
   CreateFetchMiniAppServerBridgeOptions,
   TeleforgeMiniAppServerActionInput,
   TeleforgeMiniAppServerBridge,
+  TeleforgeMiniAppServerChatHandoffInput,
   TeleforgeMiniAppServerLoadAllowedResult,
   TeleforgeMiniAppServerLoadBlockedResult,
   TeleforgeMiniAppServerLoadInput,

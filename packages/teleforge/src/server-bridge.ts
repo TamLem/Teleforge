@@ -30,6 +30,13 @@ export interface TeleforgeMiniAppServerActionInput {
   stepId: string;
 }
 
+export interface TeleforgeMiniAppServerChatHandoffInput {
+  flowContext: string;
+  state: unknown;
+  stateKey: string;
+  stepId: string;
+}
+
 export interface TeleforgeMiniAppServerLoadAllowedResult {
   allow: true;
   loaderData?: unknown;
@@ -48,6 +55,7 @@ export type TeleforgeMiniAppServerLoadResult =
 
 export interface TeleforgeMiniAppServerBridge {
   action(input: TeleforgeMiniAppServerActionInput): Promise<void | FlowTransitionResult<unknown>>;
+  chatHandoff(input: TeleforgeMiniAppServerChatHandoffInput): Promise<void>;
   load(input: TeleforgeMiniAppServerLoadInput): Promise<TeleforgeMiniAppServerLoadResult>;
   submit(
     input: TeleforgeMiniAppServerSubmitInput
@@ -72,6 +80,10 @@ type TeleforgeServerHookRequest =
   | {
       kind: "action";
       input: TeleforgeMiniAppServerActionInput;
+    }
+  | {
+      kind: "chatHandoff";
+      input: TeleforgeMiniAppServerChatHandoffInput;
     };
 
 type TeleforgeServerHookResponse =
@@ -86,6 +98,10 @@ type TeleforgeServerHookResponse =
   | {
       kind: "action";
       result: void | FlowTransitionResult<unknown>;
+    }
+  | {
+      kind: "chatHandoff";
+      result: void;
     };
 
 export function createFetchMiniAppServerBridge(
@@ -114,6 +130,21 @@ export function createFetchMiniAppServerBridge(
         resolveHeaders
       );
       return payload.result;
+    },
+    chatHandoff: async (
+      input: TeleforgeMiniAppServerChatHandoffInput
+    ): Promise<void> => {
+      console.log("[teleforge:server-bridge] chatHandoff request:", { basePath, stepId: input.stepId });
+      await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "chatHandoff" }>>(
+        fetchImpl,
+        basePath,
+        {
+          input,
+          kind: "chatHandoff"
+        },
+        resolveHeaders
+      );
+      console.log("[teleforge:server-bridge] chatHandoff response received");
     },
     load: async (
       input: TeleforgeMiniAppServerLoadInput
@@ -153,6 +184,7 @@ async function postServerHookRequest<TResponse extends TeleforgeServerHookRespon
   resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
 ): Promise<TResponse> {
   const headers = await resolveBridgeHeaders(resolveHeaders);
+  console.log("[teleforge:server-bridge] POST", basePath, payload.kind);
   const response = await fetchImpl(basePath, {
     body: JSON.stringify(payload),
     headers: {
@@ -161,9 +193,11 @@ async function postServerHookRequest<TResponse extends TeleforgeServerHookRespon
     },
     method: "POST"
   });
+  console.log("[teleforge:server-bridge] response status:", response.status);
 
   if (!response.ok) {
     const message = await response.text();
+    console.log("[teleforge:server-bridge] error response:", message);
     throw new Error(
       message.trim().length > 0
         ? message

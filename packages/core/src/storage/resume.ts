@@ -1,18 +1,18 @@
-import type { UserFlowState } from "./types.js";
+import type { FlowInstance } from "./types.js";
 
-export type FlowStateResolver = (flowId: string) => Promise<UserFlowState | null>;
+export type FlowStateResolver = (flowId: string) => Promise<FlowInstance | null>;
 
 export type ResumeFlowError = "completed" | "expired" | "invalid" | "invalid_step" | "not_found";
 
 export interface ResumeFlowSuccess {
-  flowState: UserFlowState;
+  flowInstance: FlowInstance;
   redirectTo: string;
   success: true;
 }
 
 export interface ResumeFlowFailure {
   error: ResumeFlowError;
-  flowState?: UserFlowState;
+  flowInstance?: FlowInstance;
   success: false;
 }
 

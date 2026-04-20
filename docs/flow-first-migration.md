@@ -584,6 +584,7 @@ Status:
 - framework-owned bot runtime now handles chat-entry command execution
 - callback actions now resolve inline and convention-discovered handlers
 - chat steps can now transition into Mini App steps through the framework runtime
+- chat step actions with a `miniApp` marker now render as direct `web_app` deep-link buttons — see [Chat-to-MiniApp Deep Links](./chat-miniapp-deep-links.md)
 - free-form text input, richer reply-keyboard interactions, and Mini App return execution are still outside this slice
 
 ### Slice 4. Mini App step and page resolution

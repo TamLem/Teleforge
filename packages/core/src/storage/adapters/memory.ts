@@ -1,24 +1,13 @@
-import { decryptState, encryptState } from "../crypto.js";
-
-import type { EncryptedState, StorageAdapter, StorageOptions, UserFlowState } from "../types.js";
+import type { StorageAdapter, StorageOptions } from "../types.js";
 
 interface MemoryEntry {
   expiresAt: number;
-  state: EncryptedState | UserFlowState;
+  value: string;
 }
 
-/**
- * In-memory storage adapter for coordinated flow state.
- *
- * Entries expire automatically on access and support optimistic locking through
- * `compareAndSet()`.
- */
 export class MemoryStorageAdapter implements StorageAdapter {
   readonly defaultTTL: number;
-
   readonly namespace?: string;
-
-  private readonly encryptionKey?: string;
 
   private readonly store = new Map<string, MemoryEntry>();
 
@@ -28,24 +17,32 @@ export class MemoryStorageAdapter implements StorageAdapter {
     }
 
     this.defaultTTL = options.defaultTTL;
-    this.encryptionKey = options.encryptionKey;
     this.namespace = options.namespace;
   }
 
   async compareAndSet(
     key: string,
-    expectedVersion: number,
-    state: UserFlowState,
+    expectedRevision: number,
+    value: string,
     ttl = this.defaultTTL
   ): Promise<boolean> {
     const namespacedKey = this.resolveKey(key);
     const current = this.readEntry(namespacedKey);
 
-    if (!current || current.version !== expectedVersion) {
+    if (!current) {
       return false;
     }
 
-    this.writeEntry(namespacedKey, state, ttl);
+    try {
+      const parsed = JSON.parse(current);
+      if (parsed.revision !== expectedRevision) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+
+    this.writeEntry(namespacedKey, value, ttl);
     return true;
   }
 
@@ -53,12 +50,12 @@ export class MemoryStorageAdapter implements StorageAdapter {
     this.store.delete(this.resolveKey(key));
   }
 
-  async get(key: string): Promise<UserFlowState | null> {
+  async get(key: string): Promise<string | null> {
     return this.readEntry(this.resolveKey(key));
   }
 
-  async set(key: string, state: UserFlowState, ttl = this.defaultTTL): Promise<void> {
-    this.writeEntry(this.resolveKey(key), state, ttl);
+  async set(key: string, value: string, ttl = this.defaultTTL): Promise<void> {
+    this.writeEntry(this.resolveKey(key), value, ttl);
   }
 
   async touch(key: string, ttl: number): Promise<void> {
@@ -82,7 +79,7 @@ export class MemoryStorageAdapter implements StorageAdapter {
     }
   }
 
-  private readEntry(key: string): UserFlowState | null {
+  private readEntry(key: string): string | null {
     this.cleanupExpired();
 
     const entry = this.store.get(key);
@@ -91,7 +88,7 @@ export class MemoryStorageAdapter implements StorageAdapter {
       return null;
     }
 
-    return this.unwrapState(entry.state);
+    return entry.value;
   }
 
   private resolveExpiry(ttl: number): number {
@@ -102,29 +99,12 @@ export class MemoryStorageAdapter implements StorageAdapter {
     return this.namespace ? `${this.namespace}:${key}` : key;
   }
 
-  private unwrapState(value: EncryptedState | UserFlowState): UserFlowState {
-    if (this.encryptionKey) {
-      return decryptState(value as EncryptedState, this.encryptionKey);
-    }
-
-    return structuredClone(value as UserFlowState);
-  }
-
-  private wrapState(value: UserFlowState): EncryptedState | UserFlowState {
-    const clonedState = structuredClone(value);
-
-    return this.encryptionKey ? encryptState(clonedState, this.encryptionKey) : clonedState;
-  }
-
-  private writeEntry(key: string, state: UserFlowState, ttl: number): void {
+  private writeEntry(key: string, value: string, ttl: number): void {
     const expiresAt = this.resolveExpiry(ttl);
 
     this.store.set(key, {
       expiresAt,
-      state: this.wrapState({
-        ...structuredClone(state),
-        expiresAt
-      })
+      value
     });
   }
 }

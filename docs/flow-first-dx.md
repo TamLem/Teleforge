@@ -163,6 +163,8 @@ That means a flow can:
 
 The framework should make that normal, not advanced.
 
+When a chat step action targets a Mini App step, the framework renders it as a direct `web_app` button so the user opens the Mini App in one tap. Actions that carry a `miniApp` marker produce signed deep-link buttons; actions without it remain `callback_data` buttons. See [Chat-to-MiniApp Deep Links](./chat-miniapp-deep-links.md) for details.
+
 It should also present one default Mini App model to the user.
 
 The app author should not need to choose between:

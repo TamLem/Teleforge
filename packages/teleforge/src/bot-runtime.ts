@@ -2,6 +2,8 @@ import {
   createDefaultReturnHandlers,
   createBotRuntime,
   createFlowCallback,
+  createMiniAppButton,
+  createSignedPayload,
   extractFlowContext,
   handleMiniAppReturnData,
   handleFlowCallback,
@@ -65,6 +67,12 @@ export interface DiscoveredFlowRuntimeDebugState {
 
 export interface DiscoveredBotRuntime extends BotRuntime {
   getFlowRuntimeDebugState(): DiscoveredFlowRuntimeDebugState;
+  handleChatHandoff(input: {
+    flowContext: string;
+    state: unknown;
+    stateKey: string;
+    stepId: string;
+  }): Promise<void>;
 }
 
 export interface CreateDiscoveredBotRuntimeOptions {
@@ -92,6 +100,12 @@ export async function createDiscoveredBotRuntime(
     cwd
   });
   const runtime = createBotRuntime();
+  let boundBot: Pick<BotInstance, "sendMessage"> | null = null;
+  const originalBindBot = runtime.bindBot;
+  runtime.bindBot = (bot) => {
+    boundBot = bot;
+    originalBindBot(bot);
+  };
   const debugTracker = createFlowRuntimeDebugTracker();
   const miniAppEntryFlows = flows.filter(({ flow }) => isMiniAppEntryFlow(flow));
   const storage =
@@ -122,6 +136,7 @@ export async function createDiscoveredBotRuntime(
       debugTracker,
       flows: flows.filter(({ flow }) => !isMiniAppEntryFlow(flow)),
       handlers,
+      miniAppUrl: options.miniAppUrl,
       secret: options.flowSecret,
       services: options.services,
       storage
@@ -152,6 +167,87 @@ export async function createDiscoveredBotRuntime(
 
   const discoveredRuntime = runtime as DiscoveredBotRuntime;
   discoveredRuntime.getFlowRuntimeDebugState = () => debugTracker.snapshot();
+  discoveredRuntime.handleChatHandoff = async (input) => {
+    console.log("[teleforge:bot-runtime] handleChatHandoff called:", {
+      flowContext: input.flowContext.substring(0, 30) + "...",
+      stateKey: input.stateKey,
+      stepId: input.stepId
+    });
+    const flowContext = extractFlowContext(input.flowContext, options.flowSecret);
+
+    if (!flowContext || flowContext.payload.stateKey !== input.stateKey) {
+      console.log("[teleforge:bot-runtime] handleChatHandoff: flow context verification failed", {
+        hasFlowContext: !!flowContext,
+        stateKeyMatch: flowContext?.payload.stateKey === input.stateKey
+      });
+      throw new Error("Could not verify chat handoff flow context.");
+    }
+
+    const flow = flows.find(({ flow: f }) => f.id === flowContext.flowId)?.flow;
+
+    if (!flow) {
+      throw new Error(`Unknown flow "${flowContext.flowId}" in chat handoff.`);
+    }
+
+    const persisted = await storage.getState(input.stateKey);
+
+    if (!persisted) {
+      throw new Error("Flow state expired before chat handoff.");
+    }
+
+    console.log("[teleforge:bot-runtime] handleChatHandoff: state found, advancing step", {
+      chatId: persisted.chatId,
+      flowId: flow.id,
+      stepId: input.stepId
+    });
+
+    const handlerIndex = createHandlerIndex(handlers);
+    await storage.advanceStep(input.stateKey, input.stepId, {
+      [FLOW_STATE_PAYLOAD_KEY]: cloneFlowState(input.state)
+    });
+    debugTracker.trackMiniAppHandoff({
+      chatId: String(persisted.chatId ?? ""),
+      flow,
+      snapshotStateAvailable: true,
+      stateKey: input.stateKey,
+      stepId: input.stepId
+    });
+
+    const chatId = persisted.chatId;
+
+    if (!chatId) {
+      throw new Error("Chat ID unavailable for chat handoff.");
+    }
+
+    if (!boundBot) {
+      throw new Error("Bot instance unavailable for chat handoff. Call bindBot() first.");
+    }
+
+    console.log("[teleforge:bot-runtime] handleChatHandoff: entering flow step", {
+      chatId,
+      flowId: flow.id,
+      stepId: input.stepId
+    });
+
+    await enterDiscoveredFlowStep(
+      {
+        chatId,
+        debugTracker,
+        flow,
+        handlers,
+        miniAppUrl: options.miniAppUrl,
+        secret: options.flowSecret,
+        services: options.services,
+        state: cloneFlowState(input.state),
+        stateKey: input.stateKey,
+        storage
+      },
+      {
+        bot: boundBot,
+        handlerIndex
+      }
+    );
+  };
 
   return discoveredRuntime;
 }
@@ -160,6 +256,7 @@ interface CreateChatEntryCommandsOptions {
   debugTracker: FlowRuntimeDebugTracker;
   flows: readonly DiscoveredFlowModule[];
   handlers: readonly DiscoveredFlowStepHandlerModule[];
+  miniAppUrl: string;
   secret: string;
   services?: unknown;
   storage: UserFlowStateManager;
@@ -277,6 +374,7 @@ function createChatEntryCommands(options: CreateChatEntryCommandsOptions): BotCo
               debugTracker: options.debugTracker,
               flow,
               handlers: options.handlers,
+              miniAppUrl: options.miniAppUrl,
               secret: options.secret,
               services: options.services,
               state: initialState,
@@ -548,13 +646,18 @@ async function enterDiscoveredFlowStep(
         stateKey: options.stateKey,
         stepId: currentStepId
       });
+      await options.storage.advanceStep(options.stateKey, currentStepId, {
+        [FLOW_STATE_PAYLOAD_KEY]: currentState
+      });
       await sendChatStepMessage(
         runtime.bot,
         options.flow,
         step,
         currentState,
         options.secret,
-        options.chatId
+        options.chatId,
+        options.miniAppUrl ?? null,
+        options.stateKey
       );
       return;
     }
@@ -599,25 +702,48 @@ async function sendChatStepMessage(
   step: ChatFlowStepDefinition<unknown, unknown>,
   state: unknown,
   secret: string,
-  chatId: number | string
+  chatId: number | string,
+  miniAppUrl: string | null,
+  stateKey: string
 ): Promise<void> {
   const text = typeof step.message === "function" ? step.message({ state }) : step.message;
-  const actions = (step.actions ?? []).map((action) => [
-    createFlowCallback(
-      {
-        action: resolveFlowActionKey(action),
-        flowId: flow.id,
-        text: action.label
-      },
-      secret
-    )
+  const buttons = (step.actions ?? []).map((action) => [
+    action.miniApp && miniAppUrl
+      ? createMiniAppButton({
+          requestWriteAccess: flow.miniApp?.requestWriteAccess,
+          startPayload: createSignedPayload(
+            {
+              flowId: flow.id,
+              payload: {
+                ...action.miniApp.payload,
+                route: resolveFlowStepRoute(flow, action.to ?? flow.initialStep as string) ?? undefined,
+                stateKey
+              },
+              requestWriteAccess: flow.miniApp?.requestWriteAccess ?? false,
+              stayInChat: flow.miniApp?.returnToChat?.stayInChat ?? false,
+              stepId: action.to
+            },
+            secret
+          ),
+          stayInChat: flow.miniApp?.returnToChat?.stayInChat,
+          text: action.label,
+          webAppUrl: miniAppUrl
+        })
+      : createFlowCallback(
+          {
+            action: resolveFlowActionKey(action),
+            flowId: flow.id,
+            text: action.label
+          },
+          secret
+        )
   ]);
 
   await bot.sendMessage(chatId, text, {
-    ...(actions.length > 0
+    ...(buttons.length > 0
       ? {
           reply_markup: {
-            inline_keyboard: actions
+            inline_keyboard: buttons
           }
         }
       : {})

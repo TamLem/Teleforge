@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "pnpm --filter @task-shop/types build && pnpm --filter @task-shop/web build && pnpm --filter @task-shop/bot build",
+    "build": "pnpm --filter @task-shop/types build && pnpm --filter @task-shop/web build && pnpm --filter @task-shop/api build && pnpm --filter @task-shop/bot build",
     "dev": "teleforge dev --public --live",
     "dev:local": "teleforge dev --open",
     "format": "prettier --check .",

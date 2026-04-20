@@ -4,9 +4,16 @@ export { createFlowStorage, createStorage, type FlowStorageOptions } from "./fac
 export { UserFlowStateManager } from "./manager.js";
 export type { FlowStateResolver, ResumeFlowError, ResumeFlowResult } from "./resume.js";
 export type {
+  Effect,
+  EffectType,
   EncryptedState,
+  FlowInstance,
+  FlowInstanceStatus,
+  FlowInstanceSurface,
+  FlowInstanceWaitReason,
+  RuntimeSignal,
   StorageAdapter,
   StorageBackend,
   StorageOptions,
-  UserFlowState
+  TransitionResult
 } from "./types.js";

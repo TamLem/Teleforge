@@ -1,134 +1,164 @@
-import { createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
-import type { StorageAdapter, UserFlowState } from "./types.js";
+import type {
+  FlowInstance,
+  FlowInstanceSurface,
+  FlowInstanceWaitReason,
+  StorageAdapter
+} from "./types.js";
 
-/**
- * Manages the lifecycle of coordinated user flow state on top of a storage adapter.
- */
+function generateInstanceId(): string {
+  return `inst_${randomBytes(12).toString("base64url")}`;
+}
+
 export class UserFlowStateManager {
   constructor(private readonly storage: StorageAdapter) {}
 
   async advanceStep(
     key: string,
     newStep: string,
-    payloadUpdate: Record<string, unknown> = {}
-  ): Promise<UserFlowState> {
-    const current = await this.requireState(key);
-    const nextState = this.withNextExpiry({
+    stateUpdate: Record<string, unknown> = {},
+    surface?: FlowInstanceSurface,
+    waitReason?: FlowInstanceWaitReason
+  ): Promise<FlowInstance> {
+    const current = await this.requireInstance(key);
+    const next: FlowInstance = {
       ...current,
-      payload: {
-        ...current.payload,
-        ...payloadUpdate
-      },
+      currentSurface: surface ?? current.currentSurface,
+      expiresAt: Date.now() + this.storage.defaultTTL * 1000,
+      lastTransitionAt: Date.now(),
+      revision: current.revision + 1,
+      state: { ...current.state, ...stateUpdate },
       stepId: newStep,
-      version: current.version + 1
-    });
+      ...(waitReason !== undefined ? { waitReason } : {})
+    };
 
-    await this.commitWithOptimisticLock(key, current.version, nextState);
-
-    return nextState;
+    await this.commitWithOptimisticLock(key, current.revision, next);
+    return next;
   }
 
-  async completeFlow(key: string): Promise<void> {
-    await this.storage.delete(key);
+  async cancelInstance(key: string): Promise<void> {
+    const current = await this.requireInstance(key);
+    await this.commitWithOptimisticLock(key, current.revision, {
+      ...current,
+      expiresAt: Date.now() + this.storage.defaultTTL * 1000,
+      lastTransitionAt: Date.now(),
+      revision: current.revision + 1,
+      status: "cancelled"
+    });
+  }
+
+  async completeInstance(key: string): Promise<void> {
+    const current = await this.requireInstance(key);
+    await this.commitWithOptimisticLock(key, current.revision, {
+      ...current,
+      expiresAt: Date.now() + this.storage.defaultTTL * 1000,
+      lastTransitionAt: Date.now(),
+      revision: current.revision + 1,
+      status: "completed"
+    });
   }
 
   createStateKey(userId: string, flowId: string): string {
-    const digest = createHash("sha256").update(`${userId}:${flowId}`).digest("hex").slice(0, 24);
-
-    return `flow:${digest}`;
+    return `flow:${userId}:${flowId}`;
   }
 
-  async failFlow(key: string, error: Error): Promise<void> {
-    const current = await this.requireState(key);
-
-    await this.commitWithOptimisticLock(
-      key,
-      current.version,
-      this.withNextExpiry({
-        ...current,
-        payload: {
-          ...current.payload,
-          lastError: {
-            message: error.message,
-            name: error.name
-          }
-        },
-        stepId: "failed",
-        version: current.version + 1
-      })
-    );
+  createInstanceKey(instanceId: string): string {
+    return `instance:${instanceId}`;
   }
 
-  async getState(key: string): Promise<UserFlowState | null> {
-    return this.storage.get(key);
+  async failInstance(key: string, error: Error): Promise<void> {
+    const current = await this.requireInstance(key);
+    await this.commitWithOptimisticLock(key, current.revision, {
+      ...current,
+      expiresAt: Date.now() + this.storage.defaultTTL * 1000,
+      lastTransitionAt: Date.now(),
+      revision: current.revision + 1,
+      state: { ...current.state, lastError: { message: error.message, name: error.name } },
+      status: "failed",
+      stepId: "failed",
+      waitReason: "error"
+    });
   }
 
-  async resumeFlow(userId: string, flowId: string): Promise<UserFlowState | null> {
-    return this.storage.get(this.createStateKey(userId, flowId));
+  async getInstance(key: string): Promise<FlowInstance | null> {
+    const raw = await this.storage.get(key);
+    return raw ? (JSON.parse(raw) as FlowInstance) : null;
   }
 
-  async startFlow(
+  async resumeFlow(userId: string, flowId: string): Promise<FlowInstance | null> {
+    return this.getInstance(this.createStateKey(userId, flowId));
+  }
+
+  async startInstance(
     userId: string,
     flowId: string,
     initialStep: string,
-    payload: Record<string, unknown> = {},
+    state: Record<string, unknown> = {},
     chatId?: string
-  ): Promise<string> {
-    const key = this.createStateKey(userId, flowId);
+  ): Promise<{ instanceId: string; key: string }> {
+    const instanceId = generateInstanceId();
+    const key = this.createInstanceKey(instanceId);
     const now = Date.now();
 
-    await this.storage.set(key, {
-      ...(chatId ? { chatId } : {}),
+    const instance: FlowInstance = {
+      chatId,
       createdAt: now,
+      currentSurface: "chat",
       expiresAt: now + this.storage.defaultTTL * 1000,
       flowId,
-      payload: structuredClone(payload),
+      instanceId,
+      lastTransitionAt: now,
+      revision: 1,
+      state: structuredClone(state),
+      status: "active",
       stepId: initialStep,
       userId,
-      version: 1
-    });
+      waitReason: "userInput"
+    };
 
-    return key;
+    await this.storage.set(key, JSON.stringify(instance), this.storage.defaultTTL);
+    await this.storage.set(
+      this.createStateKey(userId, flowId),
+      JSON.stringify(instance),
+      this.storage.defaultTTL
+    );
+
+    return { instanceId, key };
   }
 
   private async commitWithOptimisticLock(
     key: string,
-    expectedVersion: number,
-    nextState: UserFlowState
+    expectedRevision: number,
+    nextInstance: FlowInstance
   ): Promise<void> {
+    const serialized = JSON.stringify(nextInstance);
+
     if (this.storage.compareAndSet) {
       const updated = await this.storage.compareAndSet(
         key,
-        expectedVersion,
-        nextState,
+        expectedRevision,
+        serialized,
         this.storage.defaultTTL
       );
 
       if (!updated) {
-        throw new Error(`Flow state conflict for key "${key}".`);
+        throw new Error(`Flow instance conflict for key "${key}".`);
       }
 
       return;
     }
 
-    await this.storage.set(key, nextState, this.storage.defaultTTL);
+    await this.storage.set(key, serialized, this.storage.defaultTTL);
   }
 
-  private async requireState(key: string): Promise<UserFlowState> {
-    const state = await this.storage.get(key);
+  private async requireInstance(key: string): Promise<FlowInstance> {
+    const raw = await this.storage.get(key);
 
-    if (!state) {
-      throw new Error(`Flow state "${key}" was not found or already expired.`);
+    if (!raw) {
+      throw new Error(`Flow instance "${key}" was not found or already expired.`);
     }
 
-    return state;
-  }
-
-  private withNextExpiry(state: UserFlowState): UserFlowState {
-    return {
-      ...state,
-      expiresAt: Date.now() + this.storage.defaultTTL * 1000
-    };
+    return JSON.parse(raw) as FlowInstance;
   }
 }

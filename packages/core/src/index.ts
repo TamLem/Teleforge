@@ -137,14 +137,21 @@ export {
   type FlowStorageOptions
 } from "./storage/index.js";
 export type {
+  Effect,
+  EffectType,
   EncryptedState,
+  FlowInstance,
+  FlowInstanceStatus,
+  FlowInstanceSurface,
+  FlowInstanceWaitReason,
   FlowStateResolver,
   ResumeFlowError,
   ResumeFlowResult,
+  RuntimeSignal,
   StorageAdapter,
   StorageBackend,
   StorageOptions,
-  UserFlowState
+  TransitionResult
 } from "./storage/index.js";
 export type {
   Ed25519ValidationOptions,

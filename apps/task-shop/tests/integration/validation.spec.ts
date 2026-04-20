@@ -8,10 +8,12 @@ import {
   resolveMiniAppScreen
 } from "../../../../packages/teleforge/dist/index.js";
 import { createOrderFromCart } from "../../packages/types/src/index.ts";
+import shopCatalogueFlow from "../../apps/bot/src/flows/shop-catalogue.flow.ts";
 import taskShopBrowseFlow from "../../apps/bot/src/flows/task-shop-browse.flow.ts";
 import cartScreen from "../../apps/web/src/screens/cart.screen.tsx";
 import catalogScreen from "../../apps/web/src/screens/catalog.screen.tsx";
 import checkoutScreen from "../../apps/web/src/screens/checkout.screen.tsx";
+import shopCheckoutScreen from "../../apps/web/src/screens/shop-checkout.screen.tsx";
 import successScreen from "../../apps/web/src/screens/success.screen.tsx";
 
 import { integrationConfig } from "./config.ts";
@@ -43,16 +45,33 @@ test("bot /start responds with a Mini App button", async () => {
   assertQueryParam(buttonUrl, "tfStayInChat", "1");
 });
 
-test("bot /tasks lists the mock task catalogue", async () => {
+test("bot /shop lists catalogue with web_app deep-link buttons", async () => {
   const harness = await createMockTelegramHarness();
 
-  await harness.sendCommand("/tasks");
+  await harness.sendCommand("/shop");
 
-  const [message] = harness.getMessages();
-  assert.ok(message);
-  assertMessageIncludes(message.text ?? "", "Task Shop catalogue");
-  assertMessageIncludes(message.text ?? "", "Build Mini App Scaffold");
-  assertMessageIncludes(message.text ?? "", "Deploy to Production");
+  const messages = harness.getMessages();
+  assert.ok(messages.length >= 1);
+  assertMessageIncludes(messages[0].text ?? "", "Select an item");
+
+  const keyboard = messages[0].options?.reply_markup?.inline_keyboard;
+  assert.ok(keyboard);
+  assert.equal(keyboard.length, 6);
+
+  for (const row of keyboard) {
+    const button = row[0];
+    assert.ok(button.web_app?.url, "Expected a web_app deep-link button.");
+    assertQueryParam(button.web_app.url, "tgWebAppStartParam");
+
+    const startParam = new URL(button.web_app.url).searchParams.get("tgWebAppStartParam")!;
+    const [, payload] = startParam.split(".");
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    assert.equal(parsed.flowId, "shop-catalogue");
+    assert.equal(parsed.stepId, "checkout");
+    assert.equal(parsed.payload.route, "/shop/checkout");
+    assert.ok(parsed.payload.itemId, "Expected itemId in the signed payload.");
+    assert.ok(parsed.payload.stateKey, "Expected stateKey in the signed payload.");
+  }
 });
 
 test("bot handles Teleforge Mini App chat handoff payloads", async () => {
@@ -207,6 +226,60 @@ test("Task Shop Mini App success step can reset back to a fresh catalog", async 
     cart: [],
     lastOrder: null
   });
+});
+
+test("shop-catalogue Mini App checkout submits to a chat handoff with order state", async () => {
+  const resolution = resolveMiniAppScreen({
+    flows: [shopCatalogueFlow],
+    pathname: "/shop/checkout",
+    screens: [shopCheckoutScreen]
+  });
+
+  assert.ok(!("reason" in resolution));
+  assert.equal(resolution.screenId, "shop.checkout");
+
+  const result = await executeMiniAppStepSubmit({
+    data: { itemId: "task-001", type: "complete-order" },
+    resolution
+  });
+
+  assert.equal(result.target, "chat");
+  assert.equal(result.stepId, "confirmed");
+  assert.ok(result.state.orderId, "Expected an order ID in the state.");
+  assert.equal(result.state.selectedItem, "task-001");
+});
+
+test("shop-catalogue chat handoff sends confirmation message with tracking button", async () => {
+  const harness = await createMockTelegramHarness();
+
+  await harness.sendCommand("/shop");
+
+  const shopMessage = harness.getMessages()[0];
+  const buttonUrl = shopMessage?.options?.reply_markup?.inline_keyboard?.[0]?.[0]?.web_app?.url;
+  assert.ok(buttonUrl);
+  const flowContext = new URL(buttonUrl).searchParams.get("tgWebAppStartParam");
+  assert.ok(flowContext);
+
+  await harness.sendWebAppData({
+    flowContext,
+    state: {
+      orderId: "ORD-TEST123",
+      selectedItem: "task-001"
+    },
+    stateKey: decodeStateKey(flowContext),
+    stepId: "confirmed",
+    type: "teleforge_flow_handoff"
+  });
+
+  const confirmation = harness.getMessages().at(-1);
+  assert.ok(confirmation);
+  assertMessageIncludes(confirmation.text ?? "", "Order confirmed!");
+  assertMessageIncludes(confirmation.text ?? "", "ORD-TEST123");
+
+  const keyboard = confirmation.options?.reply_markup?.inline_keyboard;
+  assert.ok(keyboard, "Expected a Track Order button.");
+  assert.equal(keyboard.length, 1);
+  assert.equal(keyboard[0][0].text, "Track Order");
 });
 
 test("Ed25519 validation accepts a valid initData vector with hex public key", async () => {

@@ -486,6 +486,7 @@ async function handleMiniAppSubmit(options: {
       flowContext: options.flowContext,
       onReturnToChat: options.onReturnToChat,
       result,
+      serverBridge: options.serverBridge,
       stateKey: options.stateKey,
       setActivePathname: options.setActivePathname,
       setHandoff: options.setHandoff
@@ -520,6 +521,7 @@ async function handleMiniAppAction(options: {
       flowContext: options.flowContext,
       onReturnToChat: options.onReturnToChat,
       result,
+      serverBridge: options.serverBridge,
       stateKey: options.stateKey,
       setActivePathname: options.setActivePathname,
       setHandoff: options.setHandoff
@@ -533,6 +535,7 @@ async function applyMiniAppExecutionResult(options: {
   flowContext: string | null;
   onReturnToChat?: TeleforgeMiniAppProps["onReturnToChat"];
   result: MiniAppStepExecutionResult;
+  serverBridge?: TeleforgeMiniAppServerBridge;
   stateKey: string | null;
   setActivePathname: (pathname: string) => void;
   setHandoff: (value: ChatHandoffMiniAppScreen | null) => void;
@@ -552,20 +555,25 @@ async function applyMiniAppExecutionResult(options: {
   }
 
   clearPersistedMiniAppSnapshot(options.stateKey);
+  console.log("[teleforge:miniapp] transmitting chat handoff", {
+    flowContext: options.flowContext,
+    hasServerBridge: !!options.serverBridge,
+    stateKey: options.stateKey,
+    stepId: options.result.stepId,
+    target: options.result.stepId
+  });
   const transmitted = await transmitMiniAppChatHandoff({
     flowContext: options.flowContext,
     result: options.result,
+    serverBridge: options.serverBridge,
     stateKey: options.stateKey
   });
+  console.log("[teleforge:miniapp] chat handoff transmitted:", transmitted);
   await options.onReturnToChat?.(options.result);
   options.setHandoff({
     result: options.result,
     status: "chat_handoff"
   });
-
-  if (transmitted) {
-    closeTelegramMiniApp();
-  }
 }
 
 function createRuntimeContext(
@@ -824,36 +832,82 @@ function clearPersistedMiniAppSnapshot(stateKey: string | null): void {
 async function transmitMiniAppChatHandoff(options: {
   flowContext: string | null;
   result: ChatMiniAppTransitionResult;
+  serverBridge?: TeleforgeMiniAppServerBridge;
   stateKey: string | null;
 }): Promise<boolean> {
-  if (
-    !options.flowContext ||
-    !options.stateKey ||
-    typeof window === "undefined" ||
-    typeof window.Telegram?.WebApp?.sendData !== "function"
-  ) {
+  if (!options.flowContext || !options.stateKey) {
+    console.log("[teleforge:miniapp] chat handoff skipped: missing flowContext or stateKey", {
+      hasFlowContext: !!options.flowContext,
+      hasStateKey: !!options.stateKey
+    });
     return false;
   }
 
-  window.Telegram.WebApp.sendData(
-    JSON.stringify({
-      flowContext: options.flowContext,
-      state: options.result.state,
-      stateKey: options.stateKey,
-      stepId: options.result.stepId,
-      type: MINI_APP_CHAT_HANDOFF_TYPE
-    })
-  );
+  // Use server bridge when available (reliable for inline-keyboard-launched Mini Apps)
+  // sendData does not work for inline-keyboard-launched Mini Apps even though
+  // the method is present on window.Telegram.WebApp. Prefer the server bridge
+  // when the app provides one so the handoff is always transmitted.
+  if (options.serverBridge) {
+    try {
+      console.log("[teleforge:miniapp] using server bridge for chat handoff");
+      await options.serverBridge.chatHandoff({
+        flowContext: options.flowContext,
+        state: options.result.state,
+        stateKey: options.stateKey,
+        stepId: options.result.stepId
+      });
+      console.log("[teleforge:miniapp] server bridge chat handoff succeeded");
+      return true;
+    } catch (err) {
+      console.log("[teleforge:miniapp] server bridge chat handoff failed, falling back to sendData:", err);
+    }
+  }
 
-  return true;
+  if (
+    typeof window !== "undefined" &&
+    typeof window.Telegram?.WebApp?.sendData === "function"
+  ) {
+    console.log("[teleforge:miniapp] using sendData for chat handoff");
+    window.Telegram.WebApp.sendData(
+      JSON.stringify({
+        flowContext: options.flowContext,
+        state: options.result.state,
+        stateKey: options.stateKey,
+        stepId: options.result.stepId,
+        type: MINI_APP_CHAT_HANDOFF_TYPE
+      })
+    );
+    return true;
+  }
+
+  console.log("[teleforge:miniapp] no chat handoff method available");
+  return false;
 }
 
 function closeTelegramMiniApp(): void {
   if (typeof window === "undefined") {
+    console.log("[teleforge:miniapp] closeTelegramMiniApp: no window");
     return;
   }
 
-  window.Telegram?.WebApp?.close?.();
+  const hasTelegram = typeof window.Telegram !== "undefined";
+  const hasWebApp = typeof window.Telegram?.WebApp !== "undefined";
+  const hasClose = typeof window.Telegram?.WebApp?.close === "function";
+
+  console.log("[teleforge:miniapp] closeTelegramMiniApp:", {
+    hasClose,
+    hasTelegram,
+    hasWebApp,
+    platform: window.Telegram?.WebApp?.platform,
+    version: window.Telegram?.WebApp?.version
+  });
+
+  if (hasClose) {
+    window.Telegram!.WebApp!.close();
+    console.log("[teleforge:miniapp] close() called");
+  } else {
+    console.log("[teleforge:miniapp] close() not available");
+  }
 }
 
 function syncBrowserPathname(pathname: string): void {
@@ -880,9 +934,31 @@ function DefaultMiniAppPending(options: { screenId?: string } = {}) {
 }
 
 function DefaultMiniAppChatHandoff(options: { result: ChatMiniAppTransitionResult }) {
+  const handleClose = () => {
+    window.Telegram?.WebApp?.close?.();
+  };
+
   return (
-    <div>
-      Teleforge is handing this flow back to chat at step "{options.result.stepId}".
+    <div style={{ alignItems: "center", display: "flex", flexDirection: "column", gap: "16px", justifyContent: "center", minHeight: "100vh", padding: "24px", textAlign: "center" }}>
+      <div style={{ fontSize: "24px" }}>✓</div>
+      <div style={{ fontSize: "16px", fontWeight: 600 }}>Returning to chat</div>
+      <div style={{ color: "var(--tg-theme-hint-color, #999)", fontSize: "14px" }}>
+        Step "{options.result.stepId}" will continue in the chat.
+      </div>
+      <button
+        onClick={handleClose}
+        style={{
+          backgroundColor: "var(--tg-theme-button-color, #3390ec)",
+          border: "none",
+          borderRadius: "8px",
+          color: "var(--tg-theme-button-text-color, #fff)",
+          cursor: "pointer",
+          fontSize: "16px",
+          padding: "12px 32px"
+        }}
+      >
+        Close
+      </button>
     </div>
   );
 }

@@ -70,6 +70,9 @@ export interface FlowActionDefinition<TState, TServices = unknown> {
     input: FlowHandlerContext<TState, TServices>
   ) => MaybePromise<void | FlowTransitionResult<TState>>;
   label: string;
+  miniApp?: {
+    payload?: Record<string, unknown>;
+  };
   to?: string;
 }
 
