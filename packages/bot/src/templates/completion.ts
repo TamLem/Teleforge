@@ -1,6 +1,6 @@
 import type { MiniAppReturnData } from "../coordination/handle-return.js";
 import type { ReplyOptions } from "../router/types.js";
-import type { UserFlowState } from "@teleforgex/core";
+import type { FlowInstance } from "@teleforgex/core";
 
 export interface CompletionMessage {
   options: ReplyOptions;
@@ -8,13 +8,13 @@ export interface CompletionMessage {
 }
 
 export function createCompletionMessage(
-  state: UserFlowState,
+  instance: FlowInstance,
   result: MiniAppReturnData
 ): CompletionMessage {
   const order = isOrderLike(result.data?.order) ? result.data.order : null;
   const lines = [
-    `*${state.flowId}* ${describeResult(result.result)}.`,
-    `Step: ${state.stepId}`,
+    `*${instance.flowId}* ${describeResult(result.result)}.`,
+    `Step: ${instance.stepId}`,
     ...(order ? [`Items: ${order.items.length}`, `Total: ${order.total} Stars`] : []),
     ...(result.returnMessage ? [result.returnMessage] : [])
   ];

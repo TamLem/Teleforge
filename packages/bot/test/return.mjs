@@ -14,7 +14,7 @@ test("handleMiniAppReturnData consumes a valid coordinated return payload", asyn
       defaultTTL: 60
     })
   );
-  const stateKey = await storage.startFlow("42", "task-shop-browse", "catalog");
+  const { key: stateKey } = await storage.startInstance("42", "task-shop-browse", "catalog");
   const flowContext = createSignedPayload(
     {
       flowId: "task-shop-browse",
@@ -60,7 +60,8 @@ test("handleMiniAppReturnData consumes a valid coordinated return payload", asyn
   );
 
   assert.equal(handled, true);
-  assert.equal(await storage.getState(stateKey), null);
+  const completed = await storage.getInstance(stateKey);
+  assert.equal(completed?.status, "completed");
   assert.deepEqual(replies[0], {
     flowId: "task-shop-browse",
     type: "order"

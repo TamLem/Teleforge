@@ -37,11 +37,11 @@ export async function initiateCoordinatedFlow(
   storage: UserFlowStateManager,
   options: CoordinatedFlowOptions
 ): Promise<{ message: TelegramMessage; stateKey: string }> {
-  const stateKey = await storage.startFlow(
+  const { key: stateKey } = await storage.startInstance(
     options.userId,
     options.flowId,
     options.initialStep,
-    options.payload ?? {},
+    options.payload ?? {} as Record<string, unknown>,
     String(options.chatId)
   );
 
@@ -59,7 +59,7 @@ export async function initiateCoordinatedFlow(
       stateKey
     };
   } catch (error) {
-    await storage.completeFlow(stateKey);
+    await storage.cancelInstance(stateKey);
     throw error;
   }
 }
@@ -79,5 +79,5 @@ export async function handleMiniAppReturn(
     return null;
   }
 
-  return storage.getState(stateKey);
+  return storage.getInstance(stateKey);
 }

@@ -42,7 +42,7 @@ test("initiateCoordinatedFlow persists state and resolves it from the signed pay
     webAppUrl: "https://example.ngrok.app"
   });
 
-  assert.match(result.stateKey, /^flow:/);
+  assert.match(result.stateKey, /^instance:/);
 
   const buttonUrl = result.message.options?.reply_markup?.inline_keyboard?.[0]?.[0]?.web_app?.url;
   assert.ok(buttonUrl);
@@ -54,5 +54,5 @@ test("initiateCoordinatedFlow persists state and resolves it from the signed pay
 
   assert.equal(restored?.flowId, "task-shop-browse");
   assert.equal(restored?.stepId, "catalog");
-  assert.equal(restored?.payload.source, "start");
+  assert.equal(restored?.state?.source, "start");
 });

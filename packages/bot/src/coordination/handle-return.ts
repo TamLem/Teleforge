@@ -2,7 +2,7 @@ import { extractFlowContext } from "../primitives/context.js";
 import { createCompletionMessage } from "../templates/completion.js";
 
 import type { WebAppDataContext } from "../router/types.js";
-import type { UserFlowState, UserFlowStateManager } from "@teleforgex/core";
+import type { FlowInstance, UserFlowStateManager } from "@teleforgex/core";
 
 export interface MiniAppReturnData {
   data: Record<string, unknown>;
@@ -14,9 +14,9 @@ export interface MiniAppReturnData {
 }
 
 export interface ReturnHandlers {
-  onCancel: (state: UserFlowState, reason?: string) => Promise<void>;
-  onComplete: (state: UserFlowState, data: Record<string, unknown>) => Promise<void>;
-  onError: (state: UserFlowState | null, error: Error) => Promise<void>;
+  onCancel: (instance: FlowInstance, reason?: string) => Promise<void>;
+  onComplete: (instance: FlowInstance, data: Record<string, unknown>) => Promise<void>;
+  onError: (instance: FlowInstance | null, error: Error) => Promise<void>;
 }
 
 export async function handleMiniAppReturnData(
@@ -39,25 +39,25 @@ export async function handleMiniAppReturnData(
     return true;
   }
 
-  const state = await storage.getState(payload.stateKey);
-  if (!state) {
-    const error = new Error("Mini App return payload references an expired or missing flow state.");
+  const instance = await storage.getInstance(payload.stateKey);
+  if (!instance) {
+    const error = new Error("Mini App return payload references an expired or missing flow instance.");
     await handlers.onError(null, error);
     await context.answer("Flow expired before return");
     return true;
   }
 
   if (payload.result === "completed") {
-    await handlers.onComplete(state, payload.data);
-    await storage.completeFlow(payload.stateKey);
+    await handlers.onComplete(instance, payload.data);
+    await storage.completeInstance(payload.stateKey);
     await context.answer(payload.returnMessage ?? "Returned to chat");
     return true;
   }
 
   if (payload.result === "cancelled") {
     const reason = typeof payload.data.reason === "string" ? payload.data.reason : undefined;
-    await handlers.onCancel(state, reason);
-    await storage.completeFlow(payload.stateKey);
+    await handlers.onCancel(instance, reason);
+    await storage.completeInstance(payload.stateKey);
     await context.answer(payload.returnMessage ?? "Flow cancelled");
     return true;
   }
@@ -66,8 +66,8 @@ export async function handleMiniAppReturnData(
     typeof payload.data.message === "string" ? payload.data.message : "Mini App flow failed.";
   const error = new Error(errorMessage);
 
-  await storage.failFlow(payload.stateKey, error);
-  await handlers.onError(state, error);
+  await storage.failInstance(payload.stateKey, error);
+  await handlers.onError(instance, error);
   await context.answer(payload.returnMessage ?? "Mini App reported an error");
 
   return true;
