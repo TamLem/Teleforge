@@ -13,9 +13,9 @@ import { getLaunchFlowContext, inferStateKey, parseFlowContext } from "./shared.
 import type { TransmitConfig } from "./transmit.js";
 import type {
   FlowContext,
+  FlowInstance,
   RouteCoordinationMetadata,
-  TeleforgeManifest,
-  UserFlowState
+  TeleforgeManifest
 } from "@teleforgex/core/browser";
 
 export interface UseLaunchCoordinationReturn {
@@ -68,7 +68,7 @@ export interface UseFlowCoordinationReturn {
   complete: (result?: Record<string, unknown>) => Promise<void>;
   coordination: RouteCoordinationMetadata | null;
   fail: (error: unknown) => Promise<void>;
-  flowState: UserFlowState | null;
+  flowState: FlowInstance | null;
   isResuming: boolean;
   resumeError: string | null;
 }

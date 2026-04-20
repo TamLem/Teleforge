@@ -8,10 +8,10 @@ import { parseResumeParam } from "./parseResumeParam.js";
 import { resumeFlow } from "./resumeFlow.js";
 
 import type {
+  FlowInstance,
   FlowStateResolver,
   ResumeFlowError,
-  ResumeFlowResult,
-  UserFlowState
+  ResumeFlowResult
 } from "@teleforgex/core";
 import type { ReactNode } from "react";
 
@@ -21,7 +21,7 @@ export interface FlowResumeProviderProps {
   onFreshStart?: (reason: ResumeFlowError | null) => void;
   onResume?: (result: Extract<ResumeFlowResult, { success: true }>) => void;
   parseFlowId?: () => string | null;
-  resolveRoute?: (state: UserFlowState) => string | null;
+  resolveRoute?: (state: FlowInstance) => string | null;
   resolver: FlowStateResolver;
 }
 
@@ -40,7 +40,7 @@ export function FlowResumeProvider({
   const launch = useLaunch();
   const [error, setError] = useState<ResumeFlowError | null>(null);
   const [flowId, setFlowId] = useState<string | null>(null);
-  const [flowState, setFlowState] = useState<UserFlowState | null>(null);
+  const [flowState, setFlowState] = useState<FlowInstance | null>(null);
   const [indicatorVisible, setIndicatorVisible] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const [status, setStatus] = useState<FlowStateStatus>("idle");
@@ -95,7 +95,7 @@ export function FlowResumeProvider({
     consumeResumeParam();
 
     if (!result.success) {
-      commitFlowState(result.flowState ?? null, {
+      commitFlowState(result.flowInstance ?? null, {
         error: result.error,
         indicatorVisible: false,
         redirectTo: null,
@@ -105,7 +105,7 @@ export function FlowResumeProvider({
       return result;
     }
 
-    commitFlowState(result.flowState, {
+    commitFlowState(result.flowInstance, {
       error: null,
       indicatorVisible: true,
       redirectTo: result.redirectTo,
@@ -150,7 +150,7 @@ export function FlowResumeProvider({
     return performResume(nextFlowId);
   }
 
-  function commitFlowState(state: UserFlowState | null, options: FlowStateCommitOptions = {}) {
+  function commitFlowState(state: FlowInstance | null, options: FlowStateCommitOptions = {}) {
     setError(options.error ?? null);
     setFlowId(state?.flowId ?? flowId);
     setFlowState(state);

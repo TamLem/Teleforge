@@ -1,14 +1,14 @@
 import { createContext, useContext } from "react";
 
 import type {
+  FlowInstance,
   ResolvedCoordinationConfig,
   RouteCoordinationMetadata,
-  TeleforgeManifest,
-  UserFlowState
+  TeleforgeManifest
 } from "@teleforgex/core/browser";
 
 export interface PersistFlowStateInput {
-  currentState: UserFlowState | null;
+  currentState: FlowInstance | null;
   flowId: string | null;
   payload: Record<string, unknown>;
   route: string;
@@ -27,13 +27,13 @@ export interface CoordinationContextValue {
   navigate: (route: string, options?: CoordinationNavigateOptions) => void;
   persistFlowState?: (
     input: PersistFlowStateInput
-  ) => Promise<UserFlowState | null> | UserFlowState | null;
+  ) => Promise<FlowInstance | null> | FlowInstance | null;
   resolveRouteCoordination?: (
     route: string,
     manifest: TeleforgeManifest | null
   ) => RouteCoordinationMetadata | null;
-  resolveStepRoute?: (stepId: string, state: UserFlowState | null) => string | null;
-  resolveStepState?: (route: string, state: UserFlowState | null) => string | null;
+  resolveStepRoute?: (stepId: string, state: FlowInstance | null) => string | null;
+  resolveStepState?: (route: string, state: FlowInstance | null) => string | null;
 }
 
 export const CoordinationContext = createContext<CoordinationContextValue | null>(null);

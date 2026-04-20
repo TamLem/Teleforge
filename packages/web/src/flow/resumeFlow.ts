@@ -1,8 +1,8 @@
-import type { FlowStateResolver, ResumeFlowResult, UserFlowState } from "@teleforgex/core";
+import type { FlowInstance, FlowStateResolver, ResumeFlowResult } from "@teleforgex/core";
 
 export interface ResumeFlowOptions {
   currentUserId?: number | string | null;
-  resolveRoute?: (state: UserFlowState) => string | null;
+  resolveRoute?: (state: FlowInstance) => string | null;
 }
 
 /**
@@ -13,7 +13,7 @@ export async function resumeFlow(
   resolver: FlowStateResolver,
   options: ResumeFlowOptions = {}
 ): Promise<ResumeFlowResult> {
-  let flowState: UserFlowState | null;
+  let flowState: FlowInstance | null;
 
   try {
     flowState = await resolver(flowId);
@@ -51,7 +51,7 @@ export async function resumeFlow(
   if (flowState.stepId === "completed") {
     return {
       error: "completed",
-      flowState,
+      flowInstance: flowState,
       success: false
     };
   }
@@ -61,19 +61,19 @@ export async function resumeFlow(
   if (!redirectTo) {
     return {
       error: "invalid_step",
-      flowState,
+      flowInstance: flowState,
       success: false
     };
   }
 
   return {
-    flowState,
+    flowInstance: flowState,
     redirectTo,
     success: true
   };
 }
 
-function defaultResolveRoute(state: UserFlowState): string | null {
+function defaultResolveRoute(state: FlowInstance): string | null {
   const stepId = state.stepId.trim();
 
   if (!stepId) {

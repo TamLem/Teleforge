@@ -13,9 +13,9 @@ import {
 } from "./context.js";
 
 import type {
+  FlowInstance,
   ResolvedCoordinationConfig,
-  TeleforgeManifest,
-  UserFlowState
+  TeleforgeManifest
 } from "@teleforgex/core/browser";
 
 export interface CoordinationProviderProps extends FlowResumeProviderProps {
@@ -27,7 +27,7 @@ export interface CoordinationProviderProps extends FlowResumeProviderProps {
   navigate?: (route: string, options?: { replace?: boolean }) => void;
   persistFlowState?: (
     input: PersistFlowStateInput
-  ) => Promise<UserFlowState | null> | UserFlowState | null;
+  ) => Promise<FlowInstance | null> | FlowInstance | null;
   resolveRouteCoordination?: CoordinationContextValue["resolveRouteCoordination"];
   resolveStepRoute?: CoordinationContextValue["resolveStepRoute"];
   resolveStepState?: CoordinationContextValue["resolveStepState"];
@@ -42,7 +42,7 @@ interface CoordinationBridgeProps {
   navigate?: (route: string, options?: { replace?: boolean }) => void;
   persistFlowState?: (
     input: PersistFlowStateInput
-  ) => Promise<UserFlowState | null> | UserFlowState | null;
+  ) => Promise<FlowInstance | null> | FlowInstance | null;
   resolveRouteCoordination?: CoordinationContextValue["resolveRouteCoordination"];
   resolveStepRoute?: CoordinationContextValue["resolveStepRoute"];
   resolveStepState?: CoordinationContextValue["resolveStepState"];

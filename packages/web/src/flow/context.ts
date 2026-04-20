@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-import type { ResumeFlowError, ResumeFlowResult, UserFlowState } from "@teleforgex/core";
+import type { FlowInstance, ResumeFlowError, ResumeFlowResult } from "@teleforgex/core";
 
 export type FlowStateStatus = "error" | "idle" | "resumed" | "resuming";
 
@@ -15,13 +15,13 @@ export interface FlowStateContextValue {
   clear: () => void;
   error: ResumeFlowError | null;
   flowId: string | null;
-  flowState: UserFlowState | null;
+  flowState: FlowInstance | null;
   freshStart: () => void;
   indicatorVisible: boolean;
   isResuming: boolean;
   redirectTo: string | null;
   resume: (flowId?: string) => Promise<ResumeFlowResult | null>;
-  setFlowState: (state: UserFlowState | null, options?: FlowStateCommitOptions) => void;
+  setFlowState: (state: FlowInstance | null, options?: FlowStateCommitOptions) => void;
   status: FlowStateStatus;
 }
 
