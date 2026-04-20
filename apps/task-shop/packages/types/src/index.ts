@@ -32,6 +32,7 @@ export interface OrderPayload {
 export interface TaskShopFlowState {
   cart: CartItem[];
   lastOrder: OrderPayload | null;
+  selectedTaskId: string | null;
 }
 
 export type TaskShopSubmitPayload =
@@ -57,6 +58,10 @@ export type TaskShopSubmitPayload =
     }
   | {
       type: "start-over";
+    }
+  | {
+      taskId: string;
+      type: "view-detail";
     };
 
 export const mockTasks: Task[] = [

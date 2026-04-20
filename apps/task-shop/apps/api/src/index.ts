@@ -1,18 +1,20 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { createDiscoveredServerHooksHandler } from "teleforge";
-import type { DiscoveredBotRuntime } from "teleforge";
+import type { DiscoveredBotRuntime, UserFlowStateManager } from "teleforge";
 
 export interface StartHooksServerOptions {
   cwd: string;
   onChatHandoff: DiscoveredBotRuntime["handleChatHandoff"];
+  storage: UserFlowStateManager;
   port?: number;
 }
 
 export async function startHooksServer(options: StartHooksServerOptions): Promise<void> {
   const hooksHandler = await createDiscoveredServerHooksHandler({
     cwd: options.cwd,
-    onChatHandoff: options.onChatHandoff
+    onChatHandoff: options.onChatHandoff,
+    storage: options.storage
   });
 
   const hooksPath = "/api/teleforge/flow-hooks";

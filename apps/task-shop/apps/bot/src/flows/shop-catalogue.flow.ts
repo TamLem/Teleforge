@@ -6,11 +6,6 @@ interface ShopCatalogueState {
   selectedItem: string | null;
 }
 
-interface ShopSubmitPayload {
-  itemId: string;
-  type: "complete-order";
-}
-
 export default defineFlow<ShopCatalogueState>({
   id: "shop-catalogue",
   initialStep: "catalogue",
@@ -35,7 +30,8 @@ export default defineFlow<ShopCatalogueState>({
     },
     route: "/shop",
     stepRoutes: {
-      checkout: "/shop/checkout"
+      checkout: "/shop/checkout",
+      tracking: "/shop/tracking"
     },
     title: "Shop"
   },
@@ -46,7 +42,7 @@ export default defineFlow<ShopCatalogueState>({
       actions: mockTasks.map((task) => ({
         id: task.id,
         label: `${task.title} — ${task.price}★`,
-        miniApp: { payload: { itemId: task.id } },
+        miniApp: { payload: { selectedItem: task.id } },
         to: "checkout"
       }))
     },
@@ -54,7 +50,15 @@ export default defineFlow<ShopCatalogueState>({
       type: "miniapp",
       screen: "shop.checkout",
       async onSubmit({ data, state }) {
-        const payload = data as ShopSubmitPayload;
+        const payload = data as { itemId?: string; type: string };
+        if (payload.type === "select-item" && payload.itemId) {
+          return {
+            state: {
+              ...state,
+              selectedItem: payload.itemId
+            }
+          };
+        }
         if (payload.type !== "complete-order") {
           return undefined;
         }
@@ -62,8 +66,7 @@ export default defineFlow<ShopCatalogueState>({
         return {
           state: {
             ...state,
-            orderId: `ORD-${Date.now().toString(36).toUpperCase()}`,
-            selectedItem: payload.itemId
+            orderId: `ORD-${Date.now().toString(36).toUpperCase()}`
           },
           to: "confirmed"
         };
@@ -84,14 +87,17 @@ export default defineFlow<ShopCatalogueState>({
       actions: [
         {
           label: "Track Order",
+          miniApp: { payload: {} },
           to: "tracking"
         }
-      ]
+      ],
+      miniApp: {
+        screen: "shop.tracking"
+      }
     },
     tracking: {
-      type: "chat",
-      message: ({ state }) =>
-        [`Order ${state.orderId} is being processed.`, "We'll notify you when it ships."].join("\n")
+      type: "miniapp",
+      screen: "shop.tracking"
     }
   }
 });

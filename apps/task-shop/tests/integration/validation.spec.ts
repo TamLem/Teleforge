@@ -69,7 +69,7 @@ test("bot /shop lists catalogue with web_app deep-link buttons", async () => {
     assert.equal(parsed.flowId, "shop-catalogue");
     assert.equal(parsed.stepId, "checkout");
     assert.equal(parsed.payload.route, "/shop/checkout");
-    assert.ok(parsed.payload.itemId, "Expected itemId in the signed payload.");
+    assert.ok(parsed.payload.selectedItem, "Expected selectedItem in the signed payload.");
     assert.ok(parsed.payload.stateKey, "Expected stateKey in the signed payload.");
   }
 });
@@ -209,7 +209,8 @@ test("Task Shop Mini App success step can reset back to a fresh catalog", async 
         quantity: 2,
         title: "Build Mini App Scaffold"
       }
-    ])
+    ]),
+    selectedTaskId: null
   };
 
   const result = await executeMiniAppStepSubmit({
@@ -224,7 +225,8 @@ test("Task Shop Mini App success step can reset back to a fresh catalog", async 
   assert.equal(result.routePath, "/");
   assert.deepEqual(result.state, {
     cart: [],
-    lastOrder: null
+    lastOrder: null,
+    selectedTaskId: null
   });
 });
 
@@ -239,8 +241,14 @@ test("shop-catalogue Mini App checkout submits to a chat handoff with order stat
   assert.equal(resolution.screenId, "shop.checkout");
 
   const result = await executeMiniAppStepSubmit({
-    data: { itemId: "task-001", type: "complete-order" },
-    resolution
+    data: { type: "complete-order" },
+    resolution: {
+      ...resolution,
+      state: {
+        ...resolution.state,
+        selectedItem: "task-001"
+      }
+    }
   });
 
   assert.equal(result.target, "chat");

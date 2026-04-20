@@ -69,6 +69,7 @@ export default defineScreen<TaskShopFlowState>({
               <TaskCard
                 key={task.id}
                 onAdd={() => handleSubmit({ taskId: task.id, type: "add-item" })}
+                onViewDetail={() => handleSubmit({ taskId: task.id, type: "view-detail" })}
                 task={task}
               />
             ))}

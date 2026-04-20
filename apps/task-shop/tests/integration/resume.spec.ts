@@ -42,9 +42,9 @@ test("Task Shop discovery exposes both bot flows and all migrated Mini App scree
   );
   assert.deepEqual(
     screens.map((entry) => entry.screen.id).sort(),
-    ["shop.checkout", "task-shop.cart", "task-shop.catalog", "task-shop.checkout", "task-shop.success"]
+    ["shop.checkout", "shop.tracking", "task-shop.cart", "task-shop.catalog", "task-shop.checkout", "task-shop.detail", "task-shop.success"]
   );
-  assert.equal(summaries.find((summary) => summary.id === "task-shop-browse")?.stepCount, 5);
+  assert.equal(summaries.find((summary) => summary.id === "task-shop-browse")?.stepCount, 6);
 });
 
 test("Task Shop discovery resolves flow routes to the migrated screen ids", async () => {

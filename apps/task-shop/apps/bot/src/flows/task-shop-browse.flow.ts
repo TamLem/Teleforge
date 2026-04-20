@@ -9,7 +9,8 @@ import { defineFlow } from "teleforge/web";
 
 const INITIAL_STATE: TaskShopFlowState = {
   cart: [],
-  lastOrder: null
+  lastOrder: null,
+  selectedTaskId: null
 };
 
 export default defineFlow<TaskShopFlowState, unknown>({
@@ -25,36 +26,44 @@ export default defineFlow<TaskShopFlowState, unknown>({
       text: "Welcome to Task Shop. Browse Teleforge-flavored tasks and check out from the Mini App."
     }
   },
-  miniApp: {
-    launchModes: ["inline", "compact", "fullscreen"],
-    requestWriteAccess: true,
-    returnToChat: {
-      stayInChat: true,
-      text: "Back to Task Shop chat"
-    },
-    route: "/",
-    stepRoutes: {
-      cart: "/cart",
-      checkout: "/checkout",
-      success: "/success"
-    },
-    title: "Task Shop"
-  },
-  steps: {
-    catalog: {
-      async onSubmit({ data, state }) {
-        return resolveCatalogSubmit(state, data);
+    miniApp: {
+      launchModes: ["inline", "compact", "fullscreen"],
+      requestWriteAccess: true,
+      returnToChat: {
+        stayInChat: true,
+        text: "Back to Task Shop chat"
       },
-      screen: "task-shop.catalog",
-      type: "miniapp"
-    },
-    cart: {
-      async onSubmit({ data, state }) {
-        return resolveCartSubmit(state, data);
+      route: "/",
+      stepRoutes: {
+        cart: "/cart",
+        checkout: "/checkout",
+        detail: "/detail",
+        success: "/success"
       },
-      screen: "task-shop.cart",
-      type: "miniapp"
+      title: "Task Shop"
     },
+    steps: {
+      catalog: {
+        async onSubmit({ data, state }) {
+          return resolveCatalogSubmit(state, data);
+        },
+        screen: "task-shop.catalog",
+        type: "miniapp"
+      },
+      detail: {
+        async onSubmit({ data, state }) {
+          return resolveDetailSubmit(state, data);
+        },
+        screen: "task-shop.detail",
+        type: "miniapp"
+      },
+      cart: {
+        async onSubmit({ data, state }) {
+          return resolveCartSubmit(state, data);
+        },
+        screen: "task-shop.cart",
+        type: "miniapp"
+      },
     checkout: {
       async onSubmit({ data, state }) {
         return resolveCheckoutSubmit(state, data);
@@ -109,6 +118,38 @@ function resolveCatalogSubmit(state: TaskShopFlowState, payload: unknown) {
       return {
         to: "checkout"
       };
+    case "view-detail":
+      return {
+        state: {
+          ...state,
+          selectedTaskId: data.taskId
+        },
+        to: "detail"
+      };
+    default:
+      return undefined;
+  }
+}
+
+function resolveDetailSubmit(state: TaskShopFlowState, payload: unknown) {
+  const data = payload as TaskShopSubmitPayload;
+
+  switch (data.type) {
+    case "add-item":
+      return {
+        state: {
+          ...state,
+          cart: addTaskToCart(state.cart, data.taskId)
+        }
+      };
+    case "browse":
+      return {
+        to: "catalog"
+      };
+    case "go-to-checkout":
+      return {
+        to: "checkout"
+      };
     default:
       return undefined;
   }
@@ -156,7 +197,8 @@ function resolveCheckoutSubmit(state: TaskShopFlowState, payload: unknown) {
       return {
         state: {
           cart: [],
-          lastOrder: createOrderFromCart(state.cart)
+          lastOrder: createOrderFromCart(state.cart),
+          selectedTaskId: null
         },
         to: "success"
       };
@@ -176,7 +218,8 @@ function resolveSuccessSubmit(state: TaskShopFlowState, payload: unknown) {
   return {
     state: {
       cart: [],
-      lastOrder: null
+      lastOrder: null,
+      selectedTaskId: null
     },
     to: "catalog"
   };

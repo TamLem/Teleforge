@@ -21,7 +21,8 @@ async function main() {
 
   await startHooksServer({
     cwd: botConfig.workspaceRoot,
-    onChatHandoff: (input) => runtime.handleChatHandoff(input)
+    onChatHandoff: (input) => runtime.handleChatHandoff(input),
+    storage: runtime.getStorage()
   });
 
   if (!token) {
