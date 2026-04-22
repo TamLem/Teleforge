@@ -50,16 +50,7 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:packages/types
-      '@teleforgex/bot':
-        specifier: link:../../packages/bot
-        version: link:../../packages/bot
-      '@teleforgex/core':
-        specifier: link:../../packages/core
-        version: link:../../packages/core
     devDependencies:
-      '@teleforgex/devtools':
-        specifier: link:../../packages/devtools
-        version: link:../../packages/devtools
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.0
@@ -81,6 +72,9 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.8.1
+      teleforge:
+        specifier: link:../../packages/teleforge
+        version: link:../../packages/teleforge
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
@@ -88,20 +82,39 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  apps/task-shop/apps/bot:
+  apps/task-shop/apps/api:
     dependencies:
-      '@task-shop/types':
-        specifier: workspace:*
-        version: link:../../packages/types
-      '@teleforgex/bot':
-        specifier: link:../../../../packages/bot
-        version: link:../../../../packages/bot
-      '@teleforgex/core':
-        specifier: link:../../../../packages/core
-        version: link:../../../../packages/core
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1
+      teleforge:
+        specifier: link:../../../../packages/teleforge
+        version: link:../../../../packages/teleforge
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.12.0
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  apps/task-shop/apps/bot:
+    dependencies:
+      '@task-shop/api':
+        specifier: workspace:*
+        version: link:../api
+      '@task-shop/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      dotenv:
+        specifier: ^16.6.1
+        version: 16.6.1
+      teleforge:
+        specifier: link:../../../../packages/teleforge
+        version: link:../../../../packages/teleforge
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -118,21 +131,15 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforgex/core':
-        specifier: link:../../../../packages/core
-        version: link:../../../../packages/core
-      '@teleforgex/ui':
-        specifier: link:../../../../packages/ui
-        version: link:../../../../packages/ui
-      '@teleforgex/web':
-        specifier: link:../../../../packages/web
-        version: link:../../../../packages/web
       react:
         specifier: ^18.3.1
         version: 18.3.1
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      teleforge:
+        specifier: link:../../../../packages/teleforge
+        version: link:../../../../packages/teleforge
     devDependencies:
       '@types/react':
         specifier: ^18.3.12
@@ -300,9 +307,6 @@ importers:
 
   packages/teleforge:
     dependencies:
-      '@teleforgex/bff':
-        specifier: workspace:0.1.0
-        version: link:../bff
       '@teleforgex/bot':
         specifier: workspace:0.1.0
         version: link:../bot

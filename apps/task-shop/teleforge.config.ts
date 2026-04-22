@@ -10,8 +10,6 @@ export default defineTeleforgeApp({
     root: "apps/bot/src/flows"
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite",
     build: {
       outDir: "dist",
       basePath: "/"

@@ -4,8 +4,6 @@
   "name": "Sample App",
   "version": "1.0.0",
   "runtime": {
-    "mode": "spa",
-    "webFramework": "vite",
     "build": {
       "outDir": "dist",
       "basePath": "/"

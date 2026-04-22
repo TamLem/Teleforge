@@ -20,8 +20,10 @@ export interface TeleforgeScreenComponentProps<TState = unknown> {
   transitioning?: boolean;
 }
 
-export interface TeleforgeScreenRuntimeContext<TState = unknown>
-  extends Omit<TeleforgeScreenComponentProps<TState>, "loaderData"> {
+export interface TeleforgeScreenRuntimeContext<TState = unknown> extends Omit<
+  TeleforgeScreenComponentProps<TState>,
+  "loaderData"
+> {
   serverLoaderData?: unknown;
 }
 
@@ -38,9 +40,7 @@ export interface TeleforgeScreenDefinition<TState = unknown, TLoaderData = unkno
     context: TeleforgeScreenRuntimeContext<TState>
   ) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
-  loader?: (
-    context: TeleforgeScreenRuntimeContext<TState>
-  ) => MaybePromise<TLoaderData>;
+  loader?: (context: TeleforgeScreenRuntimeContext<TState>) => MaybePromise<TLoaderData>;
   title?: string;
 }
 

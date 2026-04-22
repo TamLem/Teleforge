@@ -1,107 +1,102 @@
 # Deployment Guide
 
-This guide covers the practical path from local Teleforge development to a production-ready setup.
+This guide covers the production shape for a Teleforge app built from one framework model: bot flows, Mini App screens, and optional server hooks.
 
 ## Production Requirements
 
-Telegram-facing production deployments need:
+Telegram-facing deployments need:
 
 - a public HTTPS URL for the Mini App
-- a bot token in production environment variables
-- either polling or webhook delivery for bot updates
+- `BOT_TOKEN` in the bot runtime environment
+- either a long-running bot worker or an HTTPS webhook endpoint
+- `teleforge.config.ts` committed with the production app shape
+- server-side storage for any flow state that must survive process restarts
 
 ## Build the App
 
-For generated or example workspaces, build the app packages from the workspace root:
+From a generated workspace, build from the workspace root:
 
 ```bash
 pnpm build
 ```
 
-If you want to build individual surfaces, use the relevant app workspace:
+The Mini App is a normal frontend build. The bot runtime is a Node process that loads the same Teleforge config and discovered flows.
 
-- `pnpm --dir apps/web build`
-- your chosen bot packaging/runtime process for `apps/bot`
+Typical surface commands are:
+
+```bash
+pnpm --dir apps/web build
+pnpm --dir apps/bot build
+```
+
+Exact commands may vary by host, but the public framework contract stays the same: app authors import from `teleforge`, not from internal implementation packages.
 
 ## Host the Mini App
 
 Telegram Mini Apps must be reachable over HTTPS in production.
 
-That means:
+Deploy the web app to a stable HTTPS origin, then configure the bot/runtime to launch that URL. Use `MINI_APP_URL` when you want an environment-specific override instead of a checked-in URL.
 
-- deploy `apps/web` to a real HTTPS host
-- set the production Mini App URL accordingly
+Recommended hosting properties:
 
-Common host choices depend on your web runtime:
+- hashed static assets served with long cache headers
+- fast HTML or shell response for the first Mini App open
+- HTTPS certificate managed by the platform
+- environment variables kept server-side except for explicit public `VITE_*` client values
 
-- Vite SPA: static hosting or CDN-backed static hosting
-- Next.js/BFF: Node hosting, edge hosting, or platform-managed Next hosting
+## Run the Bot
 
-## Configure the Bot
+The bot can receive updates by polling or webhook.
 
-At minimum, production needs:
+Use polling when you want the simplest deployment:
 
-- `BOT_TOKEN`
-- `MINI_APP_URL` if your bot runtime uses it directly for `web_app` buttons
+```bash
+BOT_TOKEN=123456:token pnpm --dir apps/bot start
+```
 
-If you use webhook delivery, also configure:
+Use webhook delivery when your production platform already exposes HTTPS routes. In that setup:
 
-- `WEBHOOK_SECRET`
+- serve the configured webhook path from your bot/server runtime
+- set Telegram's webhook URL to that public HTTPS endpoint
+- set `WEBHOOK_SECRET` when your runtime validates Telegram's secret header
+- do not run polling for the same bot at the same time
 
-## Polling vs Webhook in Production
+## Server Hooks
 
-### Polling
+Server hooks are optional trusted runtime endpoints used by flow screens for guard, loader, submit, and action work that cannot be trusted to the browser.
 
-Use polling when:
+Deploy them with the runtime that owns your backend entrypoint. Treat them as Teleforge runtime endpoints, not as a separate app product that users have to assemble.
 
-- you want the simplest deployment model
-- you are comfortable running a long-lived bot worker
+Production server hooks should validate:
 
-That means:
+- Telegram launch/auth context
+- flow instance ownership
+- current step validity
+- submitted payload schemas
+- domain permissions before durable writes
 
-- run the bot process continuously
-- do **not** leave a webhook set on the bot
+## BotFather Setup
 
-### Webhook
+BotFather remains the Telegram-side control plane. Use it to:
 
-Use webhook when:
+- create the bot and obtain `BOT_TOKEN`
+- configure bot commands
+- optionally configure menu buttons or Mini App entry points
+- update production descriptions and images
 
-- your production runtime already exposes HTTP endpoints
-- you want Telegram to push updates into your app
-
-That means:
-
-- serve `/api/webhook` from your production runtime
-- set the webhook URL to your deployed HTTPS origin plus that path
-- keep the webhook secret aligned with `bot.webhook.secretEnv`
-
-## BotFather and Menu Buttons
-
-Production also usually involves BotFather configuration:
-
-- bot commands
-- optional menu button URL
-- optional Mini App entry point UX
-
-Teleforge helps with the app and bot code, but BotFather configuration is still a manual Telegram-side step.
+Teleforge owns the app runtime. BotFather owns Telegram account configuration.
 
 ## Deployment Checklist
 
 Before launch, verify:
 
-- `teleforge.app.json` matches the deployed app shape
-- `miniApp.url` or your runtime config points to the real HTTPS origin
-- bot token and webhook secret are set correctly
-- polling and webhook are not fighting each other
-- `teleforge doctor` is clean for the relevant environment assumptions
-
-## Recommended Rollout Order
-
-1. deploy the Mini App
-2. confirm the HTTPS URL is stable
-3. point the bot at the production Mini App URL
-4. choose polling or webhook
-5. validate `/start`, Mini App open, and any return-to-chat flows
+- `teleforge.config.ts` points at the deployed app shape
+- `MINI_APP_URL` or runtime config resolves to the production HTTPS Mini App
+- `BOT_TOKEN` is set only in server environments
+- polling and webhook are not both active for the same bot
+- server hooks use trusted runtime validation for durable state changes
+- `teleforge doctor` is clean for the target environment
+- `/start`, Mini App open, submit/action transitions, and any return-to-chat steps work against production URLs
 
 ## Read Next
 

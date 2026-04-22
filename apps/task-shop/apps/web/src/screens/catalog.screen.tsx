@@ -74,9 +74,7 @@ export default defineScreen<TaskShopFlowState>({
               />
             ))}
           </div>
-          {transitioning ? (
-            <TgText variant="hint">Updating your Task Shop flow…</TgText>
-          ) : null}
+          {transitioning ? <TgText variant="hint">Updating your Task Shop flow…</TgText> : null}
         </div>
       </TaskShopFrame>
     );

@@ -103,10 +103,7 @@ test("validateManifest accepts route coordination metadata", () => {
         path: "/"
       }
     ],
-    runtime: {
-      mode: "spa",
-      webFramework: "vite"
-    },
+    runtime: {},
     version: "1.0.0"
   });
 

@@ -5,8 +5,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { createDiscoveredBotRuntime } from "../dist/index.js";
-import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
+import {
+  UserFlowStateManager,
+  createDiscoveredBotRuntime,
+  createFlowStorage
+} from "../dist/index.js";
 
 async function createFixture(flows, options = {}) {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-persist-"));
@@ -45,8 +48,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -96,7 +97,11 @@ export default defineTeleforgeApp({
 }
 
 test("persistence: create instance persists initial snapshot", async () => {
-  const { runtime, storage, sent: _sent } = await createFixture({
+  const {
+    runtime,
+    storage,
+    sent: _sent
+  } = await createFixture({
     "order.flow.mjs": `import { defineFlow } from "${pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href}";
 
 export default defineFlow({
@@ -273,7 +278,11 @@ export default defineFlow({
 });
 
 test("persistence: resume/cancel/complete persist correct terminal state", async () => {
-  const { runtime, storage, sent: _sent2 } = await createFixture({
+  const {
+    runtime,
+    storage,
+    sent: _sent2
+  } = await createFixture({
     "order.flow.mjs": `import { defineFlow } from "${pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href}";
 
 export default defineFlow({

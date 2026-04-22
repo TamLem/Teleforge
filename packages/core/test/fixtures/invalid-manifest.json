@@ -2,10 +2,7 @@
   "id": "Invalid Id",
   "name": "",
   "version": "v1",
-  "runtime": {
-    "mode": "spa",
-    "webFramework": "nextjs"
-  },
+  "runtime": {},
   "bot": {
     "username": "bad",
     "webhook": {

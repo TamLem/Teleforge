@@ -1,12 +1,10 @@
-# Teleforge Troubleshooting
+# Troubleshooting
 
-This guide covers common problems developers hit while working with the current Teleforge V1 stack.
-
-It focuses on failures that are actually represented in the repo today. It does not assume hidden debug flags or unpublished tooling.
+This guide covers the current flow-first Teleforge runtime.
 
 ## Start Here
 
-Before digging into package code, run:
+Run:
 
 ```bash
 teleforge doctor
@@ -20,272 +18,146 @@ teleforge doctor --json
 teleforge doctor --fix
 ```
 
-`teleforge doctor` is the fastest way to catch:
+`teleforge doctor` checks:
 
-- missing or invalid `teleforge.app.json`
-- bot token and webhook secret wiring mistakes
-- local certificate issues
-- missing entry points or route problems
-- package version mismatches in the workspace
+- `teleforge.config.ts`
+- required environment variables
+- Mini App entry files
+- discovered routes and screens
+- local HTTPS setup
+- dependency alignment around the unified `teleforge` package
+
+## Config Fails To Load
+
+Symptoms:
+
+- `teleforge dev` fails immediately
+- doctor reports an invalid app config
+- routes or screens are missing from diagnostics
+
+Checks:
+
+- confirm `teleforge.config.ts` exists at the app root
+- confirm `flows.root` points to the directory containing `.flow.ts` files
+- confirm `miniApp.entry` points to the web entry file
+- confirm screen files export `defineScreen()`
+- confirm flows export `defineFlow()`
+
+Fixes:
+
+- run `teleforge doctor --fix` for safe `.env` and formatting fixes
+- inspect the generated scaffold for the expected shape
+- run the app from the workspace root that contains `teleforge.config.ts`
+
+## Mini App Screen Does Not Resolve
+
+Symptoms:
+
+- the Mini App shell opens but shows a missing screen or blocked screen
+- a Mini App step exists but no component renders
+- simulator diagnostics show unresolved screen metadata
+
+Checks:
+
+- the flow step has `type: "miniapp"`
+- the step has a `screen` id
+- a matching `.screen.tsx` module exports `defineScreen({ id })`
+- the screen root matches the configured Mini App conventions
+
+Fixes:
+
+- align `steps.<step>.screen` with the screen module id
+- restart `teleforge dev` after adding new files if the watcher did not pick them up
+- use Task Shop as the reference for multi-screen flows
 
 ## `initData` Validation Fails
 
 Symptoms:
 
-- BFF returns `INVALID_INIT_DATA`
-- validation fails only in one runtime
-- user context is missing even though Telegram opened the app
+- user context is missing
+- Ed25519 validation fails
+- validation passes in one runtime but not another
 
-### Check the Validation Mode
+Checks:
 
-Teleforge supports two validation paths:
+- browser code imports validation helpers from `teleforge/core/browser`
+- server-only bot-token validation stays on the server
+- real Telegram `initData` is being forwarded, not only `initDataUnsafe`
+- `botId` and public key values match the Telegram app setup
 
-- `validateInitDataBotToken()` for Node-only HMAC validation
-- `validateInitDataEd25519()` for portable WebCrypto validation using `publicKey + botId`
+Fixes:
 
-If your BFF runs outside Node:
+- use Ed25519 validation for browser-safe validation paths
+- keep bot-token HMAC validation in Node/server code
+- verify the request is not using stale Telegram auth data
 
-- do not rely on bot-token validation alone
-- configure `publicKey + botId` for Ed25519 validation
-
-Common failure codes:
-
-- `INVALID_INIT_DATA`: signature or payload is invalid
-- `MISSING_BOT_ID`: Ed25519 validation was selected without `botId`
-- `RUNTIME_UNSUPPORTED_VALIDATION`: non-Node runtime tried to use bot-token validation
-
-### Fixes
-
-- make sure the app is passing real Telegram `initData`, not only `initDataUnsafe`
-- use `botToken` validation only in Node runtimes
-- use `publicKey + botId` when you need portable validation
-- confirm the request is not using stale `auth_date` values
-
-Related docs:
-
-- [Developer Guide](./developer-guide.md)
-- [Manifest Reference](./manifest-reference.md)
-
-## `teleforge dev --public --live` or Local HTTPS Fails
+## `teleforge dev --public --live` Fails
 
 Symptoms:
 
-- local HTTPS server does not start
-- tunnel URL is missing or unreachable
+- tunnel URL is missing
 - Telegram refuses to open the Mini App URL
+- companion bot services do not receive the current public URL
 
-### Checks
+Checks:
 
-1. Run `teleforge doctor`.
-2. Confirm your manifest is valid.
-3. Confirm local ports are free.
-4. Check that your app entry point exists.
-5. If you need Telegram-facing access, confirm you are using `teleforge dev --public --live`, not only `teleforge dev`.
+- run `teleforge doctor`
+- confirm local ports are free
+- confirm `.env` contains the expected bot token
+- confirm `bot.webhook.path` is correct if webhook mode is being tested
 
-### Fixes
+Fixes:
 
-- rerun `teleforge dev --public --live` to regenerate local certs if needed
-- remove broken local cert files and rerun the command if certificate generation is corrupted
-- make sure the public URL Telegram opens matches the current HTTPS/tunnel URL
-- if the default Cloudflare quick tunnel cannot start, confirm `cloudflared` is installed or switch providers with `--tunnel-provider localtunnel` or `--tunnel-provider ngrok`
-- if webhook flows are involved, verify `bot.webhook.path` and `bot.webhook.secretEnv`
+- rerun `teleforge dev --public --live`
+- switch tunnel providers if the default provider is unavailable
+- confirm the URL sent to Telegram matches the latest tunnel URL
 
-If the issue is still unclear:
-
-```bash
-teleforge doctor --verbose
-```
-
-## Mini App Returns `500` Inside The Simulator
+## Simulator Shows A Mini App 500
 
 Symptoms:
 
-- the simulator shell loads, but the embedded Mini App shows a server error
-- opening `/<app>` through the iframe fails while the simulator chrome still works
-- the failure used to feel silent because only the iframe was broken
+- simulator chrome loads
+- the embedded Mini App route fails
+- terminal logs show upstream `5xx` responses
 
-### What Teleforge Logs Now
+Checks:
 
-When the proxied Mini App responds with `5xx`, Teleforge logs:
+- open the embedded app route directly
+- inspect `[teleforge:dev]` logs
+- inspect the underlying Vite output
 
-- the upstream request path
-- the HTTP status
-- a short response-body preview when the upstream returned text or JSON
+Fixes:
 
-Look for terminal lines prefixed with:
+- fix the upstream app error first
+- reload after changing environment or config values
+- restart the dev command after changing entry files
+
+## Bot Command Does Not Run
+
+Symptoms:
+
+- simulator chat does not respond to a command
+- a live Telegram bot ignores the command
+
+Checks:
+
+- the flow has `bot.command.command`
+- `apps/bot/src/runtime.ts` exports the discovered bot runtime used by the scaffold
+- `BOT_TOKEN` is present for live polling
+- the companion bot process started in `teleforge dev`
+
+Fixes:
+
+- run `/start` first in the simulator to confirm the runtime is active
+- inspect `teleforge dev` output for companion service startup
+- run the bot package tests or the app's bot tests
+
+## Known Test Caveat
+
+The full devtools suite has a known flaky timeout in:
 
 ```text
-[teleforge:dev]
+dev logs upstream app 500 responses for simulator app requests
 ```
 
-The simulator status panel also reports the failing HTTP status for the embedded app route.
-
-### Checks
-
-- open the embedded app route directly, usually `/__teleforge/app/`, and confirm whether it reproduces outside the iframe
-- inspect the terminal for `[teleforge:dev]` lines
-- check the underlying Vite or Next.js process output for the actual application error
-
-### Fixes
-
-- fix the upstream app error first; the simulator is only proxying it
-- if the route works directly but not in the simulator, confirm you are not relying on stale scenario state
-- reload the app after changing env or manifest values that affect the embedded route
-
-## Manifest Validation Errors
-
-Symptoms:
-
-- `teleforge dev` or `teleforge doctor` fails immediately
-- errors mention `teleforge.app.json`
-- routes or entry points are reported missing
-
-### Common Causes
-
-- `runtime.mode: "spa"` used with `webFramework: "nextjs"` or `custom`
-- `runtime.mode: "bff"` used with `webFramework: "vite"`
-- `miniApp.defaultMode` not included in `miniApp.launchModes`
-- missing `bot.username`, `bot.tokenEnv`, or `miniApp.entryPoint`
-- route paths not starting with `/`
-- route list missing entirely
-
-### Fixes
-
-- compare your manifest against [Manifest Reference](./manifest-reference.md)
-- run `teleforge doctor --fix` for safe formatting and `.env` bootstrap fixes
-- confirm all referenced files actually exist on disk
-
-## Route Guard or Launch Mode Mismatch
-
-Symptoms:
-
-- a route redirects unexpectedly
-- the app works in browser preview but not in Telegram
-- checkout or protected flows are blocked in some Telegram surfaces
-
-### Why It Happens
-
-Teleforge route access can depend on:
-
-- `routes[].launchModes`
-- `routes[].capabilities`
-- `routes[].guards`
-- the current launch context interpreted by `useLaunch()` or BFF middleware
-
-### Checks
-
-- confirm the route supports the current launch mode
-- confirm the client capability you require actually exists in the current Telegram context
-- compare direct browser preview vs Telegram Desktop/Web/Mobile behavior
-
-### Fixes
-
-- use launch modes that match the route's real requirement
-- make sure `useManifestGuard()` is reading the route definition you expect
-- for UI-only restrictions, confirm `LaunchModeBoundary` and route-level guards are not duplicating conflicting logic
-
-If you need a compact/fullscreen-only route, verify the manifest and the runtime launch mode are aligned.
-
-## Bot Token or Webhook Setup Problems
-
-Symptoms:
-
-- `/start` never reaches the bot
-- webhooks reject requests
-- `teleforge doctor` reports bot configuration failures
-
-### Checks
-
-- `BOT_TOKEN` is present in `.env`
-- the env var name matches `bot.tokenEnv`
-- `WEBHOOK_SECRET` is present if `bot.webhook.secretEnv` is configured
-- `bot.username` matches the real BotFather username
-- the Mini App URL or public URL is reachable from Telegram
-
-### Fixes
-
-- update `.env` to match the manifest instead of hardcoding token names elsewhere
-- re-run bot setup after changing URLs
-- use preview mode for local validation if live Telegram wiring is not ready yet
-
-## App Does Not Open in Telegram
-
-Symptoms:
-
-- tapping the Mini App button does nothing
-- Telegram opens a broken page
-- the browser path works but Telegram fails
-
-### Checklist
-
-- is the URL HTTPS and publicly reachable?
-- did you use `teleforge dev --public --live` rather than only `teleforge dev`?
-- does the bot send the correct Mini App URL?
-- does `MINI_APP_URL` match the URL you expect Telegram to open?
-- is the bot command or button actually wired to the current app?
-
-### Fixes
-
-- restart the HTTPS dev server and copy the current public URL
-- update environment variables that hold the public Mini App URL
-- verify the bot runtime was restarted after env changes
-
-## BFF Config or Session Problems
-
-Symptoms:
-
-- BFF route creation throws `CONFIG_INVALID`
-- protected routes fail with `UNAUTHENTICATED`
-- session exchange or refresh fails
-
-### Common Causes
-
-- missing `botToken` when creating BFF config
-- sessions enabled without a session adapter or JWT secret
-- bearer token missing on protected requests
-- Telegram auth did not validate, so no session exchange can happen
-
-### Fixes
-
-- verify your `createBffConfig()` inputs before debugging route code
-- make sure session routes are only mounted when the required session pieces are configured
-- confirm access tokens are sent on protected route calls
-
-## Mock vs Telegram Differences
-
-Symptoms:
-
-- the app works locally in browser preview but not in Telegram
-- theme or viewport behavior differs between environments
-
-### Why It Happens
-
-`teleforge dev` injects a Telegram mock overlay for fast local work. That is useful, but it is not identical to live Telegram behavior.
-
-### Fixes
-
-- verify core flows once in a real Telegram client
-- use `teleforge dev --public --live` for client-facing checks
-- keep mock-only UI actions clearly separated from Telegram-native behavior
-
-## When to Escalate From Docs to Code
-
-Documentation and doctor checks are enough when:
-
-- configuration values are missing or mismatched
-- manifest structure is invalid
-- runtime mode and framework selection are wrong
-
-Read code or tests when:
-
-- the manifest is valid but route behavior still surprises you
-- Telegram-specific behavior differs by client
-- a BFF/session flow fails even with correct configuration
-
-Good code-level starting points:
-
-- `packages/core/src/manifest/schema.ts`
-- `packages/core/src/launch/validator.ts`
-- `packages/web/src/guards/`
-- `packages/bff/src/context/`
-- `packages/devtools/src/utils/doctor/checks.ts`
+When validating unrelated work, run the focused devtools subset documented in the cleanup task and keep this timeout as a separate follow-up.

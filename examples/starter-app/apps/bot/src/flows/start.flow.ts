@@ -13,7 +13,6 @@ export default defineFlow({
     }
   },
   miniApp: {
-    component: "App",
     launchModes: ["inline", "compact", "fullscreen"],
     route: "/"
   },

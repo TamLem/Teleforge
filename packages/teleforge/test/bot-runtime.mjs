@@ -41,8 +41,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -155,8 +153,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -332,8 +328,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -482,8 +476,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -568,10 +560,11 @@ export default defineFlow({
 
   const stateKey = JSON.parse(
     Buffer.from(
-      flowContext.split(".")[1].replace(/-/g, "+").replace(/_/g, "/").padEnd(
-        Math.ceil(flowContext.split(".")[1].length / 4) * 4,
-        "="
-      ),
+      flowContext
+        .split(".")[1]
+        .replace(/-/g, "+")
+        .replace(/_/g, "/")
+        .padEnd(Math.ceil(flowContext.split(".")[1].length / 4) * 4, "="),
       "base64"
     ).toString("utf8")
   ).payload.stateKey;
@@ -619,7 +612,9 @@ export default defineFlow({
 
   const resumedDebugState = runtime.getFlowRuntimeDebugState();
   assert.ok(resumedDebugState.sessions.length >= 1);
-  const resumedSession = resumedDebugState.sessions.find((s) => s.currentStepId === "review") ?? resumedDebugState.sessions[resumedDebugState.sessions.length - 1];
+  const resumedSession =
+    resumedDebugState.sessions.find((s) => s.currentStepId === "review") ??
+    resumedDebugState.sessions[resumedDebugState.sessions.length - 1];
   assert.equal(resumedSession?.currentStepId, "review");
   assert.equal(resumedSession?.currentStepType, "chat");
   assert.equal(resumedSession?.miniApp.pendingChatHandoff, false);

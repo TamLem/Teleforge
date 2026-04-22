@@ -1,366 +1,146 @@
 # Teleforge Architecture
 
-This document describes the current Teleforge architecture as implemented in this repository.
-
-It is intentionally limited to shipped behavior. It does not describe plugin APIs, future payment abstractions, or other aspirational work that is not part of the current codebase.
+This document describes the current Teleforge architecture as a unified framework package for Telegram bot and Mini App products.
 
 ## High-Level Model
 
-Teleforge is a layered framework for Telegram-native applications.
-
-At a high level:
+Teleforge has one public authoring model:
 
 ```text
-Telegram Client
-  -> Framework-owned Mini App shell (teleforge/web)
-  -> Framework-owned discovered bot runtime (teleforge)
-  -> Optional server-hook bridge/runtime
-  -> Shared contracts and validation (@teleforgex/core)
-  -> Local iteration tooling (@teleforgex/devtools)
+teleforge.config.ts
+  -> flows
+  -> chat steps
+  -> Mini App screen steps
+  -> optional server hooks
 ```
 
-The framework is organized so that application code can share one app config and one set of flow contracts across these surfaces.
+Application authors should think in terms of product flows, not separate libraries. Internal packages still exist in this repository, but they are implementation layers behind the unified `teleforge` package.
 
-## Package Dependency Graph
+## Public Runtime Surfaces
 
-The implemented package graph is:
+The supported public imports are:
 
-```text
-@teleforgex/core
-  <- @teleforgex/web
-  <- @teleforgex/bot
-  <- @teleforgex/bff
+- `teleforge`: app config, flow definitions, discovered runtimes, shared flow state helpers
+- `teleforge/bot`: lower-level bot primitives when an app needs direct Telegram update handling
+- `teleforge/web`: Mini App runtime, screen definitions, Telegram hooks, flow bridge helpers
+- `teleforge/ui`: Telegram-aware React UI primitives
+- `teleforge/core/browser`: browser-safe launch and validation helpers
+- `teleforge/server-hooks`: trusted flow guard, loader, submit, and action bridge helpers
 
-@teleforgex/web
-  <- @teleforgex/ui
+There is no public `teleforge/bff`, `teleforge/core`, or `teleforge/devtools` subpath. Server-side backend work should be modeled as server hooks unless an internal package is being developed directly.
 
-teleforge
-  <- built on the internal layers above
+## Internal Layers
 
-create-teleforge-app
-  generates workspaces that consume the packages above
+The repository still contains internal packages that implement the framework:
 
-@teleforgex/devtools
-  depends on @teleforgex/core for manifest parsing and validation
-```
+- `packages/core`: shared schemas, launch parsing, validation, flow-state storage contracts
+- `packages/bot`: Telegram update routing and chat primitives
+- `packages/web`: Mini App hooks, flow bridge, and browser runtime helpers
+- `packages/ui`: React UI primitives built on top of the web runtime
+- `packages/bff`: internal server-side request, identity, and session primitives reused by server hooks
+- `packages/devtools`: CLI, local simulator, doctor checks, and tunnel support
+- `packages/teleforge`: the unified public package that composes the layers above
 
-Implications:
+These packages are useful for framework maintainers. App documentation should not ask users to assemble them.
 
-- `@teleforgex/core` is the source of truth for shared types and cross-surface contracts.
-- `@teleforgex/web`, `bot`, and `bff` interpret Telegram runtime concerns for their own execution surface.
-- `@teleforgex/ui` stays presentation-focused and builds on `@teleforgex/web` instead of reimplementing Telegram state handling.
+## Flow Runtime
 
-## Runtime Surfaces
+A flow owns the product state machine:
 
-Teleforge currently exposes three practical runtime surfaces.
+- `chat` steps render and progress inside the bot conversation
+- `miniapp` steps resolve to registered frontend screens
+- submit and action handlers advance the flow
+- server hooks can provide trusted guard, loader, submit, and action execution
+- `UserFlowStateManager` persists flow instances across surfaces
 
-### Mini App Runtime
+The flow instance is the authoritative state boundary between bot, Mini App, and server hook execution.
 
-The Mini App runtime lives in the browser and is now normally entered through:
+## Bot Runtime
 
-- `teleforge/web`
-- `TeleforgeMiniApp`
-- discovered screen modules in `apps/web/src/screens`
+The bot runtime is responsible for:
 
-Responsibilities:
+- loading `teleforge.config.ts`
+- discovering flow modules
+- registering bot commands from flow metadata
+- rendering chat steps
+- sending Mini App launch buttons
+- accepting `web_app_data` and structured return-to-chat handoffs
+- resuming persisted flow instances
 
-- read Telegram WebApp state
-- interpret launch mode and capabilities
-- react to theme and viewport changes
-- drive native controls like Main Button and Back Button
-- resolve flow steps to screens
-- persist Mini App continuity state
-- coordinate chat handoff and flow resume
-- optionally delegate trusted execution to server hooks
+Apps normally enter this through `createDiscoveredBotRuntime()` from `teleforge`. Lower-level primitives are available from `teleforge/bot` when a runtime needs custom Telegram routing.
 
-### Bot Runtime
+## Mini App Runtime
 
-The bot runtime lives in Node and is now normally entered through discovered flows plus the framework-owned runtime helper in `teleforge`.
+The Mini App runtime is a screen runtime, not a generic website shell.
 
-Responsibilities:
+It is responsible for:
 
-- handle commands and Telegram updates
-- respond to `web_app_data`
-- generate chat entry points into Mini Apps
-- resume or complete coordinated flows
-- accept structured Mini App handoff payloads through `web_app_data`
-- run via polling or webhook adapters
+- bootstrapping Telegram WebApp context
+- resolving the active flow instance and step
+- loading the registered screen for a Mini App step
+- running client-side loaders and bridge calls
+- submitting typed payloads back to the flow runtime
+- transitioning between Mini App screens without hard reloads where possible
+- handing control back to chat when the next flow step is a chat step
 
-### Optional Server-Hook Runtime
+Screens are registered with `defineScreen()` from `teleforge/web`. The app shell is normally `TeleforgeMiniApp`.
 
-The server-side runtime is optional and should be thought of as server hooks, not as a separate user-facing app mode.
+## Server Hooks
 
-Today it is built from:
+Server hooks are optional trusted runtime endpoints. Use them when the browser cannot be the authority for a flow step.
 
-- convention-discovered hook modules in `apps/api`
-- a framework-owned server-hook bridge in `teleforge`
-- lower-level request/session/identity helpers in `@teleforgex/bff` when needed
+They are responsible for:
 
-Responsibilities:
+- server-side guard decisions
+- trusted loader data
+- trusted submit/action handlers
+- identity and ownership validation
+- domain service calls and durable writes
 
-- execute trusted guards and loaders
-- execute trusted submit/action handlers
-- validate Telegram identity server-side where needed
-- enforce launch-mode/auth/session constraints where needed
-- invoke downstream services through adapters
+The public API is `teleforge/server-hooks`. Internal request/session/identity helpers may be implemented in `packages/bff`, but that package is not the product model.
 
-## App Config as Source of Truth
+## Config and Discovery
 
-`teleforge.config.ts` is now the primary app definition used across the stack.
+`teleforge.config.ts` drives:
 
-It drives:
-
-- flow roots and conventions
-- bot metadata
-- Mini App launch modes
-- route definitions and guards
+- app identity
+- flow discovery root
+- bot username and webhook metadata
+- Mini App entry and launch defaults
 - devtools validation
 
-In practice, the manifest is consumed by:
+Discovery conventions connect the surfaces:
 
-- the scaffold generator
-- `teleforge dev` and `teleforge doctor`
-- `teleforge.config.ts` loading and route derivation
-- core schema validation
-- route/guard logic in app code
+- flows: `apps/bot/src/flows/*.flow.ts`
+- flow handlers: `apps/bot/src/flow-handlers/{flowId}/{stepId}.ts`
+- server hooks: `apps/bot/src/flow-server-hooks/{flowId}/{stepId}.ts`
+- screens: `apps/web/src/screens/*.screen.tsx`
 
-The config is then converted into manifest/runtime metadata internally where older layers still need it.
+Route and launch metadata are derived from flows and screens. App authors should not manually keep a second manifest in sync.
 
-## Core Contracts
+## Local Tooling
 
-`@teleforgex/core` defines the contracts shared across the framework.
+The `teleforge` CLI provides:
 
-### Launch Context
+- `teleforge dev` for local Mini App and simulator development
+- `teleforge dev --public --live` for tunnel-backed Telegram testing
+- `teleforge mock` for standalone Telegram context simulation
+- `teleforge doctor` for config and environment checks
 
-Core parses Telegram launch inputs into a normalized launch context that the Mini App and BFF layers can use consistently.
+The CLI is shipped through the unified `teleforge` package even though its implementation lives in `packages/devtools`.
 
-This includes:
+## Reference Apps
 
-- launch mode
-- Telegram platform
-- capability flags
-- `startapp` or deep-link entry information
+Use [`examples/starter-app`](../examples/starter-app/README.md) for the smallest working app.
 
-### Validation
+Use [`apps/task-shop`](../apps/task-shop/README.md) for the full reference flow with chat/Mini App coordination, persisted state, server bridge usage, and screen runtime patterns.
 
-Core owns `initData` validation primitives:
+## Non-Goals
 
-- bot-token validation for Node runtimes
-- Ed25519 validation for portable WebCrypto runtimes
+The current architecture does not claim:
 
-This keeps security-sensitive parsing and signature handling out of app code.
-
-### Flow State
-
-Core also owns the V1 `UserFlowState` contract used for chat/Mini App continuity.
-
-That contract is intentionally minimal in V1 and stores:
-
-- flow identity
-- current step
-- payload snapshot
-- creation/expiry timestamps
-- optimistic version
-- optional chat ID
-
-Higher-level resume behavior is built on top of this contract rather than embedding application-specific workflow logic into core.
-
-## Mini App Layer
-
-The Mini App layer is split between raw runtime hooks and UI primitives.
-
-### `@teleforgex/web`
-
-This package is responsible for:
-
-- Telegram SDK access
-- SSR-safe defaults
-- launch/capability interpretation
-- route guards
-- flow resume and return-to-chat helpers
-
-Typical low-level entry points are:
-
-- `useTelegram()`
-- `useLaunch()`
-- `useTheme()`
-- `useMainButton()`
-- `useManifestGuard()`
-- `useRouteGuard()`
-
-### `@teleforgex/ui`
-
-This package sits on top of `@teleforgex/web` and converts Telegram state into reusable React UI primitives.
-
-Responsibilities:
-
-- viewport-aware shells
-- theme-aware cards, text, inputs, and buttons
-- view-level launch-mode boundaries
-- settings-style rows and native-feeling controls
-
-It does not own Telegram data or security logic. It consumes them.
-
-## Bot Layer
-
-`@teleforgex/bot` owns Telegram update handling and the bot-facing half of coordinated flows.
-
-Key responsibilities:
-
-- middleware-capable routing
-- command registration and dispatch
-- typed `web_app_data` parsing
-- default reply helpers
-- webhook handler adapters
-
-The bot layer is where chat-native entry points usually start. It can:
-
-- send users into a Mini App
-- receive structured payloads back
-- reconnect users to saved flows
-
-## Server Layer
-
-`@teleforgex/bff` still provides the current Telegram-aware backend implementation surface, but the public framework model should be read as optional server hooks rather than a visible `BFF mode`.
-
-Its architecture has four main parts:
-
-### Route Definition
-
-`defineBffRoute()` captures route metadata such as:
-
-- method
-- path
-- auth requirements
-- launch-mode requirements
-- service or handler execution style
-- optional completion behavior
-
-### Request Context
-
-`createBffRequestContext()` normalizes inbound request state into one object containing:
-
-- headers and body accessors
-- Telegram launch metadata
-- parsed `initData`
-- auth/session state
-- response state helpers
-
-This avoids scattering Telegram request parsing through route code.
-
-The normalized launch context can also surface a short-lived `tfPhoneAuth` token when a bot launches the Mini App through the shared phone-auth flow.
-
-### Middleware
-
-Built-in middleware handles:
-
-- auth enforcement
-- launch-mode enforcement
-- cache wrappers
-- execution timeouts
-- identity resolution
-- session validation
-
-### Adapters and Sessions
-
-Service adapters let BFF routes proxy or orchestrate downstream services, while session helpers manage exchange, refresh, and revoke flows for app sessions derived from resolved Teleforge identity.
-
-### Identity Manager
-
-Teleforge BFF identity now centers on a provider-backed identity manager.
-
-That manager:
-
-- receives the current Telegram-authenticated request context
-- runs one or more identity providers in order
-- resolves or auto-creates an application user
-- feeds the resulting identity into session exchange
-
-Built-in providers cover:
-
-- Telegram user id
-- Telegram username
-- signed phone-auth token exchange
-- custom app-defined resolution logic
-
-This keeps identity policy explicit and composable instead of hard-coding one lookup strategy into the framework.
-
-## Flow Coordination Architecture
-
-One of Teleforge's most specific V1 features is chat-to-Mini-App coordination.
-
-The architecture spans packages:
-
-```text
-@teleforgex/core
-  -> route coordination metadata
-  -> signed flow context
-  -> flow-state contract
-
-@teleforgex/web
-  -> CoordinationProvider
-  -> FlowResumeProvider
-  -> returnToChat / completeFlow / resumeFlow
-
-@teleforgex/bot
-  -> chat primitives
-  -> web_app_data handling
-  -> return/completion templates
-```
-
-Typical lifecycle:
-
-1. A bot command opens the Mini App.
-2. The Mini App receives launch context and optional signed flow metadata.
-3. `CoordinationProvider` and `FlowResumeProvider` reconstruct or persist flow state.
-4. The user completes a step in the Mini App.
-5. The result is returned to chat, transmitted to a BFF endpoint, or sent through `web_app_data` depending on the flow.
-6. The bot or app resumes from the saved flow state if needed later.
-
-The reference implementation for this lifecycle is `apps/task-shop`.
-
-## Local Tooling Architecture
-
-`@teleforgex/devtools` is not part of application runtime, but it is part of the framework architecture because it understands the manifest and the development workflow.
-
-It provides:
-
-- `teleforge dev` for local web development with Telegram mock injection
-- `teleforge dev --public --live` for HTTPS and tunnel-based Telegram testing
-- `teleforge mock` for standalone Telegram environment simulation
-- `teleforge doctor` for environment and manifest diagnostics
-
-This means local iteration is aligned with the same manifest and launch model as the runtime packages.
-
-## Reference Applications
-
-The repo contains two important reference applications.
-
-### `examples/starter-app`
-
-Use this when you need:
-
-- the smallest working Teleforge app
-- one Mini App screen
-- one `/start` bot command
-- a minimal mock-friendly workflow
-
-### `apps/task-shop`
-
-Use this when you need to understand:
-
-- full chat/Mini App coordination
-- resumable flow state
-- typed order payloads
-- route protection and checkout flow
-
-## What This Architecture Does Not Claim
-
-This document intentionally does not describe:
-
-- a plugin loading system
-- a general payments abstraction
-- observability infrastructure beyond what is already in the repo
-- deployment presets beyond the current build/release setup
-
-Those areas were discussed in planning but are not part of the implemented V1 architecture described here.
+- a generic website framework
+- a low-code page builder
+- a public split-package assembly model
+- a public BFF app mode
+- backward compatibility with removed legacy manifest paths

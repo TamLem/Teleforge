@@ -41,7 +41,9 @@ export async function handleMiniAppReturnData(
 
   const instance = await storage.getInstance(payload.stateKey);
   if (!instance) {
-    const error = new Error("Mini App return payload references an expired or missing flow instance.");
+    const error = new Error(
+      "Mini App return payload references an expired or missing flow instance."
+    );
     await handlers.onError(null, error);
     await context.answer("Flow expired before return");
     return true;

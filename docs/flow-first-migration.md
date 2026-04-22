@@ -158,6 +158,8 @@ This should be reflected in the remaining slices, especially screen resolution a
 
 The important constraint is that this should remain one default runtime behavior, not a user-facing render-mode matrix.
 
+For the complete set of frontend architecture rules, see [Mini App Architecture Guidelines](./miniapp-architecture.md).
+
 ### 4. Add an explicit runtime bridge/server layer
 
 The migration plan should treat Mini App execution as a bridge-backed runtime when server authority is required, not as direct screen-to-database glue.
@@ -720,16 +722,16 @@ Planned sub-slices:
 
 The main conceptual replacements are:
 
-| Current V1                                        | V2 target                                                      |
-| ------------------------------------------------- | -------------------------------------------------------------- |
-| `teleforge.app.json`                              | `teleforge.config.ts`                                          |
-| package-oriented mental model                     | framework-oriented mental model                                |
-| `createBotRuntime()` + command registration       | discovered framework runtime from flow definitions             |
-| `CoordinationProvider` as an app integration step | framework-owned flow execution                                 |
-| raw web routes/pages as the product model         | screen runtime hosted by framework-owned route entrypoints     |
-| SPA vs Next.js vs BFF mode choice                 | one default Teleforge app model                                |
-| `defineBffRoute()` as an entry concept            | optional server hook/runtime bridge derived from flows         |
-| scaffolded manual wiring                          | scaffolded framework conventions                               |
+| Current V1                                        | V2 target                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| `teleforge.app.json`                              | `teleforge.config.ts`                                      |
+| package-oriented mental model                     | framework-oriented mental model                            |
+| `createBotRuntime()` + command registration       | discovered framework runtime from flow definitions         |
+| `CoordinationProvider` as an app integration step | framework-owned flow execution                             |
+| raw web routes/pages as the product model         | screen runtime hosted by framework-owned route entrypoints |
+| SPA vs Next.js vs BFF mode choice                 | one default Teleforge app model                            |
+| `defineBffRoute()` as an entry concept            | optional server hook/runtime bridge derived from flows     |
+| scaffolded manual wiring                          | scaffolded framework conventions                           |
 
 ## Acceptance Criteria
 

@@ -1,6 +1,6 @@
 # Flow-First Developer Experience
 
-This document describes a direction for Teleforge's next developer experience. It is not a description of the current Teleforge V1 implementation.
+This document describes Teleforge's flow-first developer experience direction and the current implementation status of that framework model.
 
 The goal is to make Teleforge feel like a unified framework instead of a collection of packages that developers assemble by hand.
 
@@ -17,7 +17,7 @@ Instead of starting from package boundaries or runtime topology choices, develop
 
 ## Why This Direction
 
-Today, Teleforge V1 is strongest when the developer already understands:
+The older package-first model was strongest when the developer already understood:
 
 - which package owns which concern
 - how chat opens a Mini App
@@ -169,15 +169,15 @@ It should also present one default Mini App model to the user.
 
 The app author should not need to choose between:
 
-- a "SPA mode"
-- a "Next.js mode"
-- a "BFF mode"
+- a standalone single-page-app product mode
+- a framework-specific frontend product mode
+- a separate backend-product mode
 
-Those are implementation details or legacy repo concepts, not the intended V2 authoring model.
+Those are implementation details or removed repo concepts, not the public authoring model.
 
-## Relationship to V1
+## Current Migration Status
 
-Teleforge V1 already contains building blocks for this direction:
+Teleforge already contains building blocks for this direction:
 
 - coordinated flow state
 - bot-side Mini App launch helpers
@@ -188,7 +188,7 @@ The problem is not that the pieces do not exist. The problem is that developers 
 
 The flow-first direction reframes those pieces behind one framework model.
 
-Current migration progress already reflects part of this direction:
+Current migration progress reflects this direction:
 
 - shared `defineFlow()` definitions can now be used on bot and Mini App surfaces
 - Mini App screens can be registered through `defineScreen()`
@@ -202,12 +202,15 @@ Current migration progress already reflects part of this direction:
 - optional server hooks now support trusted actor and flow-ownership enforcement when apps need authoritative execution
 - runtime continuity state (route/step/stateKey plus handoff/resume status) is now exposed in simulator diagnostics
 - the starter app and generated scaffold are converging on one default Mini App shape instead of separate public mode choices
+- `teleforge.config.ts` is now the supported app config path
+- the public unified package no longer exposes internal `teleforge/bff`, `teleforge/core`, or `teleforge/devtools` subpaths
+- Task Shop runtime code now imports the unified public package surfaces instead of internal implementation packages
 
 Current implementation status:
 
-- the framework path is ahead of the complex-app migration path
-- `apps/task-shop` is now the active proving ground for whether this DX works on a real app
-- the working tree now contains a substantial Task Shop conversion to `teleforge.config.ts`, discovered flows, discovered screens, and framework-owned runtime wiring
+- the framework path and Task Shop reference app now share the same unified-package direction
+- `apps/task-shop` remains the active proving ground for whether this DX works on a real app
+- Task Shop has been converted to `teleforge.config.ts`, discovered flows, discovered screens, and framework-owned runtime wiring
 - the browser-safe/runtime-split cleanup has landed: browser Mini App code can stay on `teleforge/web`, while server flow-hook execution is exposed separately through `teleforge/server-hooks`
 - the current migrated slice now passes both framework and app-level verification
 

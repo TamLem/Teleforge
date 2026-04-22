@@ -84,7 +84,9 @@ function printHelp(): void {
   output.write(`  -h, --help                    Show help\n`);
 }
 
-async function promptForMissing(options: CliOptions): Promise<Required<Pick<CliOptions, "targetDir">>> {
+async function promptForMissing(
+  options: CliOptions
+): Promise<Required<Pick<CliOptions, "targetDir">>> {
   if (options.yes) {
     if (!options.targetDir) {
       throw new Error("Project name is required when using --yes.");

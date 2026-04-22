@@ -12,7 +12,11 @@ export default defineScreen<TaskShopFlowState>({
       <TaskShopFrame
         actions={
           runAction ? (
-            <TgButton onClick={() => void runAction("return-to-chat")} size="sm" variant="secondary">
+            <TgButton
+              onClick={() => void runAction("return-to-chat")}
+              size="sm"
+              variant="secondary"
+            >
               Return to chat
             </TgButton>
           ) : null
@@ -46,10 +50,7 @@ export default defineScreen<TaskShopFlowState>({
                 Start over
               </TgButton>
               {runAction ? (
-                <TgButton
-                  onClick={() => void runAction("return-to-chat")}
-                  variant="secondary"
-                >
+                <TgButton onClick={() => void runAction("return-to-chat")} variant="secondary">
                   Send summary to chat
                 </TgButton>
               ) : null}

@@ -266,10 +266,21 @@ async function checkTeleforgeDependencies(
     }
   }
 
-  const usesUnifiedPackage = discoveredPackages.has("teleforge");
-  const requiredPackages = usesUnifiedPackage
-    ? ["teleforge"]
-    : determineRequiredTeleforgePackages(manifest);
+  const legacyPackages = [...discoveredPackages.keys()].filter((name) =>
+    name.startsWith("@teleforgex/")
+  );
+  if (legacyPackages.length > 0) {
+    return {
+      category: "Environment",
+      details: legacyPackages.map((name) => `Remove ${name}`),
+      message: "Split Teleforge workspace packages are no longer supported in app manifests.",
+      name: "teleforge_dependencies",
+      remediation: "Depend on the unified `teleforge` package only.",
+      status: "error"
+    };
+  }
+
+  const requiredPackages = determineRequiredTeleforgePackages(manifest);
   const missingPackages = requiredPackages.filter((name) => !discoveredPackages.has(name));
   if (missingPackages.length > 0) {
     return {
@@ -313,8 +324,7 @@ async function checkTeleforgeDependencies(
       category: "Environment",
       message: "No Teleforge dependencies were found in the project package manifests.",
       name: "teleforge_dependencies",
-      remediation:
-        "Install the Teleforge framework package in your app, or add the required Teleforge workspace dependencies.",
+      remediation: "Install the unified Teleforge framework package in your app.",
       status: "error"
     };
   }
@@ -437,7 +447,7 @@ async function checkManifestConsistency(
     }
   }
 
-  if (manifest.runtime.mode === "bff" && manifest.runtime.apiRoutes) {
+  if (manifest.runtime.apiRoutes) {
     const apiRoutesPath = path.resolve(cwd, manifest.runtime.apiRoutes);
     if (!(await pathExists(apiRoutesPath))) {
       issues.push(`Runtime API routes directory not found: ${manifest.runtime.apiRoutes}`);
@@ -873,18 +883,8 @@ async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifes
   return manifests;
 }
 
-function determineRequiredTeleforgePackages(manifest: TeleforgeManifest | undefined): string[] {
-  const required = new Set<string>(["@teleforgex/core", "@teleforgex/web"]);
-
-  if (manifest?.bot) {
-    required.add("@teleforgex/bot");
-  }
-
-  if (manifest?.runtime.mode === "bff") {
-    required.add("@teleforgex/bff");
-  }
-
-  return [...required];
+function determineRequiredTeleforgePackages(_manifest: TeleforgeManifest | undefined): string[] {
+  return ["teleforge"];
 }
 
 function extractMajorVersion(version: string): number | undefined {

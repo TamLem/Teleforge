@@ -5,8 +5,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { createDiscoveredBotRuntime } from "../dist/index.js";
-import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
+import {
+  UserFlowStateManager,
+  createDiscoveredBotRuntime,
+  createFlowStorage
+} from "../dist/index.js";
 
 async function createFixture(flows, options = {}) {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-cross-surface-"));
@@ -45,8 +48,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `

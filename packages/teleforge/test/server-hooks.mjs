@@ -6,6 +6,8 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import {
+  UserFlowStateManager,
+  createFlowStorage,
   createDiscoveredServerHooksHandler,
   createFetchMiniAppServerBridge,
   defineFlow,
@@ -15,7 +17,6 @@ import {
   loadMiniAppScreenRuntime,
   resolveMiniAppScreen
 } from "../dist/index.js";
-import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
 import {
   createDiscoveredServerHooksHandler as createHandlerFromSubpath,
   createFetchMiniAppServerBridge as createBridgeFromSubpath,
@@ -396,8 +397,6 @@ export default defineTeleforgeApp({
     serverHooksRoot: "apps/api/src/flow-hooks"
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   },
   bot: {
     tokenEnv: "BOT_TOKEN",

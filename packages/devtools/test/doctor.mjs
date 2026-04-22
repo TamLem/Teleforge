@@ -96,8 +96,7 @@ test("doctor --json emits machine-readable diagnostics and exits non-zero on err
 test("doctor reports conflicting Teleforge dependency majors", async () => {
   const projectDir = await createDoctorFixture({
     dependencyVersions: {
-      "@teleforgex/bot": "^0.1.0",
-      "@teleforgex/core": "^0.1.0",
+      teleforge: "^0.1.0",
       "@teleforgex/web": "^2.0.0"
     }
   });
@@ -146,13 +145,10 @@ test("doctor fails the node-version check below Node 18", async () => {
 });
 
 async function createDoctorFixture(options = {}) {
-  const configFile = options.configFile ?? false;
+  const configFile = options.configFile ?? true;
   const envFile = options.envFile ?? true;
   const dependencyVersions = options.dependencyVersions ?? {
-    "@teleforgex/bot": "^0.1.0",
-    "@teleforgex/core": "^0.1.0",
-    "@teleforgex/devtools": "^0.1.0",
-    "@teleforgex/web": "^0.1.0"
+    teleforge: "^0.1.0"
   };
   const minifiedManifest = options.minifiedManifest ?? false;
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-doctor-"));
@@ -161,10 +157,7 @@ async function createDoctorFixture(options = {}) {
     id: "doctor-fixture",
     name: "Doctor Fixture",
     version: "1.0.0",
-    runtime: {
-      mode: "spa",
-      webFramework: "vite"
-    },
+    runtime: {},
     bot: {
       username: "doctor_fixture_bot",
       tokenEnv: "BOT_TOKEN",
@@ -251,12 +244,6 @@ async function createDoctorFixture(options = {}) {
     await writeFile(
       path.join(tempRoot, "teleforge.config.ts"),
       minifiedManifest ? configSource : `${configSource}\n`,
-      "utf8"
-    );
-  } else {
-    await writeFile(
-      path.join(tempRoot, "teleforge.app.json"),
-      minifiedManifest ? JSON.stringify(manifest) : `${JSON.stringify(manifest, null, 2)}\n`,
       "utf8"
     );
   }

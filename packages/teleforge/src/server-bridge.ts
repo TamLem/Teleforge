@@ -57,9 +57,7 @@ export interface TeleforgeMiniAppServerBridge {
   action(input: TeleforgeMiniAppServerActionInput): Promise<void | FlowTransitionResult<unknown>>;
   chatHandoff(input: TeleforgeMiniAppServerChatHandoffInput): Promise<void>;
   load(input: TeleforgeMiniAppServerLoadInput): Promise<TeleforgeMiniAppServerLoadResult>;
-  submit(
-    input: TeleforgeMiniAppServerSubmitInput
-  ): Promise<void | FlowTransitionResult<unknown>>;
+  submit(input: TeleforgeMiniAppServerSubmitInput): Promise<void | FlowTransitionResult<unknown>>;
 }
 
 export interface CreateFetchMiniAppServerBridgeOptions {
@@ -120,7 +118,9 @@ export function createFetchMiniAppServerBridge(
     action: async (
       input: TeleforgeMiniAppServerActionInput
     ): Promise<void | FlowTransitionResult<unknown>> => {
-      const payload = await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "action" }>>(
+      const payload = await postServerHookRequest<
+        Extract<TeleforgeServerHookResponse, { kind: "action" }>
+      >(
         fetchImpl,
         basePath,
         {
@@ -131,10 +131,11 @@ export function createFetchMiniAppServerBridge(
       );
       return payload.result;
     },
-    chatHandoff: async (
-      input: TeleforgeMiniAppServerChatHandoffInput
-    ): Promise<void> => {
-      console.log("[teleforge:server-bridge] chatHandoff request:", { basePath, stepId: input.stepId });
+    chatHandoff: async (input: TeleforgeMiniAppServerChatHandoffInput): Promise<void> => {
+      console.log("[teleforge:server-bridge] chatHandoff request:", {
+        basePath,
+        stepId: input.stepId
+      });
       await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "chatHandoff" }>>(
         fetchImpl,
         basePath,
@@ -149,7 +150,9 @@ export function createFetchMiniAppServerBridge(
     load: async (
       input: TeleforgeMiniAppServerLoadInput
     ): Promise<TeleforgeMiniAppServerLoadResult> => {
-      const payload = await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "load" }>>(
+      const payload = await postServerHookRequest<
+        Extract<TeleforgeServerHookResponse, { kind: "load" }>
+      >(
         fetchImpl,
         basePath,
         {
@@ -163,7 +166,9 @@ export function createFetchMiniAppServerBridge(
     submit: async (
       input: TeleforgeMiniAppServerSubmitInput
     ): Promise<void | FlowTransitionResult<unknown>> => {
-      const payload = await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "submit" }>>(
+      const payload = await postServerHookRequest<
+        Extract<TeleforgeServerHookResponse, { kind: "submit" }>
+      >(
         fetchImpl,
         basePath,
         {

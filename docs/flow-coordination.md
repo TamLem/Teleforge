@@ -1,145 +1,256 @@
-# Flow Coordination
+# Flow Coordination (V2)
 
-Flow coordination is Teleforge's main differentiator: a user starts in chat, continues in the Mini App, and returns to chat with structured state instead of a one-off callback.
+Flow coordination is Teleforge's main differentiator: a user starts in chat, continues in the Mini App, and returns to chat with structured state persisted across surfaces.
 
-This guide walks through that lifecycle using `apps/task-shop`.
+This guide walks through the V2 flow-first architecture using `apps/task-shop`.
+
+## Core Mental Model
+
+```
+flow → step → screen → transition
+```
+
+- **Flow** defines the state machine: initial step, state shape, and step transitions
+- **Step** is a node in the flow: either `type: "chat"` (message with buttons) or `type: "miniapp"` (screen)
+- **Screen** is a React component registered by ID that renders a miniapp step
+- **Transition** is a state update + optional step change, triggered by submit or action
 
 ## The Lifecycle
 
 The coordinated flow in Task Shop is:
 
-1. user sends `/start` in chat
-2. bot opens the Mini App with signed flow context
-3. Mini App restores or persists flow state while the user moves through routes
-4. Mini App completes the flow and returns data
-5. bot validates the return payload and replies in chat
+1. User sends `/start` in chat → bot creates a `FlowInstance`
+2. Bot sends a Mini App button with signed flow context URL
+3. Mini App opens, resolves screen from URL, loads persisted state
+4. User navigates screens, submits data → flow `onSubmit` handlers run
+5. Final step targets `chat` → Mini App transmits handoff to bot
+6. Bot renders chat step message with confirmation and next actions
 
-## 1. Define the Flow Contract
+## 1. Define the Flow
 
-Start in [coordination.ts](/home/aj/hustle/tmf/apps/task-shop/apps/web/src/coordination.ts).
+Open [`apps/task-shop/apps/bot/src/flows/task-shop-browse.flow.ts`](../../apps/task-shop/apps/bot/src/flows/task-shop-browse.flow.ts).
+
+```ts
+export default defineFlow<TaskShopFlowState>({
+  id: "task-shop-browse",
+  initialStep: "catalog",
+  finalStep: "completed",
+  state: { cart: [], lastOrder: null, selectedTaskId: null },
+  bot: {
+    command: {
+      command: "start",
+      description: "Open the Task Shop Mini App",
+      text: "Welcome to Task Shop..."
+    }
+  },
+  miniApp: {
+    route: "/",
+    stepRoutes: {
+      cart: "/cart",
+      checkout: "/checkout",
+      detail: "/detail",
+      success: "/success"
+    }
+  },
+  steps: {
+    catalog: {
+      screen: "task-shop.catalog",
+      type: "miniapp",
+      async onSubmit({ data, state }) {
+        // Handle add-item, view-detail, go-to-cart, go-to-checkout
+      }
+    },
+    checkout: {
+      screen: "task-shop.checkout",
+      type: "miniapp",
+      async onSubmit({ data, state }) {
+        if (data.type === "complete-order") {
+          return {
+            state: { ...state, cart: [], lastOrder: createOrderFromCart(state.cart) },
+            to: "success"
+          };
+        }
+      }
+    },
+    success: {
+      screen: "task-shop.success",
+      type: "miniapp"
+      // actions array defines "return-to-chat" button
+    },
+    completed: {
+      type: "chat",
+      message: ({ state }) => `Order confirmed! Total: ${state.lastOrder?.total} Stars`
+    }
+  }
+});
+```
 
 This file defines:
 
-- the flow ID: `task-shop-browse`
-- the steps: `catalog`, `cart`, `checkout`, `completed`
-- the default return-to-chat behavior
-- which routes and commands enter the flow
-
-This is the best place to learn the shape of a coordinated app before reading UI code.
+- The flow ID: `task-shop-browse`
+- The state shape: `TaskShopFlowState`
+- The steps and their types (`miniapp` or `chat`)
+- The `onSubmit` handlers that process Mini App submissions
+- The bot command that enters the flow
+- The Mini App routes for each step
 
 ## 2. Enter the Flow from the Bot
 
-Open [start.ts](/home/aj/hustle/tmf/apps/task-shop/apps/bot/src/commands/start.ts).
+Open [`apps/task-shop/apps/bot/src/index.ts`](../../apps/task-shop/apps/bot/src/index.ts).
 
-The key call is `initiateCoordinatedFlow(...)`.
+The bot uses `createDiscoveredBotRuntime` which automatically:
 
-That command does more than send a plain `web_app` button:
+1. Discovers all `.flow.ts` files in `apps/bot/src/flows/`
+2. Registers bot commands from each flow's `bot.command` definition
+3. Creates a `UserFlowStateManager` with configured storage
+4. Binds update handlers for commands, callbacks, and `web_app_data`
 
-- creates flow metadata
-- stores user and step information
-- signs the return contract
-- sends a Mini App button tied to that flow
+When the user sends `/start`:
 
-This is the bot-side entry point for coordination.
+```ts
+// Framework automatically:
+// 1. storage.startInstance(userId, flowId, initialStep, initialState, chatId)
+// 2. Creates signed flow context URL with stateKey
+// 3. Sends Mini App button with the signed URL
+```
 
-## 3. Wrap the Mini App in Coordination Providers
+The chat button's `web_app.url` contains:
 
-Open [App.tsx](/home/aj/hustle/tmf/apps/task-shop/apps/web/src/App.tsx).
+```
+https://app.ngrok.app?tgWebAppStartParam=tfp1.{signedPayload}
+```
 
-The outer `CoordinationProvider` is the center of the web-side integration.
+The signed payload includes: `flowId`, `stepId`, `stateKey`, `route`, and any `miniApp.payload` from the action.
 
-It handles:
+## 3. Register Screens in the Mini App
 
-- current route tracking
-- flow snapshot persistence
-- resume behavior
-- fresh-start behavior when a flow is missing or expired
+Open [`apps/task-shop/apps/web/src/main.tsx`](../../apps/task-shop/apps/web/src/main.tsx).
 
-That file is also where the app maps resumed flow state back into local cart state and route navigation.
+```tsx
+import { TeleforgeMiniApp, createFetchMiniAppServerBridge } from "teleforge/web";
 
-## 4. Persist and Resume Flow State
+const serverBridge = createFetchMiniAppServerBridge();
 
-Open [flowResume.ts](/home/aj/hustle/tmf/apps/task-shop/apps/web/src/flowResume.ts).
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <TeleforgeMiniApp
+    flows={[taskShopBrowseFlow, shopCatalogueFlow]}
+    screens={[catalogScreen, cartScreen, checkoutScreen, successScreen, taskDetailScreen]}
+    serverBridge={serverBridge}
+  />
+);
+```
 
-This file is the local storage adapter for the coordinated flow.
+The `TeleforgeMiniApp` shell:
 
-It shows how Task Shop:
+1. Resolves the current pathname to a flow step using `resolveMiniAppScreen`
+2. Loads persisted state from the server bridge
+3. Merges launch payload (e.g., `selectedItem` from chat button) into state
+4. Renders the matching screen component with `state`, `submit`, `transitioning` props
 
-- stores a `UserFlowState`
-- assigns expiry
-- restores snapshots
-- maps flow step IDs back to routes
+## 4. Implement a Screen
 
-That means the web app can recover useful state even after reloads or navigation changes.
+Open [`apps/task-shop/apps/web/src/screens/catalog.screen.tsx`](../../apps/task-shop/apps/web/src/screens/catalog.screen.tsx).
 
-## 5. Complete the Flow from the Mini App
+```tsx
+export default defineScreen<TaskShopFlowState>({
+  id: "task-shop.catalog",
+  title: "Browse Tasks",
+  component({ state, submit, transitioning }) {
+    const handleSubmit = (payload: TaskShopSubmitPayload) => void submit?.(payload);
 
-Open [CheckoutPage.tsx](/home/aj/hustle/tmf/apps/task-shop/apps/web/src/pages/CheckoutPage.tsx).
+    return (
+      <TaskShopFrame title="Task Shop">
+        <div className="catalog-grid">
+          {mockTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              onAdd={() => handleSubmit({ taskId: task.id, type: "add-item" })}
+              onViewDetail={() => handleSubmit({ taskId: task.id, type: "view-detail" })}
+              task={task}
+            />
+          ))}
+        </div>
+      </TaskShopFrame>
+    );
+  }
+});
+```
 
-The important call is:
+Screens receive:
 
-- `completeFlow(...)`
+- **`state`** — The authoritative `FlowInstance.state` (from storage, merged with launch payload)
+- **`submit`** — Function to call flow `onSubmit` handler (triggers server-side transition)
+- **`transitioning`** — Boolean indicating a submit is in progress
+- **`loaderData`** — Optional data from server-side loader
 
-That is the clean Teleforge path for a coordinated return to chat.
+## 5. Submit and Transition
 
-Task Shop also keeps a fallback:
+When the user clicks "Add to cart":
 
-- if coordinated return is unavailable, it falls back to `publishOrder(...)`
+```
+Screen calls submit({ taskId: "task-001", type: "add-item" })
+  → executeMiniAppStepSubmit()
+    → serverBridge.submit({ data, flowId, state, stepId, stateKey })
+      → POST /api/teleforge/flow-hooks submit
+        → Server executes flow.onSubmit({ data, state })
+          → Returns { state: { cart: [...] } } (no `to` → stays on same step)
+            → Client updates state, re-renders screen
+```
 
-So you can read that file as both:
+When the user clicks "Complete purchase":
 
-- the preferred coordinated path
-- the simpler raw-payload fallback path
+```
+Screen calls submit({ type: "complete-order" })
+  → Server executes flow.onSubmit()
+    → Returns { state: { cart: [], lastOrder: {...} }, to: "success" }
+      → Client transitions to success screen
+        → URL updates to /success
+          → persistMiniAppSnapshot saves state to sessionStorage
+```
 
-## 6. Handle the Return in the Bot
+## 6. Return to Chat (Handoff)
 
-Open [orderCompleted.ts](/home/aj/hustle/tmf/apps/task-shop/apps/bot/src/handlers/orderCompleted.ts).
+When the user clicks "Return to chat" on the success screen:
 
-The key call is:
+```
+Screen action "return-to-chat" triggers
+  → executeMiniAppStepAction()
+    → Server finds action "return-to-chat" in flow definition
+      → Returns target: "chat", stepId: "completed"
+        → applyMiniAppExecutionResult()
+          → target === "chat"
+            → transmitMiniAppChatHandoff()
+              → serverBridge.chatHandoff({ flowContext, state, stateKey, stepId: "completed" })
+                → POST /api/teleforge/flow-hooks chatHandoff
+                  → Bot's handleChatHandoff() receives the call
+                    → storage.advanceStep(stateKey, "completed", state, "chat")
+                    → enterDiscoveredFlowStep()
+                      → sendChatStepMessage()
+                        → "Order confirmed! Items: 1, Total: 10 Stars"
+```
 
-- `handleMiniAppReturnData(...)`
+## Standalone Mode
 
-This validates the coordinated return payload, loads the saved flow state, and routes the result into:
+When the Mini App is opened from Telegram's Mini Apps menu (no `tgWebAppStartParam`):
 
-- `onCancel`
-- `onComplete`
-- `onError`
-
-This is the bot-side close of the loop.
+1. `launchCoordination` returns `flowContext: null, stateKey: null`
+2. `resolveScreenWithStandaloneFallback` detects this and redirects to the first `type: "miniapp"` step
+3. Chat handoff is skipped — the app stays in the Mini App
+4. Screens should handle missing state gracefully (e.g., show a product picker when `selectedItem` is null)
 
 ## What to Copy Into Your Own App
 
-If you want your own coordinated flow, copy the pattern, not the sample domain model:
-
-1. define a coordination config
-2. start the flow from a bot command or button
-3. wrap the Mini App in `CoordinationProvider`
-4. persist a flow snapshot that matters to your app
-5. call `completeFlow()` when the user finishes
-6. handle the return payload with `handleMiniAppReturnData()`
-
-## Local Development Path
-
-You do not need real Telegram to build most of this.
-
-Use:
-
-```bash
-cd apps/task-shop
-pnpm run dev:local
-```
-
-Then exercise:
-
-- `/start`
-- route changes
-- flow reset
-- `web_app_data` replay
-
-inside the simulator.
+1. **Define a flow** with `defineFlow({ id, initialStep, state, steps })`
+2. **Add a bot command** in `bot.command` for chat entry
+3. **Add `miniApp.route` and `miniApp.stepRoutes`** for URL-based screen resolution
+4. **Implement `onSubmit` handlers** in steps that need server-side logic
+5. **Create screens** with `defineScreen({ id, component })`
+6. **Register flows and screens** in `main.tsx`
+7. **Wire `createFetchMiniAppServerBridge()`** for server communication
+8. **Create a hooks server** in `apps/api` using `createDiscoveredServerHooksHandler`
 
 ## Read Alongside
 
-- [apps/task-shop/README.md](../apps/task-shop/README.md)
-- [Developer Guide](./developer-guide.md)
-- [Testing](./testing.md)
+- [Flow State Design](./flow-state-design.md) — Storage model and execution architecture
+- [Mini App Architecture](./miniapp-architecture.md) — 18 frontend guidelines
+- [Flow-First Migration](./flow-first-migration.md) — V1 → V2 migration guide

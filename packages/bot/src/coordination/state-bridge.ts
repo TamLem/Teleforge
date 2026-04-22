@@ -41,7 +41,7 @@ export async function initiateCoordinatedFlow(
     options.userId,
     options.flowId,
     options.initialStep,
-    options.payload ?? {} as Record<string, unknown>,
+    options.payload ?? ({} as Record<string, unknown>),
     String(options.chatId)
   );
 

@@ -103,7 +103,7 @@ When it is running, use the README's walkthrough section to map the working app 
 
 ### Option B: Full Reference App
 
-Use this when you want to see the complete V1 flow:
+Use this when you want to see the complete flow-first reference app:
 
 ```bash
 cd apps/task-shop
@@ -296,14 +296,14 @@ pnpm docs:build
 
 ## Core Surfaces to Learn Next
 
-The main packages are:
+The public framework surface is the `teleforge` unified package. Most app code imports from these subpaths:
 
-- `@teleforgex/core`: manifest, validation, launch parsing, flow-state contracts
-- `@teleforgex/web`: Telegram hooks and Mini App coordination
-- `@teleforgex/ui`: Telegram-native React UI primitives
-- `@teleforgex/bot`: bot routing, `web_app_data`, webhook helpers
-- `@teleforgex/bff`: Telegram-aware backend routes, adapters, sessions
-- `@teleforgex/devtools`: local development and diagnostics
+- `teleforge`: app config (`defineTeleforgeApp`), flow definitions (`defineFlow`), and discovered runtime bootstrapping
+- `teleforge/web`: Mini App shell (`TeleforgeMiniApp`), screen registration (`defineScreen`), and launch coordination
+- `teleforge/bot`: bot runtime types and command handlers for discovered flows
+- `teleforge/server-hooks`: trusted server-side load, submit, and action hooks
+- `teleforge/ui`: Telegram-native React UI primitives
+- CLI commands such as `teleforge dev`, `teleforge doctor`, and `teleforge mock` from the unified package
 
 ## Next Reading
 

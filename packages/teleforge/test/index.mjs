@@ -27,10 +27,7 @@ test("defineTeleforgeApp preserves config and converts it to a manifest", () => 
     flows: {
       root: "flows"
     },
-    runtime: {
-      mode: "spa",
-      webFramework: "vite"
-    }
+    runtime: {}
   });
 
   const manifest = teleforgeAppToManifest(app);

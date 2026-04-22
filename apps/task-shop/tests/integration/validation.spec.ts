@@ -376,7 +376,11 @@ function decodeStateKey(flowContext: string): string {
   return parsed.payload?.stateKey ?? "";
 }
 
-function resolveTaskShopScreen(pathname: string, screens: unknown[], state = taskShopBrowseFlow.state) {
+function resolveTaskShopScreen(
+  pathname: string,
+  screens: unknown[],
+  state = taskShopBrowseFlow.state
+) {
   const resolution = resolveMiniAppScreen({
     flows: [taskShopBrowseFlow],
     pathname,

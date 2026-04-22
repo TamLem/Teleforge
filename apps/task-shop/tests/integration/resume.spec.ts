@@ -17,10 +17,7 @@ test("Task Shop loads its Teleforge app config and derives routes from flows", a
 
   assert.equal(path.basename(loaded.appPath), "teleforge.config.ts");
   assert.equal(loaded.app.app.id, "task-shop");
-  assert.deepEqual(
-    loaded.app.routes?.map((route) => route.path).sort(),
-    ["/", "/shop"]
-  );
+  assert.deepEqual(loaded.app.routes?.map((route) => route.path).sort(), ["/", "/shop"]);
 });
 
 test("Task Shop discovery exposes both bot flows and all migrated Mini App screens", async () => {
@@ -36,14 +33,19 @@ test("Task Shop discovery exposes both bot flows and all migrated Mini App scree
   });
   const summaries = createFlowRuntimeSummaries(flows);
 
-  assert.deepEqual(
-    flows.map((entry) => entry.flow.id).sort(),
-    ["shop-catalogue", "task-shop-browse"]
-  );
-  assert.deepEqual(
-    screens.map((entry) => entry.screen.id).sort(),
-    ["shop.checkout", "shop.tracking", "task-shop.cart", "task-shop.catalog", "task-shop.checkout", "task-shop.detail", "task-shop.success"]
-  );
+  assert.deepEqual(flows.map((entry) => entry.flow.id).sort(), [
+    "shop-catalogue",
+    "task-shop-browse"
+  ]);
+  assert.deepEqual(screens.map((entry) => entry.screen.id).sort(), [
+    "shop.checkout",
+    "shop.tracking",
+    "task-shop.cart",
+    "task-shop.catalog",
+    "task-shop.checkout",
+    "task-shop.detail",
+    "task-shop.success"
+  ]);
   assert.equal(summaries.find((summary) => summary.id === "task-shop-browse")?.stepCount, 6);
 });
 

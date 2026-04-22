@@ -20,7 +20,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <TeleforgeMiniApp
       flows={[taskShopBrowseFlow, shopCatalogueFlow]}
-      screens={[catalogScreen, cartScreen, checkoutScreen, successScreen, shopCheckoutScreen, shopTrackingScreen, taskDetailScreen]}
+      screens={[
+        catalogScreen,
+        cartScreen,
+        checkoutScreen,
+        successScreen,
+        shopCheckoutScreen,
+        shopTrackingScreen,
+        taskDetailScreen
+      ]}
       serverBridge={serverBridge}
     />
   </React.StrictMode>

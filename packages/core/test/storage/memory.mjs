@@ -83,8 +83,5 @@ test("MemoryStorageAdapter supports compareAndSet and optional encryption", asyn
     revision: 3,
     state: { count: 3 }
   });
-  assert.equal(
-    await adapter.compareAndSet("flow:key", 1, staleUpdate),
-    false
-  );
+  assert.equal(await adapter.compareAndSet("flow:key", 1, staleUpdate), false);
 });

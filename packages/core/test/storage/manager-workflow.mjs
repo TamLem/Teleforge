@@ -157,10 +157,7 @@ test("workflow: operations on expired instance throw", async () => {
 
   await new Promise((resolve) => setTimeout(resolve, 20));
 
-  await assert.rejects(
-    () => manager.advanceStep(key, "cart"),
-    /was not found or already expired/
-  );
+  await assert.rejects(() => manager.advanceStep(key, "cart"), /was not found or already expired/);
 });
 
 test("workflow: operations on nonexistent key throw", async () => {
@@ -241,10 +238,7 @@ test("workflow: advanceStep with CAS-conflicting adapter rejects", async () => {
   });
 
   const { key } = await manager.startInstance("user_1", "order-flow", "browse");
-  await assert.rejects(
-    () => manager.advanceStep(key, "cart"),
-    /Flow instance conflict/
-  );
+  await assert.rejects(() => manager.advanceStep(key, "cart"), /Flow instance conflict/);
 });
 
 test("workflow: completeInstance after advance persists final state", async () => {

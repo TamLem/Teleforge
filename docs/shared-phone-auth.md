@@ -1,49 +1,34 @@
 # Shared Phone Auth
 
-This guide shows how to build a Teleforge auth flow where:
+This guide shows how to build a Teleforge auth flow where Telegram proves that a user controls a phone number.
 
-1. a bot asks the user to share their own phone number
-2. the bot signs a short-lived phone-auth token into the Mini App URL
-3. the Mini App forwards that token to the BFF
-4. the BFF resolves the app user by phone number and issues a session
-
-Use this when phone number is the application's primary login key, but you still want Telegram to anchor the trust chain.
-
-## What Teleforge Provides
-
-### `@teleforgex/bot`
-
-- `createPhoneNumberRequestMarkup()`
-- `createPhoneNumberRequestButton()`
-- `extractSharedPhoneContact()`
-- `createPhoneAuthLink()`
-
-### `@teleforgex/web`
-
-- `useLaunch().phoneAuthToken`
-
-### `@teleforgex/bff`
-
-- `createPhoneAuthExchangeHandler()`
-- `resolvePhoneAuthIdentity()`
-- provider-based identity config
-
-### `@teleforgex/core`
-
-- `normalizePhoneNumber()`
-- `createSignedPhoneAuthToken()`
-- `verifySignedPhoneAuthToken()`
+Use this when phone number is the application's primary login key, but Telegram should anchor the trust chain.
 
 ## End-to-End Flow
 
-### 1. Ask for a self-shared contact in the bot
+1. A bot asks the user to share their own phone number.
+2. The bot verifies that the shared contact belongs to the sending Telegram user.
+3. The bot signs a short-lived phone-auth token into the Mini App URL.
+4. The Mini App reads the token from launch context.
+5. A trusted server hook verifies the token and resolves the app user.
+
+## Public Helpers
+
+Use these public Teleforge surfaces:
+
+- `teleforge/bot` for contact request and Mini App launch helpers
+- `teleforge/web` for Mini App launch context
+- `teleforge/server-hooks` for trusted token exchange and session/domain logic
+- `teleforge` for shared flow state helpers when the exchange is part of a flow
+
+## Bot Step
 
 ```ts
 import {
   createPhoneAuthLink,
   createPhoneNumberRequestMarkup,
   extractSharedPhoneContact
-} from "@teleforgex/bot";
+} from "teleforge/bot";
 
 router.command("login", async (context) => {
   await context.reply("Share the phone number tied to your account.", {
@@ -74,10 +59,10 @@ router.use(async (context, next) => {
 
 `extractSharedPhoneContact()` rejects contacts that do not belong to the sending Telegram user.
 
-### 2. Read the signed token in the Mini App
+## Mini App Step
 
 ```tsx
-import { useLaunch } from "@teleforgex/web";
+import { useLaunch } from "teleforge/web";
 
 export function LoginGate() {
   const launch = useLaunch();
@@ -87,7 +72,7 @@ export function LoginGate() {
       return;
     }
 
-    await fetch("/api/phone/exchange", {
+    await fetch("/api/teleforge/phone/exchange", {
       body: JSON.stringify({
         phoneAuthToken: launch.phoneAuthToken
       }),
@@ -103,62 +88,30 @@ export function LoginGate() {
 }
 ```
 
-### 3. Exchange the token in the BFF
+For a full flow screen, prefer calling the Teleforge screen submit/action helper so the exchange can transition the flow after success.
 
-```ts
-import {
-  createPhoneAuthExchangeHandler,
-  defineBffRoute,
-  telegramIdIdentityProvider
-} from "@teleforgex/bff";
+## Server Hook Step
 
-export const phoneExchangeRoute = defineBffRoute({
-  auth: "required",
-  handler: createPhoneAuthExchangeHandler({
-    adapter: sessionAdapter,
-    identity: {
-      adapter: {
-        create: userStore.create,
-        findByPhoneNumber: userStore.findByPhoneNumber,
-        findByTelegramId: userStore.findByTelegramId,
-        findByUsername: userStore.findByUsername,
-        update: userStore.update
-      },
-      autoCreate: true,
-      providers: [telegramIdIdentityProvider()],
-      secret: process.env.PHONE_AUTH_SECRET!
-    },
-    secret: process.env.JWT_SECRET!
-  }),
-  method: "POST",
-  path: "/phone/exchange"
-});
-```
+The trusted exchange should:
 
-The handler:
+- verify the signed phone-auth token
+- check that the token's Telegram user id matches the authenticated request
+- normalize the phone number before lookup
+- resolve or create the app user according to application policy
+- issue an app session or commit the identity result into flow/domain state
 
-- verifies the signed phone-auth token
-- checks that it matches the current Telegram user
-- resolves the app user by normalized phone number
-- auto-creates when configured
-- returns the same access/refresh session envelope as normal exchange
-
-## Identity Configuration
-
-Teleforge BFF identity is provider-based. That still applies when you add phone auth.
-
-Phone auth is not a separate replacement identity system. It is a provider-backed exchange path layered on top of the same identity manager used by standard Telegram-based session exchange.
+The exchange belongs server-side because the browser cannot be trusted to assert identity ownership.
 
 ## Security Notes
 
-- phone-auth tokens are short-lived and signed
-- the BFF still requires Telegram-authenticated request context
-- token verification checks that the token's Telegram user id matches the current request's Telegram user
-- phone numbers are normalized before lookup so storage and comparison use one format
+- phone-auth tokens should be short-lived and signed
+- the trusted endpoint must still validate Telegram launch/auth context
+- token verification must bind the token to the current Telegram user
+- phone numbers should be normalized before storage or comparison
+- session issuance should happen only after the server-side identity lookup succeeds
 
-## Where to Look Next
+## Read Next
 
-- [BFF Mode Guide](./bff-guide.md)
+- [Server Hooks and Backend Internals](./bff-guide.md)
 - [Developer Guide](./developer-guide.md)
 - [Telegram Mini App Basics](./telegram-basics.md)
-- [Starter App Walkthrough](../examples/starter-app/README.md)

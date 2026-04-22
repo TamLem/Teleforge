@@ -197,7 +197,12 @@ export async function createDiscoveredBotRuntime(
     });
 
     const handlerIndex = createHandlerIndex(handlers);
-    await storage.advanceStep(input.stateKey, input.stepId, cloneFlowState(input.state) as Record<string, unknown>, "chat");
+    await storage.advanceStep(
+      input.stateKey,
+      input.stepId,
+      cloneFlowState(input.state) as Record<string, unknown>,
+      "chat"
+    );
     debugTracker.trackMiniAppHandoff({
       chatId: String(persisted.chatId ?? ""),
       flow,
@@ -265,8 +270,7 @@ interface CreateDiscoveredFlowCallbackHandlerOptions {
   storage: UserFlowStateManager;
 }
 
-interface CreateDiscoveredFlowWebAppDataHandlerOptions
-  extends CreateDiscoveredFlowCallbackHandlerOptions {}
+interface CreateDiscoveredFlowWebAppDataHandlerOptions extends CreateDiscoveredFlowCallbackHandlerOptions {}
 
 interface MiniAppChatHandoffPayload {
   flowContext: string;
@@ -516,7 +520,11 @@ function createDiscoveredFlowWebAppDataHandler(
         return;
       }
 
-      await options.storage.advanceStep(handoff.stateKey, handoff.stepId, cloneFlowState(handoff.state) as Record<string, unknown>);
+      await options.storage.advanceStep(
+        handoff.stateKey,
+        handoff.stepId,
+        cloneFlowState(handoff.state) as Record<string, unknown>
+      );
       options.debugTracker.trackMiniAppHandoff({
         chatId: String(persisted.chatId ?? context.chat.id),
         flow,
@@ -608,7 +616,11 @@ async function enterDiscoveredFlowStep(
           ? result.to
           : currentStepId;
 
-      await options.storage.advanceStep(options.stateKey, redirectedStepId, currentState as Record<string, unknown>);
+      await options.storage.advanceStep(
+        options.stateKey,
+        redirectedStepId,
+        currentState as Record<string, unknown>
+      );
       currentStepId = redirectedStepId;
       options.debugTracker.trackStep({
         chatId,
@@ -631,7 +643,11 @@ async function enterDiscoveredFlowStep(
         stateKey: options.stateKey,
         stepId: currentStepId
       });
-      await options.storage.advanceStep(options.stateKey, currentStepId, currentState as Record<string, unknown>);
+      await options.storage.advanceStep(
+        options.stateKey,
+        currentStepId,
+        currentState as Record<string, unknown>
+      );
       await sendChatStepMessage(
         runtime.bot,
         options.flow,
@@ -699,7 +715,9 @@ async function sendChatStepMessage(
               flowId: flow.id,
               payload: {
                 ...action.miniApp.payload,
-                route: resolveFlowStepRoute(flow, action.to ?? flow.initialStep as string) ?? undefined,
+                route:
+                  resolveFlowStepRoute(flow, action.to ?? (flow.initialStep as string)) ??
+                  undefined,
                 stateKey
               },
               requestWriteAccess: flow.miniApp?.requestWriteAccess ?? false,
@@ -851,8 +869,10 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
 
       session.currentStepId = input.stepId;
       session.currentStepType = step.type;
-      session.currentRoute = step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
-      session.snapshotStateAvailable = session.snapshotStateAvailable || input.snapshotStateAvailable;
+      session.currentRoute =
+        step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
+      session.snapshotStateAvailable =
+        session.snapshotStateAvailable || input.snapshotStateAvailable;
       session.miniApp.lastHandoffAt = new Date().toISOString();
       session.miniApp.lastResumeAt = session.miniApp.lastHandoffAt;
       session.miniApp.pendingChatHandoff = false;
@@ -866,7 +886,8 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
       session.currentStepId = input.stepId;
       session.currentStepType = "miniapp";
       session.currentRoute = route;
-      session.snapshotStateAvailable = session.snapshotStateAvailable || input.snapshotStateAvailable;
+      session.snapshotStateAvailable =
+        session.snapshotStateAvailable || input.snapshotStateAvailable;
       session.miniApp.lastLaunchAt = new Date().toISOString();
       session.miniApp.lastLaunchRoute = route;
       session.miniApp.lastLaunchStepId = input.stepId;
@@ -879,8 +900,10 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
 
       session.currentStepId = input.stepId;
       session.currentStepType = step.type;
-      session.currentRoute = step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
-      session.snapshotStateAvailable = session.snapshotStateAvailable || input.snapshotStateAvailable;
+      session.currentRoute =
+        step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
+      session.snapshotStateAvailable =
+        session.snapshotStateAvailable || input.snapshotStateAvailable;
 
       if (step.type === "chat") {
         session.miniApp.pendingChatHandoff = false;

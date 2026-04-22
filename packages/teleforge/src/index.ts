@@ -4,7 +4,8 @@ export {
   type TeleforgeAppConfig,
   type TeleforgeAppIdentity,
   type TeleforgeMiniAppConfig,
-  UserFlowStateManager
+  UserFlowStateManager,
+  createFlowStorage
 } from "@teleforgex/core";
 
 export type {
@@ -73,11 +74,7 @@ export type {
   TeleforgeFlowDefinition,
   TeleforgeFlowDefinitionInput
 } from "./flow.js";
-export {
-  createScreenRegistry,
-  defineScreen,
-  resolveMiniAppScreen
-} from "./screens.js";
+export { createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
 export type {
   CreateFlowCommandsOptions,
   CreateFlowCoordinationConfigFromFlowsOptions,

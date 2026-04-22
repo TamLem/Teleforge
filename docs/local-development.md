@@ -1,85 +1,88 @@
-# Local Development with Teleforge Source Linking
+# Local Development
 
-When developing against a local clone of the Teleforge monorepo, you can **source-link** your bot project so that edits to teleforge packages are picked up immediately — no rebuild step required.
+Teleforge development is simulator-first. The default loop is to run the app through `teleforge dev`, use the chat simulator, open embedded Mini App screens, and inspect runtime state without needing a live Telegram session.
 
-## Quick Start
+## New Apps
+
+Create a project from this local repo:
 
 ```bash
-# Scaffold a new project linked to your local teleforge clone
-create-teleforge-app my-bot --link ../tmf
-
-cd my-bot
+pnpm --filter create-teleforge-app build
+node packages/create-teleforge-app/dist/cli.js my-app --link /home/aj/hustle/tmf
+cd my-app
 pnpm install
+pnpm run dev
 ```
 
-That's it. The generated `package.json` uses pnpm's `link:` protocol:
+The generated app depends on the unified `teleforge` package through a `link:` dependency:
 
 ```json
 {
   "dependencies": {
-    "@teleforgex/core": "link:../tmf/packages/core",
-    "@teleforgex/bot": "link:../tmf/packages/bot",
-    "@teleforgex/ui": "link:../tmf/packages/ui",
-    "@teleforgex/web": "link:../tmf/packages/web"
-  },
-  "devDependencies": {
-    "@teleforgex/devtools": "link:../tmf/packages/devtools"
+    "teleforge": "link:/home/aj/hustle/tmf/packages/teleforge"
   }
 }
 ```
 
-## How It Works
+## Existing Apps
 
-1. **`link:` protocol** — pnpm creates symlinks from `node_modules/@teleforgex/*` to the local teleforge package directories.
-2. **`tsx` runtime** — the starter app uses `tsx` which runs TypeScript directly, so linked source files are loaded without a build step.
-3. **IDE support** — VS Code resolves types through the symlinks, giving you go-to-definition into teleforge source.
+For an existing app, depend on the unified package:
 
-## Development Workflow
-
-```bash
-# Terminal 1: Run your bot with teleforge dev
-cd my-bot
-pnpm run dev
-
-# Terminal 2: Edit teleforge source — changes are picked up on next run
-cd ../tmf
-# edit packages/core/src/... or packages/bot/src/...
+```json
+{
+  "dependencies": {
+    "teleforge": "link:/home/aj/hustle/tmf/packages/teleforge"
+  }
+}
 ```
 
-No rebuild needed. Just restart your dev server (or rely on `tsx watch` / `vite` hot reload).
+Then run:
 
-## Reverting to Registry Versions
+```bash
+pnpm install
+pnpm run dev
+```
 
-To unlink and use published versions instead:
+## Daily Loop
 
-1. Edit `package.json` — replace `link:../tmf/packages/*` with version ranges:
-   ```json
-   {
-     "dependencies": {
-       "@teleforgex/core": "^0.1.0",
-       "@teleforgex/bot": "^0.1.0",
-       "@teleforgex/ui": "^0.1.0",
-       "@teleforgex/web": "^0.1.0"
-     },
-     "devDependencies": {
-       "@teleforgex/devtools": "^0.1.0"
-     }
-   }
-   ```
-2. Run `pnpm install` to restore registry packages.
+Use one terminal for the app:
 
-## Linking an Existing Project
+```bash
+cd my-app
+pnpm run dev
+```
 
-If you already have a bot project and want to link it to local teleforge:
+Use another terminal for framework work:
 
-1. Edit `package.json` — change each `@teleforgex/*` dependency to use `link:` pointing to your teleforge clone:
-   ```json
-   "@teleforgex/core": "link:../tmf/packages/core"
-   ```
-2. Run `pnpm install`.
+```bash
+cd /home/aj/hustle/tmf
+pnpm --filter teleforge test
+pnpm docs:build
+```
+
+When package internals change, rebuild the affected package if the app is consuming built output. For simulator/runtime work, the safest verification is:
+
+```bash
+pnpm --filter teleforge test
+cd packages/devtools
+pnpm test
+```
+
+The devtools filter is a framework-repo maintenance command. App workspaces use the `teleforge` CLI from the unified package.
+
+## Live Telegram Testing
+
+Use live mode only after the simulator path is working:
+
+```bash
+teleforge dev --public --live
+```
+
+This starts the local runtime, opens an HTTPS tunnel, and injects the current public URL into companion bot services.
 
 ## Requirements
 
-- **Node.js >= 18**
-- **pnpm**
-- A local clone of the [Teleforge monorepo](https://github.com/TamLem/Teleforge)
+- Node.js 18 or newer
+- pnpm
+- a valid `teleforge.config.ts`
+- `.env` values for live Telegram bot testing

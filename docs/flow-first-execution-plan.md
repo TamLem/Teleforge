@@ -228,8 +228,10 @@ Immediate follow-up tasks:
 
 1. Clean up any remaining Task Shop migration gaps and stale legacy references.
 2. Keep the Mini App bridge authoring model simple:
-  - browser code should keep using the public Mini App runtime/bridge surface
-  - server-only request handling should stay behind a server entrypoint rather than leaking into the browser path
+
+- browser code should keep using the public Mini App runtime/bridge surface
+- server-only request handling should stay behind a server entrypoint rather than leaking into the browser path
+
 3. ~~Implement direct `web_app` button rendering from chat step actions~~ — done, see [Chat-to-MiniApp Deep Links](./chat-miniapp-deep-links.md). Implemented with `miniApp` property on `FlowActionDefinition`, `createChatEntryCommands` forwarding `miniAppUrl`, and `sendChatStepMessage` rendering `web_app` buttons via `createSignedPayload` + `createMiniAppButton`. The Mini App server bridge path (`createFetchMiniAppServerBridge` → hooks API → `handleChatHandoff`) handles the return-to-chat transition for inline-keyboard-launched Mini Apps where `sendData` is unavailable.
 4. Capture the migrated example in the main framework docs and reference docs.
 5. Run targeted simulator/manual checks if the Task Shop flow needs a stronger end-to-end continuity proof than the current integration tests.

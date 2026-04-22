@@ -1,8 +1,8 @@
-# Teleforge V2 Integration Audit
+# Teleforge Integration Audit
 
 ## Purpose
 
-Validate the Task Shop sample app and the underlying Teleforge V1 framework in two modes:
+Validate the Task Shop reference app and the current Teleforge flow-first runtime in two modes:
 
 - `mock`: default CI-safe mode with no Telegram credentials
 - `live`: credentialed mode against a real bot + public Mini App URL

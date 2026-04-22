@@ -1,213 +1,113 @@
-# Server Hooks and BFF Internals
+# Server Hooks and Backend Internals
 
-This guide explains the current server-side implementation layer in Teleforge.
+This guide explains Teleforge's trusted server-side path.
 
-It is an advanced guide. The default public app model is still:
+The public model is:
 
-- flows
-- screens
-- optional server hooks
+- define product behavior as flows
+- bind Mini App steps to screens
+- add server hooks only when a step needs trusted server authority
 
-## What This Layer Is
+Do not treat backend work as a separate Teleforge app mode. Server hooks are part of the flow runtime.
 
-In the current repo, the server-side layer means:
+## When to Use Server Hooks
 
-- the Mini App still lives in `apps/web`
-- the project may also own a Telegram-aware backend layer
-- that backend can validate Telegram launch context, enforce auth and launch-mode rules, and talk to downstream services
+Use server hooks for work the browser must not control:
 
-Use this layer when the Mini App should not talk directly to every backend service by itself or when a flow step needs trusted server authority.
+- checking flow instance ownership
+- enforcing permissions
+- loading user-specific or private data
+- validating submit/action payloads on the server
+- creating orders, payments, sessions, tickets, or other durable records
+- calling downstream services with server-only credentials
 
-## What the Scaffold Gives You
+Keep simple local UI state in the screen. Keep durable product state in the flow instance or domain services.
 
-The generated scaffold gives you:
+## Hook Types
 
-- `apps/api` with placeholder route objects
-- `teleforge.config.ts`
+Server hooks are discovered by convention and executed through the framework bridge.
 
-Important: the generated `apps/api` routes are **placeholders**, not a fully wired production server.
+Common hook responsibilities are:
 
-They show where your backend logic can live, but you still need to connect those routes to a real HTTP runtime.
+- `guard`: decide whether the user can enter a step
+- `loader`: prepare screen-specific data before render or refresh
+- `submit`: complete or advance a Mini App step with trusted validation
+- `action`: run a trusted interaction that may not complete the step
 
-## The Practical Mental Model
+The hook should return typed data or transition results that the runtime can apply to the current flow instance.
 
-Think of the current server-side implementation as three layers:
+## Suggested Structure
 
-1. **web UI** in `apps/web`
-2. **BFF route definitions** in your server layer
-3. **adapters/services** that talk to your actual backend systems
+```text
+apps/bot/src/flows/
+  checkout.flow.ts
 
-`@teleforgex/bff` currently helps with layer 2, while the flow-first runtime is moving toward convention-based server hooks on top of it.
+apps/bot/src/flow-server-hooks/
+  checkout/
+    catalog.ts
+    review.ts
+```
 
-## Smallest Useful Route
+Use the flow and step ids as the filesystem boundary. This keeps backend logic close to the flow step that owns it.
 
-At the package level, the core pattern is:
+## Example Loader and Submit
 
 ```ts
-import { createBffConfig, defineBffRoute, telegramIdIdentityProvider } from "@teleforgex/bff";
+export async function loader({ state, actor, services }) {
+  const products = await services.catalog.listForUser(actor.id);
 
-const config = createBffConfig({
-  botToken: process.env.BOT_TOKEN,
-  features: {
-    sessions: false
-  },
-  identity: {
-    adapter: myIdentityAdapter,
-    providers: [telegramIdIdentityProvider()]
-  }
-});
+  return {
+    products,
+    selectedItemId: state.selectedItemId ?? null
+  };
+}
 
-const router = config.createRouter();
+export async function submit({ data, state, services }) {
+  const item = await services.catalog.requireAvailable(data.itemId);
 
-router.add(
-  defineBffRoute({
-    auth: "public",
-    async handler(_context, input: { message: string }) {
-      return {
-        message: input.message.toUpperCase()
-      };
+  return {
+    state: {
+      ...state,
+      selectedItemId: item.id
     },
-    method: "POST",
-    path: "/echo"
-  })
-);
+    to: "review"
+  };
+}
 ```
 
-That route can then be exposed through the HTTP adapter you choose.
+The exact service wiring is app-owned. Teleforge owns the bridge, state handoff, and flow transition contract.
 
-## Identity Configuration
+## Security Boundary
 
-Teleforge BFF identity is provider-based.
+The frontend can render UI and collect input. It is not authoritative for:
 
-That means `identity` config should always include:
+- identity trust
+- flow instance ownership
+- step validity
+- permission decisions
+- durable state mutation
 
-- `adapter`: your app-user storage adapter
-- `providers`: one or more identity providers
+Server hooks should validate those conditions before returning success.
 
-The built-in providers are:
+## Internal Backend Primitives
 
-- `telegramIdIdentityProvider()`
-- `usernameIdentityProvider()`
-- `phoneAuthIdentityProvider()`
-- `customIdentityProvider()`
+This repository still contains internal request, identity, session, and route primitives under `packages/bff`. Those exist so the framework can share backend implementation code.
 
-Use `telegramIdIdentityProvider()` when Telegram user id is your primary app-user key. Use `usernameIdentityProvider()` only when your app deliberately keys users by Telegram username. Use `customIdentityProvider()` when the lookup rules are app-specific.
-
-You can register providers in priority order:
-
-```ts
-import {
-  createBffConfig,
-  telegramIdIdentityProvider,
-  usernameIdentityProvider
-} from "@teleforgex/bff";
-
-const config = createBffConfig({
-  botToken: process.env.BOT_TOKEN!,
-  features: {
-    sessions: false
-  },
-  identity: {
-    adapter: myIdentityAdapter,
-    providers: [telegramIdIdentityProvider(), usernameIdentityProvider()]
-  }
-});
-```
-
-## How `apps/api` Fits In
-
-For generated projects, `apps/api` is the natural place to keep:
-
-- route definitions
-- adapter setup
-- webhook entry points
-- shared backend wiring
-
-A practical structure is:
-
-- `apps/api/src/routes/*.ts` for route definitions
-- `apps/api/src/index.ts` for creating the configured router and HTTP handler
-
-The generated `health.ts` and `webhook.ts` files are there to make that structure obvious, not to claim the BFF is already complete.
-
-## Service-Backed Routes
-
-Use service-backed routes when the BFF should call a downstream API instead of implementing business logic inline.
-
-```ts
-defineBffRoute({
-  auth: "required",
-  method: "POST",
-  path: "/users/lookup",
-  service: {
-    name: "users",
-    operation: "lookup"
-  }
-});
-```
-
-This is the right fit when your BFF is mainly an integration layer.
-
-## Session Exchange
-
-If you enable sessions and provide the required adapters and JWT config, `createBffConfig()` can mount built-in session routes.
-
-That is how you get routes such as:
-
-- `/exchange`
-- `/refresh`
-- `/revoke`
-
-These are useful when Telegram identity needs to be turned into an app session.
+App authors should not import an internal package to build a normal Teleforge app. Use `teleforge/server-hooks` and the generated runtime conventions instead.
 
 ## Shared Phone Auth
 
-Teleforge also supports a phone-share auth flow when your bot needs the user to confirm the phone number tied to their account.
-
-The flow is:
+Phone auth is also a server-hook concern:
 
 1. the bot requests a self-shared contact
-2. the bot validates the contact and signs a short-lived `tfPhoneAuth` token
-3. the Mini App launches with that token in the URL
-4. the Mini App sends `phoneAuthToken` to a BFF route
-5. the BFF verifies the token, matches it to the active Telegram user, resolves identity, and issues a session
+2. the bot signs a short-lived phone-auth token
+3. the Mini App passes that token to trusted server code
+4. the server validates the token, matches it to the Telegram user, and resolves the app user
 
-Use `createPhoneAuthExchangeHandler()` for step 5:
-
-```ts
-import { createPhoneAuthExchangeHandler, defineBffRoute } from "@teleforgex/bff";
-
-export const phoneExchangeRoute = defineBffRoute({
-  auth: "required",
-  handler: createPhoneAuthExchangeHandler({
-    adapter: sessionAdapter,
-    identity: {
-      adapter: phoneIdentityAdapter,
-      autoCreate: true,
-      secret: process.env.PHONE_AUTH_SECRET!
-    },
-    secret: process.env.JWT_SECRET!
-  }),
-  method: "POST",
-  path: "/phone/exchange"
-});
-```
-
-The request body should include `{ phoneAuthToken }`. For the bot-side half of the flow, use the contact-request and link-signing helpers from `@teleforgex/bot`.
-
-## What to Build First
-
-The highest-value first steps are:
-
-1. add one handler-backed route
-2. expose it through your server runtime
-3. validate Telegram launch/auth context on that route
-4. add one service-backed route when you need a downstream integration
-
-Do not try to build the whole backend surface at once.
+See [Shared Phone Auth](./shared-phone-auth.md) for the end-to-end flow.
 
 ## Read Next
 
 - [Developer Guide](./developer-guide.md)
-- [Testing](./testing.md)
+- [Flow Coordination](./flow-coordination.md)
 - [Deployment](./deployment.md)

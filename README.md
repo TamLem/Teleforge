@@ -1,105 +1,88 @@
-# Teleforge Workspace
+# Teleforge
 
-Start with the [Documentation Index](./docs/README.md) or jump straight to the [Developer Guide](./docs/developer-guide.md).
+Teleforge is a unified TypeScript framework for Telegram-native products that combine bots, Mini Apps, flow state, local simulation, and optional trusted server hooks.
 
-Telegram-native full-stack framework for bots, Mini Apps, coordination flows, and local simulator-first development.
+Start with the [Documentation Index](./docs/README.md), [Getting Started](./docs/getting-started.md), or the [Developer Guide](./docs/developer-guide.md).
 
-## Getting Started
+## Public Model
 
-If you are new to the repo, start here:
+Application authors use one package:
 
-- [Telegram Mini App Basics](./docs/telegram-basics.md)
-- [Getting Started](./docs/getting-started.md)
-- [Developer Guide](./docs/developer-guide.md)
-- [Build Your First Feature](./docs/first-feature.md)
-- [Flow Coordination](./docs/flow-coordination.md)
-- [Server Hooks and BFF Internals](./docs/bff-guide.md)
-- [Shared Phone Auth](./docs/shared-phone-auth.md)
-- [Testing](./docs/testing.md)
-- [Deployment](./docs/deployment.md)
-- [Environment Variables](./docs/environment-variables.md)
-- [Architecture](./docs/architecture.md)
-- [Manifest Reference](./docs/manifest-reference.md)
-- [Troubleshooting](./docs/troubleshooting.md)
-- [Documentation Index](./docs/README.md)
+```bash
+pnpm add teleforge
+```
 
-## Packages
+The supported public import surface is:
 
-- `packages/core`: manifest schema, validation, launch parsing, events, and flow-state primitives
-- `packages/bot`: command routing, WebApp data handling, and webhook helpers
-- `packages/bff`: Telegram-aware server-side implementation helpers, adapters, context, and session/auth primitives
-- `packages/create-teleforge-app`: scaffold generator for new Teleforge apps
-- `packages/devtools`: `teleforge dev`, `teleforge mock`, and `teleforge doctor`
-- `packages/ui`: Telegram-native React UI components
-- `packages/web`: React hooks and Telegram WebApp types for Mini Apps
+- `teleforge`: app config, flow definitions, discovered runtimes, screen helpers, and server-hook helpers
+- `teleforge/bot`: bot runtime primitives when direct bot control is needed
+- `teleforge/web`: Mini App runtime hooks and `TeleforgeMiniApp`
+- `teleforge/ui`: Telegram-native React UI components
+- `teleforge/core/browser`: browser-safe launch and validation helpers
+- `teleforge/server-hooks`: server-only flow hook execution
 
-## Published Packages
+Internal workspace packages still exist under `packages/*`, but they are implementation layers, not the app authoring model.
 
-- [`@teleforgex/core`](https://www.npmjs.com/package/@teleforgex/core)
-- [`@teleforgex/web`](https://www.npmjs.com/package/@teleforgex/web)
-- [`@teleforgex/ui`](https://www.npmjs.com/package/@teleforgex/ui)
-- [`@teleforgex/bot`](https://www.npmjs.com/package/@teleforgex/bot)
-- [`@teleforgex/bff`](https://www.npmjs.com/package/@teleforgex/bff)
-- [`@teleforgex/devtools`](https://www.npmjs.com/package/@teleforgex/devtools)
+## App Shape
+
+A Teleforge app starts from:
+
+- `teleforge.config.ts`: app identity, bot settings, Mini App entry, and discovery roots
+- `apps/bot/src/flows/*.flow.ts`: flow definitions with chat and Mini App steps
+- `apps/web/src/screens/*.screen.tsx`: Mini App screen modules
+- optional `apps/bot/src/flow-handlers` and server-hook modules for trusted work
+
+The local workflow is simulator-first:
+
+```bash
+pnpm install
+pnpm build
+pnpm dev
+```
+
+For real Telegram testing:
+
+```bash
+teleforge dev --public --live
+```
+
+## Workspace Packages
+
+- `packages/teleforge`: unified public package and CLI entry
+- `packages/core`: internal shared contracts, launch parsing, validation, events, and flow-state primitives
+- `packages/bot`: internal Telegram bot runtime primitives
+- `packages/web`: internal Mini App hooks and Telegram WebApp integration
+- `packages/ui`: internal UI primitives re-exported through `teleforge/ui`
+- `packages/devtools`: internal CLI implementation for `teleforge dev`, `teleforge mock`, and `teleforge doctor`
+- `packages/bff`: internal server-side implementation helpers retained while server hooks become the public model
+- `packages/create-teleforge-app`: scaffold generator
 
 ## Common Commands
 
 ```bash
 pnpm install
-pnpm docs:build
-pnpm build
+pnpm lint
+pnpm format
 pnpm test
+pnpm build
+pnpm docs:build
 ```
 
-## Production Release
-
-Teleforge release versioning is managed with Changesets, but package publishing is intentionally limited to the framework packages:
-
-- `@teleforgex/core`
-- `@teleforgex/web`
-- `@teleforgex/ui`
-- `@teleforgex/bot`
-- `@teleforgex/bff`
-- `@teleforgex/devtools`
-
-The repository release workflow lives in `.github/workflows/release.yml`. On `main`, it:
-
-1. installs dependencies
-2. runs `pnpm build`
-3. runs `pnpm test`
-4. runs `pnpm run publish:dry-run`
-5. uses Changesets to open the release PR or publish unpublished framework packages sequentially
-
-Local release commands:
+Targeted checks:
 
 ```bash
-pnpm run version
-pnpm run publish:dry-run
-NPM_TOKEN=your_npm_token pnpm run publish
+pnpm --filter teleforge test
+pnpm --filter create-teleforge-app test
+cd packages/devtools && pnpm test
+pnpm --dir apps/task-shop test
 ```
 
-Token-based publish:
+The devtools filter is a framework-repo maintenance command. App authors use the `teleforge` CLI shipped by the unified package.
 
-```bash
-NPM_TOKEN=your_npm_token pnpm run publish
-```
+## Examples
 
-The release script reads an npm token from `--token`, `TELEFORGE_NPM_TOKEN`, `NPM_TOKEN`, or `NODE_AUTH_TOKEN` and writes a temporary npm user config for the publish session.
-
-Equivalent alternatives:
-
-```bash
-pnpm run publish -- --token=your_npm_token
-TELEFORGE_NPM_TOKEN=your_npm_token pnpm run publish
-NODE_AUTH_TOKEN=your_npm_token pnpm run publish
-```
-
-Notes:
-
-- `pnpm run publish` uses `scripts/release-publish.mjs`, not raw `changeset publish`
-- the publish script skips versions that already exist on npm and does not attempt to publish example apps or the generator
-- CI still needs npm credentials configured outside the repo, typically `NPM_TOKEN`
-- release commits should not include unrelated local-only files such as app-specific `.env` edits
+- `examples/starter-app`: minimal flow-first app with one bot command and one Mini App screen
+- `apps/task-shop`: larger reference app covering multi-step flows, screen runtime behavior, init data validation, and return-to-chat continuity
 
 ## Documentation
 
@@ -108,43 +91,16 @@ pnpm docs:build
 pnpm docs:serve
 ```
 
-Narrative docs live in [`docs/`](./docs/README.md).
+Narrative docs live in [`docs/`](./docs/README.md). The API reference is generated into `dist/docs-site/api`.
 
-`pnpm docs:build` now builds a standalone docs site into `dist/docs-site/`.
-The narrative site is the primary surface, and the TypeDoc API reference is rebuilt separately into `dist/docs-site/api/` and linked from the site header/sidebar.
-It covers the current `@teleforgex/core`, `web`, `bot`, `bff`, `ui`, and `devtools` public surfaces.
+## Release
 
-## Tooling Surface
-
-### Scaffolding
+Versioning uses Changesets. Publishing is driven by `scripts/release-publish.mjs` and requires an npm token through `--token`, `TELEFORGE_NPM_TOKEN`, `NPM_TOKEN`, or `NODE_AUTH_TOKEN`.
 
 ```bash
-pnpm --filter create-teleforge-app build
-node packages/create-teleforge-app/dist/cli.js my-app --mode spa
-node packages/create-teleforge-app/dist/cli.js my-bff-app --mode bff
+pnpm run version
+pnpm run publish:dry-run
+NPM_TOKEN=your_npm_token pnpm run publish
 ```
 
-### DevTools
-
-```bash
-node packages/devtools/dist/cli.js dev
-node packages/devtools/dist/cli.js dev --public --live
-node packages/devtools/dist/cli.js mock
-node packages/devtools/dist/cli.js doctor
-```
-
-`teleforge dev` is the primary local workflow and now opens a Telegram simulator with chat plus an embedded Mini App. Add `--public --live` for Telegram-facing local testing; Cloudflare Tunnel is the default provider. `teleforge dev:https` remains as a legacy alias.
-
-### Web Hooks
-
-```ts
-import { useTelegram, useTheme } from "@teleforgex/web";
-```
-
-`useTelegram` exposes the typed Telegram WebApp SDK with SSR-safe defaults, reactive viewport/theme state, and mock detection. `useTheme` derives Telegram-friendly convenience colors and `--tg-theme-*` CSS variables for UI components.
-
-## Notes
-
-- Workspace dependencies are managed with `pnpm`.
-- Generated fixture apps under `generated/` are local verification assets and are not tracked in git.
-- Package build outputs stay untracked; use `pnpm build` to regenerate `dist/`.
+Release commits should not include local `.env` files, generated app artifacts, or package build outputs.

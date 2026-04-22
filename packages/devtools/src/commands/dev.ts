@@ -31,9 +31,7 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   const loadedManifest = loadedState?.manifest;
   const manifest = flags.webhook ? loadedManifest : undefined;
   const webhookSupport =
-    flags.webhook && manifest
-      ? await resolveWebhookSupport(flags.cwd, manifest.runtime.webFramework)
-      : undefined;
+    flags.webhook && manifest ? await resolveWebhookSupport(flags.cwd) : undefined;
   const simulator =
     flags.mock && loadedManifest
       ? createDevSimulator({
@@ -73,9 +71,7 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
             ? (html) => injectTelegramMock(html)
             : undefined,
       onStarted: async (context) => {
-        console.log(
-          `✓ Validated Teleforge app config (${context.manifest.runtime.mode.toUpperCase()} mode, ${context.manifest.runtime.webFramework})`
-        );
+        console.log("✓ Validated Teleforge app config (Vite Mini App runtime)");
         console.log("✓ Project environment loaded");
 
         if (context.loadedEnvFiles.includes(".env.local")) {
@@ -177,18 +173,7 @@ interface WebhookSupportResult {
   supported: boolean;
 }
 
-async function resolveWebhookSupport(
-  cwd: string,
-  webFramework: "vite" | "nextjs" | "custom"
-): Promise<WebhookSupportResult> {
-  if (webFramework !== "nextjs") {
-    return {
-      message:
-        "Webhook mode currently requires a Next.js/BFF web runtime that serves /api/webhook through apps/web.",
-      supported: false
-    };
-  }
-
+async function resolveWebhookSupport(cwd: string): Promise<WebhookSupportResult> {
   const webDirectory = path.join(cwd, "apps", "web");
   const routeCandidates = [
     path.join(webDirectory, "app", "api", "webhook", "route.ts"),

@@ -7,7 +7,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import {
-  loadManifest as loadCoreManifest,
   teleforgeAppToManifest,
   validateManifest,
   type LaunchEntryPoint,
@@ -24,15 +23,10 @@ const configCandidates = [
   "teleforge.config.mjs"
 ] as const;
 
-export interface TeleforgeManifest extends Omit<CoreTeleforgeManifest, "runtime"> {
-  runtime: Omit<CoreTeleforgeManifest["runtime"], "webFramework"> & {
-    webFramework: "vite" | "nextjs";
-  };
-}
+export type TeleforgeManifest = CoreTeleforgeManifest;
 
 export interface DiscoveredTeleforgeFlowSummary {
   command?: string;
-  component?: string;
   filePath?: string;
   finalStep: string;
   hasRuntimeHandlers: boolean;
@@ -95,8 +89,7 @@ interface DiscoveredTeleforgeScreenSummary {
 }
 
 /**
- * Loads a Teleforge manifest from disk and narrows the runtime to the web frameworks supported by
- * `@teleforgex/devtools`.
+ * Loads a Teleforge app config from disk and derives the runtime manifest used by devtools.
  */
 export async function loadManifest(cwd: string): Promise<{
   discoveredFlows: DiscoveredTeleforgeFlowSummary[];
@@ -104,26 +97,15 @@ export async function loadManifest(cwd: string): Promise<{
   manifestPath: string;
 }> {
   const configState = await tryLoadTeleforgeConfig(cwd);
-  const loaded = configState ?? (await loadCoreManifest(cwd));
-  const { manifest, manifestPath } = loaded;
-
-  if (manifest.runtime.webFramework !== "vite" && manifest.runtime.webFramework !== "nextjs") {
-    throw new Error(
-      "Invalid Teleforge app config: runtime.webFramework is not supported by @teleforgex/devtools."
-    );
+  if (!configState) {
+    throw new Error("No Teleforge project found. Add a teleforge.config.ts file.");
   }
 
-  const discoveredFlows = hasDiscoveredFlowSummaries(loaded) ? loaded.discoveredFlows : [];
+  const { manifest, manifestPath } = configState;
 
   return {
-    discoveredFlows,
-    manifest: {
-      ...manifest,
-      runtime: {
-        ...manifest.runtime,
-        webFramework: manifest.runtime.webFramework
-      }
-    },
+    discoveredFlows: configState.discoveredFlows,
+    manifest,
     manifestPath
   };
 }
@@ -191,7 +173,11 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
   const script = `
     import { pathToFileURL } from "node:url";
 
-    const modulePath = process.argv[1];
+    const modulePath = process.env.TELEFORGE_CONFIG_PATH;
+    if (!modulePath) {
+      throw new Error("TELEFORGE_CONFIG_PATH is required.");
+    }
+
     const loaded = await import(pathToFileURL(modulePath).href);
     const candidate = loaded.default ?? loaded.app ?? loaded.config;
     const config =
@@ -214,10 +200,13 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
     const tsxImportPath = resolveTsxImportPath(cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      ["--import", tsxImportPath, "--input-type=module", "--eval", script, configPath],
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd,
-        env: process.env
+        env: {
+          ...process.env,
+          TELEFORGE_CONFIG_PATH: configPath
+        }
       }
     );
 
@@ -263,7 +252,6 @@ interface RouteFlowDefinition {
   initialStep: string;
   miniApp?: {
     capabilities?: RouteDefinition["capabilities"];
-    component?: string;
     description?: string;
     entryPoints?: LaunchEntryPoint[];
     guards?: string[];
@@ -321,7 +309,6 @@ function summarizeFlows(
 
     return {
       ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
-      ...(flow.miniApp?.component ? { component: flow.miniApp.component } : {}),
       ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
       finalStep: flow.finalStep ?? flow.initialStep,
       hasRuntimeHandlers: runtimeSummary?.hasRuntimeHandlers ?? false,
@@ -338,17 +325,6 @@ function summarizeFlows(
   });
 }
 
-function hasDiscoveredFlowSummaries(value: unknown): value is {
-  discoveredFlows: DiscoveredTeleforgeFlowSummary[];
-} {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    "discoveredFlows" in value &&
-    Array.isArray(value.discoveredFlows)
-  );
-}
-
 async function loadFlowModules(options: {
   cwd: string;
   root: string;
@@ -358,8 +334,12 @@ async function loadFlowModules(options: {
     import path from "node:path";
     import { pathToFileURL } from "node:url";
 
-    const cwd = process.argv[1];
-    const root = process.argv[2];
+    const cwd = process.env.TELEFORGE_CWD;
+    const root = process.env.TELEFORGE_FLOWS_ROOT;
+    if (!cwd || !root) {
+      throw new Error("TELEFORGE_CWD and TELEFORGE_FLOWS_ROOT are required.");
+    }
+
     const suffixes = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"];
 
     async function collectFiles(directory) {
@@ -433,18 +413,14 @@ async function loadFlowModules(options: {
     const tsxImportPath = resolveTsxImportPath(options.cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      [
-        "--import",
-        tsxImportPath,
-        "--input-type=module",
-        "--eval",
-        script,
-        options.cwd,
-        options.root
-      ],
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd: options.cwd,
-        env: process.env
+        env: {
+          ...process.env,
+          TELEFORGE_CWD: options.cwd,
+          TELEFORGE_FLOWS_ROOT: options.root
+        }
       }
     );
 
@@ -506,9 +482,13 @@ async function loadScreenSummaries(options: {
   const script = `
     import { pathToFileURL } from "node:url";
 
-    const teleforgePath = process.argv[1];
-    const cwd = process.argv[2];
-    const app = JSON.parse(process.argv[3]);
+    const teleforgePath = process.env.TELEFORGE_PACKAGE_PATH;
+    const cwd = process.env.TELEFORGE_CWD;
+    const appPayload = process.env.TELEFORGE_APP_PAYLOAD;
+    if (!teleforgePath || !cwd || !appPayload) {
+      throw new Error("TELEFORGE_PACKAGE_PATH, TELEFORGE_CWD, and TELEFORGE_APP_PAYLOAD are required.");
+    }
+    const app = JSON.parse(appPayload);
 
     const teleforge = await import(pathToFileURL(teleforgePath).href);
     const screens = await teleforge.loadTeleforgeScreens({
@@ -532,21 +512,17 @@ async function loadScreenSummaries(options: {
     const teleforgeImportPath = resolveTeleforgeImportPath(options.cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      [
-        "--import",
-        tsxImportPath,
-        "--input-type=module",
-        "--eval",
-        script,
-        teleforgeImportPath,
-        options.cwd,
-        JSON.stringify({
-          miniApp: options.app.miniApp
-        })
-      ],
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd: options.cwd,
-        env: process.env
+        env: {
+          ...process.env,
+          TELEFORGE_APP_PAYLOAD: JSON.stringify({
+            miniApp: options.app.miniApp
+          }),
+          TELEFORGE_CWD: options.cwd,
+          TELEFORGE_PACKAGE_PATH: teleforgeImportPath
+        }
       }
     );
 
@@ -568,9 +544,13 @@ async function loadFlowRuntimeSummaries(options: {
   const script = `
     import { pathToFileURL } from "node:url";
 
-    const teleforgePath = process.argv[1];
-    const cwd = process.argv[2];
-    const app = JSON.parse(process.argv[3]);
+    const teleforgePath = process.env.TELEFORGE_PACKAGE_PATH;
+    const cwd = process.env.TELEFORGE_CWD;
+    const appPayload = process.env.TELEFORGE_APP_PAYLOAD;
+    if (!teleforgePath || !cwd || !appPayload) {
+      throw new Error("TELEFORGE_PACKAGE_PATH, TELEFORGE_CWD, and TELEFORGE_APP_PAYLOAD are required.");
+    }
+    const app = JSON.parse(appPayload);
 
     const teleforge = await import(pathToFileURL(teleforgePath).href);
     const flows = await teleforge.loadTeleforgeFlows({
@@ -598,21 +578,17 @@ async function loadFlowRuntimeSummaries(options: {
     const teleforgeImportPath = resolveTeleforgeImportPath(options.cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      [
-        "--import",
-        tsxImportPath,
-        "--input-type=module",
-        "--eval",
-        script,
-        teleforgeImportPath,
-        options.cwd,
-        JSON.stringify({
-          flows: options.app.flows ?? {}
-        })
-      ],
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd: options.cwd,
-        env: process.env
+        env: {
+          ...process.env,
+          TELEFORGE_APP_PAYLOAD: JSON.stringify({
+            flows: options.app.flows ?? {}
+          }),
+          TELEFORGE_CWD: options.cwd,
+          TELEFORGE_PACKAGE_PATH: teleforgeImportPath
+        }
       }
     );
 
@@ -652,7 +628,9 @@ function createDiagnosticSummaries(
       const extraActionHandlerIds = step.discoveredActionHandlerIds.filter(
         (id) => !actionIds.has(id)
       );
-      const extraServerActionIds = step.discoveredServerActionIds.filter((id) => !actionIds.has(id));
+      const extraServerActionIds = step.discoveredServerActionIds.filter(
+        (id) => !actionIds.has(id)
+      );
       const resolvedActionCount = actions.filter((action) => action.isResolved).length;
       const hasRuntimeWiring =
         step.resolvedOnEnter ||
@@ -727,7 +705,6 @@ function createRoutesFromFlows(
 
     routes.push({
       ...(flow.miniApp.capabilities ? { capabilities: flow.miniApp.capabilities } : {}),
-      ...(flow.miniApp.component ? { component: flow.miniApp.component } : {}),
       coordination: {
         entryPoints,
         flow: {

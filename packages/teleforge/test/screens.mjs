@@ -36,8 +36,6 @@ export default defineTeleforgeApp({
     root: "apps/bot/src/flows"
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   },
   bot: {
     tokenEnv: "BOT_TOKEN",

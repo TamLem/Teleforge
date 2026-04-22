@@ -12,9 +12,7 @@ export default defineScreen<TaskShopFlowState>({
           <div style={{ padding: "16px" }}>
             <TgCard padding="md">
               <TgText variant="title">Task not found</TgText>
-              <TgText variant="body">
-                The selected task could not be loaded.
-              </TgText>
+              <TgText variant="body">The selected task could not be loaded.</TgText>
             </TgCard>
             <TgButton
               onClick={() => submit?.({ type: "browse" })}

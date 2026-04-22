@@ -12,10 +12,7 @@ const manifest = {
   id: "sample-app",
   name: "Sample App",
   version: "1.0.0",
-  runtime: {
-    mode: "spa",
-    webFramework: "vite"
-  },
+  runtime: {},
   bot: {
     username: "sample_bot",
     tokenEnv: "BOT_TOKEN",

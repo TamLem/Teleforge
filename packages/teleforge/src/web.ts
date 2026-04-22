@@ -7,16 +7,8 @@ export {
   TeleforgeMiniApp,
   useTeleforgeMiniAppRuntime
 } from "./miniapp-runtime.js";
-export {
-  createScreenRegistry,
-  defineScreen,
-  resolveMiniAppScreen
-} from "./screens.js";
-export {
-  defineFlow,
-  getFlowStep,
-  isMiniAppStep
-} from "./flow-definition.js";
+export { createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
+export { defineFlow, getFlowStep, isMiniAppStep } from "./flow-definition.js";
 export { resolveFlowActionKey } from "./flow-definition.js";
 export type {
   ResolvedMiniAppScreen,

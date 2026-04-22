@@ -132,9 +132,7 @@ const runtimeSchema = z
       })
       .strict()
       .optional(),
-    mode: z.enum(["spa", "bff"]),
-    ssr: z.boolean().optional(),
-    webFramework: z.enum(["vite", "nextjs", "custom"])
+    ssr: z.boolean().optional()
   })
   .strict();
 
@@ -216,25 +214,4 @@ export const manifestSchema = z
       .optional(),
     version: semverSchema
   })
-  .strict()
-  .superRefine((manifest, context) => {
-    if (manifest.runtime.mode === "spa" && manifest.runtime.webFramework !== "vite") {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "runtime.mode spa requires runtime.webFramework to be vite.",
-        path: ["runtime", "webFramework"]
-      });
-    }
-
-    if (
-      manifest.runtime.mode === "bff" &&
-      manifest.runtime.webFramework !== "nextjs" &&
-      manifest.runtime.webFramework !== "custom"
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "runtime.mode bff requires runtime.webFramework to be nextjs or custom.",
-        path: ["runtime", "webFramework"]
-      });
-    }
-  });
+  .strict();

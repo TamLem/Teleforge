@@ -49,7 +49,6 @@ export default defineFlow({
     }
   },
   miniApp: {
-    component: "pages/Home",
     launchModes: ["inline", "compact", "fullscreen"],
     route: "/",
     stepRoutes: {
@@ -159,8 +158,6 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"]
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -194,7 +191,9 @@ export default defineTeleforgeApp({
   assert.match(loaded.discoveredFlows[0]?.steps[1]?.screenFilePath ?? "", /home\.screen\.tsx$/);
   assert.equal(loaded.manifest.routes.length, 1);
   assert.equal(loaded.manifest.routes[0]?.path, "/");
-  assert.equal(loaded.manifest.routes[0]?.component, "pages/Home");
   assert.equal(loaded.manifest.routes[0]?.coordination?.flow?.flowId, "start");
-  assert.deepEqual(Object.keys(loaded.manifest.routes[0]?.coordination ?? {}), ["entryPoints", "flow"]);
+  assert.deepEqual(Object.keys(loaded.manifest.routes[0]?.coordination ?? {}), [
+    "entryPoints",
+    "flow"
+  ]);
 });

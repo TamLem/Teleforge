@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  UserFlowStateManager,
+  createFlowStorage,
   createFlowCoordinationConfig,
   createFlowStartCommand,
   defineFlow,
@@ -9,7 +11,6 @@ import {
   isMiniAppStep
 } from "../dist/index.js";
 import { handleMiniAppReturn } from "../dist/bot.js";
-import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
 
 test("defineFlow normalizes the final step and validates chat action targets", () => {
   const flow = defineFlow({

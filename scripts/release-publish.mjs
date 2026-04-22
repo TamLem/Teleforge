@@ -16,12 +16,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 const releasePackages = [
   { dir: "packages/teleforge", name: "teleforge" },
-  { dir: "packages/core", name: "@teleforgex/core" },
-  { dir: "packages/web", name: "@teleforgex/web" },
-  { dir: "packages/ui", name: "@teleforgex/ui" },
-  { dir: "packages/bot", name: "@teleforgex/bot" },
-  { dir: "packages/bff", name: "@teleforgex/bff" },
-  { dir: "packages/devtools", name: "@teleforgex/devtools" }
+  { dir: "packages/create-teleforge-app", name: "create-teleforge-app" }
 ];
 
 async function main() {

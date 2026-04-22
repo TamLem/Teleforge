@@ -41,7 +41,7 @@ export interface DevSimulator {
 }
 
 type SimulatorTranscriptEntry = DevSimulatorTranscriptEntry;
-type SimulatorChatMode = "manifest" | "workspace";
+type SimulatorChatMode = "static" | "runtime";
 
 interface SimulatorFixtureDefinition {
   description: string;
@@ -300,7 +300,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
 
   async function createStatePayload() {
     const bridge = await resolveBotBridge();
-    const chatMode: SimulatorChatMode = bridge ? "workspace" : "manifest";
+    const chatMode: SimulatorChatMode = bridge ? "runtime" : "static";
     const commandHints = bridge
       ? await bridge.getCommands()
       : manifestCommands.map((command) => command.command);
@@ -393,7 +393,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     transcript = transcript.concat(
       createTranscriptEntry(
         "bot",
-        "Simulator accepted the web_app_data payload. Bind a workspace bot adapter to execute app-specific handlers locally."
+        "Simulator accepted the web_app_data payload. Bind a flow runtime bot adapter to execute app-specific handlers locally."
       )
     );
   }
@@ -425,7 +425,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
     transcript = transcript.concat(
       createTranscriptEntry(
         "bot",
-        "Simulator received callback data, but this workspace is using manifest-level chat fallback."
+        "Simulator received callback data, but this project is using static chat fallback."
       )
     );
   }
@@ -479,7 +479,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
       }
 
       lines.push(
-        "Local transcript mode does not execute workspace bot code yet. Use the companion bot process or real Telegram mode for command-specific runtime behavior."
+        "Local transcript mode does not execute flow runtime bot code yet. Use the companion bot process or real Telegram mode for command-specific runtime behavior."
       );
 
       transcript = transcript.concat(createTranscriptEntry("bot", lines.join("\n")));
@@ -499,7 +499,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         env: options.env
       }).catch((error) => {
         const message =
-          error instanceof Error ? error.message : "Workspace bot bridge failed to initialize.";
+          error instanceof Error ? error.message : "Flow runtime bot bridge failed to initialize.";
         appendEvent({
           at: new Date().toISOString(),
           id: createId(),
@@ -511,7 +511,7 @@ export function createDevSimulator(options: DevSimulatorOptions): DevSimulator {
         transcript = transcript.concat(
           createTranscriptEntry(
             "system",
-            `Workspace bot bridge is unavailable. Falling back to manifest-level chat simulation.\n${message}`
+            `Flow runtime bot bridge is unavailable. Falling back to static chat simulation.\n${message}`
           )
         );
         return null;
@@ -1312,7 +1312,7 @@ function createSimulatorUiHtml(options: {
         const flowRuntime = debug.flowRuntime || null;
 
         ids.debugSummary.textContent = [
-          "Mode: " + (payload.chat?.mode || "manifest"),
+          "Mode: " + (payload.chat?.mode || "static"),
           "Commands: " + String(debug.commandCount ?? payload.chat?.commandHints?.length ?? 0),
           "Discovered Flows: " + String(debug.discoveredFlowCount ?? payload.flows?.length ?? 0),
           "Flow Sessions: " + String(debug.flowRuntimeSessionCount ?? flowRuntime?.sessions?.length ?? 0),
@@ -1328,7 +1328,7 @@ function createSimulatorUiHtml(options: {
 
         ids.debugContinuity.textContent = flowRuntime
           ? JSON.stringify(flowRuntime, null, 2)
-          : "No workspace flow runtime diagnostics available.";
+          : "No flow runtime diagnostics available.";
         ids.debugLastAction.textContent = debug.lastAction
           ? JSON.stringify(debug.lastAction, null, 2)
           : "No simulator actions yet.";
@@ -1349,7 +1349,7 @@ function createSimulatorUiHtml(options: {
         if (!Array.isArray(flows) || flows.length === 0) {
           const empty = document.createElement("p");
           empty.className = "hint";
-          empty.textContent = "No discovered flows. This workspace may be running manifest-only routes.";
+          empty.textContent = "No discovered flows. This project may be running config-only routes.";
           ids.debugFlows.appendChild(empty);
           return;
         }

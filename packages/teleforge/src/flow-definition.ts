@@ -1,8 +1,4 @@
-import type {
-  LaunchEntryPoint,
-  ReturnToChatMetadata,
-  RouteDefinition
-} from "@teleforgex/core";
+import type { LaunchEntryPoint, ReturnToChatMetadata, RouteDefinition } from "@teleforgex/core";
 
 type MaybePromise<T> = Promise<T> | T;
 
@@ -25,7 +21,6 @@ export interface TeleforgeFlowBotDefinition {
 
 export interface TeleforgeFlowMiniAppDefinition {
   capabilities?: RouteDefinition["capabilities"];
-  component?: RouteDefinition["component"];
   description?: RouteDefinition["description"];
   guards?: RouteDefinition["guards"];
   launchModes?: RouteDefinition["launchModes"];

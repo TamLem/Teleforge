@@ -29,7 +29,14 @@ type AnyFlowDefinition = TeleforgeFlowDefinition<
 >;
 
 const FLOW_FILE_SUFFIXES = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"] as const;
-const SCREEN_FILE_SUFFIXES = [".screen.tsx", ".screen.ts", ".screen.mts", ".screen.jsx", ".screen.js", ".screen.mjs"] as const;
+const SCREEN_FILE_SUFFIXES = [
+  ".screen.tsx",
+  ".screen.ts",
+  ".screen.mts",
+  ".screen.jsx",
+  ".screen.js",
+  ".screen.mjs"
+] as const;
 const HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
 const DEFAULT_FLOW_ROOT = "flows";
 type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
@@ -473,7 +480,7 @@ export function createFlowRuntimeSummary(
                 ? ("module" as const)
                 : typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function"
                   ? ("server" as const)
-                : ("none" as const),
+                  : ("none" as const),
           id: resolveFlowActionKey(action),
           label: action.label,
           ...(action.to ? { to: action.to } : {})
@@ -497,7 +504,9 @@ export function createFlowRuntimeSummary(
         resolvedServerGuard: false,
         resolvedServerLoader: false,
         resolvedServerSubmit: false,
-        ...(discoveredServerHook?.filePath ? { serverHookFile: discoveredServerHook.filePath } : {}),
+        ...(discoveredServerHook?.filePath
+          ? { serverHookFile: discoveredServerHook.filePath }
+          : {}),
         type: "chat" as const
       });
     }
@@ -667,7 +676,6 @@ export function createFlowRoutes(options: CreateFlowRoutesOptions): RouteDefinit
 
     routes.push({
       ...(flow.miniApp.capabilities ? { capabilities: flow.miniApp.capabilities } : {}),
-      ...(flow.miniApp.component ? { component: flow.miniApp.component } : {}),
       coordination: resolvedRoute.metadata,
       ...(flow.miniApp.description ? { description: flow.miniApp.description } : {}),
       ...(flow.miniApp.guards ? { guards: [...flow.miniApp.guards] } : {}),
@@ -842,7 +850,9 @@ async function loadFlowServerHookModule(
     actions: Object.freeze(actions),
     filePath,
     flowId,
-    ...(typeof module.guard === "function" ? { guard: module.guard as DiscoveredHandlerFunction } : {}),
+    ...(typeof module.guard === "function"
+      ? { guard: module.guard as DiscoveredHandlerFunction }
+      : {}),
     ...(typeof module.loader === "function"
       ? { loader: module.loader as DiscoveredHandlerFunction }
       : {}),

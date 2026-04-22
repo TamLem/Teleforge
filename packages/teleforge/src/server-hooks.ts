@@ -14,10 +14,7 @@ import type {
 } from "./server-bridge.js";
 import type { FlowInstance, UserFlowStateManager } from "@teleforgex/core";
 
-export {
-  createFetchMiniAppServerBridge,
-  DEFAULT_SERVER_HOOKS_PATH
-} from "./server-bridge.js";
+export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
 
 export type {
   CreateFetchMiniAppServerBridgeOptions,
@@ -152,7 +149,8 @@ export async function executeTeleforgeServerHookLoad(options: {
   if (options.storage && options.input.stateKey) {
     const stored = await options.storage.getInstance(options.input.stateKey);
     if (stored) {
-      persistedState = stored.state && Object.keys(stored.state).length > 0 ? stored.state : options.input.state;
+      persistedState =
+        stored.state && Object.keys(stored.state).length > 0 ? stored.state : options.input.state;
     }
   }
 

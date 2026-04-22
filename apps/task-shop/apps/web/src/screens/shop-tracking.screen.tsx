@@ -21,7 +21,9 @@ export default defineScreen<ShopTrackingState>({
                 {item ? `${item.title} — ${item.price} Stars` : "Unknown item"}
               </TgText>
             </div>
-            <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div
+              style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}
+            >
               <TgText variant="body">✓ Order placed</TgText>
               <TgText variant="body">◉ Processing</TgText>
               <TgText variant="hint">○ Shipping</TgText>

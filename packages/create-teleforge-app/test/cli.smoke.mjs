@@ -22,8 +22,8 @@ test("generates the unified Teleforge scaffold", async () => {
   const configSource = await readFile(configPath, "utf8");
   assert.match(configSource, /defineTeleforgeApp/);
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
-  assert.match(configSource, /mode: "spa"/);
-  assert.match(configSource, /webFramework: "vite"/);
+  assert.doesNotMatch(configSource, /mode: "spa"/);
+  assert.doesNotMatch(configSource, /webFramework: "vite"/);
   assert.doesNotMatch(configSource, /routes:/);
 
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
@@ -33,6 +33,14 @@ test("generates the unified Teleforge scaffold", async () => {
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
   );
+
+  const legacyManifestPath = path.join(tmpRoot, projectName, "teleforge.app.json");
+  await assert.rejects(readFile(legacyManifestPath, "utf8"), /ENOENT/);
+
+  const hasLegacyDeps = Object.keys(rootPackage.dependencies ?? {}).some((name) =>
+    name.startsWith("@teleforgex/")
+  );
+  assert.equal(hasLegacyDeps, false);
 
   const webPackagePath = path.join(tmpRoot, projectName, "apps", "web", "package.json");
   const webPackage = JSON.parse(await readFile(webPackagePath, "utf8"));
@@ -50,7 +58,7 @@ test("generates the unified Teleforge scaffold", async () => {
   const startFlow = await readFile(startFlowPath, "utf8");
   assert.match(startFlow, /import \{ defineFlow \} from "teleforge\/web"/);
   assert.match(startFlow, /command: "start"/);
-  assert.match(startFlow, /component: "screens\/home"/);
+  assert.doesNotMatch(startFlow, /component:/);
   assert.match(startFlow, /screen: "home"/);
   assert.match(startFlow, /route: "\/"/);
 

@@ -226,7 +226,7 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
     companionServices: companionServices.map((service) => service.label),
     env,
     externalPort,
-    frameworkLabel: manifest.runtime.webFramework === "vite" ? "Vite" : "Next.js",
+    frameworkLabel: "Vite",
     loadedEnvFiles: projectEnv.loadedFiles,
     manifest,
     requestedPort,
@@ -541,11 +541,8 @@ function spawnFrameworkServer(options: {
   manifest: TeleforgeManifest;
   webDirectory: string;
 }): ChildProcess {
-  const binary = resolveBinary(options.cwd, options.manifest.runtime.webFramework);
-  const args =
-    options.manifest.runtime.webFramework === "vite"
-      ? ["--host", "127.0.0.1", "--port", String(options.childPort), "--strictPort"]
-      : ["dev", "--hostname", "127.0.0.1", "--port", String(options.childPort)];
+  const binary = resolveBinary(options.cwd);
+  const args = ["--host", "127.0.0.1", "--port", String(options.childPort), "--strictPort"];
 
   return spawn(binary, args, {
     cwd: options.webDirectory,
@@ -719,7 +716,6 @@ function watchProjectFiles(
   onChange: (filename: string) => Promise<void>
 ): Array<ReturnType<typeof watch>> {
   const files = new Set([
-    "teleforge.app.json",
     "teleforge.config.ts",
     "teleforge.config.mts",
     "teleforge.config.js",
@@ -766,8 +762,8 @@ function resolveRequestedPort(
   return defaultPort;
 }
 
-function resolveBinary(cwd: string, framework: "vite" | "nextjs"): string {
-  const binaryName = framework === "vite" ? "vite" : "next";
+function resolveBinary(cwd: string): string {
+  const binaryName = "vite";
   const candidates = [
     path.join(cwd, "node_modules", ".bin", binaryName),
     path.join(cwd, "apps", "web", "node_modules", ".bin", binaryName),

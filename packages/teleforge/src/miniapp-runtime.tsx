@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
 import { resolveMiniAppScreen } from "./screens.js";
 
+import type { DiscoveredFlowModule, DiscoveredFlowStepHandlerModule } from "./discovery.js";
 import type {
-  DiscoveredFlowModule,
-  DiscoveredFlowStepHandlerModule
-} from "./discovery.js";
-import type { FlowActionDefinition, FlowTransitionResult, TeleforgeFlowDefinition } from "./flow-definition.js";
+  FlowActionDefinition,
+  FlowTransitionResult,
+  TeleforgeFlowDefinition
+} from "./flow-definition.js";
 import type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,
@@ -76,8 +77,10 @@ export interface TeleforgeMiniAppProps {
   serverBridge?: TeleforgeMiniAppServerBridge;
 }
 
-export interface UseTeleforgeMiniAppRuntimeOptions
-  extends Omit<TeleforgeMiniAppProps, "fallback" | "loadingFallback" | "renderBlocked" | "renderError"> {}
+export interface UseTeleforgeMiniAppRuntimeOptions extends Omit<
+  TeleforgeMiniAppProps,
+  "fallback" | "loadingFallback" | "renderBlocked" | "renderError"
+> {}
 
 export interface ReadyMiniAppScreen extends ResolvedMiniAppScreen {
   loaderData?: unknown;
@@ -144,7 +147,9 @@ export interface ScreenMiniAppTransitionResult extends MiniAppTransitionBase {
   target: "miniapp";
 }
 
-export type MiniAppStepExecutionResult = ChatMiniAppTransitionResult | ScreenMiniAppTransitionResult;
+export type MiniAppStepExecutionResult =
+  | ChatMiniAppTransitionResult
+  | ScreenMiniAppTransitionResult;
 
 export type TeleforgeMiniAppRuntimeState =
   | ReadyMiniAppScreen
@@ -359,7 +364,13 @@ export function useTeleforgeMiniAppRuntime(
     return () => {
       isCancelled = true;
     };
-  }, [launchCoordination.rawFlowContext, launchCoordination.stateKey, options.flows, pathname, options.screens]);
+  }, [
+    launchCoordination.rawFlowContext,
+    launchCoordination.stateKey,
+    options.flows,
+    pathname,
+    options.screens
+  ]);
 
   return state;
 }
@@ -384,10 +395,7 @@ export async function loadMiniAppScreenRuntime(
       })
     : { allow: true as const };
 
-  const baseState =
-    serverResult.state !== undefined
-      ? serverResult.state
-      : resolution.state;
+  const baseState = serverResult.state !== undefined ? serverResult.state : resolution.state;
 
   const mergedState = mergeLaunchPayloadStateInto(baseState, options.flowContext ?? null);
 
@@ -405,9 +413,7 @@ export async function loadMiniAppScreenRuntime(
   }
 
   const context = createRuntimeContext(nextResolution, serverResult.loaderData);
-  const guardResult = resolution.screen.guard
-    ? await resolution.screen.guard(context)
-    : true;
+  const guardResult = resolution.screen.guard ? await resolution.screen.guard(context) : true;
 
   if (guardResult !== true) {
     if (guardResult === false) {
@@ -437,7 +443,7 @@ export async function loadMiniAppScreenRuntime(
         ? {
             loaderData: serverResult.loaderData
           }
-      : {}),
+        : {}),
     status: "ready"
   };
 }
@@ -510,7 +516,12 @@ export async function executeMiniAppStepAction(
         services: options.services
       });
 
-  return resolveMiniAppTransition(options.resolution, result, options.resolution.stepId, actionDefinition);
+  return resolveMiniAppTransition(
+    options.resolution,
+    result,
+    options.resolution.stepId,
+    actionDefinition
+  );
 }
 
 async function handleMiniAppSubmit(options: {
@@ -622,11 +633,19 @@ async function applyMiniAppExecutionResult(options: {
 
   if (!options.flowContext || !options.stateKey) {
     console.log("[teleforge:miniapp] standalone mode: skipping chat handoff");
-    const chatStep = getFlowStep(options.result.flow, options.result.stepId) as Record<string, unknown>;
-    const fallbackScreen = chatStep?.miniApp ? (chatStep.miniApp as Record<string, unknown>).screen as string | undefined : undefined;
+    const chatStep = getFlowStep(options.result.flow, options.result.stepId) as Record<
+      string,
+      unknown
+    >;
+    const fallbackScreen = chatStep?.miniApp
+      ? ((chatStep.miniApp as Record<string, unknown>).screen as string | undefined)
+      : undefined;
 
     if (fallbackScreen) {
-      console.log("[teleforge:miniapp] standalone: rendering miniapp fallback for chat step:", fallbackScreen);
+      console.log(
+        "[teleforge:miniapp] standalone: rendering miniapp fallback for chat step:",
+        fallbackScreen
+      );
       options.setHandoff(null);
       return;
     }
@@ -677,7 +696,7 @@ async function resolveMiniAppSubmitResult(options: {
   step: ReturnType<typeof getFlowStep<unknown, unknown>>;
 }): Promise<void | FlowTransitionResult<unknown>> {
   const onSubmit = isMiniAppStep(options.step)
-    ? options.step.onSubmit ?? options.handlerModule?.onSubmit
+    ? (options.step.onSubmit ?? options.handlerModule?.onSubmit)
     : undefined;
 
   if (!onSubmit) {
@@ -686,12 +705,12 @@ async function resolveMiniAppSubmitResult(options: {
     );
   }
 
-  return await onSubmit({
+  return (await onSubmit({
     data: options.data,
     flow: options.resolution.flow,
     services: options.services,
     state: options.resolution.state
-  }) as void | FlowTransitionResult<unknown>;
+  })) as void | FlowTransitionResult<unknown>;
 }
 
 async function resolveMiniAppActionResult(options: {
@@ -702,7 +721,9 @@ async function resolveMiniAppActionResult(options: {
   services?: unknown;
 }): Promise<void | FlowTransitionResult<unknown>> {
   const actionHandler =
-    options.actionDefinition?.handler ?? options.handlerModule?.actions[options.action] ?? undefined;
+    options.actionDefinition?.handler ??
+    options.handlerModule?.actions[options.action] ??
+    undefined;
 
   if (!actionHandler && !options.actionDefinition?.to) {
     throw new Error(
@@ -711,11 +732,11 @@ async function resolveMiniAppActionResult(options: {
   }
 
   return actionHandler
-    ? await actionHandler({
+    ? ((await actionHandler({
         flow: options.resolution.flow,
         services: options.services,
         state: options.resolution.state
-      }) as void | FlowTransitionResult<unknown>
+      })) as void | FlowTransitionResult<unknown>)
     : undefined;
 }
 
@@ -822,8 +843,8 @@ function DefaultMiniAppError(options: { error: UnresolvedMiniAppScreen }) {
     case "missing_miniapp_step":
       return (
         <div>
-          Teleforge route "{error.pathname}" resolved to step "{error.stepId}", but that step is
-          not a Mini App step.
+          Teleforge route "{error.pathname}" resolved to step "{error.stepId}", but that step is not
+          a Mini App step.
         </div>
       );
   }
@@ -885,18 +906,12 @@ function readPersistedMiniAppSnapshot(stateKey: string | null): PersistedMiniApp
   }
 }
 
-function persistMiniAppSnapshot(
-  stateKey: string | null,
-  snapshot: PersistedMiniAppSnapshot
-): void {
+function persistMiniAppSnapshot(stateKey: string | null, snapshot: PersistedMiniAppSnapshot): void {
   if (!stateKey || typeof window === "undefined" || !window.sessionStorage) {
     return;
   }
 
-  window.sessionStorage.setItem(
-    `${MINI_APP_SNAPSHOT_PREFIX}${stateKey}`,
-    JSON.stringify(snapshot)
-  );
+  window.sessionStorage.setItem(`${MINI_APP_SNAPSHOT_PREFIX}${stateKey}`, JSON.stringify(snapshot));
 }
 
 function clearPersistedMiniAppSnapshot(stateKey: string | null): void {
@@ -937,14 +952,14 @@ async function transmitMiniAppChatHandoff(options: {
       console.log("[teleforge:miniapp] server bridge chat handoff succeeded");
       return true;
     } catch (err) {
-      console.log("[teleforge:miniapp] server bridge chat handoff failed, falling back to sendData:", err);
+      console.log(
+        "[teleforge:miniapp] server bridge chat handoff failed, falling back to sendData:",
+        err
+      );
     }
   }
 
-  if (
-    typeof window !== "undefined" &&
-    typeof window.Telegram?.WebApp?.sendData === "function"
-  ) {
+  if (typeof window !== "undefined" && typeof window.Telegram?.WebApp?.sendData === "function") {
     console.log("[teleforge:miniapp] using sendData for chat handoff");
     window.Telegram.WebApp.sendData(
       JSON.stringify({
@@ -960,32 +975,6 @@ async function transmitMiniAppChatHandoff(options: {
 
   console.log("[teleforge:miniapp] no chat handoff method available");
   return false;
-}
-
-function closeTelegramMiniApp(): void {
-  if (typeof window === "undefined") {
-    console.log("[teleforge:miniapp] closeTelegramMiniApp: no window");
-    return;
-  }
-
-  const hasTelegram = typeof window.Telegram !== "undefined";
-  const hasWebApp = typeof window.Telegram?.WebApp !== "undefined";
-  const hasClose = typeof window.Telegram?.WebApp?.close === "function";
-
-  console.log("[teleforge:miniapp] closeTelegramMiniApp:", {
-    hasClose,
-    hasTelegram,
-    hasWebApp,
-    platform: window.Telegram?.WebApp?.platform,
-    version: window.Telegram?.WebApp?.version
-  });
-
-  if (hasClose) {
-    window.Telegram!.WebApp!.close();
-    console.log("[teleforge:miniapp] close() called");
-  } else {
-    console.log("[teleforge:miniapp] close() not available");
-  }
 }
 
 function syncBrowserPathname(pathname: string): void {
@@ -1008,7 +997,9 @@ function DefaultMiniAppBlocked(options: { error: BlockedMiniAppScreen }) {
 }
 
 function DefaultMiniAppPending(options: { screenId?: string } = {}) {
-  return <div>Loading Teleforge Mini App{options.screenId ? ` screen "${options.screenId}"` : ""}.</div>;
+  return (
+    <div>Loading Teleforge Mini App{options.screenId ? ` screen "${options.screenId}"` : ""}.</div>
+  );
 }
 
 function DefaultMiniAppChatHandoff(options: { result: ChatMiniAppTransitionResult }) {
@@ -1017,7 +1008,18 @@ function DefaultMiniAppChatHandoff(options: { result: ChatMiniAppTransitionResul
   };
 
   return (
-    <div style={{ alignItems: "center", display: "flex", flexDirection: "column", gap: "16px", justifyContent: "center", minHeight: "100vh", padding: "24px", textAlign: "center" }}>
+    <div
+      style={{
+        alignItems: "center",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        justifyContent: "center",
+        minHeight: "100vh",
+        padding: "24px",
+        textAlign: "center"
+      }}
+    >
       <div style={{ fontSize: "24px" }}>✓</div>
       <div style={{ fontSize: "16px", fontWeight: 600 }}>Returning to chat</div>
       <div style={{ color: "var(--tg-theme-hint-color, #999)", fontSize: "14px" }}>
@@ -1060,10 +1062,7 @@ function resolveWindowPathname(): string {
   return window.location.pathname;
 }
 
-function mergeLaunchPayloadStateInto(
-  baseState: unknown,
-  flowContext: FlowContext | null
-): unknown {
+function mergeLaunchPayloadStateInto(baseState: unknown, flowContext: FlowContext | null): unknown {
   if (!flowContext || !flowContext.payload) {
     return baseState;
   }
@@ -1082,8 +1081,7 @@ function mergeLaunchPayloadStateInto(
     return baseState;
   }
 
-  const base =
-    typeof baseState === "object" && baseState !== null ? baseState : {};
+  const base = typeof baseState === "object" && baseState !== null ? baseState : {};
 
   return {
     ...base,

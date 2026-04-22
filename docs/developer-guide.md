@@ -10,19 +10,20 @@ It focuses on the implemented workflow in this repository:
 - build Mini App, bot, and optional server-hook features with the shipped packages
 - validate and test before release
 
-Use this guide as the hub. The new step-by-step companions are:
+Use this guide as the hub. The step-by-step companions are:
 
 - [Telegram Mini App Basics](./telegram-basics.md)
-- [Flow-First Developer Experience](./flow-first-dx.md)
-- [Build Your First Feature](./first-feature.md)
-- [Flow Coordination](./flow-coordination.md)
+- [Flow State Design](./flow-state-design.md) — Storage model and execution architecture
+- [Mini App Architecture](./miniapp-architecture.md) — 18 frontend guidelines
+- [Flow Coordination](./flow-coordination.md) — Chat → Mini App → Chat lifecycle
+- [Config Reference](./manifest-reference.md) — `teleforge.config.ts` schema
 - [Server Hooks and BFF Internals](./bff-guide.md)
 - [Shared Phone Auth](./shared-phone-auth.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)
 
-If you are looking for where Teleforge should evolve next rather than what V1 already ships, read [Flow-First Developer Experience](./flow-first-dx.md). That document is design direction, not current behavior.
+If you are migrating from V1, read [Flow-First Migration](./flow-first-migration.md).
 
 ## Who Teleforge Is For
 
@@ -197,97 +198,27 @@ teleforge doctor --json
 
 Run `teleforge doctor` before assuming Telegram, HTTPS, or manifest issues are application bugs.
 
-## Package Roles
+## Public Imports
 
-The default app path is now the unified `teleforge` package plus `teleforge/web`.
+Generated apps use one framework package.
 
-Generated apps start from:
+Use these imports in app code:
 
-- `teleforge` for `defineTeleforgeApp()`, `defineFlow()`, discovered runtime helpers, and config loading
-- `teleforge/web` for `TeleforgeMiniApp`, `defineScreen()`, and browser-safe Mini App execution helpers
+- `teleforge` for `defineTeleforgeApp()`, `defineFlow()`, discovered runtimes, config loading, and flow-state helpers
+- `teleforge/bot` for lower-level Telegram bot primitives when a custom bot runtime needs them
+- `teleforge/web` for `TeleforgeMiniApp`, `defineScreen()`, Telegram hooks, and Mini App runtime helpers
+- `teleforge/ui` for Telegram-aware React UI primitives
+- `teleforge/core/browser` for browser-safe launch and validation helpers
+- `teleforge/server-hooks` for trusted server hook bridge helpers
 
-The lower-level `@teleforgex/*` packages still exist and are useful when you need direct access to the underlying layers.
-
-Teleforge is organized as layered packages with `@teleforgex/core` at the center.
-
-### `@teleforgex/core`
-
-Use core for:
-
-- manifest schema and validation
-- launch context parsing
-- `initData` validation
-- shared flow-state types
-- coordination metadata and event primitives
-
-Browser-safe consumers should prefer `@teleforgex/core/browser` when they only need portable launch and validation utilities.
-
-### `@teleforgex/web`
-
-Use web for React-side Telegram integration:
-
-- `useTelegram()` for raw Telegram state and SDK access
-- `useLaunch()` for launch mode, auth state, and capabilities
-- `useTheme()` for Telegram theme values and CSS variables
-- `useMainButton()` and `useBackButton()` for native controls
-- route guards such as `useRouteGuard()` and `useManifestGuard()`
-- lower-level launch, theme, guard, and Telegram capability hooks under the framework-owned shell
-
-### `@teleforgex/ui`
-
-Use UI when you want Telegram-native React components on top of `@teleforgex/web`, including:
-
-- `AppShell`
-- `MainButton`
-- `LaunchModeBoundary`
-- cards, text, lists, settings, and inputs
-
-### `@teleforgex/bot`
-
-Use bot for Telegram update handling:
-
-- `BotRouter`
-- `createBotRuntime()`
-- command registration
-- `web_app_data` parsing and acknowledgment helpers
-- webhook handlers and adapters
-
-### `@teleforgex/bff`
-
-This is an advanced implementation package rather than the default public app shape.
-
-Use it when you need direct access to the current Telegram-aware server-side implementation layer:
-
-- `defineBffRoute()`
-- `createBffConfig()`
-- `ConfiguredBffRouter`
-- auth and launch-mode middleware
-- service adapters
-- request context creation
-- provider-based identity resolution
-- session and phone-auth exchange helpers
-
-For app authors, the preferred public framing is still:
-
-- flows
-- screens
-- optional server hooks
-
-### `@teleforgex/devtools`
-
-Use devtools for local iteration and diagnostics:
-
-- `teleforge dev`
-- `teleforge dev --public --live`
-- `teleforge mock`
-- `teleforge doctor`
+Do not import internal implementation packages from app code. Those packages implement the framework inside this repository, but the public developer experience is the unified `teleforge` package.
 
 ## Common Implementation Patterns
 
 ### Telegram State in the Mini App
 
 ```tsx
-import { useLaunch, useTelegram, useTheme } from "@teleforgex/web";
+import { useLaunch, useTelegram, useTheme } from "teleforge/web";
 
 export function Screen() {
   const telegram = useTelegram();
@@ -311,7 +242,7 @@ Use `useTelegram()` when you need direct SDK state. Use `useLaunch()` when you n
 ### Main Button Coordination
 
 ```tsx
-import { useMainButton } from "@teleforgex/web";
+import { useMainButton } from "teleforge/web";
 
 export function CheckoutAction({ disabled }: { disabled: boolean }) {
   useMainButton({
@@ -323,13 +254,13 @@ export function CheckoutAction({ disabled }: { disabled: boolean }) {
 }
 ```
 
-For component-level rendering, `@teleforgex/ui` also exposes a `MainButton` component built on top of the hook.
+For component-level rendering, `teleforge/ui` also exposes a `MainButton` component built on top of the hook.
 
 ### Theme-Aware UI
 
 ```tsx
-import { AppShell, TgCard, TgText } from "@teleforgex/ui";
-import { useTheme } from "@teleforgex/web";
+import { AppShell, TgCard, TgText } from "teleforge/ui";
+import { useTheme } from "teleforge/web";
 
 export function ThemedScreen() {
   const theme = useTheme();
@@ -350,7 +281,7 @@ When route access depends on launch mode or client capabilities:
 
 - use `useRouteGuard()` for imperative checks
 - use `useManifestGuard()` when route requirements already live in derived route config
-- use `LaunchModeBoundary` from `@teleforgex/ui` for view-level fallbacks
+- use `LaunchModeBoundary` from `teleforge/ui` for view-level fallbacks
 
 This is the pattern Teleforge uses for flows like compact/fullscreen checkout protection.
 
@@ -361,10 +292,7 @@ Use the validation path that matches your runtime:
 - `validateInitDataBotToken()` for Node-only, bot-token-backed validation
 - `validateInitDataEd25519()` for WebCrypto-compatible runtimes using `publicKey + botId`
 
-In Teleforge BFF:
-
-- configure `publicKey + botId` for portable Ed25519 validation
-- use `botToken` only in Node runtimes
+Use `teleforge/core/browser` for browser-safe Ed25519 validation. Use bot-token-backed validation only in trusted Node runtimes.
 
 ### Bot to Mini App Data Flow
 
@@ -380,11 +308,11 @@ Mini App-side:
 
 - use the framework-owned `TeleforgeMiniApp` path when the result should progress the flow or return to chat
 - use optional server hooks when the result needs trusted server execution
-- use lower-level `@teleforgex/web` hooks only when you need direct control outside the default shell
+- use lower-level `teleforge/web` hooks only when you need direct control outside the default shell
 
 ### Optional Server Hooks
 
-`apps/api` is optional until a flow step needs trusted server execution such as:
+Server hooks are optional until a flow step needs trusted server execution such as:
 
 - authoritative guards
 - authoritative loaders
@@ -392,55 +320,15 @@ Mini App-side:
 - trusted action handlers
 - webhook delivery
 
-The current framework runtime can now discover flow-scoped server hooks by convention and execute them through a framework-owned bridge. Use the lower-level `@teleforgex/bff` package when you need its request context, identity, or session primitives directly.
-
-### BFF Route Definition
-
-```ts
-import { defineBffRoute } from "@teleforgex/bff";
-
-export const profileRoute = defineBffRoute({
-  auth: "required",
-  launchModes: ["compact", "fullscreen"],
-  method: "GET",
-  path: "/profile",
-  service: {
-    adapter: "account",
-    operation: "getProfile"
-  }
-});
-```
-
-Use service routes when you are mapping to downstream APIs. Use handler routes when you need orchestration logic in-process.
+The framework discovers flow-scoped server hooks by convention and executes them through a framework-owned bridge. Keep hook code scoped to the flow step that needs trusted work.
 
 ### Provider-Based Identity
 
-Teleforge BFF identity config is explicit and provider-based.
-
-```ts
-import {
-  createBffConfig,
-  telegramIdIdentityProvider,
-  usernameIdentityProvider
-} from "@teleforgex/bff";
-
-const config = createBffConfig({
-  botToken: process.env.BOT_TOKEN!,
-  features: {
-    sessions: false
-  },
-  identity: {
-    adapter: identityAdapter,
-    providers: [telegramIdIdentityProvider(), usernameIdentityProvider()]
-  }
-});
-```
-
-This keeps identity lookup policy visible in app code instead of hiding it behind implicit defaults.
+Identity lookup policy should stay explicit in trusted server code. Resolve the Telegram-authenticated actor to your application user before issuing sessions or committing durable domain state.
 
 ### Shared Phone Number Auth
 
-When your app needs a Telegram user to prove control of a phone number, use the bot and BFF helpers together.
+When your app needs a Telegram user to prove control of a phone number, use bot helpers plus trusted server hook code.
 
 Bot side:
 
@@ -451,13 +339,13 @@ Bot side:
 Mini App side:
 
 - read `phoneAuthToken` from `useLaunch()`
-- send it to your BFF route
+- send it to trusted server code
 
-BFF side:
+Server side:
 
-- use `createPhoneAuthExchangeHandler()` to verify the signed token
+- verify the signed token
 - resolve the app user by normalized phone number
-- issue the same session envelope used by the standard exchange route
+- issue a session or commit identity state
 
 This is the right pattern when phone number is the app's primary login key but Telegram still needs to anchor the trust chain.
 
@@ -510,9 +398,8 @@ pnpm docs:build
 Targeted package verification:
 
 ```bash
-pnpm --filter @teleforgex/web test
-pnpm --filter @teleforgex/bff test
-pnpm --filter @teleforgex/bot test
+pnpm --filter teleforge test
+pnpm --filter create-teleforge-app test
 pnpm --dir apps/task-shop test
 ```
 

@@ -42,10 +42,7 @@ test("configures the Telegram webhook when manifest and env are present", async 
           secretEnv: "WEBHOOK_SECRET"
         }
       },
-      runtime: {
-        mode: "spa",
-        webFramework: "vite"
-      }
+      runtime: {}
     },
     tunnelUrl: "https://demo.loca.lt"
   });
@@ -65,10 +62,7 @@ test("skips webhook configuration when the bot token is missing", async () => {
           path: "/api/webhook"
         }
       },
-      runtime: {
-        mode: "spa",
-        webFramework: "vite"
-      }
+      runtime: {}
     },
     tunnelUrl: "https://demo.loca.lt"
   });

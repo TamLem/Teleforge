@@ -21,10 +21,18 @@ export default defineScreen<ShopCheckoutState>({
                 Choose a task to purchase:
               </TgText>
             </TgCard>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}
+            >
               {mockTasks.map((task) => (
                 <TgCard key={task.id} padding="md">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                  >
                     <div>
                       <TgText variant="subtitle">{task.title}</TgText>
                       <TgText variant="hint">{task.price} Stars</TgText>
@@ -57,10 +65,7 @@ export default defineScreen<ShopCheckoutState>({
             </TgText>
           </TgCard>
           <div style={{ marginTop: "12px" }}>
-            <TgButton
-              onClick={() => submit?.({ type: "complete-order" })}
-              variant="primary"
-            >
+            <TgButton onClick={() => submit?.({ type: "complete-order" })} variant="primary">
               Complete purchase — {item.price} Stars
             </TgButton>
           </div>

@@ -29,7 +29,6 @@ export default defineFlow({
     }
   },
   miniApp: {
-    component: "pages/Home",
     launchModes: ["inline", "compact", "fullscreen"],
     route: "/"
   },
@@ -77,8 +76,6 @@ export default defineTeleforgeApp({
     }
   ],
   runtime: {
-    mode: "spa",
-    webFramework: "vite"
   }
 });
 `
@@ -94,6 +91,5 @@ export default defineTeleforgeApp({
   assert.equal(loaded.app.routes?.length, 2);
   assert.equal(loaded.app.routes?.[0]?.path, "/settings");
   assert.equal(loaded.app.routes?.[1]?.path, "/");
-  assert.equal(loaded.app.routes?.[1]?.component, "pages/Home");
   assert.equal(loaded.appPath, path.join(tmpRoot, "teleforge.config.ts"));
 });

@@ -460,7 +460,7 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
 
     const stateBefore = await requestJson(`http://127.0.0.1:${port}/__teleforge/api/state`);
     assert.equal(stateBefore.transcript[0]?.role, "system");
-    assert.equal(stateBefore.chat.mode, "workspace");
+    assert.equal(stateBefore.chat.mode, "runtime");
     assert.equal(stateBefore.debug.discoveredFlowCount, 1);
     assert.equal(stateBefore.flows.length, 1);
     assert.equal(stateBefore.flows[0]?.id, "start");
@@ -521,10 +521,7 @@ export function createDevBotRuntime(options: { miniAppUrl?: string } = {}) {
     assert.equal(stateAfter.debug.resumedFlowSessionCount, 0);
     assert.equal(stateAfter.debug.flowRuntime?.sessions?.[0]?.stateKey, "flow:task-flow:1");
     assert.equal(stateAfter.debug.flowRuntime?.sessions?.[0]?.currentStepId, "catalog");
-    assert.equal(
-      stateAfter.debug.flowRuntime?.sessions?.[0]?.miniApp?.pendingChatHandoff,
-      true
-    );
+    assert.equal(stateAfter.debug.flowRuntime?.sessions?.[0]?.miniApp?.pendingChatHandoff, true);
 
     const callbackState = await requestJson(
       `http://127.0.0.1:${port}/__teleforge/api/chat/callback`,

@@ -6,6 +6,8 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import {
+  UserFlowStateManager,
+  createFlowStorage,
   createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
@@ -20,7 +22,6 @@ import {
   loadTeleforgeFlows
 } from "../dist/index.js";
 import { handleMiniAppReturn } from "../dist/bot.js";
-import { UserFlowStateManager, createFlowStorage } from "../dist/core.js";
 
 test("discoverFlowFiles and loadTeleforgeFlows read convention-based flow modules", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-flows-"));
@@ -251,7 +252,6 @@ test("createFlowRoutes derives manifest routes from flow miniapp metadata", () =
       }
     },
     miniApp: {
-      component: "pages/Home",
       guards: ["auth"],
       launchModes: ["inline", "compact", "fullscreen"],
       route: "/"
@@ -277,7 +277,6 @@ test("createFlowRoutes derives manifest routes from flow miniapp metadata", () =
   assert.equal(routes.length, 2);
   assert.equal(routes[0]?.path, "/settings");
   assert.equal(routes[1]?.path, "/");
-  assert.equal(routes[1]?.component, "pages/Home");
   assert.deepEqual(routes[1]?.guards, ["auth"]);
   assert.deepEqual(routes[1]?.launchModes, ["inline", "compact", "fullscreen"]);
   assert.equal(routes[1]?.coordination?.flow?.flowId, "start");

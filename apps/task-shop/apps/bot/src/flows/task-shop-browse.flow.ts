@@ -26,44 +26,44 @@ export default defineFlow<TaskShopFlowState, unknown>({
       text: "Welcome to Task Shop. Browse Teleforge-flavored tasks and check out from the Mini App."
     }
   },
-    miniApp: {
-      launchModes: ["inline", "compact", "fullscreen"],
-      requestWriteAccess: true,
-      returnToChat: {
-        stayInChat: true,
-        text: "Back to Task Shop chat"
-      },
-      route: "/",
-      stepRoutes: {
-        cart: "/cart",
-        checkout: "/checkout",
-        detail: "/detail",
-        success: "/success"
-      },
-      title: "Task Shop"
+  miniApp: {
+    launchModes: ["inline", "compact", "fullscreen"],
+    requestWriteAccess: true,
+    returnToChat: {
+      stayInChat: true,
+      text: "Back to Task Shop chat"
     },
-    steps: {
-      catalog: {
-        async onSubmit({ data, state }) {
-          return resolveCatalogSubmit(state, data);
-        },
-        screen: "task-shop.catalog",
-        type: "miniapp"
+    route: "/",
+    stepRoutes: {
+      cart: "/cart",
+      checkout: "/checkout",
+      detail: "/detail",
+      success: "/success"
+    },
+    title: "Task Shop"
+  },
+  steps: {
+    catalog: {
+      async onSubmit({ data, state }) {
+        return resolveCatalogSubmit(state, data);
       },
-      detail: {
-        async onSubmit({ data, state }) {
-          return resolveDetailSubmit(state, data);
-        },
-        screen: "task-shop.detail",
-        type: "miniapp"
+      screen: "task-shop.catalog",
+      type: "miniapp"
+    },
+    detail: {
+      async onSubmit({ data, state }) {
+        return resolveDetailSubmit(state, data);
       },
-      cart: {
-        async onSubmit({ data, state }) {
-          return resolveCartSubmit(state, data);
-        },
-        screen: "task-shop.cart",
-        type: "miniapp"
+      screen: "task-shop.detail",
+      type: "miniapp"
+    },
+    cart: {
+      async onSubmit({ data, state }) {
+        return resolveCartSubmit(state, data);
       },
+      screen: "task-shop.cart",
+      type: "miniapp"
+    },
     checkout: {
       async onSubmit({ data, state }) {
         return resolveCheckoutSubmit(state, data);

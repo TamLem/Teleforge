@@ -10,9 +10,7 @@ export interface TeleforgeRuntime {
     basePath?: string;
     outDir?: string;
   };
-  mode: "spa" | "bff";
   ssr?: boolean;
-  webFramework: "vite" | "nextjs" | "custom";
 }
 
 /**

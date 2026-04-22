@@ -49,12 +49,12 @@ During development, Vite proxies `/api/teleforge/flow-hooks` to `localhost:3100`
 
 ## Flow Paths
 
-| Path | Mechanism | When |
-|---|---|---|
-| Mini App entry (`/start`) | `sendFlowInit` → single `web_app` button | Flow with `type: "miniapp"` entry step |
-| Chat deep link (`/shop`) | `sendChatStepMessage` → `web_app` buttons per action | Action with `miniApp` marker |
-| Callback transition | `callback_data` button → `sendFlowInit` → `web_app` button | Action without `miniApp` marker targeting a miniapp step |
-| Return to chat | `sendData` or `serverBridge.chatHandoff()` | Mini App step targeting `type: "chat"` step |
+| Path                      | Mechanism                                                  | When                                                     |
+| ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------- |
+| Mini App entry (`/start`) | `sendFlowInit` → single `web_app` button                   | Flow with `type: "miniapp"` entry step                   |
+| Chat deep link (`/shop`)  | `sendChatStepMessage` → `web_app` buttons per action       | Action with `miniApp` marker                             |
+| Callback transition       | `callback_data` button → `sendFlowInit` → `web_app` button | Action without `miniApp` marker targeting a miniapp step |
+| Return to chat            | `sendData` or `serverBridge.chatHandoff()`                 | Mini App step targeting `type: "chat"` step              |
 
 ## Backward Compatibility
 
@@ -64,12 +64,12 @@ During development, Vite proxies `/api/teleforge/flow-hooks` to `localhost:3100`
 
 ## Implementation Files
 
-| File | Change |
-|---|---|
-| `packages/teleforge/src/flow-definition.ts` | `miniApp` field on `FlowActionDefinition` |
-| `packages/teleforge/src/bot-runtime.ts` | `sendChatStepMessage` renders `web_app` buttons; `createChatEntryCommands` forwards `miniAppUrl`; `handleChatHandoff` on `DiscoveredBotRuntime` |
-| `packages/teleforge/src/miniapp-runtime.tsx` | `transmitMiniAppChatHandoff` falls back to `serverBridge.chatHandoff()` when `sendData` unavailable |
-| `packages/teleforge/src/server-bridge.ts` | `chatHandoff` method on `TeleforgeMiniAppServerBridge` |
-| `packages/teleforge/src/server-hooks.ts` | `onChatHandoff` handler option on `createDiscoveredServerHooksHandler` |
-| `apps/task-shop/apps/api/` | HTTP hooks server wiring `onChatHandoff` → `runtime.handleChatHandoff` |
-| `apps/task-shop/apps/web/vite.config.ts` | Proxy `/api/teleforge/flow-hooks` to `localhost:3100` |
+| File                                         | Change                                                                                                                                          |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/teleforge/src/flow-definition.ts`  | `miniApp` field on `FlowActionDefinition`                                                                                                       |
+| `packages/teleforge/src/bot-runtime.ts`      | `sendChatStepMessage` renders `web_app` buttons; `createChatEntryCommands` forwards `miniAppUrl`; `handleChatHandoff` on `DiscoveredBotRuntime` |
+| `packages/teleforge/src/miniapp-runtime.tsx` | `transmitMiniAppChatHandoff` falls back to `serverBridge.chatHandoff()` when `sendData` unavailable                                             |
+| `packages/teleforge/src/server-bridge.ts`    | `chatHandoff` method on `TeleforgeMiniAppServerBridge`                                                                                          |
+| `packages/teleforge/src/server-hooks.ts`     | `onChatHandoff` handler option on `createDiscoveredServerHooksHandler`                                                                          |
+| `apps/task-shop/apps/api/`                   | HTTP hooks server wiring `onChatHandoff` → `runtime.handleChatHandoff`                                                                          |
+| `apps/task-shop/apps/web/vite.config.ts`     | Proxy `/api/teleforge/flow-hooks` to `localhost:3100`                                                                                           |

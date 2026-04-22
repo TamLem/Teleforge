@@ -62,7 +62,11 @@ export async function loadTeleforgeAppFromFile(
   const script = `
     import { pathToFileURL } from "node:url";
 
-    const modulePath = process.argv[1];
+    const modulePath = process.env.TELEFORGE_CONFIG_PATH;
+    if (!modulePath) {
+      throw new Error("TELEFORGE_CONFIG_PATH is required.");
+    }
+
     const loaded = await import(pathToFileURL(modulePath).href);
     const candidate = loaded.default ?? loaded.app ?? loaded.config;
     const config =
@@ -85,10 +89,13 @@ export async function loadTeleforgeAppFromFile(
     const tsxImportPath = resolveTsxImportPath(cwd);
     const { stdout } = await execFileAsync(
       process.execPath,
-      ["--import", tsxImportPath, "--input-type=module", "--eval", script, appPath],
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd,
-        env: process.env
+        env: {
+          ...process.env,
+          TELEFORGE_CONFIG_PATH: appPath
+        }
       }
     );
 
@@ -140,8 +147,12 @@ async function loadFlowModulesForConfig(cwd: string, root: string): Promise<Load
     import path from "node:path";
     import { pathToFileURL } from "node:url";
 
-    const cwd = process.argv[1];
-    const root = process.argv[2];
+    const cwd = process.env.TELEFORGE_CWD;
+    const root = process.env.TELEFORGE_FLOWS_ROOT;
+    if (!cwd || !root) {
+      throw new Error("TELEFORGE_CWD and TELEFORGE_FLOWS_ROOT are required.");
+    }
+
     const suffixes = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"];
 
     async function collectFiles(directory) {
@@ -211,10 +222,14 @@ async function loadFlowModulesForConfig(cwd: string, root: string): Promise<Load
   const tsxImportPath = resolveTsxImportPath(cwd);
   const { stdout } = await execFileAsync(
     process.execPath,
-    ["--import", tsxImportPath, "--input-type=module", "--eval", script, cwd, root],
+    ["--import", tsxImportPath, "--input-type=module", "--eval", script],
     {
       cwd,
-      env: process.env
+      env: {
+        ...process.env,
+        TELEFORGE_CWD: cwd,
+        TELEFORGE_FLOWS_ROOT: root
+      }
     }
   );
 

@@ -150,8 +150,6 @@ export default defineTeleforgeApp({
     root: "apps/bot/src/flows"
   },
   runtime: {
-    mode: "spa",
-    webFramework: "vite",
     build: {
       outDir: "dist",
       basePath: "/"
@@ -246,7 +244,7 @@ export const apiRoutes = [healthRoute, webhookRoute];
 export function createApiServer() {
   return {
     routes: apiRoutes,
-    description: "Wire these routes into the Teleforge BFF or local dev runtime."
+    description: "Wire these routes into your server runtime when you need trusted server hooks or a standalone webhook surface."
   };
 }
 `;
@@ -707,7 +705,6 @@ export default defineFlow({
     }
   },
   miniApp: {
-    component: "screens/home",
     launchModes: ["inline", "compact", "fullscreen"],
     route: "/"
   },
