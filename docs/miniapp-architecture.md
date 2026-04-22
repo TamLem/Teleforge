@@ -138,7 +138,51 @@ Do not design the Mini App like a normal website with broad independent navigati
 
 Deep routing is allowed, but it is secondary. The primary navigation path is always: **flow step → screen**.
 
-## 7. Screen Registry, Not Template Engine
+## 7. Client-Safe Flow Manifest
+
+The Mini App must not import bot flow source files directly.
+
+Bot flow modules are allowed to grow server-only concerns:
+
+- submit handlers
+- action handlers
+- loaders and guards
+- environment access
+- logistics or payment clients
+- Node-only dependencies
+
+The browser only needs client-safe flow metadata:
+
+- flow id
+- initial and final step ids
+- Mini App route and step route mapping
+- step type
+- screen ids
+- action labels, ids, targets, and Mini App payload metadata
+- initial public state shape
+
+Use `flowManifest` when booting the Mini App shell:
+
+```tsx
+import { TeleforgeMiniApp } from "teleforge/web";
+
+import { flowManifest } from "./flow-manifest.js";
+import homeScreen from "./screens/home.screen.js";
+
+<TeleforgeMiniApp flowManifest={flowManifest} screens={[homeScreen]} />;
+```
+
+Generated apps include `apps/web/src/flow-manifest.ts` as the client boundary. That file may be handwritten in early apps, but the contract is designed so Teleforge can later replace it with a generated virtual module without changing screen code.
+
+Do not do this in web code:
+
+```tsx
+import startFlow from "../../bot/src/flows/start.flow.js";
+```
+
+That couples browser builds to server flow implementation details and can accidentally ship server-only code.
+
+## 8. Screen Registry, Not Template Engine
 
 Screens are implemented as real React components and registered by screen ID.
 
@@ -168,7 +212,7 @@ export default defineScreen<TaskShopFlowState>({
 });
 ```
 
-## 8. Flow Definitions Own Behavior; Screens Own Presentation
+## 9. Flow Definitions Own Behavior; Screens Own Presentation
 
 | Layer      | Defines                                                                         |
 | ---------- | ------------------------------------------------------------------------------- |
@@ -200,7 +244,7 @@ function CatalogScreen({ state, submit }) {
 }
 ```
 
-## 9. Screens Must Not Reconstruct Authoritative Flow State
+## 10. Screens Must Not Reconstruct Authoritative Flow State
 
 Screens receive authoritative state from the runtime via the `state` prop.
 
@@ -218,7 +262,7 @@ Do not:
 
 The frontend may hold local UI state (modals, form inputs, filters), but **runtime flow state is authoritative**.
 
-## 10. Separate State Types Clearly
+## 11. Separate State Types Clearly
 
 | Type                   | Scope                                    | Examples                                                      |
 | ---------------------- | ---------------------------------------- | ------------------------------------------------------------- |
@@ -236,7 +280,7 @@ Do not blur these together into one global client state store.
 - Domain state → server hooks / BFF queries
 - Derived view state → `useMemo` inside the screen component
 
-## 11. Telegram-Specific Behavior Behind Adapter Layer
+## 12. Telegram-Specific Behavior Behind Adapter Layer
 
 Wrap Telegram Mini App capabilities behind framework hooks and services.
 
@@ -252,7 +296,7 @@ Do not scatter raw `window.Telegram.WebApp` calls across screens.
 
 **Current adapter location:** `packages/web/src/utils/ssr.ts` — `getTelegramWebApp()` is the single point of direct SDK access. All other code uses typed hooks.
 
-## 12. Optimize for First Useful Paint
+## 13. Optimize for First Useful Paint
 
 Every frontend choice should favor:
 
@@ -270,7 +314,7 @@ This takes priority over convenience patterns that grow the boot bundle.
 - avoid large libraries in the shell
 - inline critical CSS; defer the rest
 
-## 13. Client Transitions After Boot
+## 14. Client Transitions After Boot
 
 Once the initial screen is active, transitions between Mini App steps should usually be client-driven.
 
@@ -280,7 +324,7 @@ This is where app-like smoothness happens.
 
 The `useFlowNavigation()` hook provides `navigateToStep()` and `navigateToRoute()` for client-side transitions that persist state and update the browser URL.
 
-## 14. Framework Transport ≠ Product Abstraction
+## 15. Framework Transport ≠ Product Abstraction
 
 The frontend delivery/runtime layer is implementation machinery.
 
@@ -294,7 +338,7 @@ flow → step → screen → transition
 
 Do not let route files define business flow structure directly. Route files deliver screens; flow definitions define behavior.
 
-## 15. API Adapter Is Not the UI Owner
+## 16. API Adapter Is Not the UI Owner
 
 Mini App navigation and UI behavior are realized by the Mini App client runtime.
 
@@ -306,7 +350,7 @@ Mini App navigation and UI behavior are realized by the Mini App client runtime.
 | transition                  | manage local UI state   |
 | return results              |                         |
 
-## 16. Treat the Frontend as Untrusted
+## 17. Treat the Frontend as Untrusted
 
 The frontend may:
 
@@ -323,7 +367,7 @@ The frontend must **not** be the authority for:
 
 All authoritative transition decisions stay in runtime/server layers. Server hooks enforce this via trusted actor validation, state-key verification, and ownership checks.
 
-## 17. Explicit Runtime Contracts
+## 18. Explicit Runtime Contracts
 
 Frontend integration uses explicit contracts for:
 
@@ -336,7 +380,7 @@ Frontend integration uses explicit contracts for:
 
 Do not rely on loose implicit coupling between frontend screens and backend handlers.
 
-## 18. Design for Deployment Flexibility
+## 19. Design for Deployment Flexibility
 
 The frontend architecture must work whether the system is deployed as:
 

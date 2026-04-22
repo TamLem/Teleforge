@@ -129,11 +129,13 @@ Open [`apps/task-shop/apps/web/src/main.tsx`](../../apps/task-shop/apps/web/src/
 ```tsx
 import { TeleforgeMiniApp, createFetchMiniAppServerBridge } from "teleforge/web";
 
+import { flowManifest } from "./flow-manifest.js";
+
 const serverBridge = createFetchMiniAppServerBridge();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <TeleforgeMiniApp
-    flows={[taskShopBrowseFlow, shopCatalogueFlow]}
+    flowManifest={flowManifest}
     screens={[catalogScreen, cartScreen, checkoutScreen, successScreen, taskDetailScreen]}
     serverBridge={serverBridge}
   />
@@ -146,6 +148,8 @@ The `TeleforgeMiniApp` shell:
 2. Loads persisted state from the server bridge
 3. Merges launch payload (e.g., `selectedItem` from chat button) into state
 4. Renders the matching screen component with `state`, `submit`, `transitioning` props
+
+The manifest is intentionally client-safe. Do not import `apps/bot/src/flows/*` from the web entry; flow modules may contain server handlers and Node-only dependencies.
 
 ## 4. Implement a Screen
 
@@ -270,10 +274,10 @@ When the Mini App is opened from Telegram's Mini Apps menu (no `tgWebAppStartPar
 
 1. **Define a flow** with `defineFlow({ id, initialStep, state, steps })`
 2. **Add a bot command** in `bot.command` for chat entry
-3. **Add `miniApp.route` and `miniApp.stepRoutes`** for URL-based screen resolution
+3. **Expose client-safe route metadata in `apps/web/src/flow-manifest.ts`** for URL-based screen resolution
 4. **Implement `onSubmit` handlers** in steps that need server-side logic
 5. **Create screens** with `defineScreen({ id, component })`
-6. **Register flows and screens** in `main.tsx`
+6. **Register the flow manifest and screens** in `main.tsx`
 7. **Wire `createFetchMiniAppServerBridge()`** for server communication
 8. **Create a hooks server** in `apps/api` using `createDiscoveredServerHooksHandler`
 

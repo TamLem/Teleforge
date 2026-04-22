@@ -104,8 +104,24 @@ test("generates the unified Teleforge scaffold", async () => {
   const mainPath = path.join(tmpRoot, projectName, "apps", "web", "src", "main.tsx");
   const mainSource = await readFile(mainPath, "utf8");
   assert.match(mainSource, /TeleforgeMiniApp/);
-  assert.match(mainSource, /startFlow/);
+  assert.match(mainSource, /flowManifest/);
+  assert.match(mainSource, /flowManifest=\{flowManifest\}/);
+  assert.doesNotMatch(mainSource, /bot\/src\/flows/);
   assert.match(mainSource, /homeScreen/);
+
+  const flowManifestPath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "web",
+    "src",
+    "flow-manifest.ts"
+  );
+  const flowManifestSource = await readFile(flowManifestPath, "utf8");
+  assert.match(flowManifestSource, /defineClientFlowManifest/);
+  assert.match(flowManifestSource, /import type \{ StartFlowState \} from "@sample-app\/types"/);
+  assert.match(flowManifestSource, /screen: "home"/);
+  assert.doesNotMatch(flowManifestSource, /bot\/src\/flows/);
 
   const screenPath = path.join(
     tmpRoot,
@@ -130,6 +146,7 @@ test("generates the unified Teleforge scaffold", async () => {
   const readmePath = path.join(tmpRoot, projectName, "README.md");
   const readme = await readFile(readmePath, "utf8");
   assert.match(readme, /apps\/web.*Mini App shell, screens, and styles/);
+  assert.match(readme, /apps\/web\/src\/flow-manifest\.ts/);
   assert.match(readme, /apps\/web\/src\/screens\/home\.screen\.tsx/);
   assert.doesNotMatch(readme, /Next\.js BFF web/);
   assert.doesNotMatch(readme, /settings/i);

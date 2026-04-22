@@ -10,6 +10,7 @@ import type {
   FlowTransitionResult,
   TeleforgeFlowDefinition
 } from "./flow-definition.js";
+import type { TeleforgeClientFlowManifest } from "./flow-manifest.js";
 import type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,
@@ -65,7 +66,8 @@ type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
 
 export interface TeleforgeMiniAppProps {
   fallback?: ReactNode;
-  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
+  flowManifest?: TeleforgeClientFlowManifest;
+  flows?: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
   loadingFallback?: ReactNode;
   onReturnToChat?: (result: ChatMiniAppTransitionResult) => void | Promise<void>;
   pathname?: string;
@@ -297,7 +299,7 @@ export function useTeleforgeMiniAppRuntime(
   const pathname = options.pathname ?? resolveWindowPathname();
   const [state, setState] = useState<TeleforgeMiniAppRuntimeState>(() => {
     const resolution = resolveScreenWithStandaloneFallback(
-      options.flows,
+      resolveMiniAppFlowDefinitions(options),
       options.screens,
       pathname,
       launchCoordination
@@ -319,7 +321,7 @@ export function useTeleforgeMiniAppRuntime(
   useEffect(() => {
     let isCancelled = false;
     const resolution = resolveScreenWithStandaloneFallback(
-      options.flows,
+      resolveMiniAppFlowDefinitions(options),
       options.screens,
       pathname,
       launchCoordination
@@ -367,12 +369,27 @@ export function useTeleforgeMiniAppRuntime(
   }, [
     launchCoordination.rawFlowContext,
     launchCoordination.stateKey,
+    options.flowManifest,
     options.flows,
     pathname,
     options.screens
   ]);
 
   return state;
+}
+
+function resolveMiniAppFlowDefinitions(
+  options: Pick<TeleforgeMiniAppProps, "flowManifest" | "flows">
+): Iterable<AnyFlowDefinition | DiscoveredFlowModule> {
+  if (options.flowManifest) {
+    return options.flowManifest;
+  }
+
+  if (options.flows) {
+    return options.flows;
+  }
+
+  throw new Error("TeleforgeMiniApp requires a client-safe flowManifest.");
 }
 
 export async function loadMiniAppScreenRuntime(

@@ -2,9 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { TeleforgeMiniApp, createFetchMiniAppServerBridge } from "teleforge/web";
 
-import shopCatalogueFlow from "../../bot/src/flows/shop-catalogue.flow.js";
-import taskShopBrowseFlow from "../../bot/src/flows/task-shop-browse.flow.js";
-
+import { flowManifest } from "./flow-manifest.js";
 import cartScreen from "./screens/cart.screen.js";
 import catalogScreen from "./screens/catalog.screen.js";
 import checkoutScreen from "./screens/checkout.screen.js";
@@ -19,7 +17,7 @@ const serverBridge = createFetchMiniAppServerBridge();
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <TeleforgeMiniApp
-      flows={[taskShopBrowseFlow, shopCatalogueFlow]}
+      flowManifest={flowManifest}
       screens={[
         catalogScreen,
         cartScreen,

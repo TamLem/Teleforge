@@ -1,5 +1,6 @@
 export * from "@teleforgex/web";
 export { createFetchMiniAppServerBridge } from "./server-bridge.js";
+export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export {
   executeMiniAppStepAction,
   executeMiniAppStepSubmit,
@@ -56,3 +57,4 @@ export type {
   TeleforgeFlowDefinitionInput,
   TeleforgeFlowMiniAppDefinition
 } from "./flow-definition.js";
+export type { TeleforgeClientFlowManifest } from "./flow-manifest.js";

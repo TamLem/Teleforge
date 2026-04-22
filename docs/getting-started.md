@@ -145,6 +145,7 @@ You should see:
 - root scripts for `pnpm run dev`, `pnpm run dev:public`, and `pnpm run doctor`
 - baseline bot and web smoke tests behind `pnpm test`
 - `apps/bot/src/flows/start.flow.ts` as the first flow entry
+- `apps/web/src/flow-manifest.ts` as the client-safe Mini App flow metadata
 - `apps/web/src/main.tsx` booting `TeleforgeMiniApp`
 - `apps/web/src/screens/home.screen.tsx` as the first screen module
 
@@ -266,6 +267,7 @@ The current generated path is intentionally framework-shaped:
 
 - `teleforge.config.ts`: app identity, flow roots, Mini App defaults, and optional server-hook roots
 - `apps/bot/src/flows/*.flow.ts`: user journeys, bot entry commands, and Mini App step metadata
+- `apps/web/src/flow-manifest.ts`: browser-safe flow metadata for Mini App screen resolution
 - `apps/web/src/screens/*.screen.tsx`: Mini App screens registered through `defineScreen()`
 - `apps/web/src/main.tsx`: the framework-owned `TeleforgeMiniApp` shell
 - `apps/api`: optional server-hook or webhook surface only when the flow needs trusted server execution

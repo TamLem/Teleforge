@@ -21,6 +21,7 @@ export {
   getFlowStep,
   isMiniAppStep
 } from "./flow.js";
+export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export { createDiscoveredBotRuntime } from "./bot-runtime.js";
 export {
   executeMiniAppStepAction,
@@ -141,3 +142,4 @@ export type {
   TeleforgeMiniAppRuntimeState
 } from "./miniapp-runtime.js";
 export type { TeleforgeFlowMiniAppDefinition } from "./flow.js";
+export type { TeleforgeClientFlowManifest } from "./flow-manifest.js";

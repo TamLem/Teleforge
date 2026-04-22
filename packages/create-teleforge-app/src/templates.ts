@@ -110,10 +110,11 @@ ${doctor}
 - \`apps/bot/src/flows/start.flow.ts\`: the first flow users hit, including its bot entry command and Mini App route
 - \`apps/bot/src/runtime.ts\`: where Teleforge discovers flows and boots the bot runtime
 - \`packages/types/src/index.ts\`: shared app state and domain contracts
+- \`apps/web/src/flow-manifest.ts\`: client-safe flow metadata used by the Mini App shell
 - \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint
 - \`apps/web/src/screens/home.screen.tsx\`: the first Mini App screen module
 
-The scaffold intentionally starts with one shared state type, one flow, and one screen. Add more domain contracts, flow files, and screen modules as the app grows.
+The scaffold intentionally starts with one shared state type, one flow, one client-safe flow manifest, and one screen. Add more domain contracts, flow files, manifest entries, and screen modules as the app grows.
 
 ## Dev Workflow
 
@@ -800,6 +801,7 @@ function generatedWebFiles(
       }
     }),
     "apps/web/src/App.tsx": webAppTsx(options.appName),
+    "apps/web/src/flow-manifest.ts": webFlowManifestTs(options.appName, packageNames),
     "apps/web/src/main.tsx": webMainTsx(),
     "apps/web/src/screens/home.screen.tsx": homeScreenTsx(packageNames),
     "apps/web/src/styles.css": webStylesCss(),
@@ -882,16 +884,50 @@ function webMainTsx(): string {
 import ReactDOM from "react-dom/client";
 import { TeleforgeMiniApp } from "teleforge/web";
 
-import startFlow from "../../bot/src/flows/start.flow.js";
-
+import { flowManifest } from "./flow-manifest.js";
 import homeScreen from "./screens/home.screen.js";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <TeleforgeMiniApp flows={[startFlow]} screens={[homeScreen]} />
+    <TeleforgeMiniApp flowManifest={flowManifest} screens={[homeScreen]} />
   </React.StrictMode>
 );
+`;
+}
+
+function webFlowManifestTs(appName: string, packageNames: PackageNames): string {
+  return `import { defineClientFlowManifest } from "teleforge/web";
+import type { StartFlowState } from "${packageNames.types}";
+
+export const flowManifest = defineClientFlowManifest([
+  {
+    id: "start",
+    initialStep: "home",
+    finalStep: "home",
+    state: {
+      visited: false
+    } satisfies StartFlowState,
+    bot: {
+      command: {
+        buttonText: "Open ${appName}",
+        command: "start",
+        description: "Start the Mini App",
+        text: "Welcome to ${appName}. Launch the Mini App to continue."
+      }
+    },
+    miniApp: {
+      launchModes: ["inline", "compact", "fullscreen"],
+      route: "/"
+    },
+    steps: {
+      home: {
+        screen: "home",
+        type: "miniapp"
+      }
+    }
+  }
+]);
 `;
 }
 
