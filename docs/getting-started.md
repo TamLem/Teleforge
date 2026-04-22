@@ -2,7 +2,7 @@
 
 This guide is the shortest path from clone to a working Teleforge app.
 
-If you want the broader framework model, read [Developer Guide](./developer-guide.md). If you want package boundaries and data flow, read [Architecture](./architecture.md). If you are new to Telegram Mini Apps, read [Telegram Mini App Basics](./telegram-basics.md) first.
+If you want the broader framework model, read [Developer Guide](./developer-guide.md). If you want package boundaries and data flow, read [Framework Model](./framework-model.md). If you are new to Telegram Mini Apps, read [Telegram Mini App Basics](./telegram-basics.md) first.
 
 ## Goal
 
@@ -313,8 +313,8 @@ The public framework surface is the `teleforge` unified package. Most app code i
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)
-- [Manifest Reference](./manifest-reference.md)
+- [Config Reference](./config-reference.md)
 - [Troubleshooting](./troubleshooting.md)
 - [Developer Guide](./developer-guide.md)
-- [Architecture](./architecture.md)
+- [Framework Model](./framework-model.md)
 - [Documentation Index](./README.md)

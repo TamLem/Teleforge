@@ -1,6 +1,6 @@
 import { type TaskShopFlowState, type TaskShopSubmitPayload } from "@task-shop/types";
-import { defineScreen } from "teleforge/web";
 import { TgButton, TgCard, TgText } from "teleforge/ui";
+import { defineScreen } from "teleforge/web";
 
 import { TaskShopFrame } from "./TaskShopFrame";
 

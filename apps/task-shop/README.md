@@ -16,7 +16,7 @@ Reference Teleforge sample app that exercises the flow-first runtime with a simp
 - `apps/api`: HTTP hooks server for Mini App server bridge requests
 - `apps/web`: Vite Mini App with browse, cart, checkout, and success routes
 - `packages/types`: shared task and order types
-- `teleforge.config.ts`: flow-first app configuration replacing the legacy manifest
+- `teleforge.config.ts`: flow-first app configuration
 
 ## Setup
 

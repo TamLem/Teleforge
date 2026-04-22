@@ -14,16 +14,9 @@ const forbiddenTerms = [
   { term: "Next.js mode", message: "Next.js is not a user-facing framework choice" }
 ];
 
-// Files that are explicitly allowed to mention legacy terms because they are
-// migration guides, internal task docs, or historical references.
-const whitelist = new Set([
-  "documentation-cutover-task.md",
-  "flow-first-execution-plan.md",
-  "flow-first-migration.md",
-  "framework-cleanup-task.md",
-  "pickup-tg-migration-plan.md",
-  "scaffoling_update.md"
-]);
+// Public docs should not need exemptions; keep this empty unless a deliberate
+// historical archive is reintroduced outside the main docs path.
+const whitelist = new Set([]);
 
 const exampleWhitelist = new Set([]);
 

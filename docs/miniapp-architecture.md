@@ -2,8 +2,8 @@
 
 This document defines the frontend architecture rules for Teleforge Mini Apps. Every screen, hook, and client-side integration in a Teleforge project should conform to these principles.
 
-For the storage and runtime model, see [Flow State Design](./flow-state-design.md).
-For the V2 migration plan, see [Flow-First Migration](./flow-first-migration.md).
+For the storage and runtime model, see [Flow State Architecture](./flow-state-design.md).
+For the overall authoring model, see [Framework Model](./framework-model.md).
 
 ## 1. Not a Classic Monolithic SPA
 

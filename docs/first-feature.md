@@ -137,4 +137,4 @@ For the larger reference pattern, inspect `apps/task-shop`.
 
 ## Next Step
 
-Read [Flow Coordination](./flow-coordination.md) for cross-surface continuity and [Server Hooks and Backend Internals](./bff-guide.md) for trusted server-side work.
+Read [Flow Coordination](./flow-coordination.md) for cross-surface continuity and [Server Hooks and Backend Internals](./server-hooks.md) for trusted server-side work.

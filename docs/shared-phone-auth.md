@@ -112,6 +112,6 @@ The exchange belongs server-side because the browser cannot be trusted to assert
 
 ## Read Next
 
-- [Server Hooks and Backend Internals](./bff-guide.md)
+- [Server Hooks and Backend Internals](./server-hooks.md)
 - [Developer Guide](./developer-guide.md)
 - [Telegram Mini App Basics](./telegram-basics.md)

@@ -10,8 +10,7 @@ const repoUrl = "https://github.com/TamLem/Teleforge";
 const pages = [
   {
     id: "home",
-    source: "docs/site-home.md",
-    aliases: ["docs/README.md"],
+    source: "docs/README.md",
     output: "index.html",
     navLabel: "Docs Home",
     section: "Start"
@@ -52,11 +51,25 @@ const pages = [
     section: "Guides"
   },
   {
-    id: "bff-guide",
-    source: "docs/bff-guide.md",
-    output: "bff-guide.html",
-    navLabel: "BFF Guide",
+    id: "server-hooks",
+    source: "docs/server-hooks.md",
+    output: "server-hooks.html",
+    navLabel: "Server Hooks",
     section: "Guides"
+  },
+  {
+    id: "miniapp-architecture",
+    source: "docs/miniapp-architecture.md",
+    output: "miniapp-architecture.html",
+    navLabel: "Mini App Architecture",
+    section: "Reference"
+  },
+  {
+    id: "flow-state-design",
+    source: "docs/flow-state-design.md",
+    output: "flow-state-design.html",
+    navLabel: "Flow State",
+    section: "Reference"
   },
   {
     id: "testing",
@@ -80,17 +93,17 @@ const pages = [
     section: "Reference"
   },
   {
-    id: "architecture",
-    source: "docs/architecture.md",
-    output: "architecture.html",
-    navLabel: "Architecture",
+    id: "framework-model",
+    source: "docs/framework-model.md",
+    output: "framework-model.html",
+    navLabel: "Framework Model",
     section: "Reference"
   },
   {
-    id: "manifest-reference",
-    source: "docs/manifest-reference.md",
-    output: "manifest-reference.html",
-    navLabel: "Manifest Reference",
+    id: "config-reference",
+    source: "docs/config-reference.md",
+    output: "config-reference.html",
+    navLabel: "Config Reference",
     section: "Reference"
   },
   {

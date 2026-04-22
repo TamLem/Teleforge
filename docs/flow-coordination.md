@@ -1,8 +1,8 @@
-# Flow Coordination (V2)
+# Flow Coordination
 
 Flow coordination is Teleforge's main differentiator: a user starts in chat, continues in the Mini App, and returns to chat with structured state persisted across surfaces.
 
-This guide walks through the V2 flow-first architecture using `apps/task-shop`.
+This guide walks through the flow-first coordination model using `apps/task-shop`.
 
 ## Core Mental Model
 
@@ -229,6 +229,34 @@ Screen action "return-to-chat" triggers
                         → "Order confirmed! Items: 1, Total: 10 Stars"
 ```
 
+## Chat-To-Mini App Deep Links
+
+A chat step action can transition directly into a Mini App step. When an action carries a `miniApp` marker, the framework renders it as a `web_app` inline keyboard button with a signed deep-link payload.
+
+Actions without a `miniApp` marker render as `callback_data` buttons. Both button types can coexist in a single chat step message.
+
+```ts
+actions: [
+  {
+    label: "Open checkout",
+    miniApp: { payload: { source: "chat" } },
+    to: "checkout"
+  },
+  {
+    label: "Ask a question",
+    to: "support"
+  }
+];
+```
+
+Runtime behavior:
+
+- `miniApp` action with `miniAppUrl` available → signed launch payload + `web_app` button
+- action without `miniApp` → callback data button
+- Mini App return to chat → `sendData` when available, otherwise server-hook bridge `chatHandoff`
+
+During local development, Task Shop proxies `/api/teleforge/flow-hooks` to the hooks server so the Mini App can use same-origin requests through the simulator and tunnel.
+
 ## Standalone Mode
 
 When the Mini App is opened from Telegram's Mini Apps menu (no `tgWebAppStartParam`):
@@ -253,4 +281,4 @@ When the Mini App is opened from Telegram's Mini Apps menu (no `tgWebAppStartPar
 
 - [Flow State Design](./flow-state-design.md) — Storage model and execution architecture
 - [Mini App Architecture](./miniapp-architecture.md) — 18 frontend guidelines
-- [Flow-First Migration](./flow-first-migration.md) — V1 → V2 migration guide
+- [Framework Model](./framework-model.md) — flow-first authoring model and public imports

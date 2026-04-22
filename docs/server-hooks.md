@@ -108,6 +108,7 @@ See [Shared Phone Auth](./shared-phone-auth.md) for the end-to-end flow.
 
 ## Read Next
 
+- [Framework Model](./framework-model.md)
 - [Developer Guide](./developer-guide.md)
 - [Flow Coordination](./flow-coordination.md)
 - [Deployment](./deployment.md)

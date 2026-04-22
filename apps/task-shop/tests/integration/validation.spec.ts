@@ -7,7 +7,6 @@ import {
   executeMiniAppStepSubmit,
   resolveMiniAppScreen
 } from "../../../../packages/teleforge/dist/index.js";
-import { createOrderFromCart } from "../../packages/types/src/index.ts";
 import shopCatalogueFlow from "../../apps/bot/src/flows/shop-catalogue.flow.ts";
 import taskShopBrowseFlow from "../../apps/bot/src/flows/task-shop-browse.flow.ts";
 import cartScreen from "../../apps/web/src/screens/cart.screen.tsx";
@@ -15,6 +14,7 @@ import catalogScreen from "../../apps/web/src/screens/catalog.screen.tsx";
 import checkoutScreen from "../../apps/web/src/screens/checkout.screen.tsx";
 import shopCheckoutScreen from "../../apps/web/src/screens/shop-checkout.screen.tsx";
 import successScreen from "../../apps/web/src/screens/success.screen.tsx";
+import { createOrderFromCart } from "../../packages/types/src/index.ts";
 
 import { integrationConfig } from "./config.ts";
 import { createEd25519SampleVector } from "./fixtures/initData.samples.ts";

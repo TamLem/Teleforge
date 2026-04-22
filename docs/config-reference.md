@@ -178,6 +178,7 @@ Screen components receive flow context, loader data, transition state, and submi
 
 ## Read Alongside
 
+- [Framework Model](./framework-model.md)
 - [Flow Coordination](./flow-coordination.md)
-- [Flow State Design](./flow-state-design.md)
+- [Flow State Architecture](./flow-state-design.md)
 - [Mini App Architecture](./miniapp-architecture.md)

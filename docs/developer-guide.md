@@ -16,14 +16,15 @@ Use this guide as the hub. The step-by-step companions are:
 - [Flow State Design](./flow-state-design.md) — Storage model and execution architecture
 - [Mini App Architecture](./miniapp-architecture.md) — 18 frontend guidelines
 - [Flow Coordination](./flow-coordination.md) — Chat → Mini App → Chat lifecycle
-- [Config Reference](./manifest-reference.md) — `teleforge.config.ts` schema
-- [Server Hooks and BFF Internals](./bff-guide.md)
+- [Framework Model](./framework-model.md) — flow-first authoring model and public imports
+- [Config Reference](./config-reference.md) — `teleforge.config.ts` schema
+- [Server Hooks and Backend Internals](./server-hooks.md)
 - [Shared Phone Auth](./shared-phone-auth.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)
 
-If you are migrating from V1, read [Flow-First Migration](./flow-first-migration.md).
+If you need the high-level conceptual model, read [Framework Model](./framework-model.md).
 
 ## Who Teleforge Is For
 
@@ -405,7 +406,7 @@ pnpm --dir apps/task-shop test
 
 ## Where to Go Next
 
-- Read [Architecture](./architecture.md) for the framework layout and runtime boundaries.
+- Read [Framework Model](./framework-model.md) for the framework layout and runtime boundaries.
 - Read [`examples/starter-app/README.md`](../examples/starter-app/README.md) for the smallest working example.
 - Read [`apps/task-shop/README.md`](../apps/task-shop/README.md) for the end-to-end reference implementation.
 - Use the generated API reference in `dist/docs-site/api/index.html` once you know which package surface you need.
