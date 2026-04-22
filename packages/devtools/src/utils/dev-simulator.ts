@@ -1160,6 +1160,7 @@ function createSimulatorUiHtml(options: {
             <div id="debug-summary" class="log">Loading debug state…</div>
             <div class="controls">
               <label>Discovered Flows<div id="debug-flows" class="flow-list"><p class="hint">Waiting for simulator state…</p></div></label>
+              <label>Active Sessions<div id="debug-sessions" class="log">Waiting for simulator state…</div></label>
               <label>Flow Continuity<div id="debug-continuity" class="log">Waiting for simulator state…</div></label>
               <label>Last Action<div id="debug-last-action" class="log">No simulator actions yet.</div></label>
               <label>Profile Snapshot<div id="debug-profile" class="log">Waiting for simulator state…</div></label>
@@ -1183,6 +1184,7 @@ function createSimulatorUiHtml(options: {
         debugLastAction: document.getElementById("debug-last-action"),
         debugFlows: document.getElementById("debug-flows"),
         debugProfile: document.getElementById("debug-profile"),
+        debugSessions: document.getElementById("debug-sessions"),
         debugSummary: document.getElementById("debug-summary"),
         events: document.getElementById("events"),
         expanded: document.getElementById("expanded"),
@@ -1304,6 +1306,48 @@ function createSimulatorUiHtml(options: {
           : events.map((entry) => "[" + entry.at + "] " + entry.name + ": " + JSON.stringify(entry.payload || {})).join("\\n");
       }
 
+      function formatFlowRuntimeSessions(flowRuntime) {
+        if (!flowRuntime || !Array.isArray(flowRuntime.sessions) || flowRuntime.sessions.length === 0) {
+          return "No active flow sessions.";
+        }
+
+        return flowRuntime.sessions.map((session) => {
+          const parts = [
+            "flow: " + session.flowId,
+            "step: " + session.currentStepId + " [" + session.currentStepType + "]",
+            "screen: " + (session.currentScreenId || "none"),
+            "route: " + (session.currentRoute || "none"),
+            "stateKey: " + session.stateKey,
+            "user: " + session.userId,
+            "chat: " + (session.chatId || "none"),
+            "updated: " + session.lastUpdatedAt
+          ];
+
+          if (session.lastTransition) {
+            const t = session.lastTransition;
+            parts.push(
+              "transition: " + t.type + " " + (t.fromStepId || "start") + " → " + t.toStepId + " @ " + t.transitionedAt
+            );
+            if (t.payload && Object.keys(t.payload).length > 0) {
+              parts.push("payload: " + JSON.stringify(t.payload));
+            }
+          }
+
+          const miniApp = session.miniApp || {};
+          if (miniApp.pendingChatHandoff) {
+            parts.push("handoff: pending");
+          }
+          if (miniApp.resumedStepId) {
+            parts.push("resumed: " + miniApp.resumedStepId);
+          }
+          if (miniApp.lastLaunchAt) {
+            parts.push("lastLaunch: " + miniApp.lastLaunchAt);
+          }
+
+          return parts.join("\\n");
+        }).join("\\n\\n---\\n\\n");
+      }
+
       function renderDebug(payload) {
         const debug = payload.debug || {};
         const latestEvent = debug.latestEvent
@@ -1326,6 +1370,7 @@ function createSimulatorUiHtml(options: {
           "Latest Event: " + latestEvent
         ].join("\\n");
 
+        ids.debugSessions.textContent = formatFlowRuntimeSessions(flowRuntime);
         ids.debugContinuity.textContent = flowRuntime
           ? JSON.stringify(flowRuntime, null, 2)
           : "No flow runtime diagnostics available.";

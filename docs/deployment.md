@@ -54,6 +54,16 @@ Use polling when you want the simplest deployment:
 BOT_TOKEN=123456:token pnpm --dir apps/bot start
 ```
 
+When implementing polling, request both `message` and `callback_query` update types. Chat inline-keyboard actions produce `callback_query` updates; Mini App `sendData` handoffs arrive as `message` updates with `web_app_data`. Omitting `callback_query` from `allowed_updates` causes inline keyboard buttons to be silently ignored:
+
+```ts
+// ✅ Receive both message and callback_query updates
+allowed_updates: ["callback_query", "message"]
+
+// ❌ Only messages — inline keyboard callbacks are dropped
+allowed_updates: ["message"]
+```
+
 Use webhook delivery when your production platform already exposes HTTPS routes. In that setup:
 
 - serve the configured webhook path from your bot/server runtime

@@ -1,5 +1,5 @@
 import { mockTasks } from "@task-shop/types";
-import { AppShell, TgCard, TgText } from "teleforge/ui";
+import { AppShell, TgCard, TgText } from "@teleforgex/ui";
 import { defineScreen } from "teleforge/web";
 
 interface ShopTrackingState {

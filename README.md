@@ -17,11 +17,10 @@ The supported public import surface is:
 - `teleforge`: app config, flow definitions, discovered runtimes, screen helpers, and server-hook helpers
 - `teleforge/bot`: bot runtime primitives when direct bot control is needed
 - `teleforge/web`: Mini App runtime hooks and `TeleforgeMiniApp`
-- `teleforge/ui`: Telegram-native React UI components
-- `teleforge/core/browser`: browser-safe launch and validation helpers
 - `teleforge/server-hooks`: server-only flow hook execution
+- `teleforge/core/browser`: browser-safe launch and validation helpers
 
-Internal workspace packages still exist under `packages/*`, but they are implementation layers, not the app authoring model.
+Internal workspace packages under `packages/*` are implementation layers, not the app authoring model.
 
 ## App Shape
 
@@ -52,9 +51,8 @@ teleforge dev --public --live
 - `packages/core`: internal shared contracts, launch parsing, validation, events, and flow-state primitives
 - `packages/bot`: internal Telegram bot runtime primitives
 - `packages/web`: internal Mini App hooks and Telegram WebApp integration
-- `packages/ui`: internal UI primitives re-exported through `teleforge/ui`
+- `packages/ui`: internal UI primitives (not part of the public `teleforge` surface)
 - `packages/devtools`: internal CLI implementation for `teleforge dev`, `teleforge mock`, and `teleforge doctor`
-- `packages/bff`: internal server-side implementation helpers retained while server hooks become the public model
 - `packages/create-teleforge-app`: scaffold generator
 
 ## Common Commands

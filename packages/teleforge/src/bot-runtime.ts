@@ -49,9 +49,17 @@ export interface DiscoveredFlowRuntimeMiniAppDebugState {
 export interface DiscoveredFlowRuntimeSessionDebugState {
   chatId: string | null;
   currentRoute: string | null;
+  currentScreenId: string | null;
   currentStepId: string;
   currentStepType: "chat" | "miniapp";
   flowId: string;
+  lastTransition: {
+    fromStepId: string | null;
+    payload?: Record<string, unknown>;
+    toStepId: string;
+    transitionedAt: string;
+    type: "step" | "action" | "submit" | "launch" | "handoff";
+  } | null;
   lastUpdatedAt: string;
   miniApp: DiscoveredFlowRuntimeMiniAppDebugState;
   snapshotStateAvailable: boolean;
@@ -175,16 +183,16 @@ export async function createDiscoveredBotRuntime(
       throw new Error("Could not verify chat handoff flow context.");
     }
 
-    const flow = flows.find(({ flow: f }) => f.id === flowContext.flowId)?.flow;
-
-    if (!flow) {
-      throw new Error(`Unknown flow "${flowContext.flowId}" in chat handoff.`);
-    }
-
     const persisted = await storage.getInstance(input.stateKey);
 
     if (!persisted) {
       throw new Error("Flow state expired before chat handoff.");
+    }
+
+    const flow = flows.find(({ flow: f }) => f.id === persisted.flowId)?.flow;
+
+    if (!flow) {
+      throw new Error(`Unknown flow "${persisted.flowId}" in chat handoff.`);
     }
 
     console.log("[teleforge:bot-runtime] chat handoff:", {
@@ -203,6 +211,13 @@ export async function createDiscoveredBotRuntime(
       cloneFlowState(input.state) as Record<string, unknown>,
       "chat"
     );
+    debugTracker.trackTransition({
+      flow,
+      fromStepId: persisted.stepId,
+      stateKey: input.stateKey,
+      stepId: input.stepId,
+      type: "handoff"
+    });
     debugTracker.trackMiniAppHandoff({
       chatId: String(persisted.chatId ?? ""),
       flow,
@@ -312,13 +327,20 @@ function createTrackedMiniAppEntryCommands(
       ...command,
       async handler(context) {
         await command.handler(context);
+        const stateKey = options.storage.createStateKey(String(context.user.id), flow.id);
         options.debugTracker.trackMiniAppLaunch({
           chatId: String(context.chat.id),
           flow,
           snapshotStateAvailable: true,
-          stateKey: options.storage.createStateKey(String(context.user.id), flow.id),
+          stateKey,
           stepId: entryStepId,
           userId: String(context.user.id)
+        });
+        options.debugTracker.trackTransition({
+          flow,
+          stateKey,
+          stepId: entryStepId,
+          type: "launch"
         });
       }
     };
@@ -459,6 +481,14 @@ function createDiscoveredFlowCallbackHandler(
     }
 
     await options.storage.advanceStep(stateKey, nextStepId, nextState as Record<string, unknown>);
+    options.debugTracker.trackTransition({
+      flow,
+      fromStepId: stepId,
+      payload: result && typeof result === "object" && "state" in result ? { stateSnapshot: true } : undefined,
+      stateKey,
+      stepId: nextStepId,
+      type: "action"
+    });
     options.debugTracker.trackStep({
       chatId: String(chatId),
       flow,
@@ -622,6 +652,14 @@ async function enterDiscoveredFlowStep(
         currentState as Record<string, unknown>
       );
       currentStepId = redirectedStepId;
+      options.debugTracker.trackTransition({
+        flow: options.flow,
+        fromStepId: previousStepId,
+        payload: result && typeof result === "object" && "state" in result ? { stateSnapshot: true } : undefined,
+        stateKey: options.stateKey,
+        stepId: redirectedStepId,
+        type: "submit"
+      });
       options.debugTracker.trackStep({
         chatId,
         flow: options.flow,
@@ -775,6 +813,7 @@ interface FlowRuntimeDebugTracker {
   trackMiniAppHandoff(input: FlowRuntimeDebugEventInput): void;
   trackMiniAppLaunch(input: FlowRuntimeDebugEventInput): void;
   trackStep(input: FlowRuntimeDebugEventInput): void;
+  trackTransition(input: FlowRuntimeDebugTransitionInput): void;
 }
 
 interface FlowRuntimeDebugEventInput {
@@ -786,6 +825,15 @@ interface FlowRuntimeDebugEventInput {
   userId?: string;
 }
 
+interface FlowRuntimeDebugTransitionInput {
+  flow: TeleforgeFlowDefinition<unknown, unknown>;
+  fromStepId?: string;
+  payload?: Record<string, unknown>;
+  stateKey: string;
+  stepId: string;
+  type: "step" | "action" | "submit" | "launch" | "handoff";
+}
+
 interface MutableDiscoveredFlowRuntimeSessionDebugState extends DiscoveredFlowRuntimeSessionDebugState {
   miniApp: DiscoveredFlowRuntimeMiniAppDebugState;
 }
@@ -793,6 +841,14 @@ interface MutableDiscoveredFlowRuntimeSessionDebugState extends DiscoveredFlowRu
 function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
   const sessions = new Map<string, MutableDiscoveredFlowRuntimeSessionDebugState>();
   let updatedAt: string | null = null;
+
+  function resolveScreenId(
+    flow: TeleforgeFlowDefinition<unknown, unknown>,
+    stepId: string
+  ): string | null {
+    const step = getFlowStep(flow, stepId);
+    return step.type === "miniapp" ? step.screen : null;
+  }
 
   function ensureSession(
     input: FlowRuntimeDebugEventInput
@@ -817,9 +873,11 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
     const created: MutableDiscoveredFlowRuntimeSessionDebugState = {
       chatId: input.chatId ?? null,
       currentRoute: step.type === "miniapp" ? route : null,
+      currentScreenId: resolveScreenId(input.flow, input.stepId),
       currentStepId: input.stepId,
       currentStepType: step.type,
       flowId: input.flow.id,
+      lastTransition: null,
       lastUpdatedAt: now,
       miniApp: {
         lastHandoffAt: null,
@@ -845,6 +903,18 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
     updatedAt = now;
   }
 
+  function updateSessionStep(
+    session: MutableDiscoveredFlowRuntimeSessionDebugState,
+    flow: TeleforgeFlowDefinition<unknown, unknown>,
+    stepId: string
+  ): void {
+    const step = getFlowStep(flow, stepId);
+    session.currentStepId = stepId;
+    session.currentStepType = step.type;
+    session.currentRoute = step.type === "miniapp" ? resolveFlowStepRoute(flow, stepId) : null;
+    session.currentScreenId = resolveScreenId(flow, stepId);
+  }
+
   return {
     snapshot() {
       return {
@@ -865,12 +935,7 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
     },
     trackMiniAppHandoff(input) {
       const session = ensureSession(input);
-      const step = getFlowStep(input.flow, input.stepId);
-
-      session.currentStepId = input.stepId;
-      session.currentStepType = step.type;
-      session.currentRoute =
-        step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
+      updateSessionStep(session, input.flow, input.stepId);
       session.snapshotStateAvailable =
         session.snapshotStateAvailable || input.snapshotStateAvailable;
       session.miniApp.lastHandoffAt = new Date().toISOString();
@@ -882,10 +947,7 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
     trackMiniAppLaunch(input) {
       const session = ensureSession(input);
       const route = resolveFlowStepRoute(input.flow, input.stepId);
-
-      session.currentStepId = input.stepId;
-      session.currentStepType = "miniapp";
-      session.currentRoute = route;
+      updateSessionStep(session, input.flow, input.stepId);
       session.snapshotStateAvailable =
         session.snapshotStateAvailable || input.snapshotStateAvailable;
       session.miniApp.lastLaunchAt = new Date().toISOString();
@@ -896,19 +958,31 @@ function createFlowRuntimeDebugTracker(): FlowRuntimeDebugTracker {
     },
     trackStep(input) {
       const session = ensureSession(input);
-      const step = getFlowStep(input.flow, input.stepId);
-
-      session.currentStepId = input.stepId;
-      session.currentStepType = step.type;
-      session.currentRoute =
-        step.type === "miniapp" ? resolveFlowStepRoute(input.flow, input.stepId) : null;
+      updateSessionStep(session, input.flow, input.stepId);
       session.snapshotStateAvailable =
         session.snapshotStateAvailable || input.snapshotStateAvailable;
 
-      if (step.type === "chat") {
+      if (session.currentStepType === "chat") {
         session.miniApp.pendingChatHandoff = false;
       }
 
+      touch(session);
+    },
+    trackTransition(input) {
+      const session = sessions.get(input.stateKey);
+      if (!session) {
+        return;
+      }
+
+      const fromStepId = input.fromStepId ?? session.currentStepId;
+      updateSessionStep(session, input.flow, input.stepId);
+      session.lastTransition = {
+        fromStepId,
+        payload: input.payload,
+        toStepId: input.stepId,
+        transitionedAt: new Date().toISOString(),
+        type: input.type
+      };
       touch(session);
     }
   };

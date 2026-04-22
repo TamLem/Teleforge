@@ -30,8 +30,8 @@ const bundleTargets = [
     platform: "browser"
   },
   {
-    id: "@teleforgex/devtools",
-    entry: "./packages/devtools/dist/index.js",
+    id: "teleforge",
+    entry: "./packages/teleforge/dist/cli.js",
     platform: "node"
   }
 ];

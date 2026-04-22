@@ -218,6 +218,7 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
   const companionServices = await spawnCompanionServices({
     cwd: options.flags.cwd,
     env,
+    manifest,
     publicUrl
   });
 
@@ -267,7 +268,9 @@ async function startRuntime(options: ManagedDevCommandOptions): Promise<RuntimeH
 }
 
 interface CompanionServiceDefinition {
+  command?: string;
   cwd: string;
+  health?: string;
   label: string;
 }
 
@@ -279,22 +282,40 @@ interface CompanionServiceHandle extends CompanionServiceDefinition {
 async function spawnCompanionServices(options: {
   cwd: string;
   env: NodeJS.ProcessEnv;
+  manifest: TeleforgeManifest;
   publicUrl: string;
 }): Promise<CompanionServiceHandle[]> {
-  const definitions = await discoverCompanionServices(options.cwd);
+  const definitions = await resolveCompanionServices(options.cwd, options.manifest);
   const runner = await resolveWorkspaceScriptRunner(options.cwd);
   const handles: CompanionServiceHandle[] = [];
 
   for (const definition of definitions) {
-    if (!runner) {
+    const { command, args } = definition.command
+      ? parseCommandString(definition.command)
+      : runner
+        ? { command: runner.command, args: [...runner.args, "dev"] }
+        : { command: null, args: [] };
+
+    if (!command) {
+      console.log(`Warning: No command runner available for companion service ${definition.label}. Skipping.`);
       continue;
     }
 
-    const child = spawn(runner.command, [...runner.args, "dev"], {
+    console.log(`Starting companion service: ${definition.label}`);
+    const child = spawn(command, args, {
       cwd: definition.cwd,
       env: buildCompanionEnv(options.env, options.publicUrl),
       stdio: "inherit"
     });
+
+    if (definition.health) {
+      const healthy = await pollHealthEndpoint(definition.health, definition.label, 15_000);
+      if (!healthy) {
+        console.log(`Warning: Companion service ${definition.label} health check failed (${definition.health}). Service may still be starting.`);
+      } else {
+        console.log(`✓ Companion service ${definition.label} is healthy (${definition.health})`);
+      }
+    }
 
     handles.push({
       ...definition,
@@ -311,6 +332,24 @@ async function spawnCompanionServices(options: {
   }
 
   return handles;
+}
+
+async function resolveCompanionServices(
+  cwd: string,
+  manifest: TeleforgeManifest
+): Promise<CompanionServiceDefinition[]> {
+  const explicitServices = manifest.dev?.services;
+
+  if (explicitServices && explicitServices.length > 0) {
+    return explicitServices.map((service) => ({
+      command: service.command,
+      cwd,
+      health: service.health,
+      label: service.name
+    }));
+  }
+
+  return discoverCompanionServices(cwd);
 }
 
 async function discoverCompanionServices(cwd: string): Promise<CompanionServiceDefinition[]> {
@@ -360,6 +399,53 @@ async function discoverCompanionServices(cwd: string): Promise<CompanionServiceD
     }
     throw error;
   }
+}
+
+function parseCommandString(command: string): { command: string; args: string[] } {
+  // Simple whitespace split for common dev commands (e.g. "pnpm --filter x dev").
+  // Does not handle quoted arguments or shell operators; use a wrapper script for complex needs.
+  const parts = command.trim().split(/\s+/);
+  return { command: parts[0] ?? "", args: parts.slice(1) };
+}
+
+async function pollHealthEndpoint(
+  healthUrl: string,
+  label: string,
+  timeoutMs: number
+): Promise<boolean> {
+  const startedAt = Date.now();
+  const target = new URL(healthUrl);
+  const requestModule = target.protocol === "https:" ? https : http;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
+        const req = requestModule.request(
+          target,
+          { method: "GET", timeout: 2_000 },
+          (res) => {
+            resolve(res);
+          }
+        );
+        req.on("error", reject);
+        req.on("timeout", () => {
+          req.destroy();
+          reject(new Error("Request timeout"));
+        });
+        req.end();
+      });
+
+      if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      }
+    } catch {
+      // Service may not be ready yet; keep polling.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  return false;
 }
 
 function buildCompanionEnv(env: NodeJS.ProcessEnv, publicUrl: string): NodeJS.ProcessEnv {

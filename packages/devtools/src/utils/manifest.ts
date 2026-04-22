@@ -1,7 +1,8 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { access } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -143,9 +144,7 @@ async function tryLoadTeleforgeConfig(cwd: string): Promise<{
   const result = validateManifest(teleforgeAppToManifest(hydratedConfig));
 
   if (!result.success) {
-    throw new Error(
-      `Invalid ${path.basename(configPath)}: ${result.errors.map((issue) => issue.message).join("; ")}`
-    );
+    throw new Error(formatManifestValidationErrors(configPath, flowModules, result.errors));
   }
 
   return {
@@ -170,12 +169,17 @@ async function resolveConfigPath(cwd: string): Promise<string | null> {
 }
 
 async function loadConfigModule(configPath: string, cwd: string): Promise<TeleforgeAppConfig> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));
+  const outputPath = path.join(tmpDir, "output.json");
+
   const script = `
     import { pathToFileURL } from "node:url";
+    import { writeFile } from "node:fs/promises";
 
     const modulePath = process.env.TELEFORGE_CONFIG_PATH;
-    if (!modulePath) {
-      throw new Error("TELEFORGE_CONFIG_PATH is required.");
+    const outputPath = process.env.TELEFORGE_OUTPUT_PATH;
+    if (!modulePath || !outputPath) {
+      throw new Error("TELEFORGE_CONFIG_PATH and TELEFORGE_OUTPUT_PATH are required.");
     }
 
     const loaded = await import(pathToFileURL(modulePath).href);
@@ -193,24 +197,25 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       throw new Error("teleforge.config must export a default Teleforge app config object.");
     }
 
-    process.stdout.write(JSON.stringify(config));
+    await writeFile(outputPath, JSON.stringify(config));
   `;
 
   try {
     const tsxImportPath = resolveTsxImportPath(cwd);
-    const { stdout } = await execFileAsync(
+    await execFileAsync(
       process.execPath,
       ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd,
         env: {
           ...process.env,
-          TELEFORGE_CONFIG_PATH: configPath
+          TELEFORGE_CONFIG_PATH: configPath,
+          TELEFORGE_OUTPUT_PATH: outputPath
         }
       }
     );
 
-    return JSON.parse(stdout) as TeleforgeAppConfig;
+    return JSON.parse(await readFile(outputPath, "utf8")) as TeleforgeAppConfig;
   } catch (error) {
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
@@ -218,6 +223,8 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       stderr.trim() ||
       (error instanceof Error ? error.message : `Failed to load ${path.basename(configPath)}.`);
     throw new Error(`Failed to load ${path.basename(configPath)}: ${message}`);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -329,15 +336,19 @@ async function loadFlowModules(options: {
   cwd: string;
   root: string;
 }): Promise<RouteFlowDefinition[]> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));
+  const outputPath = path.join(tmpDir, "output.json");
+
   const script = `
-    import { readdir } from "node:fs/promises";
+    import { readdir, writeFile } from "node:fs/promises";
     import path from "node:path";
     import { pathToFileURL } from "node:url";
 
     const cwd = process.env.TELEFORGE_CWD;
     const root = process.env.TELEFORGE_FLOWS_ROOT;
-    if (!cwd || !root) {
-      throw new Error("TELEFORGE_CWD and TELEFORGE_FLOWS_ROOT are required.");
+    const outputPath = process.env.TELEFORGE_OUTPUT_PATH;
+    if (!cwd || !root || !outputPath) {
+      throw new Error("TELEFORGE_CWD, TELEFORGE_FLOWS_ROOT, and TELEFORGE_OUTPUT_PATH are required.");
     }
 
     const suffixes = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"];
@@ -406,12 +417,12 @@ async function loadFlowModules(options: {
       });
     }
 
-    process.stdout.write(JSON.stringify(flows));
+    await writeFile(outputPath, JSON.stringify(flows));
   `;
 
   try {
     const tsxImportPath = resolveTsxImportPath(options.cwd);
-    const { stdout } = await execFileAsync(
+    await execFileAsync(
       process.execPath,
       ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
@@ -419,18 +430,21 @@ async function loadFlowModules(options: {
         env: {
           ...process.env,
           TELEFORGE_CWD: options.cwd,
-          TELEFORGE_FLOWS_ROOT: options.root
+          TELEFORGE_FLOWS_ROOT: options.root,
+          TELEFORGE_OUTPUT_PATH: outputPath
         }
       }
     );
 
-    return JSON.parse(stdout) as RouteFlowDefinition[];
+    return JSON.parse(await readFile(outputPath, "utf8")) as RouteFlowDefinition[];
   } catch (error) {
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
     const message =
       stderr.trim() || (error instanceof Error ? error.message : "Failed to load Teleforge flows.");
     throw new Error(message);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -479,14 +493,19 @@ async function loadScreenSummaries(options: {
   app: TeleforgeAppConfig;
   cwd: string;
 }): Promise<DiscoveredTeleforgeScreenSummary[]> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));
+  const outputPath = path.join(tmpDir, "output.json");
+
   const script = `
     import { pathToFileURL } from "node:url";
+    import { writeFile } from "node:fs/promises";
 
     const teleforgePath = process.env.TELEFORGE_PACKAGE_PATH;
     const cwd = process.env.TELEFORGE_CWD;
     const appPayload = process.env.TELEFORGE_APP_PAYLOAD;
-    if (!teleforgePath || !cwd || !appPayload) {
-      throw new Error("TELEFORGE_PACKAGE_PATH, TELEFORGE_CWD, and TELEFORGE_APP_PAYLOAD are required.");
+    const outputPath = process.env.TELEFORGE_OUTPUT_PATH;
+    if (!teleforgePath || !cwd || !appPayload || !outputPath) {
+      throw new Error("TELEFORGE_PACKAGE_PATH, TELEFORGE_CWD, TELEFORGE_APP_PAYLOAD, and TELEFORGE_OUTPUT_PATH are required.");
     }
     const app = JSON.parse(appPayload);
 
@@ -496,7 +515,8 @@ async function loadScreenSummaries(options: {
       cwd
     });
 
-    process.stdout.write(
+    await writeFile(
+      outputPath,
       JSON.stringify(
         screens.map((entry) => ({
           filePath: entry.filePath,
@@ -510,7 +530,7 @@ async function loadScreenSummaries(options: {
   try {
     const tsxImportPath = resolveTsxImportPath(options.cwd);
     const teleforgeImportPath = resolveTeleforgeImportPath(options.cwd);
-    const { stdout } = await execFileAsync(
+    await execFileAsync(
       process.execPath,
       ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
@@ -521,12 +541,13 @@ async function loadScreenSummaries(options: {
             miniApp: options.app.miniApp
           }),
           TELEFORGE_CWD: options.cwd,
-          TELEFORGE_PACKAGE_PATH: teleforgeImportPath
+          TELEFORGE_PACKAGE_PATH: teleforgeImportPath,
+          TELEFORGE_OUTPUT_PATH: outputPath
         }
       }
     );
 
-    return JSON.parse(stdout) as DiscoveredTeleforgeScreenSummary[];
+    return JSON.parse(await readFile(outputPath, "utf8")) as DiscoveredTeleforgeScreenSummary[];
   } catch (error) {
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
@@ -534,6 +555,8 @@ async function loadScreenSummaries(options: {
       stderr.trim() ||
       (error instanceof Error ? error.message : "Failed to load Teleforge screen summaries.");
     throw new Error(message);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -541,14 +564,19 @@ async function loadFlowRuntimeSummaries(options: {
   app: TeleforgeAppConfig;
   cwd: string;
 }): Promise<DiscoveredTeleforgeFlowSummary[]> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));
+  const outputPath = path.join(tmpDir, "output.json");
+
   const script = `
     import { pathToFileURL } from "node:url";
+    import { writeFile } from "node:fs/promises";
 
     const teleforgePath = process.env.TELEFORGE_PACKAGE_PATH;
     const cwd = process.env.TELEFORGE_CWD;
     const appPayload = process.env.TELEFORGE_APP_PAYLOAD;
-    if (!teleforgePath || !cwd || !appPayload) {
-      throw new Error("TELEFORGE_PACKAGE_PATH, TELEFORGE_CWD, and TELEFORGE_APP_PAYLOAD are required.");
+    const outputPath = process.env.TELEFORGE_OUTPUT_PATH;
+    if (!teleforgePath || !cwd || !appPayload || !outputPath) {
+      throw new Error("TELEFORGE_PACKAGE_PATH, TELEFORGE_CWD, TELEFORGE_APP_PAYLOAD, and TELEFORGE_OUTPUT_PATH are required.");
     }
     const app = JSON.parse(appPayload);
 
@@ -570,13 +598,13 @@ async function loadFlowRuntimeSummaries(options: {
       serverHooks
     });
 
-    process.stdout.write(JSON.stringify(summaries));
+    await writeFile(outputPath, JSON.stringify(summaries));
   `;
 
   try {
     const tsxImportPath = resolveTsxImportPath(options.cwd);
     const teleforgeImportPath = resolveTeleforgeImportPath(options.cwd);
-    const { stdout } = await execFileAsync(
+    await execFileAsync(
       process.execPath,
       ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
@@ -587,12 +615,13 @@ async function loadFlowRuntimeSummaries(options: {
             flows: options.app.flows ?? {}
           }),
           TELEFORGE_CWD: options.cwd,
-          TELEFORGE_PACKAGE_PATH: teleforgeImportPath
+          TELEFORGE_PACKAGE_PATH: teleforgeImportPath,
+          TELEFORGE_OUTPUT_PATH: outputPath
         }
       }
     );
 
-    return createDiagnosticSummaries(JSON.parse(stdout) as RuntimeFlowSummary[]);
+    return createDiagnosticSummaries(JSON.parse(await readFile(outputPath, "utf8")) as RuntimeFlowSummary[]);
   } catch (error) {
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
@@ -600,6 +629,8 @@ async function loadFlowRuntimeSummaries(options: {
       stderr.trim() ||
       (error instanceof Error ? error.message : "Failed to load Teleforge flow runtime summaries.");
     throw new Error(message);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -732,7 +763,7 @@ function resolveMiniAppRouteEntryPoints(flow: RouteFlowDefinition): LaunchEntryP
   return entryPoints.length > 0 ? entryPoints : [{ type: "miniapp" as const }];
 }
 
-function resolveTsxImportPath(cwd: string): string {
+export function resolveTsxImportPath(cwd: string): string {
   const candidates = [
     path.join(cwd, "__teleforge_loader__.js"),
     path.join(process.cwd(), "__teleforge_loader__.js"),
@@ -752,7 +783,7 @@ function resolveTsxImportPath(cwd: string): string {
   );
 }
 
-function resolveTeleforgeImportPath(cwd: string): string {
+export function resolveTeleforgeImportPath(cwd: string): string {
   const requireCandidates = [
     path.join(cwd, "__teleforge_runtime__.js"),
     path.join(process.cwd(), "__teleforge_runtime__.js"),
@@ -791,6 +822,81 @@ function resolveTeleforgeImportPath(cwd: string): string {
   throw new Error(
     'Teleforge could not resolve the unified "teleforge" package needed to inspect discovered flows.'
   );
+}
+
+function formatManifestValidationErrors(
+  configPath: string,
+  flowModules: RouteFlowDefinition[],
+  errors: Array<{ message: string; path: string[] }>
+): string {
+  const formatted = errors.map((issue) => {
+    const context = inferManifestIssueContext(issue.path, flowModules);
+    return context ? `${context}: ${issue.message}` : issue.message;
+  });
+  return `Invalid ${path.basename(configPath)}:\n  - ${formatted.join("\n  - ")}`;
+}
+
+function inferManifestIssueContext(
+  pathSegments: string[],
+  flowModules: RouteFlowDefinition[]
+): string | undefined {
+  if (pathSegments.length === 0) {
+    return undefined;
+  }
+
+  const [top, ...rest] = pathSegments;
+
+  if (top === "routes" && rest.length >= 1) {
+    const routeIndex = Number.parseInt(rest[0], 10);
+    const routeField = rest[1];
+    const derivedFlowRoutes = flowModules
+      .filter((f) => typeof f.miniApp?.route === "string")
+      .map((f) => ({ flowId: f.id, route: f.miniApp!.route }));
+
+    if (!Number.isNaN(routeIndex)) {
+      if (routeField === "coordination" && rest[2] === "entryPoints") {
+        const matched = derivedFlowRoutes[routeIndex];
+        if (matched) {
+          return `Flow "${matched.flowId}" route "${matched.route}"`;
+        }
+        return `Route ${routeIndex}`;
+      }
+
+      if (routeField === "component") {
+        return `Route ${routeIndex} component`;
+      }
+
+      return `Route ${routeIndex}${routeField ? ` ${routeField}` : ""}`;
+    }
+
+    return `Route ${rest.join(".")}`;
+  }
+
+  if (top === "bot") {
+    return `Bot ${rest.join(".")}`;
+  }
+
+  if (top === "miniApp") {
+    return `Mini App ${rest.join(".")}`;
+  }
+
+  if (top === "version") {
+    return "App version";
+  }
+
+  if (top === "name") {
+    return "App name";
+  }
+
+  if (top === "id") {
+    return "App id";
+  }
+
+  if (top === "permissions") {
+    return `Permission ${rest.join(".")}`;
+  }
+
+  return undefined;
 }
 
 function resolveCurrentBundleDirectory(): string {

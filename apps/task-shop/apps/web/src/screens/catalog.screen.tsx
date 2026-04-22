@@ -5,7 +5,7 @@ import {
   type TaskShopFlowState,
   type TaskShopSubmitPayload
 } from "@task-shop/types";
-import { TgButton, TgCard, TgText } from "teleforge/ui";
+import { TgButton, TgCard, TgText } from "@teleforgex/ui";
 import { useLaunch } from "teleforge/web";
 import { defineScreen } from "teleforge/web";
 

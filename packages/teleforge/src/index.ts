@@ -15,11 +15,15 @@ export type {
   TeleforgeRuntime
 } from "@teleforgex/core";
 export {
+  chatStep,
   createFlowCoordinationConfig,
   createFlowStartCommand,
   defineFlow,
   getFlowStep,
-  isMiniAppStep
+  isMiniAppStep,
+  miniAppStep,
+  openMiniAppAction,
+  returnToChatAction
 } from "./flow.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export { createDiscoveredBotRuntime } from "./bot-runtime.js";

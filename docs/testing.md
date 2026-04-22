@@ -67,6 +67,46 @@ pnpm check
 pnpm docs:build
 ```
 
+## Framework Test Helpers
+
+`teleforge/test` exports utilities for common framework testing:
+
+```ts
+import { validateDiscoveredWiring, createMockWebApp } from "teleforge/test";
+```
+
+### `validateDiscoveredWiring(cwd)`
+
+Runs the same wiring validation that `teleforge doctor` uses against the current project directory. Asserts that every Mini App step resolves to a screen, every action transitions or has a handler, and no orphaned modules exist.
+
+```ts
+import { validateDiscoveredWiring } from "teleforge/test";
+import test from "node:test";
+
+await test("wiring is complete", async () => {
+  const result = await validateDiscoveredWiring(process.cwd());
+  console.log(`Validated ${result.flows} flows, ${result.steps} steps`);
+});
+```
+
+### `createMockWebApp(overrides?)`
+
+Returns a ready-to-use subset of `Telegram.WebApp` with an event registry, so unit tests that rely on `useTelegram()` or other Telegram hooks can run outside a real Telegram client.
+
+```ts
+import { createMockWebApp } from "teleforge/test";
+
+const mock = createMockWebApp({
+  platform: "android",
+  colorScheme: "dark"
+});
+
+// Register a mock event listener
+mock.onEvent("themeChanged", () => {
+  console.log("theme changed");
+});
+```
+
 ## Testing Against the Simulator
 
 For most day-to-day work:

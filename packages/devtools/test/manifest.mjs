@@ -291,3 +291,110 @@ export default defineTeleforgeApp({
   assert.equal(loaded.manifest.routes[0]?.path, "/driver");
   assert.deepEqual(loaded.manifest.routes[0]?.coordination?.entryPoints, [{ type: "miniapp" }]);
 });
+
+test("loadManifest parses explicit dev.services companion service definitions", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-devtools-services-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const screensRoot = path.join(tmpRoot, "apps", "web", "src", "screens");
+  const nodeModulesRoot = path.join(tmpRoot, "node_modules");
+  const teleforgeIndexUrl = pathToFileURL(
+    path.resolve(process.cwd(), "..", "teleforge", "src", "index.ts")
+  ).href;
+  const teleforgePackagePath = path.resolve(
+    process.cwd(),
+    "..",
+    "..",
+    "examples",
+    "starter-app",
+    "node_modules",
+    "teleforge"
+  );
+
+  await mkdir(flowsRoot, { recursive: true });
+  await mkdir(screensRoot, { recursive: true });
+  await mkdir(nodeModulesRoot, { recursive: true });
+  await symlink(teleforgePackagePath, path.join(nodeModulesRoot, "teleforge"), "dir");
+  await writeFile(
+    path.join(flowsRoot, "start.flow.ts"),
+    `import { defineFlow } from ${JSON.stringify(teleforgeIndexUrl)};
+
+export default defineFlow({
+  id: "start",
+  initialStep: "welcome",
+  state: {},
+  bot: {
+    command: {
+      command: "start",
+      description: "Open app",
+      text: "Open app"
+    }
+  },
+  miniApp: {
+    launchModes: ["inline", "compact", "fullscreen"],
+    route: "/",
+    stepRoutes: {
+      welcome: "/"
+    }
+  },
+  steps: {
+    welcome: {
+      type: "chat",
+      text: "Welcome!",
+      actions: []
+    }
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(teleforgeIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "services-app",
+    name: "Services App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "services_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  dev: {
+    port: 3000,
+    services: [
+      {
+        name: "mock-api",
+        command: "pnpm --filter @app/mock-api dev",
+        health: "http://127.0.0.1:3001/health"
+      }
+    ]
+  },
+  routes: [],
+  runtime: {
+  }
+});
+`
+  );
+
+  const loaded = await loadManifest(tmpRoot);
+
+  assert.ok(loaded.manifest.dev?.services, "Expected dev.services to be present in manifest");
+  assert.equal(loaded.manifest.dev.services.length, 1);
+  assert.equal(loaded.manifest.dev.services[0].name, "mock-api");
+  assert.equal(loaded.manifest.dev.services[0].command, "pnpm --filter @app/mock-api dev");
+  assert.equal(loaded.manifest.dev.services[0].health, "http://127.0.0.1:3001/health");
+});

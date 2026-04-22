@@ -184,6 +184,15 @@ export const manifestSchema = z
       .object({
         httpsPort: z.number().int().positive().optional(),
         port: z.number().int().positive().optional(),
+        services: z
+          .array(
+            z.object({
+              command: z.string().min(1),
+              health: z.string().url().optional(),
+              name: z.string().min(1)
+            })
+          )
+          .optional(),
         tunnel: z.boolean().optional()
       })
       .strict()

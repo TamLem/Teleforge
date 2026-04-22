@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
-import { AppShell, MainButton, SettingsItem, SettingsSection, TgCard, TgText } from "teleforge/ui";
-import { useTelegram, useTheme } from "teleforge/web";
+import { useEffect, useMemo, useState } from "react";
+import { useTelegram, useTheme, useMainButton } from "teleforge/web";
 
 type MockTheme = "dark" | "light";
 
@@ -16,6 +15,19 @@ export default function App() {
   const telegram = useTelegram();
   const theme = useTheme();
   const [status, setStatus] = useState("Ready");
+
+  const mainButton = useMainButton({
+    isVisible: true,
+    text: "Close Mini App"
+  });
+
+  useEffect(() => {
+    const cleanup = mainButton.onClick(() => {
+      telegram.close();
+      setStatus("Sent a close request to Telegram.");
+    });
+    return cleanup;
+  }, [mainButton, telegram]);
 
   const userLabel = useMemo(() => {
     if (!telegram.user) {
@@ -48,58 +60,88 @@ export default function App() {
     setStatus("Requested Telegram to expand the Mini App.");
   };
 
-  const handleClose = () => {
-    telegram.close();
-    setStatus("Sent a close request to Telegram.");
-  };
-
   return (
-    <AppShell
-      header={{
-        title: "Starter App"
+    <main
+      className="shell"
+      style={{
+        background: theme.bgColor,
+        color: theme.textColor,
+        minHeight: "100vh"
       }}
-      style={theme.cssVariables}
     >
-      <div className="starter-shell">
-        <TgCard className="starter-hero">
-          <TgText variant="headline">Teleforge Starter</TgText>
-          <TgText variant="body">
-            This Mini App shows the live Telegram theme, user context, and MainButton wiring with
-            the smallest possible surface.
-          </TgText>
-        </TgCard>
+      <header className="hero">
+        <p className="eyebrow" style={{ color: theme.hintColor }}>
+          Teleforge Starter
+        </p>
+        <h1>Starter App</h1>
+        <p className="lede" style={{ color: theme.hintColor }}>
+          This Mini App shows the live Telegram theme, user context, and
+          MainButton wiring through teleforge/web hooks directly.
+        </p>
+      </header>
 
-        <SettingsSection title="Session">
-          <SettingsItem title="User" value={userLabel || "Anonymous preview"} variant="value" />
-          <SettingsItem title="Platform" value={telegram.platform} variant="value" />
-          <SettingsItem title="Theme" value={theme.colorScheme} variant="value" />
-          <SettingsItem
-            title="Bridge"
-            value={telegram.isMock ? "teleforge-mock" : "telegram"}
-            variant="value"
-          />
-          <SettingsItem
-            title="Ready"
-            value={telegram.isReady ? "yes" : "booting"}
-            variant="value"
-          />
-        </SettingsSection>
+      <section
+        className="card stack"
+        style={{ background: theme.secondaryBgColor }}
+      >
+        <p className="badge" style={{ color: theme.hintColor }}>
+          Screen: home
+        </p>
+        <h2>Session</h2>
+        <div className="row">
+          <span style={{ color: theme.hintColor }}>User</span>
+          <span>{userLabel || "Anonymous preview"}</span>
+        </div>
+        <div className="row">
+          <span style={{ color: theme.hintColor }}>Platform</span>
+          <span>{telegram.platform}</span>
+        </div>
+        <div className="row">
+          <span style={{ color: theme.hintColor }}>Theme</span>
+          <span>{theme.colorScheme}</span>
+        </div>
+        <div className="row">
+          <span style={{ color: theme.hintColor }}>Bridge</span>
+          <span>{telegram.isMock ? "teleforge-mock" : "telegram"}</span>
+        </div>
+        <div className="row">
+          <span style={{ color: theme.hintColor }}>Ready</span>
+          <span>{telegram.isReady ? "yes" : "booting"}</span>
+        </div>
+      </section>
 
-        <SettingsSection
-          footer="The local mock overlay can switch Telegram themes without a reload. In real Telegram sessions the theme comes from the client."
-          title="Actions"
+      <section
+        className="card stack"
+        style={{ background: theme.secondaryBgColor }}
+      >
+        <h2>Actions</h2>
+        <button
+          onClick={handleToggleTheme}
+          style={{
+            background: theme.buttonColor,
+            color: theme.buttonTextColor
+          }}
         >
-          <SettingsItem onClick={handleToggleTheme} title="Toggle mock theme" variant="button" />
-          <SettingsItem onClick={handleExpand} title="Expand Mini App" variant="button" />
-        </SettingsSection>
+          Toggle mock theme
+        </button>
+        <button
+          onClick={handleExpand}
+          style={{
+            background: theme.buttonColor,
+            color: theme.buttonTextColor
+          }}
+        >
+          Expand Mini App
+        </button>
+      </section>
 
-        <TgCard className="starter-status">
-          <TgText variant="subtitle">Status</TgText>
-          <TgText variant="hint">{status}</TgText>
-        </TgCard>
-
-        <MainButton onClick={handleClose} text="Close Mini App" />
-      </div>
-    </AppShell>
+      <section
+        className="card stack"
+        style={{ background: theme.secondaryBgColor }}
+      >
+        <h2>Status</h2>
+        <p style={{ color: theme.hintColor }}>{status}</p>
+      </section>
+    </main>
   );
 }

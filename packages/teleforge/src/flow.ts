@@ -3,7 +3,16 @@ import { defineCoordinationConfig } from "@teleforgex/core";
 
 import { getFlowStep } from "./flow-definition.js";
 
-export { defineFlow, getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
+export {
+  chatStep,
+  defineFlow,
+  getFlowStep,
+  isMiniAppStep,
+  miniAppStep,
+  openMiniAppAction,
+  resolveFlowActionKey,
+  returnToChatAction
+} from "./flow-definition.js";
 
 import type { FlowStepDefinition, TeleforgeFlowDefinition } from "./flow-definition.js";
 import type { BotCommandDefinition, CommandContext, CoordinatedFlowOptions } from "@teleforgex/bot";

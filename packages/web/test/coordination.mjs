@@ -61,7 +61,7 @@ test("completeFlow infers flow context and uses Telegram sendData", async () => 
   delete globalThis.window;
 });
 
-test("transmitResult falls back to a configured BFF endpoint", async () => {
+test("transmitResult falls back to a configured server endpoint", async () => {
   const calls = [];
   const originalFetch = globalThis.fetch;
 
@@ -81,11 +81,11 @@ test("transmitResult falls back to a configured BFF endpoint", async () => {
       stateKey: "flow:test-state"
     },
     {
-      bffEndpoint: "https://example.com/return"
+      serverEndpoint: "https://example.com/return"
     }
   );
 
-  assert.equal(result.method, "bff");
+  assert.equal(result.method, "server_bridge");
   assert.equal(calls[0]?.url, "https://example.com/return");
 
   globalThis.fetch = originalFetch;

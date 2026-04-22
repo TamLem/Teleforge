@@ -42,6 +42,7 @@ export interface RunDoctorChecksOptions {
 }
 
 interface ManifestState {
+  discoveredFlows?: import("../manifest.js").DiscoveredTeleforgeFlowSummary[];
   error?: string;
   manifest?: TeleforgeManifest;
   manifestPath: string;
@@ -94,6 +95,7 @@ export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<
     })
   );
   checks.push(checkBotFatherSetup(publicUrl, manifestState.manifest));
+  checks.push(checkFlowWiring(manifestState));
 
   const summary = checks.reduce(
     (accumulator, check) => {
@@ -340,8 +342,9 @@ async function checkTeleforgeDependencies(
 
 async function loadManifestState(cwd: string): Promise<ManifestState> {
   try {
-    const { manifest, manifestPath } = await loadManifest(cwd);
+    const { discoveredFlows, manifest, manifestPath } = await loadManifest(cwd);
     return {
+      discoveredFlows,
       manifest,
       manifestPath
     };
@@ -913,6 +916,120 @@ function extractMajorVersion(version: string): number | undefined {
 
   const major = Number.parseInt(match[1], 10);
   return Number.isFinite(major) ? major : undefined;
+}
+
+function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
+  if (manifestState.error) {
+    return {
+      category: "Configuration",
+      message: "Flow wiring check skipped because the manifest could not be loaded.",
+      name: "flow_wiring",
+      status: "warn"
+    };
+  }
+
+  const flows = manifestState.discoveredFlows ?? [];
+  const details: string[] = [];
+  let errorCount = 0;
+  let warnCount = 0;
+
+  for (const flow of flows) {
+    const flowHeader = `Flow: ${flow.id}`;
+    const flowDetails: string[] = [];
+
+    for (const step of flow.steps) {
+      const stepPrefix = `  Step: ${step.id}`;
+
+      if (step.type === "miniapp" && step.screen && step.screenResolved === false) {
+        flowDetails.push(
+          `${stepPrefix} references screen "${step.screen}", but no matching screen was discovered under apps/web/src/screens.`
+        );
+        errorCount += 1;
+      }
+
+      if (step.type === "miniapp" && !step.screen) {
+        flowDetails.push(`${stepPrefix} is a Mini App step but has no screen id.`);
+        errorCount += 1;
+      }
+
+      if (step.unresolvedActionIds.length > 0) {
+        for (const actionId of step.unresolvedActionIds) {
+          flowDetails.push(
+            `${stepPrefix} action "${actionId}" has no transition target or handler.`
+          );
+          errorCount += 1;
+        }
+      }
+
+      if (step.extraActionHandlerIds.length > 0) {
+        for (const handlerId of step.extraActionHandlerIds) {
+          flowDetails.push(
+            `${stepPrefix} discovered extra action handler "${handlerId}" not declared in the flow.`
+          );
+          warnCount += 1;
+        }
+      }
+
+      if (step.extraServerActionIds.length > 0) {
+        for (const serverId of step.extraServerActionIds) {
+          flowDetails.push(
+            `${stepPrefix} discovered extra server hook "${serverId}" not declared in the flow.`
+          );
+          warnCount += 1;
+        }
+      }
+    }
+
+    if (flow.hasWiringGaps) {
+      const allSteps = flow.steps.map((s) => `    ${s.id}: ${s.status}`);
+      flowDetails.unshift(...allSteps);
+    }
+
+    if (flowDetails.length > 0) {
+      details.push(flowHeader);
+      details.push(...flowDetails);
+    }
+  }
+
+  if (errorCount > 0) {
+    return {
+      category: "Configuration",
+      details,
+      message: `${errorCount} flow wiring issue${errorCount === 1 ? "" : "s"} found across ${flows.length} flow${flows.length === 1 ? "" : "s"}.`,
+      name: "flow_wiring",
+      remediation:
+        "Add missing screens, declare action transitions or handlers, and remove orphaned handlers.",
+      status: "error"
+    };
+  }
+
+  if (warnCount > 0) {
+    return {
+      category: "Configuration",
+      details,
+      message: `${warnCount} flow wiring warning${warnCount === 1 ? "" : "s"} found across ${flows.length} flow${flows.length === 1 ? "" : "s"}.`,
+      name: "flow_wiring",
+      remediation: "Review discovered extra handlers and server hooks that are not referenced by flows.",
+      status: "warn"
+    };
+  }
+
+  if (flows.length === 0) {
+    return {
+      category: "Configuration",
+      message: "No flows discovered for wiring checks.",
+      name: "flow_wiring",
+      status: "pass"
+    };
+  }
+
+  return {
+    category: "Configuration",
+    details,
+    message: `All ${flows.length} flow${flows.length === 1 ? "" : "s"} wired cleanly with no missing screens, unresolved actions, or orphaned handlers.`,
+    name: "flow_wiring",
+    status: "pass"
+  };
 }
 
 async function readJsonFileIfExists(filePath: string): Promise<unknown> {

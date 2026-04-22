@@ -84,6 +84,11 @@ export interface TeleforgeManifest {
   dev?: {
     httpsPort?: number;
     port?: number;
+    services?: Array<{
+      command: string;
+      health?: string;
+      name: string;
+    }>;
     tunnel?: boolean;
   };
   features?: {

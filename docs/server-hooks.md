@@ -91,8 +91,6 @@ Server hooks should validate those conditions before returning success.
 
 ## Internal Backend Primitives
 
-This repository still contains internal request, identity, session, and route primitives under `packages/bff`. Those exist so the framework can share backend implementation code.
-
 App authors should not import an internal package to build a normal Teleforge app. Use `teleforge/server-hooks` and the generated runtime conventions instead.
 
 ## Shared Phone Auth

@@ -1,13 +1,13 @@
 import { getTelegramWebApp } from "../utils/ssr.js";
 
 export interface TransmitResult {
-  method: "bff" | "sendData" | "web_app_data";
+  method: "server_bridge" | "sendData" | "web_app_data";
   sentAt: number;
   success: boolean;
 }
 
 export interface TransmitConfig {
-  bffEndpoint?: string;
+  serverEndpoint?: string;
 }
 
 export interface ReturnEnvelope {
@@ -45,8 +45,8 @@ export async function transmitResult(
     };
   }
 
-  if (config.bffEndpoint) {
-    const response = await fetch(config.bffEndpoint, {
+  if (config.serverEndpoint) {
+    const response = await fetch(config.serverEndpoint, {
       body: payload,
       headers: {
         "content-type": "application/json"
@@ -55,17 +55,17 @@ export async function transmitResult(
     });
 
     if (!response.ok) {
-      throw new Error(`Return-to-chat BFF request failed with status ${response.status}.`);
+      throw new Error(`Return-to-chat server-bridge request failed with status ${response.status}.`);
     }
 
     return {
-      method: "bff",
+      method: "server_bridge",
       sentAt,
       success: true
     };
   }
 
-  throw new Error("No Telegram bridge or BFF endpoint is available for return-to-chat.");
+  throw new Error("No Telegram bridge or server endpoint is available for return-to-chat.");
 }
 
 export function createReturnEnvelope(options: TransmitOptions): ReturnEnvelope {

@@ -6,7 +6,7 @@ Reference Teleforge sample app that exercises the flow-first runtime with a simp
 
 - `teleforge/bot`: `/start` (Mini App entry), `/shop` (chat catalogue with deep-link buttons), and `web_app_data` order handling
 - `teleforge/web`: browser-safe Mini App runtime, launch coordination, theme, and checkout mode protection
-- `teleforge/ui`: Telegram-native cards, buttons, typography, and boundaries
+- `@teleforgex/ui`: internal Telegram-native UI primitives used by the reference app
 - `teleforge/core/browser`: Ed25519 initData validation (browser-safe)
 - `teleforge/server-hooks`: server-side flow hooks with trusted bridge enforcement
 

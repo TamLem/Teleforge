@@ -92,6 +92,9 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@teleforgex/ui':
+        specifier: link:../../../../packages/ui
+        version: link:../../../../packages/ui
       react:
         specifier: ^18.3.1
         version: 18.3.1

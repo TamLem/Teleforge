@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -35,7 +35,12 @@ test("doctor checks report pass/warn/error data for a configured project", async
   assert.equal(names.get("package_manager")?.status, "pass");
   assert.equal(names.get("git_available")?.status, "pass");
   assert.equal(names.get("teleforge_dependencies")?.status, "pass");
-  assert.equal(names.get("manifest_consistency")?.status, "pass");
+  const manifestCheck = names.get("manifest_consistency");
+  assert.equal(
+    manifestCheck?.status,
+    "pass",
+    `manifest_consistency expected pass but was ${manifestCheck?.status}: ${manifestCheck?.message}${manifestCheck?.details ? " — " + manifestCheck.details.join("; ") : ""}`
+  );
   assert.equal(names.get("bot_token")?.status, "pass");
   assert.equal(names.get("webhook_secret")?.status, "pass");
   assert.equal(names.get("mini_app_url")?.status, "pass");
@@ -80,17 +85,17 @@ test("doctor --json emits machine-readable diagnostics and exits non-zero on err
     envFile: false
   });
 
-  await assert.rejects(
-    execFileAsync("node", [cliPath, "doctor", "--json"], {
-      cwd: projectDir
-    }),
-    (error) => {
-      const payload = JSON.parse(error.stdout);
-      assert.equal(payload.status, "error");
-      assert.ok(payload.checks.some((check) => check.name === "bot_token"));
-      return true;
-    }
-  );
+  const result = spawnSync("node", [cliPath, "doctor", "--json"], {
+    cwd: projectDir,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(result.status, 0, "Expected CLI to exit non-zero when config has errors");
+  const output = (result.stdout || "").trim() || (result.stderr || "").trim();
+  assert.ok(output.length > 0, "Expected CLI to emit either stdout or stderr");
+  const payload = JSON.parse(output);
+  assert.equal(payload.status, "error");
+  assert.ok(payload.checks.some((check) => check.name === "bot_token"));
 });
 
 test("doctor reports conflicting Teleforge dependency majors", async () => {

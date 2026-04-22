@@ -58,7 +58,7 @@ Do not force:
 
 **Goal:** small initial render cost, smooth later interactions.
 
-> **Current implementation note:** Today's examples use Vite and React, but that is delivery machinery, not the product model. The public architecture remains flow → step → screen → transition. Until deeper hybrid-rendering support lands, keep the shell small and use screen-level splitting as the main optimization lever.
+> **Note:** Examples use Vite and React, but that is delivery machinery, not the product model. The public architecture is flow → step → screen → transition. Keep the shell small and use screen-level splitting as the main optimization lever.
 
 ## 4. Keep the Initial Shell Thin
 
@@ -86,9 +86,9 @@ Required:
 
 Do not ship catalog, checkout, settings, profile, history, etc. in one entry bundle.
 
-> **Current status:** The framework's screen registry registers `defineScreen()` objects eagerly at boot. The screen definition file is always imported, but the component inside can be lazy-loaded by splitting it into a separate file. Full lazy screen-definition support (where the framework defers importing the screen module until the step is reached) is planned.
+> **Note:** The framework's screen registry registers `defineScreen()` objects eagerly at boot. The screen definition file is always imported, but the component inside can be lazy-loaded by splitting it into a separate file.
 
-**Practical pattern today — lazy component inside eager definition:**
+**Practical pattern — lazy component inside eager definition:**
 
 ```tsx
 // screens/checkout.screen.tsx — eagerly imported, but component is lazy
@@ -166,13 +166,13 @@ Use `flowManifest` when booting the Mini App shell:
 ```tsx
 import { TeleforgeMiniApp } from "teleforge/web";
 
-import { flowManifest } from "./flow-manifest.js";
+import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
 import homeScreen from "./screens/home.screen.js";
 
 <TeleforgeMiniApp flowManifest={flowManifest} screens={[homeScreen]} />;
 ```
 
-Generated apps include `apps/web/src/flow-manifest.ts` as the client boundary. That file may be handwritten in early apps, but the contract is designed so Teleforge can later replace it with a generated virtual module without changing screen code.
+Generated apps include `apps/web/src/teleforge-generated/client-flow-manifest.ts` as the client boundary. Run `teleforge generate client-manifest` to regenerate it after flow changes. The generated file is browser-safe and excludes server-only fields such as handlers, loaders, and guards.
 
 Do not do this in web code:
 
@@ -275,9 +275,9 @@ Do not blur these together into one global client state store.
 
 **In practice:**
 
-- Flow state → `props.state` (from `FlowResumeProvider`)
+- Flow state → `props.state` (passed by `TeleforgeMiniApp` screen resolution)
 - Local UI state → `useState` inside the screen component
-- Domain state → server hooks / BFF queries
+- Domain state → server hooks
 - Derived view state → `useMemo` inside the screen component
 
 ## 12. Telegram-Specific Behavior Behind Adapter Layer
@@ -294,7 +294,7 @@ Wrap Telegram Mini App capabilities behind framework hooks and services.
 
 Do not scatter raw `window.Telegram.WebApp` calls across screens.
 
-**Current adapter location:** `packages/web/src/utils/ssr.ts` — `getTelegramWebApp()` is the single point of direct SDK access. All other code uses typed hooks.
+The web runtime exposes a single adapter for direct Telegram SDK access. All other code should use typed hooks such as `useTelegram()`, `useLaunch()`, `useTheme()`, and `useMainButton()`.
 
 ## 13. Optimize for First Useful Paint
 
@@ -322,7 +322,7 @@ This is where app-like smoothness happens.
 
 **Rule:** server-helped entry, client-driven continuation.
 
-The `useFlowNavigation()` hook provides `navigateToStep()` and `navigateToRoute()` for client-side transitions that persist state and update the browser URL.
+The `TeleforgeMiniApp` runtime handles client-side transitions between Mini App steps automatically. Screen components receive `submit` and `runAction` callbacks that advance the flow state and update the active screen without full page reloads.
 
 ## 15. Framework Transport ≠ Product Abstraction
 

@@ -217,19 +217,6 @@ importers:
         specifier: ^5.4.10
         version: 5.4.21(@types/node@24.12.0)
 
-  packages/bff:
-    dependencies:
-      '@teleforgex/core':
-        specifier: workspace:0.1.0
-        version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.12.0
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-
   packages/bot:
     dependencies:
       '@teleforgex/core':

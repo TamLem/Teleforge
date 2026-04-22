@@ -14,6 +14,7 @@ Use the narrative docs first if you are learning the framework. Use the generate
 - [Telegram Mini App Basics](./telegram-basics.md): plain-language primer on Mini Apps, `initData`, launch modes, `web_app_data`, and BotFather
 - [Getting Started](./getting-started.md): fastest path from clone to a working Teleforge app
 - [Developer Guide](./developer-guide.md): setup, daily workflow, public imports, and common implementation patterns
+- [Developer Experience Roadmap](./developer-experience-roadmap.md): planned improvements for manifest generation, diagnostics, scaffold, devtools, testing, and framework thinning
 
 ## Guides
 

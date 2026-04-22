@@ -5,6 +5,7 @@ import process from "node:process";
 import { runDevCommand, type DevCommandFlags } from "./commands/dev.js";
 import { runDevHttpsCommand, type DevHttpsCommandFlags } from "./commands/devHttps.js";
 import { runDoctorCommand, type DoctorCommandFlags } from "./commands/doctor.js";
+import { runGenerateCommand, type GenerateCommandFlags } from "./commands/generate.js";
 import { runMockCommand, type MockCommandFlags } from "./commands/mock.js";
 
 import type { TunnelProvider } from "./utils/tunnel.js";
@@ -12,16 +13,21 @@ import type { TunnelProvider } from "./utils/tunnel.js";
 interface ParsedArgs {
   command?: string;
   flags: Record<string, string | boolean>;
+  subcommand?: string;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
   const [command, ...rest] = argv;
   const flags: Record<string, string | boolean> = {};
+  let subcommand: string | undefined;
 
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
 
     if (!arg?.startsWith("-")) {
+      if (subcommand === undefined && command === "generate") {
+        subcommand = arg;
+      }
       continue;
     }
 
@@ -207,6 +213,17 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (arg === "--output") {
+      flags.output = rest[index + 1] ?? "";
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--output=")) {
+      flags.output = arg.split("=")[1] ?? "";
+      continue;
+    }
+
     if (arg.startsWith("--subdomain=")) {
       flags.subdomain = arg.split("=")[1] ?? "";
       continue;
@@ -226,7 +243,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
-  return { command, flags };
+  return { command, flags, subcommand };
 }
 
 function printHelp(): void {
@@ -235,6 +252,7 @@ function printHelp(): void {
 Usage:
   teleforge dev [options]
   teleforge dev:https [options]  Legacy alias for \`teleforge dev --public --live\`
+  teleforge generate <subcommand> [options]
   teleforge mock [options]
   teleforge doctor [options]
 
@@ -260,6 +278,7 @@ Options:
   --fix            Apply safe doctor fixes
   --json           Emit doctor output as JSON
   --verbose        Show detailed doctor output
+  --output <path>  Write generated output to a specific file path
   --help, -h       Show this help
 `);
 }
@@ -329,8 +348,15 @@ function toDoctorFlags(flags: Record<string, string | boolean>): Omit<DoctorComm
   };
 }
 
+function toGenerateFlags(flags: Record<string, string | boolean>): Omit<GenerateCommandFlags, "cwd"> {
+  return {
+    outputPath:
+      typeof flags.output === "string" && flags.output.length > 0 ? flags.output : undefined
+  };
+}
+
 async function main(): Promise<void> {
-  const { command, flags } = parseArgs(process.argv.slice(2));
+  const { command, flags, subcommand } = parseArgs(process.argv.slice(2));
 
   if (flags.help || !command) {
     printHelp();
@@ -362,6 +388,15 @@ async function main(): Promise<void> {
     await runDoctorCommand({
       cwd: process.cwd(),
       ...toDoctorFlags(flags)
+    });
+    return;
+  }
+
+  if (command === "generate") {
+    await runGenerateCommand({
+      cwd: process.cwd(),
+      subcommand: subcommand,
+      ...toGenerateFlags(flags)
     });
     return;
   }

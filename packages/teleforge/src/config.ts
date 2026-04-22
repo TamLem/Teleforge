@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -59,12 +60,17 @@ export async function loadTeleforgeAppFromFile(
   appPath: string,
   cwd = path.dirname(appPath)
 ): Promise<TeleforgeAppConfig> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));
+  const outputPath = path.join(tmpDir, "output.json");
+
   const script = `
     import { pathToFileURL } from "node:url";
+    import { writeFile } from "node:fs/promises";
 
     const modulePath = process.env.TELEFORGE_CONFIG_PATH;
-    if (!modulePath) {
-      throw new Error("TELEFORGE_CONFIG_PATH is required.");
+    const outputPath = process.env.TELEFORGE_OUTPUT_PATH;
+    if (!modulePath || !outputPath) {
+      throw new Error("TELEFORGE_CONFIG_PATH and TELEFORGE_OUTPUT_PATH are required.");
     }
 
     const loaded = await import(pathToFileURL(modulePath).href);
@@ -82,24 +88,25 @@ export async function loadTeleforgeAppFromFile(
       throw new Error("teleforge.config must export a default Teleforge app config object.");
     }
 
-    process.stdout.write(JSON.stringify(config));
+    await writeFile(outputPath, JSON.stringify(config));
   `;
 
   try {
     const tsxImportPath = resolveTsxImportPath(cwd);
-    const { stdout } = await execFileAsync(
+    await execFileAsync(
       process.execPath,
       ["--import", tsxImportPath, "--input-type=module", "--eval", script],
       {
         cwd,
         env: {
           ...process.env,
-          TELEFORGE_CONFIG_PATH: appPath
+          TELEFORGE_CONFIG_PATH: appPath,
+          TELEFORGE_OUTPUT_PATH: outputPath
         }
       }
     );
 
-    const app = JSON.parse(stdout) as TeleforgeAppConfig;
+    const app = JSON.parse(await readFile(outputPath, "utf8")) as TeleforgeAppConfig;
     return deriveLoadedFlowRoutes(app, cwd);
   } catch (error) {
     const stderr =
@@ -109,6 +116,8 @@ export async function loadTeleforgeAppFromFile(
       (error instanceof Error ? error.message : `Failed to load ${path.basename(appPath)}.`);
 
     throw new Error(`Failed to load ${path.basename(appPath)}: ${message}`);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -142,15 +151,19 @@ type LoadedRouteFlow = TeleforgeFlowDefinition<
 >;
 
 async function loadFlowModulesForConfig(cwd: string, root: string): Promise<LoadedRouteFlow[]> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));
+  const outputPath = path.join(tmpDir, "output.json");
+
   const script = `
-    import { readdir } from "node:fs/promises";
+    import { readdir, writeFile } from "node:fs/promises";
     import path from "node:path";
     import { pathToFileURL } from "node:url";
 
     const cwd = process.env.TELEFORGE_CWD;
     const root = process.env.TELEFORGE_FLOWS_ROOT;
-    if (!cwd || !root) {
-      throw new Error("TELEFORGE_CWD and TELEFORGE_FLOWS_ROOT are required.");
+    const outputPath = process.env.TELEFORGE_OUTPUT_PATH;
+    if (!cwd || !root || !outputPath) {
+      throw new Error("TELEFORGE_CWD, TELEFORGE_FLOWS_ROOT, and TELEFORGE_OUTPUT_PATH are required.");
     }
 
     const suffixes = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"];
@@ -216,24 +229,29 @@ async function loadFlowModulesForConfig(cwd: string, root: string): Promise<Load
       flows.push(flow);
     }
 
-    process.stdout.write(JSON.stringify(flows));
+    await writeFile(outputPath, JSON.stringify(flows));
   `;
 
-  const tsxImportPath = resolveTsxImportPath(cwd);
-  const { stdout } = await execFileAsync(
-    process.execPath,
-    ["--import", tsxImportPath, "--input-type=module", "--eval", script],
-    {
-      cwd,
-      env: {
-        ...process.env,
-        TELEFORGE_CWD: cwd,
-        TELEFORGE_FLOWS_ROOT: root
+  try {
+    const tsxImportPath = resolveTsxImportPath(cwd);
+    await execFileAsync(
+      process.execPath,
+      ["--import", tsxImportPath, "--input-type=module", "--eval", script],
+      {
+        cwd,
+        env: {
+          ...process.env,
+          TELEFORGE_CWD: cwd,
+          TELEFORGE_FLOWS_ROOT: root,
+          TELEFORGE_OUTPUT_PATH: outputPath
+        }
       }
-    }
-  );
+    );
 
-  return JSON.parse(stdout) as LoadedRouteFlow[];
+    return JSON.parse(await readFile(outputPath, "utf8")) as LoadedRouteFlow[];
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 function resolveTsxImportPath(cwd: string): string {

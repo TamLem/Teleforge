@@ -79,6 +79,40 @@ Polling and webhook delivery are deployment choices. They are not separate Telef
 
 Step-to-screen mapping belongs in flow definitions. App-level Mini App config should stay focused on runtime entry and defaults.
 
+## `dev`
+
+| Field       | Type       | Purpose                                        |
+| ----------- | ---------- | ---------------------------------------------- |
+| `port`      | `number`   | Preferred local dev server port                |
+| `httpsPort` | `number`   | Preferred HTTPS port when `--https` is used    |
+| `tunnel`    | `boolean`  | Whether to enable a public tunnel by default   |
+| `services`  | `object[]` | Optional companion services to start in dev    |
+
+Each companion service supports:
+
+| Field     | Type     | Purpose                                         |
+| --------- | -------- | ----------------------------------------------- |
+| `name`    | `string` | Service label shown in dev output               |
+| `command` | `string` | Simple command string to start the service (use a wrapper script for quoted arguments or shell operators) |
+| `health`  | `string` | Optional health URL polled after startup        |
+
+Example:
+
+```ts
+dev: {
+  port: 3000,
+  services: [
+    {
+      name: "mock-api",
+      command: "pnpm --filter @app/mock-api dev",
+      health: "http://127.0.0.1:3001/health"
+    }
+  ]
+}
+```
+
+When `services` is omitted, `teleforge dev` auto-discovers companion services from `apps/bot` if it has a `dev` script.
+
 ## Flow Definitions
 
 Flows are the main authoring unit:
@@ -140,6 +174,45 @@ export default defineFlow<FlowState>({
   actions?: [{ id, label, to, miniApp?: { payload? } }]
 }
 ```
+
+### Flow Authoring Helpers
+
+The framework provides helpers that remove repetitive `type` fields and make action intent explicit:
+
+```ts
+import { defineFlow, miniAppStep, chatStep, openMiniAppAction, returnToChatAction } from "teleforge";
+
+export default defineFlow({
+  id: "checkout",
+  initialStep: "cart",
+  state: { items: [] },
+  steps: {
+    cart: miniAppStep("checkout.cart", {
+      onSubmit: async ({ data, state }) => ({
+        state: { ...state, items: [data.itemId] },
+        to: "review"
+      })
+    }),
+    review: miniAppStep("checkout.review", {
+      actions: [returnToChatAction("Cancel", "abandoned")]
+    }),
+    done: chatStep("Order confirmed!", [
+      openMiniAppAction("Track order", "track", { orderId: "abc" })
+    ]),
+    abandoned: chatStep("Cart abandoned. Come back anytime!"),
+    track: miniAppStep("checkout.track")
+  }
+});
+```
+
+| Helper                | Replaces                                    |
+| --------------------- | ------------------------------------------- |
+| `miniAppStep(screen)` | `{ type: "miniapp", screen: "..." }`          |
+| `chatStep(message)`   | `{ type: "chat", message: "..." }`          |
+| `openMiniAppAction`   | Action with `miniApp` payload to open a step |
+| `returnToChatAction`  | Action that returns to a chat step         |
+
+Raw object definitions remain fully supported for cases the helpers do not cover.
 
 ## Screen Definitions
 

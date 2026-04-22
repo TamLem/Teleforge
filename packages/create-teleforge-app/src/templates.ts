@@ -32,6 +32,7 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
     "tsconfig.base.json": generatedBaseTsconfig(),
     "apps/api/package.json": generatedApiPackageJson(packageNames),
     "apps/api/src/index.ts": apiIndexTs(),
+    "apps/api/src/flow-hooks/start/home.ts": apiFlowHookTs(),
     "apps/api/src/routes/health.ts": apiHealthRouteTs(),
     "apps/api/src/routes/webhook.ts": apiWebhookRouteTs(),
     "apps/api/tsconfig.json": apiTsconfig(),
@@ -110,11 +111,11 @@ ${doctor}
 - \`apps/bot/src/flows/start.flow.ts\`: the first flow users hit, including its bot entry command and Mini App route
 - \`apps/bot/src/runtime.ts\`: where Teleforge discovers flows and boots the bot runtime
 - \`packages/types/src/index.ts\`: shared app state and domain contracts
-- \`apps/web/src/flow-manifest.ts\`: client-safe flow metadata used by the Mini App shell
 - \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint
 - \`apps/web/src/screens/home.screen.tsx\`: the first Mini App screen module
+- \`apps/web/src/teleforge-generated/client-flow-manifest.ts\`: framework-generated client-safe flow metadata for the Mini App shell
 
-The scaffold intentionally starts with one shared state type, one flow, one client-safe flow manifest, and one screen. Add more domain contracts, flow files, manifest entries, and screen modules as the app grows.
+The scaffold intentionally starts with one shared state type, one flow, and one screen. Run \`teleforge generate client-manifest\` to regenerate the client manifest after flow changes. Add more domain contracts, flow files, and screen modules as the app grows.
 
 ## Dev Workflow
 
@@ -150,6 +151,15 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
       dev: "teleforge dev",
       "dev:public": "teleforge dev --public --live",
       doctor: "teleforge doctor",
+      generate: "teleforge generate client-manifest",
+      predev: "teleforge generate client-manifest",
+      "predev:public": "teleforge generate client-manifest",
+      prebuild: "teleforge generate client-manifest",
+      pretest: "teleforge generate client-manifest",
+      lint: "tsc -p tsconfig.base.json --noEmit || echo 'Add eslint or biome to enable linting'",
+      typecheck: "tsc -p tsconfig.base.json --noEmit",
+      build: "pnpm -r build",
+      check: "pnpm typecheck && pnpm test",
       test: "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
     },
     dependencies: {
@@ -244,7 +254,8 @@ function generatedApiPackageJson(packageNames: PackageNames): string {
     version: "1.0.0",
     type: "module",
     scripts: {
-      dev: "tsx watch src/index.ts"
+      dev: "tsx watch src/index.ts",
+      typecheck: "tsc -p tsconfig.json --noEmit"
     },
     dependencies: {
       [packageNames.types]: "workspace:*"
@@ -274,6 +285,31 @@ export function createApiServer() {
   return {
     routes: apiRoutes,
     description: "Wire these routes into your server runtime when you need trusted server hooks or a standalone webhook surface."
+  };
+}
+`;
+}
+
+function apiFlowHookTs(): string {
+  return `// Server hook example for the "start" flow, "home" step.
+// This file is discovered automatically when the matching flow step needs trusted server logic.
+// Remove it if this step does not need guard, loader, or submit handling.
+
+export function guard() {
+  return true;
+}
+
+export function loader() {
+  return {
+    heading: "Server-loaded heading"
+  };
+}
+
+export function onSubmit({ state, data }: { state: unknown; data: unknown }) {
+  console.log("Server submit received:", data);
+  return {
+    state,
+    to: "home"
   };
 }
 `;
@@ -314,7 +350,8 @@ function generatedBotPackageJson(packageNames: PackageNames): string {
     version: "1.0.0",
     type: "module",
     scripts: {
-      dev: "tsx watch src/index.ts"
+      dev: "tsx watch src/index.ts",
+      typecheck: "tsc -p tsconfig.json --noEmit"
     },
     dependencies: {
       [packageNames.types]: "workspace:*"
@@ -786,7 +823,8 @@ function generatedWebFiles(
       scripts: {
         dev: "vite",
         build: "vite build",
-        preview: "vite preview"
+        preview: "vite preview",
+        typecheck: "tsc -p tsconfig.json --noEmit"
       },
       dependencies: {
         [packageNames.types]: "workspace:*",
@@ -801,7 +839,6 @@ function generatedWebFiles(
       }
     }),
     "apps/web/src/App.tsx": webAppTsx(options.appName),
-    "apps/web/src/flow-manifest.ts": webFlowManifestTs(options.appName, packageNames),
     "apps/web/src/main.tsx": webMainTsx(),
     "apps/web/src/screens/home.screen.tsx": homeScreenTsx(packageNames),
     "apps/web/src/styles.css": webStylesCss(),
@@ -884,7 +921,7 @@ function webMainTsx(): string {
 import ReactDOM from "react-dom/client";
 import { TeleforgeMiniApp } from "teleforge/web";
 
-import { flowManifest } from "./flow-manifest.js";
+import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
 import homeScreen from "./screens/home.screen.js";
 import "./styles.css";
 
@@ -893,41 +930,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <TeleforgeMiniApp flowManifest={flowManifest} screens={[homeScreen]} />
   </React.StrictMode>
 );
-`;
-}
-
-function webFlowManifestTs(appName: string, packageNames: PackageNames): string {
-  return `import { defineClientFlowManifest } from "teleforge/web";
-import type { StartFlowState } from "${packageNames.types}";
-
-export const flowManifest = defineClientFlowManifest([
-  {
-    id: "start",
-    initialStep: "home",
-    finalStep: "home",
-    state: {
-      visited: false
-    } satisfies StartFlowState,
-    bot: {
-      command: {
-        buttonText: "Open ${appName}",
-        command: "start",
-        description: "Start the Mini App",
-        text: "Welcome to ${appName}. Launch the Mini App to continue."
-      }
-    },
-    miniApp: {
-      launchModes: ["inline", "compact", "fullscreen"],
-      route: "/"
-    },
-    steps: {
-      home: {
-        screen: "home",
-        type: "miniapp"
-      }
-    }
-  }
-]);
 `;
 }
 

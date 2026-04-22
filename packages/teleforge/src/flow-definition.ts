@@ -237,6 +237,56 @@ export function isMiniAppStep<TState, TServices = unknown>(
   return step.type === "miniapp";
 }
 
+export function miniAppStep<TState, TData = unknown, TServices = unknown>(
+  screen: string,
+  options?: Omit<MiniAppFlowStepDefinition<TState, TData, TServices>, "screen" | "type">
+): MiniAppFlowStepDefinition<TState, TData, TServices> {
+  return {
+    ...options,
+    screen,
+    type: "miniapp"
+  } as MiniAppFlowStepDefinition<TState, TData, TServices>;
+}
+
+export function chatStep<TState, TServices = unknown>(
+  message: string | ((input: { state: TState }) => string),
+  actions?: ReadonlyArray<FlowActionDefinition<TState, TServices>>,
+  options?: Omit<ChatFlowStepDefinition<TState, TServices>, "message" | "actions" | "type">
+): ChatFlowStepDefinition<TState, TServices> {
+  return {
+    ...options,
+    ...(actions ? { actions } : {}),
+    message,
+    type: "chat"
+  } as ChatFlowStepDefinition<TState, TServices>;
+}
+
+export function openMiniAppAction<TState, TServices = unknown>(
+  label: string,
+  to: string,
+  payload?: Record<string, unknown>,
+  options?: Omit<FlowActionDefinition<TState, TServices>, "label" | "to" | "miniApp">
+): FlowActionDefinition<TState, TServices> {
+  return {
+    ...options,
+    label,
+    miniApp: payload ? { payload } : {},
+    to
+  };
+}
+
+export function returnToChatAction<TState, TServices = unknown>(
+  label: string,
+  to: string,
+  options?: Omit<FlowActionDefinition<TState, TServices>, "label" | "to">
+): FlowActionDefinition<TState, TServices> {
+  return {
+    ...options,
+    label,
+    to
+  };
+}
+
 function freezeBotDefinition(
   bot: TeleforgeFlowBotDefinition
 ): Readonly<TeleforgeFlowBotDefinition> {

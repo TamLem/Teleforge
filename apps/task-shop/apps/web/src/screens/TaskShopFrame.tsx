@@ -1,4 +1,4 @@
-import { AppShell, TgButton, TgText } from "teleforge/ui";
+import { AppShell, TgButton, TgText } from "@teleforgex/ui";
 
 import type { ReactNode } from "react";
 

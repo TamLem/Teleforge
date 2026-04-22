@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { TeleforgeMiniApp, createFetchMiniAppServerBridge } from "teleforge/web";
 
-import { flowManifest } from "./flow-manifest.js";
+import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
 import cartScreen from "./screens/cart.screen.js";
 import catalogScreen from "./screens/catalog.screen.js";
 import checkoutScreen from "./screens/checkout.screen.js";

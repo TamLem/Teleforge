@@ -103,21 +103,19 @@ Application code should use the unified package surfaces:
 - `teleforge`: app config, flows, discovered runtimes, shared flow state helpers
 - `teleforge/bot`: lower-level bot primitives when custom routing is needed
 - `teleforge/web`: Mini App shell, screen definitions, Telegram hooks, and runtime helpers
-- `teleforge/ui`: Telegram-aware React UI primitives
+- `teleforge/server-hooks`: trusted server-side load, submit, and action hooks
 - `teleforge/core/browser`: browser-safe launch and validation helpers
-- `teleforge/server-hooks`: trusted server-hook bridge helpers
 
 Internal workspace packages implement these surfaces. They are not the app authoring model.
 
 ## Internal Layers
 
-The repository still contains internal packages that implement the framework:
+The repository contains internal packages that implement the framework:
 
 - `packages/core`: shared schemas, launch parsing, validation, flow-state storage contracts
 - `packages/bot`: Telegram update routing and chat primitives
 - `packages/web`: Mini App hooks, flow bridge, and browser runtime helpers
 - `packages/ui`: React UI primitives built on top of the web runtime
-- `packages/bff`: internal request, identity, and session primitives reused by server hooks
 - `packages/devtools`: CLI, simulator, doctor checks, and tunnel support
 - `packages/teleforge`: the unified public package that composes the layers above
 

@@ -85,10 +85,6 @@ export function useMainButton(options?: MainButtonOptions): UseMainButtonReturn 
     applyParamsToButton(button, nextParams);
 
     return () => {
-      for (const callback of clickHandlersRef.current) {
-        button.offClick(callback);
-      }
-      clickHandlersRef.current.clear();
       button.hide();
     };
   }, [
@@ -100,6 +96,18 @@ export function useMainButton(options?: MainButtonOptions): UseMainButtonReturn 
     options?.textColor,
     tg
   ]);
+
+  useEffect(() => {
+    return () => {
+      const button = buttonRef.current;
+      if (button) {
+        for (const callback of clickHandlersRef.current) {
+          button.offClick(callback);
+        }
+      }
+      clickHandlersRef.current.clear();
+    };
+  }, []);
 
   if (!methodsRef.current) {
     methodsRef.current = createMethods(

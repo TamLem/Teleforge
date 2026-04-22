@@ -41,7 +41,7 @@ The framework is most useful when you need some combination of:
 
 ## Scaffolded App Shape
 
-The current generator now emits one default Teleforge app shape.
+The generator emits one default Teleforge app shape.
 
 Generated apps use:
 
@@ -123,12 +123,12 @@ Use `teleforge dev` when:
 
 If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default. When `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`, the simulator chat also executes that runtime directly for local `/start`, custom commands, `web_app_data`, and inline-keyboard `callback_query` flows. The same simulator can now save and reload full scenarios, including transcript and Telegram state, from `~/.teleforge/scenarios`.
 
-The current simulator-first workflow is:
+The simulator-first workflow is:
 
 - land in a chat-first shell with the Mini App closed by default
 - use built-in fixtures to jump to known Telegram-like states quickly
 - drive commands, callbacks, and `web_app_data` from the chat pane
-- inspect the right-side debug panel for active scenario, latest event, and live profile state
+- inspect the right-side debug panel for active sessions (flow id, step id, screen id, route, and latest transition), discovered flows, simulator actions, and live profile state
 - save a scenario when a flow becomes worth keeping
 - use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
 
@@ -138,7 +138,7 @@ When you want the old UI-first behavior for fast frontend iteration, use:
 teleforge dev --autoload-app
 ```
 
-When the embedded Mini App itself fails, Teleforge now treats that as a first-class dev signal:
+When the embedded Mini App itself fails, Teleforge treats that as a first-class dev signal:
 
 - upstream app `5xx` responses are logged to the terminal with a `[teleforge:dev]` prefix
 - the simulator status panel reports the failing HTTP status for the iframe route
@@ -150,7 +150,7 @@ Use `teleforge dev --public --live` when:
 - you need a public tunnel for Telegram
 - you want Telegram-facing behavior instead of the mock bridge
 
-Cloudflare Tunnel is the default tunnel provider for `teleforge dev --public --live`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`. `teleforge dev:https` remains available as a compatibility alias.
+Cloudflare Tunnel is the default tunnel provider for `teleforge dev --public --live`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`. `teleforge dev:https` is also available.
 
 Polling is the default bot delivery mode for the current scaffold and repo examples. Webhook mode is opt-in and should only be enabled when the primary web runtime actually serves `/api/webhook`.
 
@@ -169,7 +169,7 @@ teleforge mock
 - simulating viewport and event changes
 - saving and sharing profiles in `~/.teleforge/profiles/`
 
-For most day-to-day local app development, prefer `teleforge dev`; it now hosts the primary simulator surface.
+For most day-to-day local app development, prefer `teleforge dev`; it hosts the primary simulator surface.
 
 To make the simulator run real bot logic instead of manifest fallbacks, expose this file in your app:
 
@@ -180,14 +180,14 @@ export function createDevBotRuntime(options) {
 }
 ```
 
-Without that file, the simulator still provides chat scaffolding, but only at the manifest level.
+Without that file, the simulator provides chat scaffolding at the manifest level.
 
-Current simulator gaps that still remain after the latest local-dev work:
+Known simulator limitations:
 
-- callback and `web_app_data` are covered, but broader Telegram interaction surfaces still need simulation
-- replay is currently single-action rather than full scenario-step playback
-- fixture support is generic today; app-specific fixture packs still need to be added where useful
-- deeper request/trace inspection is still lighter than a full debugger
+- callback and `web_app_data` are covered, but broader Telegram interaction surfaces need additional simulation
+- replay is single-action rather than full scenario-step playback
+- fixture support is generic; app-specific fixture packs need to be added where useful
+- deeper request/trace inspection is lighter than a full debugger
 
 ### Diagnose Environment Issues
 
@@ -208,7 +208,6 @@ Use these imports in app code:
 - `teleforge` for `defineTeleforgeApp()`, `defineFlow()`, discovered runtimes, config loading, and flow-state helpers
 - `teleforge/bot` for lower-level Telegram bot primitives when a custom bot runtime needs them
 - `teleforge/web` for `TeleforgeMiniApp`, `defineScreen()`, Telegram hooks, and Mini App runtime helpers
-- `teleforge/ui` for Telegram-aware React UI primitives
 - `teleforge/core/browser` for browser-safe launch and validation helpers
 - `teleforge/server-hooks` for trusted server hook bridge helpers
 
@@ -255,36 +254,58 @@ export function CheckoutAction({ disabled }: { disabled: boolean }) {
 }
 ```
 
-For component-level rendering, `teleforge/ui` also exposes a `MainButton` component built on top of the hook.
+The `useMainButton` hook gives you full control over the Telegram Main Button state and click handlers from any React component.
+
+#### Coordinated Main Button with `submit()`
+
+When a screen needs to call `submit()` on Main Button press, use `useCoordinatedMainButton`. It manages progress state and wires the click handler:
+
+```tsx
+import { useCoordinatedMainButton } from "teleforge/web";
+
+export default defineScreen({
+  component({ state, submit }) {
+    const isValid = !!(state.name && state.phone);
+
+    useCoordinatedMainButton("Save Profile", async () => {
+      await submit({ type: "sender_profile", name: state.name, phone: state.phone });
+    }, { isVisible: isValid });
+
+    return <form>...</form>;
+  }
+});
+```
+
+The `isVisible` option dynamically shows or hides the button based on form validity. Click handlers survive visibility changes — the framework preserves registered handlers across param updates.
 
 ### Theme-Aware UI
 
 ```tsx
-import { AppShell, TgCard, TgText } from "teleforge/ui";
 import { useTheme } from "teleforge/web";
 
 export function ThemedScreen() {
   const theme = useTheme();
 
   return (
-    <AppShell style={theme.cssVariables}>
-      <TgCard>
-        <TgText variant="headline">Telegram-aware UI</TgText>
-      </TgCard>
-    </AppShell>
+    <main style={{ background: theme.bgColor, color: theme.textColor, minHeight: "100vh" }}>
+      <section style={{ background: theme.secondaryBgColor, padding: "1rem", borderRadius: "1rem" }}>
+        <h1 style={{ color: theme.textColor }}>Telegram-aware UI</h1>
+        <p style={{ color: theme.hintColor }}>Use theme hooks directly for custom styling.</p>
+      </section>
+    </main>
   );
 }
 ```
 
-### Route Guards
+### Route and Capability Guards
 
-When route access depends on launch mode or client capabilities:
+Guard decisions are now handled by the Mini App runtime and server hook bridge rather than client-side guard components.
 
-- use `useRouteGuard()` for imperative checks
-- use `useManifestGuard()` when route requirements already live in derived route config
-- use `LaunchModeBoundary` from `teleforge/ui` for view-level fallbacks
+- `loadMiniAppScreenRuntime()` evaluates server-side guards through the configured `serverBridge` before rendering a screen
+- Screen-level `guard` functions run on the client after server validation passes
+- Launch mode and capability checks are part of the flow definition metadata, not imperative client hooks
 
-This is the pattern Teleforge uses for flows like compact/fullscreen checkout protection.
+Use the `renderBlocked` prop on `TeleforgeMiniApp` to provide a custom UI when a guard blocks access.
 
 ### Secure `initData` Validation
 
@@ -352,7 +373,7 @@ This is the right pattern when phone number is the app's primary login key but T
 
 ## Flow Coordination
 
-The current framework path now owns more of the chat/Mini App lifecycle directly.
+The framework path owns the chat/Mini App lifecycle directly.
 
 That includes:
 
@@ -363,7 +384,7 @@ That includes:
 - structured return-to-chat handoff through `web_app_data`
 - optional server-hook execution for trusted flow steps
 
-The lower-level coordination primitives still exist, but they are no longer the default first stop for new app code.
+Use the higher-level `defineFlow`, `defineScreen`, and `TeleforgeMiniApp` APIs as the default authoring surface. Lower-level coordination primitives are available from `teleforge/bot` and `teleforge/web` when custom routing is needed.
 
 The full reference implementation lives in [`apps/task-shop`](../apps/task-shop/README.md).
 

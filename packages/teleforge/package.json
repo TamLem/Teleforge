@@ -26,12 +26,6 @@
       "require": "./dist/core-browser.cjs",
       "default": "./dist/core-browser.js"
     },
-    "./ui": {
-      "types": "./dist/ui.d.ts",
-      "import": "./dist/ui.js",
-      "require": "./dist/ui.cjs",
-      "default": "./dist/ui.js"
-    },
     "./web": {
       "types": "./dist/web.d.ts",
       "import": "./dist/web.js",
@@ -43,6 +37,12 @@
       "import": "./dist/server-hooks.js",
       "require": "./dist/server-hooks.cjs",
       "default": "./dist/server-hooks.js"
+    },
+    "./test": {
+      "types": "./dist/test-utils.d.ts",
+      "import": "./dist/test-utils.js",
+      "require": "./dist/test-utils.cjs",
+      "default": "./dist/test-utils.js"
     }
   },
   "bin": {
@@ -64,7 +64,6 @@
     "@teleforgex/bot": "workspace:0.1.0",
     "@teleforgex/core": "workspace:0.1.0",
     "@teleforgex/devtools": "workspace:0.1.0",
-    "@teleforgex/ui": "workspace:0.1.0",
     "@teleforgex/web": "workspace:0.1.0",
     "tsx": "^4.20.6"
   },

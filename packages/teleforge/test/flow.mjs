@@ -8,7 +8,11 @@ import {
   createFlowStartCommand,
   defineFlow,
   getFlowStep,
-  isMiniAppStep
+  isMiniAppStep,
+  chatStep,
+  miniAppStep,
+  openMiniAppAction,
+  returnToChatAction
 } from "../dist/index.js";
 import { handleMiniAppReturn } from "../dist/bot.js";
 
@@ -245,4 +249,91 @@ test("createFlowStartCommand rejects chat entry steps", () => {
       }),
     /must be a miniapp step/
   );
+});
+
+test("miniAppStep removes repetitive type and screen boilerplate", () => {
+  const step = miniAppStep("checkout", {
+    onSubmit: async () => ({ to: "success" })
+  });
+
+  assert.equal(step.type, "miniapp");
+  assert.equal(step.screen, "checkout");
+  assert.equal(typeof step.onSubmit, "function");
+});
+
+test("chatStep removes repetitive type and message boilerplate", () => {
+  const step = chatStep("Welcome!", [
+    openMiniAppAction("Open app", "home", { ref: "start" })
+  ]);
+
+  assert.equal(step.type, "chat");
+  assert.equal(step.message, "Welcome!");
+  assert.equal(step.actions?.length, 1);
+  assert.equal(step.actions?.[0]?.label, "Open app");
+  assert.equal(step.actions?.[0]?.to, "home");
+  assert.deepEqual(step.actions?.[0]?.miniApp?.payload, { ref: "start" });
+});
+
+test("chatStep supports dynamic message functions", () => {
+  const step = chatStep(({ state }) => `Hello, ${(state).name}!`);
+
+  assert.equal(step.type, "chat");
+  assert.equal(typeof step.message, "function");
+  assert.equal(
+    step.message({ state: { name: "Alice" } }),
+    "Hello, Alice!"
+  );
+});
+
+test("openMiniAppAction creates a Mini App transition action", () => {
+  const action = openMiniAppAction("Track Order", "tracking", { orderId: "123" });
+
+  assert.equal(action.label, "Track Order");
+  assert.equal(action.to, "tracking");
+  assert.deepEqual(action.miniApp?.payload, { orderId: "123" });
+});
+
+test("openMiniAppAction works without payload", () => {
+  const action = openMiniAppAction("Open cart", "cart");
+
+  assert.equal(action.label, "Open cart");
+  assert.equal(action.to, "cart");
+  assert.ok(!action.miniApp?.payload);
+});
+
+test("returnToChatAction creates a callback transition action", () => {
+  const action = returnToChatAction("Return to chat", "completed");
+
+  assert.equal(action.label, "Return to chat");
+  assert.equal(action.to, "completed");
+  assert.ok(!action.miniApp);
+});
+
+test("flow authoring helpers integrate with defineFlow", () => {
+  const flow = defineFlow({
+    id: "checkout",
+    initialStep: "cart",
+    state: { items: [] },
+    steps: {
+      cart: miniAppStep("checkout.cart", {
+        actions: [returnToChatAction("Cancel", "abandoned")]
+      }),
+      confirm: miniAppStep("checkout.confirm", {
+        onSubmit: async () => ({ to: "receipt" })
+      }),
+      receipt: chatStep("Order confirmed!", [
+        openMiniAppAction("Track order", "track", { orderId: "abc" })
+      ]),
+      abandoned: chatStep("Cart abandoned. Come back anytime!"),
+      track: miniAppStep("checkout.track")
+    }
+  });
+
+  assert.equal(flow.id, "checkout");
+  assert.equal(getFlowStep(flow, "cart").type, "miniapp");
+  assert.equal(getFlowStep(flow, "cart").screen, "checkout.cart");
+  assert.equal(getFlowStep(flow, "receipt").type, "chat");
+  assert.equal(getFlowStep(flow, "receipt").message, "Order confirmed!");
+  assert.equal(getFlowStep(flow, "track").type, "miniapp");
+  assert.equal(getFlowStep(flow, "track").screen, "checkout.track");
 });

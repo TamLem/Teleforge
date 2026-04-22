@@ -1,5 +1,5 @@
 import { mockTasks, type TaskShopFlowState, type TaskShopSubmitPayload } from "@task-shop/types";
-import { AppShell, TgButton, TgCard, TgText } from "teleforge/ui";
+import { AppShell, TgButton, TgCard, TgText } from "@teleforgex/ui";
 import { defineScreen } from "teleforge/web";
 
 export default defineScreen<TaskShopFlowState>({
