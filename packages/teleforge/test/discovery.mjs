@@ -283,6 +283,32 @@ test("createFlowRoutes derives manifest routes from flow miniapp metadata", () =
   assert.equal(routes[1]?.coordination?.entryPoints[0]?.type, "bot_command");
 });
 
+test("createFlowRoutes derives direct Mini App entrypoints for commandless flows", () => {
+  const flow = defineFlow({
+    id: "driver",
+    initialStep: "onboard",
+    state: {},
+    miniApp: {
+      launchModes: ["inline", "compact", "fullscreen"],
+      route: "/driver"
+    },
+    steps: {
+      onboard: {
+        screen: "driver.onboard",
+        type: "miniapp"
+      }
+    }
+  });
+
+  const routes = createFlowRoutes({
+    flows: [flow]
+  });
+
+  assert.equal(routes.length, 1);
+  assert.equal(routes[0]?.path, "/driver");
+  assert.deepEqual(routes[0]?.coordination?.entryPoints, [{ type: "miniapp" }]);
+});
+
 test("createFlowRuntimeSummary exposes step-level handler wiring", () => {
   const flow = defineFlow({
     id: "checkout",

@@ -197,3 +197,97 @@ export default defineTeleforgeApp({
     "flow"
   ]);
 });
+
+test("loadManifest derives direct Mini App entrypoints for commandless Mini App flows", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-commandless-flow-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const screensRoot = path.join(tmpRoot, "apps", "web", "src", "screens");
+  const nodeModulesRoot = path.join(tmpRoot, "node_modules");
+  const teleforgeIndexUrl = pathToFileURL(
+    path.resolve(process.cwd(), "..", "teleforge", "src", "index.ts")
+  ).href;
+  const teleforgePackagePath = path.resolve(
+    process.cwd(),
+    "..",
+    "..",
+    "examples",
+    "starter-app",
+    "node_modules",
+    "teleforge"
+  );
+
+  await mkdir(flowsRoot, { recursive: true });
+  await mkdir(screensRoot, { recursive: true });
+  await mkdir(nodeModulesRoot, { recursive: true });
+  await symlink(teleforgePackagePath, path.join(nodeModulesRoot, "teleforge"), "dir");
+  await writeFile(
+    path.join(flowsRoot, "driver.flow.ts"),
+    `import { defineFlow } from ${JSON.stringify(teleforgeIndexUrl)};
+
+export default defineFlow({
+  id: "driver",
+  initialStep: "onboard",
+  state: {},
+  miniApp: {
+    launchModes: ["inline", "compact", "fullscreen"],
+    route: "/driver"
+  },
+  steps: {
+    onboard: {
+      screen: "driver.onboard",
+      type: "miniapp"
+    }
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(screensRoot, "driver.screen.tsx"),
+    `import { defineScreen } from "teleforge/web";
+
+export default defineScreen({
+  component() {
+    return null;
+  },
+  id: "driver.onboard"
+});
+`
+  );
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(teleforgeIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "commandless-flow-app",
+    name: "Commandless Flow App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "commandless_flow_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+  }
+});
+`
+  );
+
+  const loaded = await loadManifest(tmpRoot);
+
+  assert.equal(loaded.manifest.routes[0]?.path, "/driver");
+  assert.deepEqual(loaded.manifest.routes[0]?.coordination?.entryPoints, [{ type: "miniapp" }]);
+});

@@ -15,6 +15,7 @@ import type { DiscoveredScreenModule } from "./screens.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
   CoordinationDefaults,
+  LaunchEntryPoint,
   RouteDefinition,
   RouteCoordinationConfig,
   ResolvedCoordinationConfig,
@@ -616,17 +617,7 @@ export function createFlowCoordinationConfigFromFlows(
     }
 
     routes[flow.miniApp.route] = {
-      entryPoints: Object.freeze([
-        ...(flow.miniApp.entryPoints ?? []),
-        ...(flow.bot?.command
-          ? [
-              {
-                command: flow.bot.command.command,
-                type: "bot_command" as const
-              }
-            ]
-          : [])
-      ]),
+      entryPoints: resolveMiniAppRouteEntryPoints(flow),
       flow: {
         entryStep: flow.bot?.command?.entryStep ?? String(flow.initialStep),
         flowId: flow.id,
@@ -645,6 +636,26 @@ export function createFlowCoordinationConfigFromFlows(
     flows: flowEntries,
     routes
   });
+}
+
+function resolveMiniAppRouteEntryPoints(flow: AnyFlowDefinition): readonly LaunchEntryPoint[] {
+  const entryPoints = [
+    ...(flow.miniApp?.entryPoints ?? []),
+    ...(flow.bot?.command
+      ? [
+          {
+            command: flow.bot.command.command,
+            type: "bot_command" as const
+          }
+        ]
+      : [])
+  ];
+
+  if (entryPoints.length > 0) {
+    return Object.freeze(entryPoints);
+  }
+
+  return Object.freeze([{ type: "miniapp" as const }]);
 }
 
 export function createFlowRoutes(options: CreateFlowRoutesOptions): RouteDefinition[] {

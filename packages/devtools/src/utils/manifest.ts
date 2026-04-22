@@ -691,22 +691,10 @@ function createRoutesFromFlows(
       throw new Error(`Duplicate route path "${flow.miniApp.route}" while deriving flow routes.`);
     }
 
-    const entryPoints = [
-      ...(flow.miniApp.entryPoints ?? []),
-      ...(flow.bot?.command
-        ? [
-            {
-              command: flow.bot.command.command,
-              type: "bot_command" as const
-            }
-          ]
-        : [])
-    ];
-
     routes.push({
       ...(flow.miniApp.capabilities ? { capabilities: flow.miniApp.capabilities } : {}),
       coordination: {
-        entryPoints,
+        entryPoints: resolveMiniAppRouteEntryPoints(flow),
         flow: {
           entryStep: flow.bot?.command?.entryStep ?? String(flow.initialStep),
           flowId: flow.id,
@@ -726,6 +714,22 @@ function createRoutesFromFlows(
   }
 
   return routes;
+}
+
+function resolveMiniAppRouteEntryPoints(flow: RouteFlowDefinition): LaunchEntryPoint[] {
+  const entryPoints = [
+    ...(flow.miniApp?.entryPoints ?? []),
+    ...(flow.bot?.command
+      ? [
+          {
+            command: flow.bot.command.command,
+            type: "bot_command" as const
+          }
+        ]
+      : [])
+  ];
+
+  return entryPoints.length > 0 ? entryPoints : [{ type: "miniapp" as const }];
 }
 
 function resolveTsxImportPath(cwd: string): string {
