@@ -433,6 +433,19 @@ async function checkManifestConsistency(
         issues.push(`Route path must start with "/": ${route.path ?? "(missing path)"}`);
       }
 
+      const hasFlowCoordination =
+        route.coordination &&
+        typeof route.coordination === "object" &&
+        "flow" in route.coordination &&
+        typeof route.coordination.flow === "object" &&
+        route.coordination.flow !== null &&
+        "flowId" in route.coordination.flow &&
+        typeof route.coordination.flow.flowId === "string";
+
+      if (hasFlowCoordination) {
+        continue;
+      }
+
       if (!route.component) {
         issues.push(`Route ${route.path ?? "(unknown)"} is missing a component.`);
         continue;

@@ -28,6 +28,8 @@ test("generates the unified Teleforge scaffold", async () => {
 
   const rootPackagePath = path.join(tmpRoot, projectName, "package.json");
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
+  assert.equal(rootPackage.name, "sample-app");
+  assert.deepEqual(rootPackage.workspaces, ["apps/*", "packages/*"]);
   assert.equal(rootPackage.dependencies.teleforge, "^0.1.0");
   assert.equal(
     rootPackage.scripts.test,
@@ -44,7 +46,28 @@ test("generates the unified Teleforge scaffold", async () => {
 
   const webPackagePath = path.join(tmpRoot, projectName, "apps", "web", "package.json");
   const webPackage = JSON.parse(await readFile(webPackagePath, "utf8"));
+  assert.equal(webPackage.name, "@sample-app/web");
+  assert.equal(webPackage.dependencies["@sample-app/types"], "workspace:*");
   assert.equal(webPackage.scripts.dev, "vite");
+
+  const botPackagePath = path.join(tmpRoot, projectName, "apps", "bot", "package.json");
+  const botPackage = JSON.parse(await readFile(botPackagePath, "utf8"));
+  assert.equal(botPackage.name, "@sample-app/bot");
+  assert.equal(botPackage.dependencies["@sample-app/types"], "workspace:*");
+
+  const apiPackagePath = path.join(tmpRoot, projectName, "apps", "api", "package.json");
+  const apiPackage = JSON.parse(await readFile(apiPackagePath, "utf8"));
+  assert.equal(apiPackage.name, "@sample-app/api");
+  assert.equal(apiPackage.dependencies["@sample-app/types"], "workspace:*");
+
+  const typesPackagePath = path.join(tmpRoot, projectName, "packages", "types", "package.json");
+  const typesPackage = JSON.parse(await readFile(typesPackagePath, "utf8"));
+  assert.equal(typesPackage.name, "@sample-app/types");
+  assert.equal(typesPackage.exports["."], "./src/index.ts");
+
+  const typesSourcePath = path.join(tmpRoot, projectName, "packages", "types", "src", "index.ts");
+  const typesSource = await readFile(typesSourcePath, "utf8");
+  assert.match(typesSource, /interface StartFlowState/);
 
   const startFlowPath = path.join(
     tmpRoot,
@@ -56,7 +79,9 @@ test("generates the unified Teleforge scaffold", async () => {
     "start.flow.ts"
   );
   const startFlow = await readFile(startFlowPath, "utf8");
+  assert.match(startFlow, /import type \{ StartFlowState \} from "@sample-app\/types"/);
   assert.match(startFlow, /import \{ defineFlow \} from "teleforge\/web"/);
+  assert.match(startFlow, /defineFlow<StartFlowState>/);
   assert.match(startFlow, /command: "start"/);
   assert.doesNotMatch(startFlow, /component:/);
   assert.match(startFlow, /screen: "home"/);
@@ -92,7 +117,9 @@ test("generates the unified Teleforge scaffold", async () => {
     "home.screen.tsx"
   );
   const screenSource = await readFile(screenPath, "utf8");
+  assert.match(screenSource, /import type \{ StartFlowState \} from "@sample-app\/types"/);
   assert.match(screenSource, /defineScreen/);
+  assert.match(screenSource, /defineScreen<StartFlowState>/);
   assert.match(screenSource, /id: "home"/);
 
   const webTestPath = path.join(tmpRoot, projectName, "apps", "web", "test", "home.test.tsx");

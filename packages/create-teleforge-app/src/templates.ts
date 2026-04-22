@@ -6,6 +6,13 @@ interface BuildProjectFilesOptions {
   linkPath?: string;
 }
 
+interface PackageNames {
+  api: string;
+  bot: string;
+  types: string;
+  web: string;
+}
+
 function teleforgeDependency(linkPath?: string): Record<string, string> {
   return {
     teleforge: !linkPath ? "^0.1.0" : `link:${linkPath}/packages/teleforge`
@@ -13,26 +20,42 @@ function teleforgeDependency(linkPath?: string): Record<string, string> {
 }
 
 export function buildProjectFiles(options: BuildProjectFilesOptions): Record<string, string> {
+  const packageNames = getPackageNames(options.appId);
+
   return {
     ".env.example": envExample(),
     ".gitignore": generatedGitignore(),
     "README.md": generatedReadme(options),
     "package.json": generatedRootPackageJson(options),
-    "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+    "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n  - "packages/*"\n',
     "teleforge.config.ts": generatedConfig(options),
     "tsconfig.base.json": generatedBaseTsconfig(),
-    "apps/api/package.json": generatedApiPackageJson(),
+    "apps/api/package.json": generatedApiPackageJson(packageNames),
     "apps/api/src/index.ts": apiIndexTs(),
     "apps/api/src/routes/health.ts": apiHealthRouteTs(),
     "apps/api/src/routes/webhook.ts": apiWebhookRouteTs(),
     "apps/api/tsconfig.json": apiTsconfig(),
-    "apps/bot/package.json": generatedBotPackageJson(),
-    "apps/bot/src/flows/start.flow.ts": botStartFlowTs(options.appName),
+    "apps/bot/package.json": generatedBotPackageJson(packageNames),
+    "apps/bot/src/flows/start.flow.ts": botStartFlowTs(options.appName, packageNames),
     "apps/bot/src/index.ts": botIndexTs(),
     "apps/bot/src/runtime.ts": botRuntimeTs(),
     "apps/bot/test/start.test.ts": botStartTestTs(options.appName),
     "apps/bot/tsconfig.json": botTsconfig(),
-    ...generatedWebFiles(options)
+    "packages/types/package.json": generatedTypesPackageJson(packageNames),
+    "packages/types/src/index.ts": generatedTypesIndexTs(),
+    "packages/types/tsconfig.json": typesTsconfig(),
+    ...generatedWebFiles(options, packageNames)
+  };
+}
+
+function getPackageNames(appId: string): PackageNames {
+  const scope = `@${appId}`;
+
+  return {
+    api: `${scope}/api`,
+    bot: `${scope}/bot`,
+    types: `${scope}/types`,
+    web: `${scope}/web`
   };
 }
 
@@ -78,6 +101,7 @@ ${doctor}
 - \`apps/web\`: Mini App shell, screens, and styles
 - \`apps/bot\`: Bot runtime, discovered flows, and simulator bridge export in \`src/runtime.ts\`
 - \`apps/api\`: optional server-hook and webhook placeholders
+- \`packages/types\`: shared domain contracts used by bot, web, and server code
 - \`teleforge.config.ts\`: App definition
 
 ## Read These Files First
@@ -85,10 +109,11 @@ ${doctor}
 - \`teleforge.config.ts\`: source of truth for app identity, flow discovery, and Mini App defaults
 - \`apps/bot/src/flows/start.flow.ts\`: the first flow users hit, including its bot entry command and Mini App route
 - \`apps/bot/src/runtime.ts\`: where Teleforge discovers flows and boots the bot runtime
+- \`packages/types/src/index.ts\`: shared app state and domain contracts
 - \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint
 - \`apps/web/src/screens/home.screen.tsx\`: the first Mini App screen module
 
-The scaffold intentionally starts with one flow and one screen. Add more flow files and screen modules as the app grows.
+The scaffold intentionally starts with one shared state type, one flow, and one screen. Add more domain contracts, flow files, and screen modules as the app grows.
 
 ## Dev Workflow
 
@@ -119,7 +144,7 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
     name: options.appId,
     private: true,
     version: "1.0.0",
-    workspaces: ["apps/*"],
+    workspaces: ["apps/*", "packages/*"],
     scripts: {
       dev: "teleforge dev",
       "dev:public": "teleforge dev --public --live",
@@ -211,14 +236,17 @@ TELEFORGE_DEV_HTTPS=true
 `;
 }
 
-function generatedApiPackageJson(): string {
+function generatedApiPackageJson(packageNames: PackageNames): string {
   return stringifyJson({
-    name: "@app/api",
+    name: packageNames.api,
     private: true,
     version: "1.0.0",
     type: "module",
     scripts: {
       dev: "tsx watch src/index.ts"
+    },
+    dependencies: {
+      [packageNames.types]: "workspace:*"
     }
   });
 }
@@ -278,14 +306,17 @@ function apiWebhookRouteTs(): string {
 `;
 }
 
-function generatedBotPackageJson(): string {
+function generatedBotPackageJson(packageNames: PackageNames): string {
   return stringifyJson({
-    name: "@app/bot",
+    name: packageNames.bot,
     private: true,
     version: "1.0.0",
     type: "module",
     scripts: {
       dev: "tsx watch src/index.ts"
+    },
+    dependencies: {
+      [packageNames.types]: "workspace:*"
     }
   });
 }
@@ -689,13 +720,16 @@ export function hasUsableToken(value: string | undefined): value is string {
 `;
 }
 
-function botStartFlowTs(appName: string): string {
+function botStartFlowTs(appName: string, packageNames: PackageNames): string {
   return `import { defineFlow } from "teleforge/web";
+import type { StartFlowState } from "${packageNames.types}";
 
-export default defineFlow({
+export default defineFlow<StartFlowState>({
   id: "start",
   initialStep: "home",
-  state: {},
+  state: {
+    visited: false
+  },
   bot: {
     command: {
       buttonText: "Open ${appName}",
@@ -737,11 +771,14 @@ test("start flow declares the bot entry command", () => {
 `;
 }
 
-function generatedWebFiles(options: BuildProjectFilesOptions): Record<string, string> {
+function generatedWebFiles(
+  options: BuildProjectFilesOptions,
+  packageNames: PackageNames
+): Record<string, string> {
   return {
     "apps/web/index.html": spaIndexHtml(options.appName),
     "apps/web/package.json": stringifyJson({
-      name: "@app/web",
+      name: packageNames.web,
       private: true,
       version: "1.0.0",
       type: "module",
@@ -751,6 +788,7 @@ function generatedWebFiles(options: BuildProjectFilesOptions): Record<string, st
         preview: "vite preview"
       },
       dependencies: {
+        [packageNames.types]: "workspace:*",
         react: "^18.3.1",
         "react-dom": "^18.3.1"
       },
@@ -763,7 +801,7 @@ function generatedWebFiles(options: BuildProjectFilesOptions): Record<string, st
     }),
     "apps/web/src/App.tsx": webAppTsx(options.appName),
     "apps/web/src/main.tsx": webMainTsx(),
-    "apps/web/src/screens/home.screen.tsx": homeScreenTsx(),
+    "apps/web/src/screens/home.screen.tsx": homeScreenTsx(packageNames),
     "apps/web/src/styles.css": webStylesCss(),
     "apps/web/test/home.test.tsx": homePageTestTs(options.appName),
     "apps/web/tsconfig.json": stringifyJson({
@@ -776,6 +814,40 @@ function generatedWebFiles(options: BuildProjectFilesOptions): Record<string, st
     }),
     "apps/web/vite.config.ts": viteConfigTs()
   };
+}
+
+function generatedTypesPackageJson(packageNames: PackageNames): string {
+  return stringifyJson({
+    name: packageNames.types,
+    private: true,
+    version: "1.0.0",
+    type: "module",
+    exports: {
+      ".": "./src/index.ts"
+    },
+    scripts: {
+      typecheck: "tsc -p tsconfig.json --noEmit"
+    }
+  });
+}
+
+function generatedTypesIndexTs(): string {
+  return `export interface StartFlowState {
+  visited: boolean;
+}
+`;
+}
+
+function typesTsconfig(): string {
+  return stringifyJson({
+    extends: "../../tsconfig.base.json",
+    compilerOptions: {
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+      allowImportingTsExtensions: true
+    },
+    include: ["src/**/*.ts"]
+  });
 }
 
 function spaIndexHtml(appName: string): string {
@@ -851,12 +923,13 @@ export default function App() {
 `;
 }
 
-function homeScreenTsx(): string {
+function homeScreenTsx(packageNames: PackageNames): string {
   return `import { defineScreen } from "teleforge/web";
+import type { StartFlowState } from "${packageNames.types}";
 
 import App from "../App.js";
 
-export default defineScreen({
+export default defineScreen<StartFlowState>({
   component() {
     return <App />;
   },
