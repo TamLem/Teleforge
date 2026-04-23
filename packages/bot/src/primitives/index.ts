@@ -21,5 +21,16 @@ export {
   createPhoneNumberRequestMarkup,
   extractSharedPhoneContact
 } from "./phone.js";
+export type {
+  LocationRequestButtonOptions,
+  LocationRequestMarkupOptions,
+  LocationSource,
+  SharedLocation
+} from "./location.js";
+export {
+  createLocationRequestButton,
+  createLocationRequestMarkup,
+  extractSharedLocation
+} from "./location.js";
 export type { FlowResult, MessageTemplate } from "./templates.js";
 export { templates } from "./templates.js";

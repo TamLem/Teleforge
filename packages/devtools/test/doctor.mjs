@@ -47,6 +47,8 @@ test("doctor checks report pass/warn/error data for a configured project", async
   assert.equal(names.get("https_availability")?.status, "pass");
   assert.equal(names.get("webhook_reachable")?.status, "pass");
   assert.equal(names.get("botfather")?.status, "pass");
+  assert.equal(names.get("runtime_secrets")?.status, "pass");
+  assert.equal(names.get("webhook_mode")?.status, "pass");
   assert.equal(result.status, "pass");
 });
 
@@ -266,7 +268,7 @@ async function createDoctorFixture(options = {}) {
   if (envFile) {
     await writeFile(
       path.join(tempRoot, ".env"),
-      "BOT_TOKEN=123:real-token\nWEBHOOK_SECRET=real-secret\nTELEFORGE_PUBLIC_URL=https://public.example.test\nTELEFORGE_DEV_HTTPS=false\n",
+      "BOT_TOKEN=123:real-token\nWEBHOOK_SECRET=real-secret\nTELEFORGE_FLOW_SECRET=real-flow-secret\nPHONE_AUTH_SECRET=real-phone-secret\nTELEFORGE_PUBLIC_URL=https://public.example.test\nTELEFORGE_DEV_HTTPS=false\n",
       "utf8"
     );
   }

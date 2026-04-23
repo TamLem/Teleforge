@@ -23,12 +23,14 @@ export {
   isMiniAppStep,
   miniAppStep,
   openMiniAppAction,
+  requestLocationAction,
   requestPhoneAuthAction,
   requestPhoneAction,
   returnToChatAction
 } from "./flow.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export { createDiscoveredBotRuntime, startTeleforgeBot } from "./bot-runtime.js";
+export type { SharedLocation } from "./flow.js";
 export {
   createTeleforgeRuntimeContext
 } from "./runtime-context.js";

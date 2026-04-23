@@ -29,6 +29,12 @@ export interface TelegramContact {
   vcard?: string;
 }
 
+export interface TelegramLocation {
+  horizontal_accuracy?: number;
+  latitude: number;
+  longitude: number;
+}
+
 export interface TelegramCallbackQuery {
   data?: string;
   from: TelegramUser;
@@ -52,6 +58,7 @@ export interface TelegramInlineKeyboardButton {
 
 export interface TelegramKeyboardButton {
   request_contact?: boolean;
+  request_location?: boolean;
   text: string;
 }
 
@@ -80,6 +87,7 @@ export interface TelegramMessage {
   contact?: TelegramContact;
   date?: number;
   from?: TelegramUser;
+  location?: TelegramLocation;
   message_id?: number;
   text?: string;
   web_app_data?: TelegramWebAppData;

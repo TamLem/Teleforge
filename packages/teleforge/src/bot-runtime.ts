@@ -4,10 +4,12 @@ import {
   createDefaultReturnHandlers,
   createBotRuntime,
   createFlowCallback,
+  createLocationRequestMarkup,
   createMiniAppButton,
   createPhoneAuthLink,
   createPhoneNumberRequestMarkup,
   createSignedPayload,
+  extractSharedLocation,
   extractSharedPhoneContact,
   extractFlowContext,
   handleMiniAppReturnData,
@@ -174,6 +176,18 @@ export async function createDiscoveredBotRuntime(
       storage
     })
   );
+  runtime.router.use(
+    createDiscoveredFlowLocationMiddleware({
+      debugTracker,
+      flows,
+      handlers,
+      miniAppUrl: options.miniAppUrl,
+      phoneAuthSecret: options.phoneAuthSecret,
+      secret: options.flowSecret,
+      services: options.services,
+      storage
+    })
+  );
   runtime.router.onCallbackQuery(
     createDiscoveredFlowCallbackHandler({
       debugTracker,
@@ -315,6 +329,15 @@ interface CreateDiscoveredFlowCallbackHandlerOptions {
 interface CreateDiscoveredFlowWebAppDataHandlerOptions extends CreateDiscoveredFlowCallbackHandlerOptions {}
 
 interface PendingPhoneAction {
+  action: FlowActionDefinition<unknown, unknown>;
+  flow: TeleforgeFlowDefinition<unknown, unknown>;
+  persisted: FlowInstance;
+  stateKey: string;
+  step: ChatFlowStepDefinition<unknown, unknown>;
+  stepId: string;
+}
+
+interface PendingLocationAction {
   action: FlowActionDefinition<unknown, unknown>;
   flow: TeleforgeFlowDefinition<unknown, unknown>;
   persisted: FlowInstance;
@@ -667,6 +690,113 @@ function createDiscoveredFlowPhoneContactMiddleware(
   };
 }
 
+function createDiscoveredFlowLocationMiddleware(
+  options: CreateDiscoveredFlowCallbackHandlerOptions
+): Middleware {
+  const handlerIndex = createHandlerIndex(options.handlers);
+
+  return async (context, next) => {
+    if (!context.message?.location) {
+      await next();
+      return;
+    }
+
+    if (!context.user || !context.chat) {
+      await context.reply("Could not verify the shared location sender.");
+      return;
+    }
+
+    const pending = await findPendingLocationAction(
+      options.flows.map(({ flow }) => flow),
+      options.storage,
+      String(context.user.id)
+    );
+
+    if (!pending) {
+      await next();
+      return;
+    }
+
+    const sharedLocation = extractSharedLocation(context.update);
+
+    if (!sharedLocation) {
+      await context.reply("Please share your location using the location button.");
+      return;
+    }
+
+    const currentState = readPersistedFlowState(pending.flow, pending.persisted);
+    const actionHandler =
+      pending.action.handler ??
+      handlerIndex.get(`${pending.flow.id}:${pending.stepId}`)?.actions[
+        resolveFlowActionKey(pending.action)
+      ] ??
+      undefined;
+    const location = {
+      horizontalAccuracy: sharedLocation.horizontalAccuracy,
+      latitude: sharedLocation.latitude,
+      longitude: sharedLocation.longitude
+    };
+    const stateWithLocation = applyLocationToState(
+      currentState,
+      pending.action,
+      location.latitude,
+      location.longitude,
+      location.horizontalAccuracy
+    );
+    const result = actionHandler
+      ? await actionHandler({
+          flow: pending.flow,
+          location,
+          services: options.services,
+          state: stateWithLocation
+        })
+      : undefined;
+    const nextState = resolveNextState(stateWithLocation, result);
+    const nextStepId = resolveNextStepId(pending.stepId, pending.action, result);
+
+    await options.storage.advanceStep(
+      pending.stateKey,
+      nextStepId,
+      nextState as Record<string, unknown>
+    );
+    options.debugTracker.trackTransition({
+      flow: pending.flow,
+      fromStepId: pending.stepId,
+      payload: { latitude: location.latitude, longitude: location.longitude },
+      stateKey: pending.stateKey,
+      stepId: nextStepId,
+      type: "action"
+    });
+    options.debugTracker.trackStep({
+      chatId: String(context.chat.id),
+      flow: pending.flow,
+      snapshotStateAvailable: true,
+      stateKey: pending.stateKey,
+      stepId: nextStepId,
+      userId: String(context.user.id)
+    });
+
+    await enterDiscoveredFlowStep(
+      {
+        chatId: context.chat.id,
+        debugTracker: options.debugTracker,
+        flow: pending.flow,
+        handlers: options.handlers,
+        miniAppUrl: options.miniAppUrl,
+        secret: options.secret,
+        services: options.services,
+        state: nextState,
+        stateKey: pending.stateKey,
+        storage: options.storage
+      },
+      {
+        bot: requireBoundBot(context.bot, pending.flow.id),
+        handlerIndex
+      }
+    );
+  };
+}
+
 function createDiscoveredFlowWebAppDataHandler(
   options: CreateDiscoveredFlowWebAppDataHandlerOptions
 ): WebAppDataHandler {
@@ -918,11 +1048,21 @@ async function sendChatStepMessage(
 ): Promise<void> {
   const text = typeof step.message === "function" ? step.message({ state }) : step.message;
   const phoneAction = (step.actions ?? []).find((action) => action.phoneRequest);
+  const locationAction = (step.actions ?? []).find((action) => action.locationRequest);
 
   if (phoneAction) {
     await bot.sendMessage(chatId, text, {
       reply_markup: createPhoneNumberRequestMarkup({
         text: phoneAction.label
+      })
+    });
+    return;
+  }
+
+  if (locationAction) {
+    await bot.sendMessage(chatId, text, {
+      reply_markup: createLocationRequestMarkup({
+        text: locationAction.label
       })
     });
     return;
@@ -1043,6 +1183,69 @@ function applyPhoneToState(
   if (phoneRequest.rawStateField) {
     nextState[phoneRequest.rawStateField] = rawPhoneNumber;
   }
+
+  return nextState;
+}
+
+async function findPendingLocationAction(
+  flows: readonly TeleforgeFlowDefinition<unknown, unknown>[],
+  storage: UserFlowStateManager,
+  userId: string
+): Promise<PendingLocationAction | null> {
+  for (const flow of flows) {
+    const persisted = await storage.resumeFlow(userId, flow.id);
+
+    if (!persisted) {
+      continue;
+    }
+
+    const stateKey = storage.createStateKey(userId, flow.id);
+    const stepId = String(persisted.stepId);
+    const step = getFlowStep(flow, stepId);
+
+    if (step.type !== "chat") {
+      continue;
+    }
+
+    const action = (step.actions ?? []).find((candidate) => candidate.locationRequest);
+
+    if (!action) {
+      continue;
+    }
+
+    return {
+      action,
+      flow,
+      persisted,
+      stateKey,
+      step,
+      stepId
+    };
+  }
+
+  return null;
+}
+
+function applyLocationToState(
+  state: unknown,
+  action: FlowActionDefinition<unknown, unknown>,
+  latitude: number,
+  longitude: number,
+  horizontalAccuracy?: number
+): unknown {
+  const locationRequest = action.locationRequest;
+
+  if (!locationRequest) {
+    return state;
+  }
+
+  const nextState =
+    state && typeof state === "object" && !Array.isArray(state)
+      ? { ...(state as Record<string, unknown>) }
+      : {};
+  const stateField = locationRequest.stateField ?? "location";
+
+  nextState[stateField] = { horizontalAccuracy, latitude, longitude };
 
   return nextState;
 }

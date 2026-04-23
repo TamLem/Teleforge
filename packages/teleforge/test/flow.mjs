@@ -12,6 +12,7 @@ import {
   chatStep,
   miniAppStep,
   openMiniAppAction,
+  requestLocationAction,
   requestPhoneAuthAction,
   requestPhoneAction,
   returnToChatAction
@@ -403,4 +404,64 @@ test("flow authoring helpers integrate with defineFlow", () => {
   assert.equal(getFlowStep(flow, "receipt").message, "Order confirmed!");
   assert.equal(getFlowStep(flow, "track").type, "miniapp");
   assert.equal(getFlowStep(flow, "track").screen, "checkout.track");
+});
+
+test("requestLocationAction creates a Telegram location request action", () => {
+  const action = requestLocationAction("Share location", "map", {
+    stateField: "coords"
+  });
+
+  assert.equal(action.label, "Share location");
+  assert.equal(action.to, "map");
+  assert.deepEqual(action.locationRequest, {
+    stateField: "coords"
+  });
+  assert.ok(!action.miniApp);
+  assert.ok(!action.phoneRequest);
+});
+
+test("requestLocationAction defaults stateField to 'location'", () => {
+  const action = requestLocationAction("Send location", "map");
+
+  assert.deepEqual(action.locationRequest, {
+    stateField: "location"
+  });
+});
+
+test("defineFlow rejects mixing location-request actions with other chat actions", () => {
+  assert.throws(
+    () =>
+      defineFlow({
+        id: "location-mixed",
+        initialStep: "ask",
+        state: {},
+        steps: {
+          ask: chatStep("Share location", [
+            requestLocationAction("Share location", "done"),
+            returnToChatAction("Cancel", "done")
+          ]),
+          done: chatStep("Done")
+        }
+      }),
+    /cannot mix a location-request action with other chat actions/
+  );
+});
+
+test("defineFlow rejects mixing phone-request and location-request actions", () => {
+  assert.throws(
+    () =>
+      defineFlow({
+        id: "phone-location-mixed",
+        initialStep: "ask",
+        state: {},
+        steps: {
+          ask: chatStep("Share details", [
+            requestPhoneAction("Share phone", "done"),
+            requestLocationAction("Share location", "done")
+          ]),
+          done: chatStep("Done")
+        }
+      }),
+    /cannot mix phone-request and location-request actions/
+  );
 });

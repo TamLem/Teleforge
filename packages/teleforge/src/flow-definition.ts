@@ -61,6 +61,7 @@ export interface FlowActionContext<
     TServices
   >
 > extends FlowHandlerContext<TState, TServices, TFlow> {
+  location?: SharedLocation;
   phone?: SharedPhoneNumber;
 }
 
@@ -76,12 +77,21 @@ export interface FlowSubmitContext<
   data: TData;
 }
 
+export interface SharedLocation {
+  horizontalAccuracy?: number;
+  latitude: number;
+  longitude: number;
+}
+
 export interface FlowActionDefinition<TState, TServices = unknown> {
   id?: string;
   handler?: (
     input: FlowActionContext<TState, TServices>
   ) => MaybePromise<void | FlowTransitionResult<TState>>;
   label: string;
+  locationRequest?: {
+    stateField?: string;
+  };
   miniApp?: {
     payload?: Record<string, unknown>;
   };
@@ -191,6 +201,7 @@ export function defineFlow<
   for (const [stepId, step] of Object.entries(flow.steps)) {
     const seenActionKeys = new Set<string>();
     const phoneRequestActions = (step.actions ?? []).filter((action) => action.phoneRequest);
+    const locationRequestActions = (step.actions ?? []).filter((action) => action.locationRequest);
 
     if (phoneRequestActions.length > 1) {
       throw new Error(
@@ -198,9 +209,27 @@ export function defineFlow<
       );
     }
 
+    if (phoneRequestActions.length > 0 && locationRequestActions.length > 0) {
+      throw new Error(
+        `Flow "${flow.id}" step "${stepId}" cannot mix phone-request and location-request actions.`
+      );
+    }
+
     if (phoneRequestActions.length === 1 && (step.actions?.length ?? 0) > 1) {
       throw new Error(
         `Flow "${flow.id}" step "${stepId}" cannot mix a phone-request action with other chat actions.`
+      );
+    }
+
+    if (locationRequestActions.length > 1) {
+      throw new Error(
+        `Flow "${flow.id}" step "${stepId}" can define at most one location-request action.`
+      );
+    }
+
+    if (locationRequestActions.length === 1 && (step.actions?.length ?? 0) > 1) {
+      throw new Error(
+        `Flow "${flow.id}" step "${stepId}" cannot mix a location-request action with other chat actions.`
       );
     }
 
@@ -375,6 +404,28 @@ export function requestPhoneAuthAction<TState, TServices = unknown>(
       auth: true,
       ...(rawStateField ? { rawStateField } : {}),
       stateField: stateField ?? "phoneNumber"
+    },
+    to
+  };
+}
+
+export interface RequestLocationActionOptions<TState, TServices = unknown>
+  extends Omit<FlowActionDefinition<TState, TServices>, "label" | "locationRequest" | "to"> {
+  stateField?: string;
+}
+
+export function requestLocationAction<TState, TServices = unknown>(
+  label: string,
+  to: string,
+  options: RequestLocationActionOptions<TState, TServices> = {}
+): FlowActionDefinition<TState, TServices> {
+  const { stateField, ...actionOptions } = options;
+
+  return {
+    ...actionOptions,
+    label,
+    locationRequest: {
+      stateField: stateField ?? "location"
     },
     to
   };

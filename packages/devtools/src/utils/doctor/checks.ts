@@ -96,6 +96,8 @@ export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<
   );
   checks.push(checkBotFatherSetup(publicUrl, manifestState.manifest));
   checks.push(checkFlowWiring(manifestState));
+  checks.push(await checkRuntimeSecrets(env, manifestState));
+  checks.push(checkWebhookMode(env, manifestState));
 
   const summary = checks.reduce(
     (accumulator, check) => {
@@ -1090,6 +1092,191 @@ async function pathExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function checkRuntimeSecrets(
+  env: NodeJS.ProcessEnv,
+  manifestState: ManifestState
+): Promise<DoctorCheck> {
+  const manifest = manifestState.manifest;
+
+  if (!manifest) {
+    return {
+      category: "Configuration",
+      message: "Runtime secrets check skipped because the manifest could not be loaded.",
+      name: "runtime_secrets",
+      status: "warn"
+    };
+  }
+
+  const tokenEnv = manifest.bot?.tokenEnv ?? "BOT_TOKEN";
+  const token = env[tokenEnv];
+  const hasToken = hasRealValue(token);
+  const issues: string[] = [];
+
+  if (hasToken) {
+    const flowSecret = env.TELEFORGE_FLOW_SECRET;
+    if (!hasRealValue(flowSecret)) {
+      issues.push("TELEFORGE_FLOW_SECRET is required in live mode (when BOT_TOKEN is set).");
+    }
+
+    const miniAppUrl = env.MINI_APP_URL ?? env.TELEFORGE_PUBLIC_URL;
+    if (!miniAppUrl || miniAppUrl.trim().length === 0) {
+      issues.push("MINI_APP_URL or TELEFORGE_PUBLIC_URL is required in live mode.");
+    }
+  }
+
+  const phoneAuthSecretEnv = manifest.runtime?.phoneAuth?.secretEnv ?? "PHONE_AUTH_SECRET";
+  const phoneAuthSecret = env[phoneAuthSecretEnv];
+  const usesPhoneAuth = await hasPhoneAuthUsage(manifestState);
+  if (!hasRealValue(phoneAuthSecret) && usesPhoneAuth) {
+    issues.push(
+      `${phoneAuthSecretEnv} is not set. Phone-auth flows (requestPhoneAuthAction) are used in this app.`
+    );
+  }
+
+  if (issues.length === 0) {
+    return {
+      category: "Configuration",
+      message: hasToken
+        ? "All required runtime secrets are configured for live mode."
+        : "Runtime secrets look sufficient for preview/development mode.",
+      name: "runtime_secrets",
+      status: "pass"
+    };
+  }
+
+  const hasErrors = hasToken && issues.some((i) => i.includes("required"));
+
+  return {
+    category: "Configuration",
+    details: issues,
+    message: hasErrors
+      ? "Required runtime secrets are missing for live mode."
+      : "Some runtime secrets are missing; specific features may fail.",
+    name: "runtime_secrets",
+    remediation:
+      "Add the missing secrets to .env or the shell environment before starting the app.",
+    status: hasErrors ? "error" : "warn"
+  };
+}
+
+async function hasPhoneAuthUsage(manifestState: ManifestState): Promise<boolean> {
+  if (!manifestState.discoveredFlows) {
+    return false;
+  }
+
+  for (const flow of manifestState.discoveredFlows) {
+    if (!flow.filePath) {
+      continue;
+    }
+
+    try {
+      const content = await readFile(flow.filePath, "utf8");
+      if (
+        content.includes("requestPhoneAuthAction") ||
+        (content.includes("phoneRequest") && content.includes("auth"))
+      ) {
+        return true;
+      }
+    } catch {
+      // Ignore read errors; heuristic is best-effort
+    }
+  }
+
+  return false;
+}
+
+function checkWebhookMode(
+  env: NodeJS.ProcessEnv,
+  manifestState: ManifestState
+): DoctorCheck {
+  const manifest = manifestState.manifest;
+
+  if (!manifest) {
+    return {
+      category: "Configuration",
+      message: "Webhook mode check skipped because the manifest could not be loaded.",
+      name: "webhook_mode",
+      status: "warn"
+    };
+  }
+
+  const delivery = manifest.runtime?.bot?.delivery ?? "polling";
+
+  if (delivery !== "webhook") {
+    return {
+      category: "Configuration",
+      message: "Bot delivery mode is polling (default).",
+      name: "webhook_mode",
+      status: "pass"
+    };
+  }
+
+  const tokenEnv = manifest.bot?.tokenEnv ?? "BOT_TOKEN";
+  const token = env[tokenEnv];
+  if (!hasRealValue(token)) {
+    return {
+      category: "Configuration",
+      details: ["Webhook mode requires a live bot token."],
+      message: "Webhook mode is enabled but no bot token is configured.",
+      name: "webhook_mode",
+      remediation: `Set ${tokenEnv} to a real Telegram bot token before enabling webhook mode.`,
+      status: "error"
+    };
+  }
+
+  const webhookPath = manifest.bot?.webhook?.path;
+  if (!webhookPath) {
+    return {
+      category: "Configuration",
+      details: ["bot.webhook.path is not set in teleforge.config.ts."],
+      message: "Webhook mode is enabled but no webhook path is configured.",
+      name: "webhook_mode",
+      remediation: "Add bot.webhook.path to teleforge.config.ts.",
+      status: "error"
+    };
+  }
+
+  const webhookSecretEnv = manifest.bot?.webhook?.secretEnv;
+  if (!webhookSecretEnv) {
+    return {
+      category: "Configuration",
+      details: ["bot.webhook.secretEnv is not set in teleforge.config.ts."],
+      message: "Webhook mode is enabled but no webhook secret env is configured.",
+      name: "webhook_mode",
+      remediation: "Add bot.webhook.secretEnv to teleforge.config.ts for webhook signature validation.",
+      status: "warn"
+    };
+  }
+
+  const webhookSecret = env[webhookSecretEnv];
+  if (!hasRealValue(webhookSecret)) {
+    return {
+      category: "Configuration",
+      details: [`${webhookSecretEnv} is missing or uses a placeholder.`],
+      message: "Webhook secret is not configured.",
+      name: "webhook_mode",
+      remediation: `Set ${webhookSecretEnv} in .env for webhook signature validation.`,
+      status: "warn"
+    };
+  }
+
+  return {
+    category: "Configuration",
+    details: [
+      `Delivery mode: webhook`,
+      `Webhook path: ${webhookPath}`,
+      `Webhook secret env: ${webhookSecretEnv}`,
+      "Live webhook bootstrap is not yet implemented in teleforge start."
+    ],
+    message:
+      "Webhook mode is configured, but live webhook delivery is not yet supported by the high-level bootstrap.",
+    name: "webhook_mode",
+    remediation:
+      "Use polling mode (default) or the lower-level createDiscoveredBotRuntime() escape hatch for webhook delivery.",
+    status: "warn"
+  };
 }
 
 function formatErrorMessage(error: unknown): string {
