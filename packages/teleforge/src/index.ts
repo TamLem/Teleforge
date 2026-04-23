@@ -28,7 +28,7 @@ export {
   returnToChatAction
 } from "./flow.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
-export { createDiscoveredBotRuntime } from "./bot-runtime.js";
+export { createDiscoveredBotRuntime, startTeleforgeBot } from "./bot-runtime.js";
 export {
   executeMiniAppStepAction,
   executeMiniAppStepSubmit,
@@ -108,7 +108,9 @@ export type {
   DiscoveredBotRuntime,
   DiscoveredFlowRuntimeDebugState,
   DiscoveredFlowRuntimeMiniAppDebugState,
-  DiscoveredFlowRuntimeSessionDebugState
+  DiscoveredFlowRuntimeSessionDebugState,
+  StartTeleforgeBotOptions,
+  StartTeleforgeBotResult
 } from "./bot-runtime.js";
 export type { LoadedTeleforgeApp } from "./config.js";
 export type {

@@ -1,3 +1,5 @@
+import https from "node:https";
+
 import {
   createDefaultReturnHandlers,
   createBotRuntime,
@@ -33,6 +35,9 @@ import type {
   CallbackQueryHandler,
   CommandContext,
   Middleware,
+  ReplyOptions,
+  TelegramMessage,
+  TelegramUpdate,
   WebAppDataHandler
 } from "@teleforgex/bot";
 import type { FlowInstance, TeleforgeAppConfig } from "@teleforgex/core";
@@ -1313,4 +1318,339 @@ function requireBoundBot(
 
 function isFlowTransitionResult<TState>(value: unknown): value is FlowTransitionResult<TState> {
   return typeof value === "object" && value !== null;
+}
+
+/* ───────────────────── High-level bootstrap API ───────────────────── */
+
+export interface StartTeleforgeBotOptions {
+  commandOptions?: Omit<CreateFlowCommandsOptions, "flows" | "secret" | "storage" | "webAppUrl">;
+  cwd?: string;
+  flowSecret?: string;
+  miniAppUrl?: string;
+  phoneAuthSecret?: string;
+  services?: unknown;
+  storage?: UserFlowStateManager;
+  storageTtlSeconds?: number;
+  /**
+   * Override the bot instance used for delivery. When omitted, the framework
+   * creates a polling bot for live Telegram or a preview bot when no token is
+   * configured.
+   */
+  bot?: BotInstance;
+  /**
+   * When true and running in preview mode (no bot token), the framework
+   * immediately drives a synthetic /start update to seed a session. Defaults
+   * to false so preview boot stays passive.
+   */
+  previewStart?: boolean;
+}
+
+export interface StartTeleforgeBotResult {
+  runtime: DiscoveredBotRuntime;
+  stop: () => void;
+}
+
+/**
+ * High-level bot bootstrap that loads config, resolves environment, creates the
+ * discovered runtime, and starts polling or preview mode automatically.
+ *
+ * This wraps {@link createDiscoveredBotRuntime} and keeps it available as the
+ * lower-level escape hatch for advanced use cases.
+ */
+export async function startTeleforgeBot(
+  options: StartTeleforgeBotOptions = {}
+): Promise<StartTeleforgeBotResult> {
+  const cwd = options.cwd ?? process.cwd();
+  const app = (await loadTeleforgeApp(cwd)).app;
+
+  const tokenEnv = app.bot.tokenEnv;
+  const token = readEnv(tokenEnv);
+
+  // Preview-mode defaults are acceptable only when there is no live token.
+  // In live mode, required runtime inputs must come from explicit options or
+  // environment variables so the bootstrap contract is clear and safe.
+  const rawFlowSecret = options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET");
+  const rawMiniAppUrl = options.miniAppUrl ?? readEnv("MINI_APP_URL");
+
+  if (token) {
+    if (!rawFlowSecret) {
+      throw new Error(
+        `startTeleforgeBot requires TELEFORGE_FLOW_SECRET (or options.flowSecret) when ${tokenEnv} is configured.`
+      );
+    }
+    if (!rawMiniAppUrl) {
+      throw new Error(
+        `startTeleforgeBot requires MINI_APP_URL (or options.miniAppUrl) when ${tokenEnv} is configured.`
+      );
+    }
+  }
+
+  const flowSecret = rawFlowSecret ?? `${app.app.id}-preview-secret`;
+  const miniAppUrl = rawMiniAppUrl ?? "https://example.ngrok.app";
+  const phoneAuthSecret = options.phoneAuthSecret ?? readEnv("PHONE_AUTH_SECRET");
+
+  const runtime = await createDiscoveredBotRuntime({
+    app,
+    commandOptions: options.commandOptions,
+    cwd,
+    flowSecret,
+    miniAppUrl,
+    phoneAuthSecret,
+    services: options.services,
+    storage: options.storage,
+    storageTtlSeconds: options.storageTtlSeconds
+  });
+
+  let stopped = false;
+  let pollTimeout: ReturnType<typeof setTimeout> | undefined;
+  const commands = runtime.getCommands();
+
+  // If the caller provided a custom bot, bind it and let them drive updates.
+  if (options.bot) {
+    runtime.bindBot(options.bot);
+
+    if ("setCommands" in options.bot) {
+      await (options.bot as PollingBot).setCommands(commands);
+    }
+
+    console.log(
+      `[teleforge:bot] bot instance bound (${commands.length} commands registered)`
+    );
+
+    return {
+      runtime,
+      stop: () => {
+        stopped = true;
+        if (pollTimeout) {
+          clearTimeout(pollTimeout);
+        }
+      }
+    };
+  }
+
+  if (!token) {
+    const previewBot = createPreviewBot((message) => {
+      console.log("[teleforge:bot:preview]", message);
+    });
+
+    runtime.bindBot(previewBot);
+    console.log("[teleforge:bot] BOT_TOKEN missing, running in preview mode");
+
+    if (options.previewStart) {
+      // Drive a minimal /start preview so the runtime is seeded immediately
+      await runtime.handle({
+        message: {
+          chat: { id: 1, type: "private" },
+          from: { first_name: "Preview", id: 1, username: "preview_user" },
+          message_id: 1,
+          text: "/start"
+        },
+        update_id: 1
+      } satisfies TelegramUpdate);
+    }
+
+    // Keep the process alive in preview mode
+    const keepAlive = setInterval(() => {}, 60_000);
+
+    return {
+      runtime,
+      stop: () => {
+        stopped = true;
+        clearInterval(keepAlive);
+      }
+    };
+  }
+
+  const botInstance = createTeleforgePollingBot(token);
+  runtime.bindBot(botInstance);
+  await botInstance.setCommands(commands);
+
+  console.log(
+    `[teleforge:bot] polling Telegram for updates (${commands.length} commands registered)`
+  );
+
+  let offset: number | undefined;
+
+  async function poll() {
+    if (stopped) {
+      return;
+    }
+
+    try {
+      const updates = await botInstance.getUpdates(offset);
+
+      for (const update of updates) {
+        offset = typeof update.update_id === "number" ? update.update_id + 1 : offset;
+        await runtime.handle(update);
+      }
+    } catch (error) {
+      console.error("[teleforge:bot] polling error:", error);
+      // Back off briefly on error to avoid tight-looping
+      await new Promise((resolve) => {
+        pollTimeout = setTimeout(resolve, 5_000);
+      });
+    }
+
+    if (!stopped) {
+      poll();
+    }
+  }
+
+  poll();
+
+  return {
+    runtime,
+    stop: () => {
+      stopped = true;
+      if (pollTimeout) {
+        clearTimeout(pollTimeout);
+      }
+    }
+  };
+}
+
+function readEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/* ───────────────────── Framework-owned polling / preview bots ───────────────────── */
+
+interface PollingBot extends BotInstance {
+  getUpdates(offset?: number): Promise<TelegramUpdate[]>;
+  setCommands(commands: Iterable<Pick<BotCommandDefinition, "command" | "description">>): Promise<void>;
+}
+
+function createTeleforgePollingBot(token: string): PollingBot {
+  const baseUrl = `https://api.telegram.org/bot${token}`;
+
+  return {
+    async getUpdates(offset) {
+      const response = await callTelegramApi<TelegramUpdate[]>(baseUrl, "getUpdates", {
+        allowed_updates: ["message", "callback_query"],
+        offset,
+        timeout: 25
+      });
+      return Array.isArray(response) ? response : [];
+    },
+    async sendMessage(chatId, text, options = {}) {
+      return callTelegramApi<TelegramMessage>(baseUrl, "sendMessage", {
+        chat_id: chatId,
+        text,
+        ...toTelegramSendMessageOptions(options)
+      });
+    },
+    async setCommands(commands) {
+      await callTelegramApi(baseUrl, "setMyCommands", {
+        commands: Array.from(commands, (command) => ({
+          command: command.command,
+          description: command.description ?? command.command
+        }))
+      });
+    }
+  };
+}
+
+function createPreviewBot(log: (message: string) => void): BotInstance {
+  let messageId = 0;
+
+  return {
+    async sendMessage(chatId, text, options = {}) {
+      messageId += 1;
+      log(
+        JSON.stringify(
+          {
+            chatId,
+            options,
+            text
+          },
+          null,
+          2
+        )
+      );
+      return {
+        chat: { id: chatId },
+        message_id: messageId,
+        text
+      } as TelegramMessage;
+    }
+  };
+}
+
+async function callTelegramApi<T>(baseUrl: string, method: string, body: Record<string, unknown>): Promise<T> {
+  const url = `${baseUrl}/${method}`;
+  const payload = JSON.stringify(body);
+  const target = new URL(url);
+  const timeoutSeconds = typeof body.timeout === "number" ? body.timeout : 0;
+  const timeoutMs = Math.max(10_000, (timeoutSeconds + 10) * 1_000);
+
+  return new Promise<T>((resolve, reject) => {
+    const request = https.request(
+      {
+        family: 4,
+        headers: {
+          "content-length": Buffer.byteLength(payload),
+          "content-type": "application/json"
+        },
+        hostname: target.hostname,
+        method: "POST",
+        path: `${target.pathname}${target.search}`,
+        port: target.port ? Number(target.port) : 443
+      },
+      (response) => {
+        let responseBody = "";
+
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => {
+          responseBody += chunk;
+        });
+        response.on("end", () => {
+          try {
+            const parsed = JSON.parse(responseBody) as {
+              description?: string;
+              ok: boolean;
+              result: T;
+            };
+
+            if (response.statusCode! < 200 || response.statusCode! >= 300 || !parsed.ok) {
+              throw new Error(
+                parsed.description ??
+                  `Telegram API request failed (${response.statusCode}) while calling ${method}.`
+              );
+            }
+
+            resolve(parsed.result);
+          } catch (error) {
+            reject(
+              error instanceof Error
+                ? error
+                : new Error(`Telegram API ${method} returned unparseable response.`)
+            );
+          }
+        });
+      }
+    );
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`Telegram API request timed out after ${timeoutMs}ms.`));
+    });
+    request.on("error", (error) => {
+      reject(error);
+    });
+    request.write(payload);
+    request.end();
+  });
+}
+
+function toTelegramSendMessageOptions(options: ReplyOptions): Record<string, unknown> {
+  return {
+    disable_web_page_preview: options.disable_web_page_preview,
+    parse_mode: options.parse_mode,
+    reply_markup: options.reply_markup ? { ...options.reply_markup } : undefined,
+    reply_to_message_id: options.reply_to_message_id
+  };
 }

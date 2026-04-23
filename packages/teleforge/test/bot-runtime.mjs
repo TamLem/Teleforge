@@ -5,7 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { createDiscoveredBotRuntime } from "../dist/index.js";
+import { createDiscoveredBotRuntime, startTeleforgeBot } from "../dist/index.js";
 
 test("createDiscoveredBotRuntime loads config and registers commands from discovered flows", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-"));
@@ -890,4 +890,419 @@ export default defineFlow({
   assert.equal(resumedSession?.miniApp.pendingChatHandoff, false);
   assert.equal(resumedSession?.miniApp.resumedStepId, "review");
   assert.equal(resumedSession?.snapshotStateAvailable, true);
+});
+
+test("startTeleforgeBot runs in preview mode when BOT_TOKEN is missing", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-preview-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "start-preview-app",
+    name: "Start Preview App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "start_preview_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "start.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "start",
+  initialStep: "home",
+  state: {},
+  bot: {
+    command: {
+      buttonText: "Open Preview",
+      command: "start",
+      description: "Open preview app",
+      text: "Welcome to Preview"
+    }
+  },
+  miniApp: {
+    route: "/"
+  },
+  steps: {
+    home: {
+      screen: "home",
+      type: "miniapp"
+    }
+  }
+});
+`
+  );
+
+  // Ensure BOT_TOKEN is not set
+  const originalToken = process.env.BOT_TOKEN;
+  delete process.env.BOT_TOKEN;
+
+  try {
+    const { runtime, stop } = await startTeleforgeBot({
+      cwd: tmpRoot,
+      flowSecret: "preview-secret",
+      miniAppUrl: "https://example.ngrok.app",
+      previewStart: true
+    });
+
+    assert.ok(runtime);
+    assert.ok(typeof stop === "function");
+    assert.equal(runtime.getCommands().length, 1);
+    assert.equal(runtime.getCommands()[0]?.command, "start");
+
+    // Because previewStart: true, the framework seeded a synthetic /start session
+    const debugState = runtime.getFlowRuntimeDebugState();
+    assert.equal(debugState.sessions.length, 1);
+    assert.equal(debugState.sessions[0]?.flowId, "start");
+    assert.equal(debugState.sessions[0]?.currentStepId, "home");
+
+    stop();
+  } finally {
+    if (originalToken !== undefined) {
+      process.env.BOT_TOKEN = originalToken;
+    }
+  }
+});
+
+test("startTeleforgeBot accepts a custom bot instance and skips the built-in polling loop", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-custom-bot-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "start-custom-bot-app",
+    name: "Start Custom Bot App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "custom_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "custom.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "custom",
+  initialStep: "main",
+  state: {},
+  bot: {
+    command: {
+      buttonText: "Open Custom",
+      command: "custom",
+      description: "Open custom bot app",
+      text: "Welcome to Custom"
+    }
+  },
+  miniApp: {
+    route: "/custom"
+  },
+  steps: {
+    main: {
+      screen: "main",
+      type: "miniapp"
+    }
+  }
+});
+`
+  );
+
+  const sent = [];
+  const customBot = {
+    async sendMessage(chatId, text, options) {
+      sent.push({ chatId, options, text });
+      return {
+        chat: { id: chatId },
+        message_id: sent.length,
+        text
+      };
+    },
+    async setCommands(commands) {
+      // custom bot setCommands stub
+    }
+  };
+
+  const { runtime, stop } = await startTeleforgeBot({
+    bot: customBot,
+    cwd: tmpRoot,
+    flowSecret: "custom-secret",
+    miniAppUrl: "https://example.ngrok.app"
+  });
+
+  assert.ok(runtime);
+  assert.ok(typeof stop === "function");
+  assert.equal(runtime.getCommands().length, 1);
+  assert.equal(runtime.getCommands()[0]?.command, "custom");
+
+  // The caller drives updates manually
+  await runtime.handle({
+    message: {
+      chat: { id: 1, type: "private" },
+      from: { first_name: "Test", id: 1, username: "test_user" },
+      message_id: 1,
+      text: "/custom"
+    },
+    update_id: 1
+  });
+
+  assert.equal(sent[0]?.text, "Welcome to Custom");
+
+  stop();
+});
+
+test("startTeleforgeBot fails fast in live mode when TELEFORGE_FLOW_SECRET is missing", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-live-no-secret-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "live-no-secret",
+    name: "Live No Secret",
+    version: "1.0.0"
+  },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "live_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {}
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "start.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "start", initialStep: "home", state: {},
+  bot: { command: { command: "start", description: "Start", text: "Hi" } },
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+
+  const originalToken = process.env.BOT_TOKEN;
+  const originalFlowSecret = process.env.TELEFORGE_FLOW_SECRET;
+  const originalMiniAppUrl = process.env.MINI_APP_URL;
+  process.env.BOT_TOKEN = "123456:live-token";
+  delete process.env.TELEFORGE_FLOW_SECRET;
+  process.env.MINI_APP_URL = "https://example.ngrok.app";
+
+  try {
+    await assert.rejects(
+      () =>
+        startTeleforgeBot({
+          cwd: tmpRoot,
+          miniAppUrl: "https://example.ngrok.app"
+        }),
+      /requires TELEFORGE_FLOW_SECRET/
+    );
+  } finally {
+    if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+    else delete process.env.BOT_TOKEN;
+    if (originalFlowSecret !== undefined) process.env.TELEFORGE_FLOW_SECRET = originalFlowSecret;
+    else delete process.env.TELEFORGE_FLOW_SECRET;
+    if (originalMiniAppUrl !== undefined) process.env.MINI_APP_URL = originalMiniAppUrl;
+    else delete process.env.MINI_APP_URL;
+  }
+});
+
+test("startTeleforgeBot fails fast in live mode when MINI_APP_URL is missing", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-live-no-url-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "live-no-url",
+    name: "Live No URL",
+    version: "1.0.0"
+  },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "live_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {}
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "start.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "start", initialStep: "home", state: {},
+  bot: { command: { command: "start", description: "Start", text: "Hi" } },
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+
+  const originalToken = process.env.BOT_TOKEN;
+  const originalFlowSecret = process.env.TELEFORGE_FLOW_SECRET;
+  const originalMiniAppUrl = process.env.MINI_APP_URL;
+  process.env.BOT_TOKEN = "123456:live-token";
+  process.env.TELEFORGE_FLOW_SECRET = "live-secret";
+  delete process.env.MINI_APP_URL;
+
+  try {
+    await assert.rejects(
+      () =>
+        startTeleforgeBot({
+          cwd: tmpRoot,
+          flowSecret: "live-secret"
+        }),
+      /requires MINI_APP_URL/
+    );
+  } finally {
+    if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+    else delete process.env.BOT_TOKEN;
+    if (originalFlowSecret !== undefined) process.env.TELEFORGE_FLOW_SECRET = originalFlowSecret;
+    else delete process.env.TELEFORGE_FLOW_SECRET;
+    if (originalMiniAppUrl !== undefined) process.env.MINI_APP_URL = originalMiniAppUrl;
+    else delete process.env.MINI_APP_URL;
+  }
+});
+
+test("startTeleforgeBot preview mode is passive by default (no synthetic session)", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-passive-preview-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "passive-preview",
+    name: "Passive Preview",
+    version: "1.0.0"
+  },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "passive_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {}
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "start.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "start", initialStep: "home", state: {},
+  bot: { command: { command: "start", description: "Start", text: "Hi" } },
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+
+  const originalToken = process.env.BOT_TOKEN;
+  delete process.env.BOT_TOKEN;
+
+  try {
+    const { runtime, stop } = await startTeleforgeBot({
+      cwd: tmpRoot,
+      flowSecret: "preview-secret",
+      miniAppUrl: "https://example.ngrok.app"
+    });
+
+    assert.ok(runtime);
+    assert.equal(runtime.getCommands().length, 1);
+
+    // No previewStart option, so no synthetic session was created
+    const debugState = runtime.getFlowRuntimeDebugState();
+    assert.equal(debugState.sessions.length, 0);
+
+    stop();
+  } finally {
+    if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+  }
 });
