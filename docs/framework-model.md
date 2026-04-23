@@ -135,7 +135,7 @@ The bot runtime is responsible for:
 - accepting `web_app_data` and structured return-to-chat handoffs
 - resuming persisted flow instances
 
-Apps normally enter this through `createDiscoveredBotRuntime()` from `teleforge`. Lower-level primitives are available from `teleforge/bot` when custom routing is needed.
+Apps normally enter this through `startTeleforgeBot()` from `teleforge`, which loads config, resolves secrets, and starts polling automatically. The lower-level `createDiscoveredBotRuntime()` escape hatch is also available from `teleforge` when custom routing or webhook delivery is needed.
 
 ### Mini App Runtime
 

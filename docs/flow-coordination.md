@@ -98,7 +98,9 @@ This file defines:
 
 Open [`apps/task-shop/apps/bot/src/index.ts`](../../apps/task-shop/apps/bot/src/index.ts).
 
-The bot uses `createDiscoveredBotRuntime` which automatically:
+The task-shop example uses `createDiscoveredBotRuntime`, which is the lower-level escape hatch. The current scaffold uses `startTeleforgeBot()` from `teleforge` instead, which wraps the same discovery with config loading, secret resolution, and automatic polling startup.
+
+`createDiscoveredBotRuntime` automatically:
 
 1. Discovers all `.flow.ts` files in `apps/bot/src/flows/`
 2. Registers bot commands from each flow's `bot.command` definition
@@ -306,11 +308,24 @@ defineFlow({ id: "onboard", steps: { home: { type: "miniapp", ... }, confirm: { 
 5. **Create screens** with `defineScreen({ id, component })`
 6. **Register the flow manifest and screens** in `main.tsx`
 7. **Wire `createFetchMiniAppServerBridge()`** for server communication
-8. **Create a hooks server** in `apps/api` using `createDiscoveredServerHooksHandler`
+8. **Create a hooks server** in `apps/api` using `createDiscoveredServerHooksHandler` (or `startTeleforgeServer()` for the high-level bootstrap)
 
 ## Hooks Server Setup
 
 For chat handoff to work through the server bridge (required for inline-keyboard-launched Mini Apps), the bot process must also run a hooks server with `onChatHandoff` wired to the bot runtime. Without this, the server bridge returns 501 for `chatHandoff` requests and the Mini App falls back to `sendData`, which only works for main-keyboard-launched Mini Apps.
+
+The modern high-level bootstrap uses `startTeleforgeServer()` from `teleforge`, which loads config, creates the discovered hooks handler, and starts a Node HTTP server automatically. When your app needs chat handoff, wire `onChatHandoff` to the bot runtime:
+
+```ts
+import { startTeleforgeBot, startTeleforgeServer } from "teleforge";
+
+const { runtime } = await startTeleforgeBot();
+const server = await startTeleforgeServer({ onChatHandoff: (input) => runtime.handleChatHandoff(input) });
+```
+
+If your app does not use chat handoff, the bare `startTeleforgeServer()` call is sufficient.
+
+For apps that need explicit wiring (like the current task-shop example), the lower-level escape hatch is:
 
 ```ts
 // apps/bot/src/index.ts

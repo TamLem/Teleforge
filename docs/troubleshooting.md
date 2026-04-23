@@ -142,7 +142,7 @@ Symptoms:
 Checks:
 
 - the flow has `bot.command.command`
-- `apps/bot/src/runtime.ts` exports the discovered bot runtime used by the scaffold
+- `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`, the thin simulator bridge for `teleforge dev`
 - `BOT_TOKEN` is present for live polling
 - the companion bot process started in `teleforge dev`
 

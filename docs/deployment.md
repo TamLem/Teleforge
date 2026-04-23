@@ -48,13 +48,19 @@ Recommended hosting properties:
 
 The bot can receive updates by polling or webhook.
 
-Use polling when you want the simplest deployment:
+Use `teleforge start` for the simplest production deployment:
 
 ```bash
 BOT_TOKEN=123456:token pnpm --dir apps/bot start
 ```
 
-When implementing polling, request both `message` and `callback_query` update types. Chat inline-keyboard actions produce `callback_query` updates; Mini App `sendData` handoffs arrive as `message` updates with `web_app_data`. Omitting `callback_query` from `allowed_updates` causes inline keyboard buttons to be silently ignored:
+This calls the framework-owned `startTeleforgeBot()` which:
+- loads `teleforge.config.ts` and discovers flows
+- resolves secrets from the environment
+- starts polling automatically when `BOT_TOKEN` is present
+- fails fast if required secrets are missing in live mode
+
+When implementing custom polling, request both `message` and `callback_query` update types. Chat inline-keyboard actions produce `callback_query` updates; Mini App `sendData` handoffs arrive as `message` updates with `web_app_data`. Omitting `callback_query` from `allowed_updates` causes inline keyboard buttons to be silently ignored:
 
 ```ts
 // ✅ Receive both message and callback_query updates
@@ -64,7 +70,11 @@ allowed_updates: ["callback_query", "message"]
 allowed_updates: ["message"]
 ```
 
-Use webhook delivery when your production platform already exposes HTTPS routes. In that setup:
+For advanced use cases, the lower-level `createDiscoveredBotRuntime()` escape hatch is available.
+
+Webhook delivery is configurable in `teleforge.config.ts`, but `teleforge start` does not yet implement live webhook bootstrap. Use the lower-level escape hatch if you need webhook delivery today. When webhook mode is fully supported:
+
+- serve the configured webhook path from your bot/server runtime
 
 - serve the configured webhook path from your bot/server runtime
 - set Telegram's webhook URL to that public HTTPS endpoint

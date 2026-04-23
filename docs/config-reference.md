@@ -64,6 +64,14 @@ Flow files are discovered by convention and should export a `defineFlow()` defin
 
 Polling and webhook delivery are deployment choices. They are not separate Teleforge product modes.
 
+## `runtime`
+
+| Field                    | Type       | Purpose                                                   |
+| ------------------------ | ---------- | --------------------------------------------------------- |
+| `bot.delivery`           | `"polling" \| "webhook"` | Bot update delivery mode. Defaults to polling. `teleforge start` does not yet support live webhook bootstrap; use the lower-level escape hatch for webhook delivery. |
+| `server.port`          | `number`   | Default port for the hooks server. Defaults to 3100.      |
+| `phoneAuth.secretEnv`  | `string`   | Environment variable for phone-auth signing secret. Defaults to `PHONE_AUTH_SECRET`. |
+
 ## `miniApp`
 
 | Field                | Type       | Purpose                                 |
@@ -185,6 +193,7 @@ import {
   defineFlow,
   miniAppStep,
   openMiniAppAction,
+  requestLocationAction,
   requestPhoneAuthAction,
   requestPhoneAction,
   returnToChatAction
@@ -219,6 +228,11 @@ export default defineFlow({
         stateField: "phoneNumber"
       })
     ]),
+    askLocation: chatStep("Share your location", [
+      requestLocationAction("Share location", "map", {
+        stateField: "coords"
+      })
+    ]),
     abandoned: chatStep("Cart abandoned. Come back anytime!"),
     track: miniAppStep("checkout.track")
   }
@@ -232,6 +246,7 @@ export default defineFlow({
 | `openMiniAppAction`   | Action with `miniApp` payload to open a step |
 | `requestPhoneAction`  | Chat action that asks Telegram for a self-shared contact |
 | `requestPhoneAuthAction` | Chat action that asks for a self-shared contact, then launches a Mini App step with `tfPhoneAuth` |
+| `requestLocationAction` | Chat action that asks Telegram for a self-shared location |
 | `returnToChatAction`  | Action that returns to a chat step         |
 
 Raw object definitions remain fully supported for cases the helpers do not cover.
