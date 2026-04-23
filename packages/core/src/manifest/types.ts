@@ -11,6 +11,20 @@ export interface TeleforgeRuntime {
     outDir?: string;
   };
   ssr?: boolean;
+  bot?: {
+    /** Telegram bot update delivery mode. Defaults to polling. */
+    delivery?: "polling" | "webhook";
+  };
+  /** Production server-hooks server configuration. */
+  server?: {
+    /** Port for the hooks server. Defaults to 3100. */
+    port?: number;
+  };
+  /** Phone-auth runtime configuration. */
+  phoneAuth?: {
+    /** Environment variable name for the phone-auth signing secret. Defaults to PHONE_AUTH_SECRET. */
+    secretEnv?: string;
+  };
 }
 
 /**

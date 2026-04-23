@@ -179,7 +179,7 @@ export async function startTeleforgeServer(
     );
 
   const basePath = options.basePath ?? "/api/teleforge/flow-hooks";
-  const requestedPort = options.port ?? 3100;
+  const requestedPort = options.port ?? app.runtime.server?.port ?? 3100;
 
   const hooksHandler = await createDiscoveredServerHooksHandler({
     basePath,

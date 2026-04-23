@@ -132,7 +132,25 @@ const runtimeSchema = z
       })
       .strict()
       .optional(),
-    ssr: z.boolean().optional()
+    ssr: z.boolean().optional(),
+    bot: z
+      .object({
+        delivery: z.enum(["polling", "webhook"]).optional()
+      })
+      .strict()
+      .optional(),
+    server: z
+      .object({
+        port: z.number().int().min(1).max(65535).optional()
+      })
+      .strict()
+      .optional(),
+    phoneAuth: z
+      .object({
+        secretEnv: z.string().min(1).optional()
+      })
+      .strict()
+      .optional()
   })
   .strict();
 

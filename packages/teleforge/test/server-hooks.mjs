@@ -686,3 +686,76 @@ export default defineFlow({
     stop();
   }
 });
+
+test("startTeleforgeServer uses runtime.server.port from config when no explicit port is given", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-server-config-port-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "config-port", name: "Config Port", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "port_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: { server: { port: 17171 } }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "checkout.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "checkout",
+  initialStep: "address",
+  state: {},
+  miniApp: { route: "/checkout" },
+  steps: {
+    address: { screen: "checkout.address", type: "miniapp" }
+  }
+});
+`
+  );
+
+  const { port, stop, url } = await startTeleforgeServer({ cwd: tmpRoot });
+
+  try {
+    assert.equal(port, 17171);
+    assert.equal(url, "http://localhost:17171");
+
+    const response = await fetch(`${url}/api/teleforge/flow-hooks`, {
+      body: JSON.stringify({
+        input: {
+          flowId: "checkout",
+          routePath: "/checkout",
+          screenId: "checkout.address",
+          state: {},
+          stepId: "address"
+        },
+        kind: "load"
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.kind, "load");
+    assert.equal(body.result.allow, true);
+  } finally {
+    stop();
+  }
+});

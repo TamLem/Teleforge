@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { createDiscoveredBotRuntime, startTeleforgeBot } from "../dist/index.js";
+import { verifySignedPhoneAuthToken } from "@teleforgex/core";
 
 test("createDiscoveredBotRuntime loads config and registers commands from discovered flows", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-"));
@@ -1304,5 +1305,260 @@ export default defineFlow({
     stop();
   } finally {
     if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+  }
+});
+
+test("startTeleforgeBot fails fast in live mode when runtime.bot.delivery is webhook", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-webhook-delivery-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "webhook-delivery", name: "Webhook Delivery", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "webhook_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: { bot: { delivery: "webhook" } }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "start.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "start", initialStep: "home", state: {},
+  bot: { command: { command: "start", description: "Start", text: "Hi" } },
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+
+  // Set a token so the bootstrap enters live mode, which is where webhook is rejected.
+  const originalToken = process.env.BOT_TOKEN;
+  process.env.BOT_TOKEN = "123456:webhook-token";
+
+  try {
+    await assert.rejects(
+      () => startTeleforgeBot({ cwd: tmpRoot }),
+      /live mode does not yet support webhook delivery/
+    );
+  } finally {
+    if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+    else delete process.env.BOT_TOKEN;
+  }
+});
+
+test("startTeleforgeBot allows webhook delivery in preview mode (no token)", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-webhook-preview-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "webhook-preview", name: "Webhook Preview", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "webhook_preview_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: { bot: { delivery: "webhook" } }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "start.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "start", initialStep: "home", state: {},
+  bot: { command: { command: "start", description: "Start", text: "Hi" } },
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+
+  const originalToken = process.env.BOT_TOKEN;
+  delete process.env.BOT_TOKEN;
+
+  try {
+    const { runtime, stop } = await startTeleforgeBot({ cwd: tmpRoot });
+    assert.ok(runtime);
+    assert.equal(runtime.getCommands().length, 1);
+    stop();
+  } finally {
+    if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+  }
+});
+
+test("startTeleforgeBot reads phone-auth secret from runtime.phoneAuth.secretEnv", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-phone-auth-env-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "phone-auth-env", name: "Phone Auth Env", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "phone_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: { phoneAuth: { secretEnv: "CUSTOM_PHONE_SECRET" } }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "phone-auth.flow.mjs"),
+    `import { chatStep, defineFlow, miniAppStep, requestPhoneAuthAction } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "phone-auth",
+  initialStep: "ask",
+  state: {},
+  bot: {
+    command: {
+      buttonText: "Open profile",
+      command: "phoneauth",
+      description: "Phone auth",
+      text: "Continue in profile"
+    }
+  },
+  miniApp: { route: "/profile" },
+  steps: {
+    ask: chatStep("Share your phone number to continue.", [
+      requestPhoneAuthAction("Share phone", "profile", {
+        rawStateField: "rawPhone",
+        stateField: "phone"
+      })
+    ]),
+    profile: miniAppStep("profile")
+  }
+});
+`
+  );
+
+  const originalToken = process.env.BOT_TOKEN;
+  const originalFlowSecret = process.env.TELEFORGE_FLOW_SECRET;
+  const originalMiniAppUrl = process.env.MINI_APP_URL;
+  const originalPhoneSecret = process.env.CUSTOM_PHONE_SECRET;
+  process.env.BOT_TOKEN = "123456:live-token";
+  process.env.TELEFORGE_FLOW_SECRET = "live-secret";
+  process.env.MINI_APP_URL = "https://example.ngrok.app";
+  process.env.CUSTOM_PHONE_SECRET = "custom-phone-secret";
+  delete process.env.PHONE_AUTH_SECRET;
+
+  // Use a custom bot instance to avoid real Telegram API calls during test.
+  const customBot = {
+    async sendMessage(chatId, text, options) {
+      return { chat: { id: chatId }, message_id: 1, text };
+    },
+    async setCommands(commands) {
+      // stub
+    }
+  };
+
+  try {
+    const { runtime, stop } = await startTeleforgeBot({ bot: customBot, cwd: tmpRoot });
+    assert.ok(runtime);
+
+    // Drive a /phoneauth command through the runtime to prove the phone-auth
+    // secret was picked up and the runtime is functional.
+    const sent = [];
+    runtime.bindBot({
+      async sendMessage(chatId, text, options) {
+        sent.push({ chatId, options, text });
+        return { chat: { id: chatId }, message_id: sent.length, text };
+      }
+    });
+
+    await runtime.handle({
+      message: {
+        chat: { id: 42, type: "private" },
+        from: { first_name: "Test", id: 7 },
+        message_id: 1,
+        text: "/phoneauth"
+      },
+      update_id: 1
+    });
+
+    assert.equal(sent[0]?.text, "Share your phone number to continue.");
+    assert.equal(sent[0]?.options.reply_markup.keyboard[0][0].request_contact, true);
+
+    // Drive the contact share completion to prove the custom secret env is used
+    // for signing the phone-auth token.
+    await runtime.handle({
+      message: {
+        chat: { id: 42, type: "private" },
+        contact: {
+          first_name: "Test",
+          phone_number: "+251 91 234 5678",
+          user_id: 7
+        },
+        from: { first_name: "Test", id: 7 },
+        message_id: 2
+      },
+      update_id: 2
+    });
+
+    assert.equal(sent[1]?.text, "Continue in profile");
+    const launchedUrl = sent[1]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
+    assert.ok(launchedUrl);
+    assert.match(launchedUrl, /tgWebAppStartParam=/);
+    assert.match(launchedUrl, /tfPhoneAuth=/);
+
+    // Prove the token was signed with the custom secret, not the flow secret.
+    const phoneAuthToken = new URL(launchedUrl).searchParams.get("tfPhoneAuth");
+    assert.ok(phoneAuthToken);
+    const verifiedWithCustom = await verifySignedPhoneAuthToken(phoneAuthToken, "custom-phone-secret");
+    assert.ok(verifiedWithCustom, "Token should verify with the custom secret from runtime.phoneAuth.secretEnv");
+    const verifiedWithFlow = await verifySignedPhoneAuthToken(phoneAuthToken, "live-secret");
+    assert.equal(verifiedWithFlow, null, "Token should NOT verify with the flow secret");
+
+    stop();
+  } finally {
+    if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
+    else delete process.env.BOT_TOKEN;
+    if (originalFlowSecret !== undefined) process.env.TELEFORGE_FLOW_SECRET = originalFlowSecret;
+    else delete process.env.TELEFORGE_FLOW_SECRET;
+    if (originalMiniAppUrl !== undefined) process.env.MINI_APP_URL = originalMiniAppUrl;
+    else delete process.env.MINI_APP_URL;
+    if (originalPhoneSecret !== undefined) process.env.CUSTOM_PHONE_SECRET = originalPhoneSecret;
+    else delete process.env.CUSTOM_PHONE_SECRET;
   }
 });

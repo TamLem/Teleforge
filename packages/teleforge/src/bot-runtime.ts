@@ -1370,6 +1370,7 @@ export async function startTeleforgeBot(
 
   const tokenEnv = app.bot.tokenEnv;
   const token = readEnv(tokenEnv);
+  const delivery = app.runtime.bot?.delivery ?? "polling";
 
   // Preview-mode defaults are acceptable only when there is no live token.
   // In live mode, required runtime inputs must come from explicit options or
@@ -1378,6 +1379,11 @@ export async function startTeleforgeBot(
   const rawMiniAppUrl = options.miniAppUrl ?? readEnv("MINI_APP_URL");
 
   if (token) {
+    if (delivery === "webhook") {
+      throw new Error(
+        "startTeleforgeBot live mode does not yet support webhook delivery. Use polling or the lower-level createDiscoveredBotRuntime() escape hatch."
+      );
+    }
     if (!rawFlowSecret) {
       throw new Error(
         `startTeleforgeBot requires TELEFORGE_FLOW_SECRET (or options.flowSecret) when ${tokenEnv} is configured.`
@@ -1392,7 +1398,8 @@ export async function startTeleforgeBot(
 
   const flowSecret = rawFlowSecret ?? `${app.app.id}-preview-secret`;
   const miniAppUrl = rawMiniAppUrl ?? "https://example.ngrok.app";
-  const phoneAuthSecret = options.phoneAuthSecret ?? readEnv("PHONE_AUTH_SECRET");
+  const phoneAuthSecretEnv = app.runtime.phoneAuth?.secretEnv ?? "PHONE_AUTH_SECRET";
+  const phoneAuthSecret = options.phoneAuthSecret ?? readEnv(phoneAuthSecretEnv);
 
   const runtime = await createDiscoveredBotRuntime({
     app,
