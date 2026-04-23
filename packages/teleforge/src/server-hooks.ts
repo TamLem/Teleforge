@@ -1,3 +1,7 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+
+import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
+
 import { loadTeleforgeApp } from "./config.js";
 import { loadTeleforgeFlowServerHooks, loadTeleforgeFlows } from "./discovery.js";
 import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
@@ -12,7 +16,7 @@ import type {
   TeleforgeMiniAppServerSubmitInput,
   TeleforgeMiniAppServerActionInput
 } from "./server-bridge.js";
-import type { FlowInstance, UserFlowStateManager } from "@teleforgex/core";
+import type { FlowInstance } from "@teleforgex/core";
 
 export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
 
@@ -128,6 +132,125 @@ export async function createDiscoveredServerHooksHandler(
   };
 
   return async (request: Request) => handleDiscoveredServerHooksRequest(request, state);
+}
+
+export interface StartTeleforgeServerOptions {
+  basePath?: string;
+  cwd?: string;
+  onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
+  port?: number;
+  services?: unknown;
+  storage?: UserFlowStateManager;
+  trust?: TeleforgeServerHookTrustOptions;
+}
+
+export interface StartTeleforgeServerResult {
+  port: number;
+  stop: () => void;
+  url: string;
+}
+
+/**
+ * High-level server bootstrap that loads config, creates the discovered server
+ * hooks handler, and starts a local HTTP server on the configured port.
+ *
+ * This wraps {@link createDiscoveredServerHooksHandler} and keeps it available
+ * as the lower-level escape hatch for advanced use cases.
+ */
+export async function startTeleforgeServer(
+  options: StartTeleforgeServerOptions = {}
+): Promise<StartTeleforgeServerResult> {
+  const cwd = options.cwd ?? process.cwd();
+  const app = (await loadTeleforgeApp(cwd)).app;
+
+  const storage =
+    options.storage ??
+    new UserFlowStateManager(
+      createFlowStorage({
+        backend: "memory",
+        defaultTTL: 900,
+        namespace: app.app.id
+      })
+    );
+
+  const basePath = options.basePath ?? "/api/teleforge/flow-hooks";
+  const port = options.port ?? 3100;
+
+  const hooksHandler = await createDiscoveredServerHooksHandler({
+    basePath,
+    cwd,
+    onChatHandoff: options.onChatHandoff,
+    services: options.services,
+    storage,
+    trust: options.trust
+  });
+
+  const corsHeaders: Record<string, string> = {
+    "Access-Control-Allow-Headers": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Origin": "*"
+  };
+
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, corsHeaders);
+      res.end();
+      return;
+    }
+
+    if (req.method === "POST" && req.url?.startsWith(basePath)) {
+      const body = await readIncomingMessageBody(req);
+      const request = new Request(`http://localhost:${port}${req.url}`, {
+        body,
+        headers: { "content-type": req.headers["content-type"] ?? "application/json" },
+        method: "POST"
+      });
+
+      const response = await hooksHandler(request);
+
+      if (response) {
+        const headers = { ...Object.fromEntries(response.headers.entries()), ...corsHeaders };
+        res.writeHead(response.status, headers);
+        res.end(await response.text());
+      } else {
+        res.writeHead(404, corsHeaders);
+        res.end("Not found");
+      }
+      return;
+    }
+
+    res.writeHead(404, corsHeaders);
+    res.end("Not found");
+  });
+
+  const resolvedPort = await new Promise<number>((resolve) => {
+    server.listen(port, () => {
+      const address = server.address();
+      const actualPort =
+        typeof address === "object" && address !== null ? address.port : port;
+      console.log(
+        `[teleforge:server] hooks server listening on ${basePath} at port ${actualPort}`
+      );
+      resolve(actualPort);
+    });
+  });
+
+  return {
+    port: resolvedPort,
+    stop: () => {
+      server.close();
+    },
+    url: `http://localhost:${resolvedPort}`
+  };
+}
+
+function readIncomingMessageBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
 }
 
 export async function executeTeleforgeServerHookLoad(options: {

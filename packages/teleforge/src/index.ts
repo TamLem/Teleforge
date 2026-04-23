@@ -42,7 +42,8 @@ export {
   DEFAULT_SERVER_HOOKS_PATH,
   executeTeleforgeServerHookAction,
   executeTeleforgeServerHookLoad,
-  executeTeleforgeServerHookSubmit
+  executeTeleforgeServerHookSubmit,
+  startTeleforgeServer
 } from "./server-hooks.js";
 export {
   createFlowRoutes,
@@ -126,6 +127,8 @@ export type {
 export type {
   CreateDiscoveredServerHooksHandlerOptions,
   CreateFetchMiniAppServerBridgeOptions,
+  StartTeleforgeServerOptions,
+  StartTeleforgeServerResult,
   TeleforgeMiniAppServerActionInput,
   TeleforgeMiniAppServerBridge,
   TeleforgeMiniAppServerChatHandoffInput,
