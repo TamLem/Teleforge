@@ -18,6 +18,7 @@ import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import { createFlowCommands, loadTeleforgeFlowHandlers, loadTeleforgeFlows } from "./discovery.js";
+import { createTeleforgeRuntimeContext } from "./runtime-context.js";
 import { getFlowStep, resolveFlowActionKey } from "./flow.js";
 
 import type { CreateFlowCommandsOptions } from "./discovery.js";
@@ -1370,42 +1371,22 @@ export interface StartTeleforgeBotResult {
 export async function startTeleforgeBot(
   options: StartTeleforgeBotOptions = {}
 ): Promise<StartTeleforgeBotResult> {
-  const context = options.context;
-  const cwd = context?.cwd ?? options.cwd ?? process.cwd();
-  const app = context?.app ?? options.app ?? (await loadTeleforgeApp(cwd)).app;
+  // Use a shared runtime context so config, secrets, and storage are resolved
+  // once and reused across bot and server bootstraps.
+  const context =
+    options.context ??
+    (await createTeleforgeRuntimeContext({
+      app: options.app,
+      cwd: options.cwd,
+      flowSecret: options.flowSecret,
+      miniAppUrl: options.miniAppUrl,
+      phoneAuthSecret: options.phoneAuthSecret,
+      services: options.services,
+      storage: options.storage,
+      storageTtlSeconds: options.storageTtlSeconds
+    }));
 
-  const tokenEnv = app.bot.tokenEnv;
-  const token = readEnv(tokenEnv);
-  const delivery = app.runtime.bot?.delivery ?? "polling";
-
-  // Preview-mode defaults are acceptable only when there is no live token.
-  // In live mode, required runtime inputs must come from explicit options or
-  // environment variables so the bootstrap contract is clear and safe.
-  const rawFlowSecret = context?.flowSecret ?? options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET");
-  const rawMiniAppUrl = context?.miniAppUrl ?? options.miniAppUrl ?? readEnv("MINI_APP_URL");
-
-  if (token) {
-    if (delivery === "webhook") {
-      throw new Error(
-        "startTeleforgeBot live mode does not yet support webhook delivery. Use polling or the lower-level createDiscoveredBotRuntime() escape hatch."
-      );
-    }
-    if (!rawFlowSecret) {
-      throw new Error(
-        `startTeleforgeBot requires TELEFORGE_FLOW_SECRET (or options.flowSecret) when ${tokenEnv} is configured.`
-      );
-    }
-    if (!rawMiniAppUrl) {
-      throw new Error(
-        `startTeleforgeBot requires MINI_APP_URL (or options.miniAppUrl) when ${tokenEnv} is configured.`
-      );
-    }
-  }
-
-  const flowSecret = rawFlowSecret ?? `${app.app.id}-preview-secret`;
-  const miniAppUrl = rawMiniAppUrl ?? "https://example.ngrok.app";
-  const phoneAuthSecretEnv = app.runtime.phoneAuth?.secretEnv ?? "PHONE_AUTH_SECRET";
-  const phoneAuthSecret = context?.phoneAuthSecret ?? options.phoneAuthSecret ?? readEnv(phoneAuthSecretEnv);
+  const { app, cwd, flowSecret, miniAppUrl, phoneAuthSecret, storage, token } = context;
 
   const runtime = await createDiscoveredBotRuntime({
     app,
@@ -1414,8 +1395,8 @@ export async function startTeleforgeBot(
     flowSecret,
     miniAppUrl,
     phoneAuthSecret,
-    services: context?.services ?? options.services,
-    storage: context?.storage ?? options.storage,
+    services: context.services,
+    storage,
     storageTtlSeconds: options.storageTtlSeconds
   });
 
@@ -1527,14 +1508,6 @@ export async function startTeleforgeBot(
   };
 }
 
-function readEnv(name: string): string | undefined {
-  const value = process.env[name];
-  if (!value) {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
 
 /* ───────────────────── Framework-owned polling / preview bots ───────────────────── */
 

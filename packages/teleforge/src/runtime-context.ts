@@ -12,6 +12,8 @@ export interface TeleforgeRuntimeContext {
   phoneAuthSecret?: string;
   services?: unknown;
   storage: UserFlowStateManager;
+  /** Resolved bot token from the environment, if present. */
+  token?: string;
 }
 
 export interface CreateTeleforgeRuntimeContextOptions {
@@ -90,7 +92,8 @@ export async function createTeleforgeRuntimeContext(
     miniAppUrl,
     phoneAuthSecret,
     services: options.services,
-    storage
+    storage,
+    token
   };
 }
 

@@ -111,7 +111,8 @@ test("generates the unified Teleforge scaffold", async () => {
 
   const runtimePath = path.join(tmpRoot, projectName, "apps", "bot", "src", "runtime.ts");
   const runtimeSource = await readFile(runtimePath, "utf8");
-  assert.match(runtimeSource, /createDiscoveredBotRuntime/);
+  assert.match(runtimeSource, /startTeleforgeBot/);
+  assert.match(runtimeSource, /createDevBotRuntime/);
 
   const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
   const botTest = await readFile(botTestPath, "utf8");
