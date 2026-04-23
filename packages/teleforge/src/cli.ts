@@ -1,7 +1,7 @@
 import process from "node:process";
 
 import {
-  loadTeleforgeApp,
+  createTeleforgeRuntimeContext,
   loadTeleforgeFlowServerHooks,
   startTeleforgeBot,
   startTeleforgeServer
@@ -10,23 +10,22 @@ import {
 async function runStartCommand(): Promise<void> {
   const cwd = process.cwd();
 
-  // Load config once and pass it to boot functions so they do not reload it.
-  const { app } = await loadTeleforgeApp(cwd);
+  // Resolve a shared runtime context once: config, secrets, storage.
+  // Both bot and server bootstraps reuse this so initialization is not duplicated.
+  const context = await createTeleforgeRuntimeContext({ cwd });
 
   // Discover server hooks once so the CLI decides whether to start the server.
-  const serverHooks = await loadTeleforgeFlowServerHooks({ app, cwd });
+  const serverHooks = await loadTeleforgeFlowServerHooks({ app: context.app, cwd });
   const hasServerHooks = serverHooks.length > 0;
 
-  const { runtime: botRuntime, stop: stopBot } = await startTeleforgeBot({ app, cwd });
+  const { runtime: botRuntime, stop: stopBot } = await startTeleforgeBot({ context });
 
   let stopServer: (() => void) | undefined;
 
   if (hasServerHooks) {
     const server = await startTeleforgeServer({
-      app,
-      cwd,
-      onChatHandoff: (input) => botRuntime.handleChatHandoff(input),
-      storage: botRuntime.getStorage()
+      context,
+      onChatHandoff: (input) => botRuntime.handleChatHandoff(input)
     });
     stopServer = server.stop;
     console.log(

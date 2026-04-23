@@ -1329,6 +1329,11 @@ export interface StartTeleforgeBotOptions {
    */
   app?: TeleforgeAppConfig;
   commandOptions?: Omit<CreateFlowCommandsOptions, "flows" | "secret" | "storage" | "webAppUrl">;
+  /**
+   * Shared runtime context. When provided, the bootstrap skips config,
+   * secret, and storage resolution and uses the context directly.
+   */
+  context?: import("./runtime-context.js").TeleforgeRuntimeContext;
   cwd?: string;
   flowSecret?: string;
   miniAppUrl?: string;
@@ -1365,8 +1370,9 @@ export interface StartTeleforgeBotResult {
 export async function startTeleforgeBot(
   options: StartTeleforgeBotOptions = {}
 ): Promise<StartTeleforgeBotResult> {
-  const cwd = options.cwd ?? process.cwd();
-  const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
+  const context = options.context;
+  const cwd = context?.cwd ?? options.cwd ?? process.cwd();
+  const app = context?.app ?? options.app ?? (await loadTeleforgeApp(cwd)).app;
 
   const tokenEnv = app.bot.tokenEnv;
   const token = readEnv(tokenEnv);
@@ -1375,8 +1381,8 @@ export async function startTeleforgeBot(
   // Preview-mode defaults are acceptable only when there is no live token.
   // In live mode, required runtime inputs must come from explicit options or
   // environment variables so the bootstrap contract is clear and safe.
-  const rawFlowSecret = options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET");
-  const rawMiniAppUrl = options.miniAppUrl ?? readEnv("MINI_APP_URL");
+  const rawFlowSecret = context?.flowSecret ?? options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET");
+  const rawMiniAppUrl = context?.miniAppUrl ?? options.miniAppUrl ?? readEnv("MINI_APP_URL");
 
   if (token) {
     if (delivery === "webhook") {
@@ -1399,7 +1405,7 @@ export async function startTeleforgeBot(
   const flowSecret = rawFlowSecret ?? `${app.app.id}-preview-secret`;
   const miniAppUrl = rawMiniAppUrl ?? "https://example.ngrok.app";
   const phoneAuthSecretEnv = app.runtime.phoneAuth?.secretEnv ?? "PHONE_AUTH_SECRET";
-  const phoneAuthSecret = options.phoneAuthSecret ?? readEnv(phoneAuthSecretEnv);
+  const phoneAuthSecret = context?.phoneAuthSecret ?? options.phoneAuthSecret ?? readEnv(phoneAuthSecretEnv);
 
   const runtime = await createDiscoveredBotRuntime({
     app,
@@ -1408,8 +1414,8 @@ export async function startTeleforgeBot(
     flowSecret,
     miniAppUrl,
     phoneAuthSecret,
-    services: options.services,
-    storage: options.storage,
+    services: context?.services ?? options.services,
+    storage: context?.storage ?? options.storage,
     storageTtlSeconds: options.storageTtlSeconds
   });
 

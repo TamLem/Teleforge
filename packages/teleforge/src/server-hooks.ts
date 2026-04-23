@@ -141,6 +141,11 @@ export interface StartTeleforgeServerOptions {
    */
   app?: TeleforgeAppConfig;
   basePath?: string;
+  /**
+   * Shared runtime context. When provided, the bootstrap skips config,
+   * storage, and service resolution and uses the context directly.
+   */
+  context?: import("./runtime-context.js").TeleforgeRuntimeContext;
   cwd?: string;
   onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
   port?: number;
@@ -165,11 +170,11 @@ export interface StartTeleforgeServerResult {
 export async function startTeleforgeServer(
   options: StartTeleforgeServerOptions = {}
 ): Promise<StartTeleforgeServerResult> {
-  const cwd = options.cwd ?? process.cwd();
-  const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
+  const context = options.context;
+  const cwd = context?.cwd ?? options.cwd ?? process.cwd();
+  const app = context?.app ?? options.app ?? (await loadTeleforgeApp(cwd)).app;
 
-  const storage =
-    options.storage ??
+  const storage = context?.storage ?? options.storage ??
     new UserFlowStateManager(
       createFlowStorage({
         backend: "memory",
@@ -185,7 +190,7 @@ export async function startTeleforgeServer(
     basePath,
     cwd,
     onChatHandoff: options.onChatHandoff,
-    services: options.services,
+    services: context?.services ?? options.services,
     storage,
     trust: options.trust
   });

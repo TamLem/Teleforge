@@ -30,6 +30,13 @@ export {
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export { createDiscoveredBotRuntime, startTeleforgeBot } from "./bot-runtime.js";
 export {
+  createTeleforgeRuntimeContext
+} from "./runtime-context.js";
+export type {
+  CreateTeleforgeRuntimeContextOptions,
+  TeleforgeRuntimeContext
+} from "./runtime-context.js";
+export {
   executeMiniAppStepAction,
   executeMiniAppStepSubmit,
   loadMiniAppScreenRuntime,
