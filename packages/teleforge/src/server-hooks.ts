@@ -16,7 +16,7 @@ import type {
   TeleforgeMiniAppServerSubmitInput,
   TeleforgeMiniAppServerActionInput
 } from "./server-bridge.js";
-import type { FlowInstance } from "@teleforgex/core";
+import type { FlowInstance, TeleforgeAppConfig } from "@teleforgex/core";
 
 export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
 
@@ -135,6 +135,11 @@ export async function createDiscoveredServerHooksHandler(
 }
 
 export interface StartTeleforgeServerOptions {
+  /**
+   * Pre-loaded app config. When provided, the bootstrap skips config loading
+   * and uses this object directly.
+   */
+  app?: TeleforgeAppConfig;
   basePath?: string;
   cwd?: string;
   onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
@@ -161,7 +166,7 @@ export async function startTeleforgeServer(
   options: StartTeleforgeServerOptions = {}
 ): Promise<StartTeleforgeServerResult> {
   const cwd = options.cwd ?? process.cwd();
-  const app = (await loadTeleforgeApp(cwd)).app;
+  const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
 
   const storage =
     options.storage ??
@@ -174,7 +179,7 @@ export async function startTeleforgeServer(
     );
 
   const basePath = options.basePath ?? "/api/teleforge/flow-hooks";
-  const port = options.port ?? 3100;
+  const requestedPort = options.port ?? 3100;
 
   const hooksHandler = await createDiscoveredServerHooksHandler({
     basePath,
@@ -191,6 +196,8 @@ export async function startTeleforgeServer(
     "Access-Control-Allow-Origin": "*"
   };
 
+  let resolvedPort = requestedPort;
+
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     if (req.method === "OPTIONS") {
       res.writeHead(204, corsHeaders);
@@ -199,22 +206,29 @@ export async function startTeleforgeServer(
     }
 
     if (req.method === "POST" && req.url?.startsWith(basePath)) {
-      const body = await readIncomingMessageBody(req);
-      const request = new Request(`http://localhost:${port}${req.url}`, {
-        body,
-        headers: { "content-type": req.headers["content-type"] ?? "application/json" },
-        method: "POST"
-      });
+      try {
+        const body = await readIncomingMessageBody(req);
+        // Use the actual bound port so Request URL is correct even when port: 0
+        const request = new Request(`http://localhost:${resolvedPort}${req.url}`, {
+          body,
+          headers: { "content-type": req.headers["content-type"] ?? "application/json" },
+          method: "POST"
+        });
 
-      const response = await hooksHandler(request);
+        const response = await hooksHandler(request);
 
-      if (response) {
-        const headers = { ...Object.fromEntries(response.headers.entries()), ...corsHeaders };
-        res.writeHead(response.status, headers);
-        res.end(await response.text());
-      } else {
-        res.writeHead(404, corsHeaders);
-        res.end("Not found");
+        if (response) {
+          const headers = { ...Object.fromEntries(response.headers.entries()), ...corsHeaders };
+          res.writeHead(response.status, headers);
+          res.end(await response.text());
+        } else {
+          res.writeHead(404, corsHeaders);
+          res.end("Not found");
+        }
+      } catch (error) {
+        console.error("[teleforge:server] unexpected error handling request:", error);
+        res.writeHead(500, corsHeaders);
+        res.end("Teleforge server hook error");
       }
       return;
     }
@@ -223,11 +237,11 @@ export async function startTeleforgeServer(
     res.end("Not found");
   });
 
-  const resolvedPort = await new Promise<number>((resolve) => {
-    server.listen(port, () => {
+  resolvedPort = await new Promise<number>((resolve) => {
+    server.listen(requestedPort, () => {
       const address = server.address();
       const actualPort =
-        typeof address === "object" && address !== null ? address.port : port;
+        typeof address === "object" && address !== null ? address.port : requestedPort;
       console.log(
         `[teleforge:server] hooks server listening on ${basePath} at port ${actualPort}`
       );

@@ -3,7 +3,7 @@ import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { createFlowRoutes } from "./discovery.js";
@@ -255,9 +255,18 @@ async function loadFlowModulesForConfig(cwd: string, root: string): Promise<Load
 }
 
 function resolveTsxImportPath(cwd: string): string {
+  let moduleDir: string | undefined;
+
+  try {
+    moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  } catch {
+    // import.meta.url may be unavailable in CJS bundles; fall back to cwd candidates only
+  }
+
   const candidates = [
     path.join(cwd, "__teleforge_loader__.js"),
-    path.join(process.cwd(), "__teleforge_loader__.js")
+    path.join(process.cwd(), "__teleforge_loader__.js"),
+    ...(moduleDir ? [path.join(moduleDir, "__teleforge_loader__.js")] : [])
   ];
 
   for (const basePath of candidates) {

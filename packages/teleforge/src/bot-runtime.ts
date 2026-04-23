@@ -1323,6 +1323,11 @@ function isFlowTransitionResult<TState>(value: unknown): value is FlowTransition
 /* ───────────────────── High-level bootstrap API ───────────────────── */
 
 export interface StartTeleforgeBotOptions {
+  /**
+   * Pre-loaded app config. When provided, the bootstrap skips config loading
+   * and uses this object directly.
+   */
+  app?: TeleforgeAppConfig;
   commandOptions?: Omit<CreateFlowCommandsOptions, "flows" | "secret" | "storage" | "webAppUrl">;
   cwd?: string;
   flowSecret?: string;
@@ -1361,7 +1366,7 @@ export async function startTeleforgeBot(
   options: StartTeleforgeBotOptions = {}
 ): Promise<StartTeleforgeBotResult> {
   const cwd = options.cwd ?? process.cwd();
-  const app = (await loadTeleforgeApp(cwd)).app;
+  const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
 
   const tokenEnv = app.bot.tokenEnv;
   const token = readEnv(tokenEnv);
