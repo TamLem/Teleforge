@@ -354,6 +354,8 @@ When your app needs a Telegram user to prove control of a phone number, use bot 
 
 Bot side:
 
+- use `requestPhoneAction()` when the phone request is part of a discovered Teleforge flow
+- use `requestPhoneAuthAction()` when the phone request should immediately continue into a Mini App step with a signed `tfPhoneAuth` token
 - request a self-shared contact with `createPhoneNumberRequestMarkup()`
 - validate it with `extractSharedPhoneContact()`
 - launch the Mini App with `createPhoneAuthLink()`

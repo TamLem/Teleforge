@@ -21,6 +21,60 @@ Use these public Teleforge surfaces:
 - `teleforge/server-hooks` for trusted token exchange and session/domain logic
 - `teleforge` for shared flow state helpers when the exchange is part of a flow
 
+## Flow-First Shortcut
+
+When phone sharing is part of a normal discovered Teleforge flow, prefer the higher-level `requestPhoneAction()` helper from `teleforge` instead of wiring the Telegram contact request manually.
+
+```ts
+import { chatStep, defineFlow, requestPhoneAction } from "teleforge";
+
+export default defineFlow({
+  id: "login",
+  initialStep: "askPhone",
+  state: {},
+  steps: {
+    askPhone: chatStep("Share the phone number tied to your account.", [
+      requestPhoneAction("Share phone number", "finish", {
+        rawStateField: "rawPhoneNumber",
+        stateField: "phoneNumber"
+      })
+    ]),
+    finish: chatStep(({ state }) => `Saved ${state.phoneNumber}`)
+  }
+});
+```
+
+At runtime Teleforge:
+
+- renders a reply-keyboard contact request button
+- accepts only self-shared contacts from the sending Telegram user
+- normalizes the phone number before storing it
+- merges the normalized number into flow state before advancing
+- passes the shared phone details to any action handler as `input.phone`
+
+If the next step is a Mini App auth/onboarding step, use `requestPhoneAuthAction()` instead:
+
+```ts
+import { chatStep, defineFlow, miniAppStep, requestPhoneAuthAction } from "teleforge";
+
+export default defineFlow({
+  id: "login",
+  initialStep: "askPhone",
+  state: {},
+  steps: {
+    askPhone: chatStep("Share the phone number tied to your account.", [
+      requestPhoneAuthAction("Share phone number", "profile", {
+        rawStateField: "rawPhoneNumber",
+        stateField: "phoneNumber"
+      })
+    ]),
+    profile: miniAppStep("profile")
+  }
+});
+```
+
+That unified path keeps the flow-first authoring model intact. Teleforge validates the shared contact, stores the normalized phone number in flow state, signs `tfPhoneAuth`, and sends the Mini App launch button for the target step.
+
 ## Bot Step
 
 ```ts

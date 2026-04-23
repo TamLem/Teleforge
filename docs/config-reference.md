@@ -180,7 +180,15 @@ export default defineFlow<FlowState>({
 The framework provides helpers that remove repetitive `type` fields and make action intent explicit:
 
 ```ts
-import { defineFlow, miniAppStep, chatStep, openMiniAppAction, returnToChatAction } from "teleforge";
+import {
+  chatStep,
+  defineFlow,
+  miniAppStep,
+  openMiniAppAction,
+  requestPhoneAuthAction,
+  requestPhoneAction,
+  returnToChatAction
+} from "teleforge";
 
 export default defineFlow({
   id: "checkout",
@@ -199,6 +207,18 @@ export default defineFlow({
     done: chatStep("Order confirmed!", [
       openMiniAppAction("Track order", "track", { orderId: "abc" })
     ]),
+    verifyPhone: chatStep("Verify your phone number", [
+      requestPhoneAction("Share phone", "done", {
+        rawStateField: "rawPhoneNumber",
+        stateField: "phoneNumber"
+      })
+    ]),
+    verifyPhoneForApp: chatStep("Verify your phone number and continue in the Mini App", [
+      requestPhoneAuthAction("Share phone", "track", {
+        rawStateField: "rawPhoneNumber",
+        stateField: "phoneNumber"
+      })
+    ]),
     abandoned: chatStep("Cart abandoned. Come back anytime!"),
     track: miniAppStep("checkout.track")
   }
@@ -210,6 +230,8 @@ export default defineFlow({
 | `miniAppStep(screen)` | `{ type: "miniapp", screen: "..." }`          |
 | `chatStep(message)`   | `{ type: "chat", message: "..." }`          |
 | `openMiniAppAction`   | Action with `miniApp` payload to open a step |
+| `requestPhoneAction`  | Chat action that asks Telegram for a self-shared contact |
+| `requestPhoneAuthAction` | Chat action that asks for a self-shared contact, then launches a Mini App step with `tfPhoneAuth` |
 | `returnToChatAction`  | Action that returns to a chat step         |
 
 Raw object definitions remain fully supported for cases the helpers do not cover.
