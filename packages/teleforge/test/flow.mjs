@@ -12,6 +12,8 @@ import {
   chatStep,
   miniAppStep,
   openMiniAppAction,
+  requestPhoneAuthAction,
+  requestPhoneAction,
   returnToChatAction
 } from "../dist/index.js";
 import { handleMiniAppReturn } from "../dist/bot.js";
@@ -307,6 +309,71 @@ test("returnToChatAction creates a callback transition action", () => {
   assert.equal(action.label, "Return to chat");
   assert.equal(action.to, "completed");
   assert.ok(!action.miniApp);
+});
+
+test("requestPhoneAction creates a Telegram contact request action", () => {
+  const action = requestPhoneAction("Share phone", "profile", {
+    rawStateField: "rawPhone",
+    stateField: "phone"
+  });
+
+  assert.equal(action.label, "Share phone");
+  assert.equal(action.to, "profile");
+  assert.deepEqual(action.phoneRequest, {
+    rawStateField: "rawPhone",
+    stateField: "phone"
+  });
+  assert.ok(!action.miniApp);
+});
+
+test("requestPhoneAuthAction creates a phone-auth handoff action", () => {
+  const action = requestPhoneAuthAction("Verify phone", "profile", {
+    rawStateField: "rawPhone",
+    stateField: "phone"
+  });
+
+  assert.equal(action.label, "Verify phone");
+  assert.equal(action.to, "profile");
+  assert.deepEqual(action.phoneRequest, {
+    auth: true,
+    rawStateField: "rawPhone",
+    stateField: "phone"
+  });
+});
+
+test("defineFlow rejects mixing phone-request actions with inline chat actions", () => {
+  assert.throws(
+    () =>
+      defineFlow({
+        id: "phone-mixed",
+        initialStep: "ask",
+        state: {},
+        steps: {
+          ask: chatStep("Share phone", [
+            requestPhoneAction("Share phone", "done"),
+            returnToChatAction("Cancel", "done")
+          ]),
+          done: chatStep("Done")
+        }
+      }),
+    /cannot mix a phone-request action with other chat actions/
+  );
+});
+
+test("defineFlow rejects phone-auth actions that do not target Mini App steps", () => {
+  assert.throws(
+    () =>
+      defineFlow({
+        id: "phone-auth-chat-target",
+        initialStep: "ask",
+        state: {},
+        steps: {
+          ask: chatStep("Share phone", [requestPhoneAuthAction("Verify", "done")]),
+          done: chatStep("Done")
+        }
+      }),
+    /must target a Mini App step for phone auth/
+  );
 });
 
 test("flow authoring helpers integrate with defineFlow", () => {

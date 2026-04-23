@@ -7,6 +7,12 @@ export interface FlowTransitionResult<TState> {
   to?: string;
 }
 
+export interface SharedPhoneNumber {
+  normalizedPhoneNumber: string;
+  phoneNumber: string;
+  telegramUserId: number;
+}
+
 export interface TeleforgeFlowBotCommandDefinition {
   buttonText?: string;
   command: string;
@@ -47,6 +53,17 @@ export interface FlowHandlerContext<
   state: TState;
 }
 
+export interface FlowActionContext<
+  TState,
+  TServices = unknown,
+  TFlow extends TeleforgeFlowDefinition<TState, TServices> = TeleforgeFlowDefinition<
+    TState,
+    TServices
+  >
+> extends FlowHandlerContext<TState, TServices, TFlow> {
+  phone?: SharedPhoneNumber;
+}
+
 export interface FlowSubmitContext<
   TState,
   TData = unknown,
@@ -62,11 +79,16 @@ export interface FlowSubmitContext<
 export interface FlowActionDefinition<TState, TServices = unknown> {
   id?: string;
   handler?: (
-    input: FlowHandlerContext<TState, TServices>
+    input: FlowActionContext<TState, TServices>
   ) => MaybePromise<void | FlowTransitionResult<TState>>;
   label: string;
   miniApp?: {
     payload?: Record<string, unknown>;
+  };
+  phoneRequest?: {
+    auth?: boolean;
+    rawStateField?: string;
+    stateField?: string;
   };
   to?: string;
 }
@@ -168,6 +190,19 @@ export function defineFlow<
 
   for (const [stepId, step] of Object.entries(flow.steps)) {
     const seenActionKeys = new Set<string>();
+    const phoneRequestActions = (step.actions ?? []).filter((action) => action.phoneRequest);
+
+    if (phoneRequestActions.length > 1) {
+      throw new Error(
+        `Flow "${flow.id}" step "${stepId}" can define at most one phone-request action.`
+      );
+    }
+
+    if (phoneRequestActions.length === 1 && (step.actions?.length ?? 0) > 1) {
+      throw new Error(
+        `Flow "${flow.id}" step "${stepId}" cannot mix a phone-request action with other chat actions.`
+      );
+    }
 
     for (const action of step.actions ?? []) {
       const actionKey = resolveFlowActionKey(action);
@@ -182,6 +217,21 @@ export function defineFlow<
 
       if (action.to) {
         assertStepExists(flow.id, stepIds, action.to, `steps.${stepId}.actions.to`);
+      }
+
+      if (action.phoneRequest?.auth) {
+        if (!action.to) {
+          throw new Error(
+            `Flow "${flow.id}" step "${stepId}" action "${actionKey}" must target a Mini App step for phone auth.`
+          );
+        }
+
+        const targetStep = flow.steps[action.to];
+        if (!targetStep || targetStep.type !== "miniapp") {
+          throw new Error(
+            `Flow "${flow.id}" step "${stepId}" action "${actionKey}" must target a Mini App step for phone auth.`
+          );
+        }
       }
     }
   }
@@ -283,6 +333,49 @@ export function returnToChatAction<TState, TServices = unknown>(
   return {
     ...options,
     label,
+    to
+  };
+}
+
+export interface RequestPhoneActionOptions<TState, TServices = unknown>
+  extends Omit<FlowActionDefinition<TState, TServices>, "label" | "miniApp" | "phoneRequest" | "to"> {
+  rawStateField?: string;
+  stateField?: string;
+}
+
+export function requestPhoneAction<TState, TServices = unknown>(
+  label: string,
+  to: string,
+  options: RequestPhoneActionOptions<TState, TServices> = {}
+): FlowActionDefinition<TState, TServices> {
+  const { rawStateField, stateField, ...actionOptions } = options;
+
+  return {
+    ...actionOptions,
+    label,
+    phoneRequest: {
+      ...(rawStateField ? { rawStateField } : {}),
+      stateField: stateField ?? "phoneNumber"
+    },
+    to
+  };
+}
+
+export function requestPhoneAuthAction<TState, TServices = unknown>(
+  label: string,
+  to: string,
+  options: RequestPhoneActionOptions<TState, TServices> = {}
+): FlowActionDefinition<TState, TServices> {
+  const { rawStateField, stateField, ...actionOptions } = options;
+
+  return {
+    ...actionOptions,
+    label,
+    phoneRequest: {
+      auth: true,
+      ...(rawStateField ? { rawStateField } : {}),
+      stateField: stateField ?? "phoneNumber"
+    },
     to
   };
 }

@@ -23,6 +23,8 @@ export {
   isMiniAppStep,
   miniAppStep,
   openMiniAppAction,
+  requestPhoneAuthAction,
+  requestPhoneAction,
   returnToChatAction
 } from "./flow.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";

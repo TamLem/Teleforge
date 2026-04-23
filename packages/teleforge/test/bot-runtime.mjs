@@ -442,6 +442,276 @@ export default defineFlow({
   assert.match(launchedUrl, /tgWebAppStartParam=/);
 });
 
+test("createDiscoveredBotRuntime handles requestPhoneAction contact sharing", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-phone-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "runtime-phone-app",
+    name: "Runtime Phone App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "runtime_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "phone.flow.mjs"),
+    `import { chatStep, defineFlow, requestPhoneAction } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "phone",
+  initialStep: "ask",
+  state: {},
+  bot: {
+    command: {
+      command: "phone",
+      description: "Share phone",
+      text: "Share phone"
+    }
+  },
+  steps: {
+    ask: chatStep("Share your phone number.", [
+      requestPhoneAction("Share phone", "done", {
+        rawStateField: "rawPhone",
+        stateField: "phone"
+      })
+    ]),
+    done: chatStep(({ state }) => "Saved " + state.phone + " from " + state.rawPhone)
+  }
+});
+`
+  );
+
+  const runtime = await createDiscoveredBotRuntime({
+    cwd: tmpRoot,
+    flowSecret: "coord-secret",
+    miniAppUrl: "https://example.ngrok.app"
+  });
+  const sent = [];
+
+  runtime.bindBot({
+    async sendMessage(chatId, text, options) {
+      sent.push({ chatId, options, text });
+      return {
+        chat: {
+          id: chatId
+        },
+        message_id: sent.length,
+        text
+      };
+    }
+  });
+
+  await runtime.handle({
+    message: {
+      chat: {
+        id: 42,
+        type: "private"
+      },
+      from: {
+        first_name: "Preview",
+        id: 7
+      },
+      message_id: 1,
+      text: "/phone"
+    },
+    update_id: 1
+  });
+
+  assert.equal(sent[0]?.text, "Share your phone number.");
+  assert.equal(sent[0]?.options.reply_markup.keyboard[0][0].request_contact, true);
+  assert.equal(sent[0]?.options.reply_markup.keyboard[0][0].text, "Share phone");
+
+  await runtime.handle({
+    message: {
+      chat: {
+        id: 42,
+        type: "private"
+      },
+      contact: {
+        first_name: "Preview",
+        phone_number: "+1 (202) 555-0199",
+        user_id: 7
+      },
+      from: {
+        first_name: "Preview",
+        id: 7
+      },
+      message_id: 2
+    },
+    update_id: 2
+  });
+
+  assert.equal(sent[1]?.text, "Saved +12025550199 from +1 (202) 555-0199");
+});
+
+test("createDiscoveredBotRuntime unifies phone share into Mini App phone-auth launch", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-phone-auth-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "runtime-phone-auth-app",
+    name: "Runtime Phone Auth App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "runtime_bot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "phone-auth.flow.mjs"),
+    `import {
+  chatStep,
+  defineFlow,
+  miniAppStep,
+  requestPhoneAuthAction
+} from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+  id: "phone-auth",
+  initialStep: "ask",
+  state: {},
+  bot: {
+    command: {
+      buttonText: "Open profile",
+      command: "phoneauth",
+      description: "Phone auth",
+      text: "Continue in profile"
+    }
+  },
+  miniApp: {
+    route: "/profile"
+  },
+  steps: {
+    ask: chatStep("Share your phone number to continue.", [
+      requestPhoneAuthAction("Share phone", "profile", {
+        rawStateField: "rawPhone",
+        stateField: "phone"
+      })
+    ]),
+    profile: miniAppStep("profile")
+  }
+});
+`
+  );
+
+  const runtime = await createDiscoveredBotRuntime({
+    cwd: tmpRoot,
+    flowSecret: "coord-secret",
+    miniAppUrl: "https://example.ngrok.app",
+    phoneAuthSecret: "phone-auth-secret"
+  });
+  const sent = [];
+
+  runtime.bindBot({
+    async sendMessage(chatId, text, options) {
+      sent.push({ chatId, options, text });
+      return {
+        chat: {
+          id: chatId
+        },
+        message_id: sent.length,
+        text
+      };
+    }
+  });
+
+  await runtime.handle({
+    message: {
+      chat: {
+        id: 51,
+        type: "private"
+      },
+      from: {
+        first_name: "Preview",
+        id: 17
+      },
+      message_id: 1,
+      text: "/phoneauth"
+    },
+    update_id: 1
+  });
+
+  assert.equal(sent[0]?.options.reply_markup.keyboard[0][0].request_contact, true);
+
+  await runtime.handle({
+    message: {
+      chat: {
+        id: 51,
+        type: "private"
+      },
+      contact: {
+        first_name: "Preview",
+        phone_number: "+251 91 234 5678",
+        user_id: 17
+      },
+      from: {
+        first_name: "Preview",
+        id: 17
+      },
+      message_id: 2
+    },
+    update_id: 2
+  });
+
+  assert.equal(sent[1]?.text, "Continue in profile");
+  const launchedUrl = sent[1]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
+  assert.ok(launchedUrl);
+  assert.match(launchedUrl, /tgWebAppStartParam=/);
+  assert.match(launchedUrl, /tfPhoneAuth=/);
+});
+
 test("createDiscoveredBotRuntime resumes a Mini App handoff into the next chat step", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-runtime-handoff-"));
   const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");

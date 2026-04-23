@@ -10,6 +10,8 @@ export {
   isMiniAppStep,
   miniAppStep,
   openMiniAppAction,
+  requestPhoneAuthAction,
+  requestPhoneAction,
   resolveFlowActionKey,
   returnToChatAction
 } from "./flow-definition.js";

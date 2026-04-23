@@ -3,7 +3,10 @@ import {
   createBotRuntime,
   createFlowCallback,
   createMiniAppButton,
+  createPhoneAuthLink,
+  createPhoneNumberRequestMarkup,
   createSignedPayload,
+  extractSharedPhoneContact,
   extractFlowContext,
   handleMiniAppReturnData,
   handleFlowCallback,
@@ -29,6 +32,7 @@ import type {
   BotRuntime,
   CallbackQueryHandler,
   CommandContext,
+  Middleware,
   WebAppDataHandler
 } from "@teleforgex/bot";
 import type { FlowInstance, TeleforgeAppConfig } from "@teleforgex/core";
@@ -89,6 +93,7 @@ export interface CreateDiscoveredBotRuntimeOptions {
   cwd?: string;
   flowSecret: string;
   miniAppUrl: string;
+  phoneAuthSecret?: string;
   services?: unknown;
   storage?: UserFlowStateManager;
   storageTtlSeconds?: number;
@@ -145,6 +150,19 @@ export async function createDiscoveredBotRuntime(
       flows: flows.filter(({ flow }) => !isMiniAppEntryFlow(flow)),
       handlers,
       miniAppUrl: options.miniAppUrl,
+      phoneAuthSecret: options.phoneAuthSecret,
+      secret: options.flowSecret,
+      services: options.services,
+      storage
+    })
+  );
+  runtime.router.use(
+    createDiscoveredFlowPhoneContactMiddleware({
+      debugTracker,
+      flows,
+      handlers,
+      miniAppUrl: options.miniAppUrl,
+      phoneAuthSecret: options.phoneAuthSecret,
       secret: options.flowSecret,
       services: options.services,
       storage
@@ -156,6 +174,7 @@ export async function createDiscoveredBotRuntime(
       flows,
       handlers,
       miniAppUrl: options.miniAppUrl,
+      phoneAuthSecret: options.phoneAuthSecret,
       secret: options.flowSecret,
       services: options.services,
       storage
@@ -270,6 +289,7 @@ interface CreateChatEntryCommandsOptions {
   flows: readonly DiscoveredFlowModule[];
   handlers: readonly DiscoveredFlowStepHandlerModule[];
   miniAppUrl: string;
+  phoneAuthSecret?: string;
   secret: string;
   services?: unknown;
   storage: UserFlowStateManager;
@@ -280,12 +300,22 @@ interface CreateDiscoveredFlowCallbackHandlerOptions {
   flows: readonly DiscoveredFlowModule[];
   handlers: readonly DiscoveredFlowStepHandlerModule[];
   miniAppUrl: string;
+  phoneAuthSecret?: string;
   secret: string;
   services?: unknown;
   storage: UserFlowStateManager;
 }
 
 interface CreateDiscoveredFlowWebAppDataHandlerOptions extends CreateDiscoveredFlowCallbackHandlerOptions {}
+
+interface PendingPhoneAction {
+  action: FlowActionDefinition<unknown, unknown>;
+  flow: TeleforgeFlowDefinition<unknown, unknown>;
+  persisted: FlowInstance;
+  stateKey: string;
+  step: ChatFlowStepDefinition<unknown, unknown>;
+  stepId: string;
+}
 
 interface MiniAppChatHandoffPayload {
   flowContext: string;
@@ -519,6 +549,118 @@ function createDiscoveredFlowCallbackHandler(
   };
 }
 
+function createDiscoveredFlowPhoneContactMiddleware(
+  options: CreateDiscoveredFlowCallbackHandlerOptions
+): Middleware {
+  const handlerIndex = createHandlerIndex(options.handlers);
+
+  return async (context, next) => {
+    if (!context.message?.contact) {
+      await next();
+      return;
+    }
+
+    if (!context.user || !context.chat) {
+      await context.reply("Could not verify the shared phone number sender.");
+      return;
+    }
+
+    const pending = await findPendingPhoneAction(
+      options.flows.map(({ flow }) => flow),
+      options.storage,
+      String(context.user.id)
+    );
+
+    if (!pending) {
+      await next();
+      return;
+    }
+
+    const sharedContact = extractSharedPhoneContact(context.update);
+
+    if (!sharedContact) {
+      await context.reply("Please share your own Telegram contact using the phone button.");
+      return;
+    }
+
+    const currentState = readPersistedFlowState(pending.flow, pending.persisted);
+    const actionHandler =
+      pending.action.handler ??
+      handlerIndex.get(`${pending.flow.id}:${pending.stepId}`)?.actions[
+        resolveFlowActionKey(pending.action)
+      ] ??
+      undefined;
+    const phone = {
+      normalizedPhoneNumber: sharedContact.normalizedPhoneNumber,
+      phoneNumber: sharedContact.phoneNumber,
+      telegramUserId: sharedContact.telegramUserId
+    };
+    const stateWithPhone = applyPhoneToState(
+      currentState,
+      pending.action,
+      phone.normalizedPhoneNumber,
+      phone.phoneNumber
+    );
+    const result = actionHandler
+      ? await actionHandler({
+          flow: pending.flow,
+          phone,
+          services: options.services,
+          state: stateWithPhone
+        })
+      : undefined;
+    const nextState = resolveNextState(stateWithPhone, result);
+    const nextStepId = resolveNextStepId(pending.stepId, pending.action, result);
+    const miniAppUrl = await resolveMiniAppUrlForPhoneRequest(
+      options.miniAppUrl,
+      pending.action,
+      options.phoneAuthSecret ?? options.secret,
+      phone
+    );
+
+    await options.storage.advanceStep(
+      pending.stateKey,
+      nextStepId,
+      nextState as Record<string, unknown>
+    );
+    options.debugTracker.trackTransition({
+      flow: pending.flow,
+      fromStepId: pending.stepId,
+      payload: { phoneNumber: phone.normalizedPhoneNumber },
+      stateKey: pending.stateKey,
+      stepId: nextStepId,
+      type: "action"
+    });
+    options.debugTracker.trackStep({
+      chatId: String(context.chat.id),
+      flow: pending.flow,
+      snapshotStateAvailable: true,
+      stateKey: pending.stateKey,
+      stepId: nextStepId,
+      userId: String(context.user.id)
+    });
+
+    await enterDiscoveredFlowStep(
+      {
+        chatId: context.chat.id,
+        debugTracker: options.debugTracker,
+        flow: pending.flow,
+        handlers: options.handlers,
+        miniAppUrl,
+        secret: options.secret,
+        services: options.services,
+        state: nextState,
+        stateKey: pending.stateKey,
+        storage: options.storage
+      },
+      {
+        bot: requireBoundBot(context.bot, pending.flow.id),
+        handlerIndex
+      }
+    );
+  };
+}
+
 function createDiscoveredFlowWebAppDataHandler(
   options: CreateDiscoveredFlowWebAppDataHandlerOptions
 ): WebAppDataHandler {
@@ -733,6 +875,31 @@ async function enterDiscoveredFlowStep(
   throw new Error(`Flow "${options.flow.id}" exceeded the maximum transition depth.`);
 }
 
+async function resolveMiniAppUrlForPhoneRequest(
+  baseMiniAppUrl: string | null | undefined,
+  action: FlowActionDefinition<unknown, unknown>,
+  secret: string,
+  phone: {
+    normalizedPhoneNumber: string;
+    telegramUserId: number;
+  }
+): Promise<string | null> {
+  if (!baseMiniAppUrl) {
+    return null;
+  }
+
+  if (!action.phoneRequest?.auth) {
+    return baseMiniAppUrl;
+  }
+
+  return createPhoneAuthLink({
+    phoneNumber: phone.normalizedPhoneNumber,
+    secret,
+    telegramUserId: phone.telegramUserId,
+    webAppUrl: baseMiniAppUrl
+  });
+}
+
 async function sendChatStepMessage(
   bot: Pick<BotInstance, "sendMessage">,
   flow: TeleforgeFlowDefinition<unknown, unknown>,
@@ -744,6 +911,17 @@ async function sendChatStepMessage(
   stateKey: string
 ): Promise<void> {
   const text = typeof step.message === "function" ? step.message({ state }) : step.message;
+  const phoneAction = (step.actions ?? []).find((action) => action.phoneRequest);
+
+  if (phoneAction) {
+    await bot.sendMessage(chatId, text, {
+      reply_markup: createPhoneNumberRequestMarkup({
+        text: phoneAction.label
+      })
+    });
+    return;
+  }
+
   const buttons = (step.actions ?? []).map((action) => [
     action.miniApp && miniAppUrl
       ? createMiniAppButton({
@@ -795,6 +973,72 @@ async function sendChatStepMessage(
         }
       : {})
   });
+}
+
+async function findPendingPhoneAction(
+  flows: readonly TeleforgeFlowDefinition<unknown, unknown>[],
+  storage: UserFlowStateManager,
+  userId: string
+): Promise<PendingPhoneAction | null> {
+  for (const flow of flows) {
+    const persisted = await storage.resumeFlow(userId, flow.id);
+
+    if (!persisted) {
+      continue;
+    }
+
+    const stateKey = storage.createStateKey(userId, flow.id);
+    const stepId = String(persisted.stepId);
+    const step = getFlowStep(flow, stepId);
+
+    if (step.type !== "chat") {
+      continue;
+    }
+
+    const action = (step.actions ?? []).find((candidate) => candidate.phoneRequest);
+
+    if (!action) {
+      continue;
+    }
+
+    return {
+      action,
+      flow,
+      persisted,
+      stateKey,
+      step,
+      stepId
+    };
+  }
+
+  return null;
+}
+
+function applyPhoneToState(
+  state: unknown,
+  action: FlowActionDefinition<unknown, unknown>,
+  normalizedPhoneNumber: string,
+  rawPhoneNumber: string
+): unknown {
+  const phoneRequest = action.phoneRequest;
+
+  if (!phoneRequest) {
+    return state;
+  }
+
+  const nextState =
+    state && typeof state === "object" && !Array.isArray(state)
+      ? { ...(state as Record<string, unknown>) }
+      : {};
+  const stateField = phoneRequest.stateField ?? "phoneNumber";
+
+  nextState[stateField] = normalizedPhoneNumber;
+
+  if (phoneRequest.rawStateField) {
+    nextState[phoneRequest.rawStateField] = rawPhoneNumber;
+  }
+
+  return nextState;
 }
 
 function isMiniAppEntryFlow(flow: TeleforgeFlowDefinition<unknown, unknown>): boolean {
