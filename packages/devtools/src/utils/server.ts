@@ -453,6 +453,10 @@ function buildCompanionEnv(env: NodeJS.ProcessEnv, publicUrl: string): NodeJS.Pr
     ...process.env,
     ...env,
     MINI_APP_URL: preferNonEmptyEnv(env.MINI_APP_URL, publicUrl),
+    TELEFORGE_FLOW_SECRET: preferNonEmptyEnv(
+      env.TELEFORGE_FLOW_SECRET,
+      "teleforge-local-dev-flow-secret"
+    ),
     TELEFORGE_PUBLIC_URL: publicUrl
   };
 }

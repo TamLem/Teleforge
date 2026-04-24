@@ -16,7 +16,7 @@ interface PackageNames {
 
 function teleforgeDependency(linkPath?: string): Record<string, string> {
   return {
-    teleforge: !linkPath ? "^0.1.0" : `link:${linkPath}/packages/teleforge`
+    teleforge: !linkPath ? "^0.1.1" : `link:${linkPath}/packages/teleforge`
   };
 }
 
@@ -265,6 +265,7 @@ ${webhookSecret}
 # Mini App Configuration
 TELEGRAM_BOT_USERNAME=your_bot_username
 MINI_APP_URL=
+TELEFORGE_FLOW_SECRET=
 
 # Optional: Development
 TELEFORGE_DEV_PORT=3000
@@ -397,18 +398,25 @@ function botTsconfig(): string {
 }
 
 function botIndexTs(): string {
-  return `import { startTeleforgeBot } from "teleforge";
+  return `import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const { stop } = await startTeleforgeBot();
+import { startTeleforgeBot } from "teleforge";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+
+const { stop } = await startTeleforgeBot({
+  cwd: projectRoot
+});
 
 process.on("SIGINT", () => {
-  console.log("\n[bot] shutting down...");
+  console.log("\\n[bot] shutting down...");
   stop();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
-  console.log("\n[bot] shutting down...");
+  console.log("\\n[bot] shutting down...");
   stop();
   process.exit(0);
 });
@@ -416,18 +424,23 @@ process.on("SIGTERM", () => {
 }
 
 function botRuntimeTs(): string {
-  return `import { startTeleforgeBot } from "teleforge";
+  return `import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { startTeleforgeBot } from "teleforge";
 import { type BotRuntime } from "teleforge/bot";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 export async function createDevBotRuntime(options?: { miniAppUrl?: string }): Promise<BotRuntime> {
   const { runtime } = await startTeleforgeBot({
+    cwd: projectRoot,
     miniAppUrl: options?.miniAppUrl,
     previewStart: false,
     bot: {
       async sendMessage() {
         return { chat: { id: 0 }, message_id: 0, text: "" };
-      },
-      async setCommands() {}
+      }
     }
   });
   return runtime;

@@ -32,7 +32,7 @@ test("generates the unified Teleforge scaffold", async () => {
   const rootPackage = JSON.parse(await readFile(rootPackagePath, "utf8"));
   assert.equal(rootPackage.name, "sample-app");
   assert.deepEqual(rootPackage.workspaces, ["apps/*", "packages/*"]);
-  assert.equal(rootPackage.dependencies.teleforge, "^0.1.0");
+  assert.equal(rootPackage.dependencies.teleforge, "^0.1.1");
   assert.equal(
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
@@ -69,6 +69,7 @@ test("generates the unified Teleforge scaffold", async () => {
   const envExamplePath = path.join(tmpRoot, projectName, ".env.example");
   const envExample = await readFile(envExamplePath, "utf8");
   assert.match(envExample, /BOT_TOKEN=your_bot_token_here/);
+  assert.match(envExample, /TELEFORGE_FLOW_SECRET=/);
   assert.doesNotMatch(envExample, /WEBHOOK_SECRET/);
 
   const typesPackagePath = path.join(tmpRoot, projectName, "packages", "types", "package.json");
@@ -102,6 +103,15 @@ test("generates the unified Teleforge scaffold", async () => {
   const runtimeSource = await readFile(runtimePath, "utf8");
   assert.match(runtimeSource, /startTeleforgeBot/);
   assert.match(runtimeSource, /createDevBotRuntime/);
+  assert.match(runtimeSource, /cwd: projectRoot/);
+  assert.doesNotMatch(runtimeSource, /setCommands/);
+
+  const botIndexPath = path.join(tmpRoot, projectName, "apps", "bot", "src", "index.ts");
+  const botIndexSource = await readFile(botIndexPath, "utf8");
+  assert.match(botIndexSource, /const projectRoot = path\.resolve/);
+  assert.match(botIndexSource, /cwd: projectRoot/);
+  assert.match(botIndexSource, /console\.log\("\\n\[bot\] shutting down\.\.\."\)/);
+  assert.doesNotMatch(botIndexSource, /console\.log\("\n\[bot\] shutting down/);
 
   const botTestPath = path.join(tmpRoot, projectName, "apps", "bot", "test", "start.test.ts");
   const botTest = await readFile(botTestPath, "utf8");

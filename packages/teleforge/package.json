@@ -1,6 +1,6 @@
 {
   "name": "teleforge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unified TypeScript framework package for Telegram-native apps.",
   "homepage": "https://tamlem.github.io/Teleforge/",
   "type": "module",

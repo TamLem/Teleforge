@@ -256,7 +256,7 @@ test("dev starts companion app services with the resolved Mini App URL", async (
   await writeFile(
     path.join(binRoot, "pnpm"),
     `#!/bin/sh
-printf '%s|%s|%s\\n' "$PWD" "$*" "$MINI_APP_URL" >> "$TELEFORGE_SERVICE_LOG"
+printf '%s|%s|%s|%s\\n' "$PWD" "$*" "$MINI_APP_URL" "$TELEFORGE_FLOW_SECRET" >> "$TELEFORGE_SERVICE_LOG"
 trap 'exit 0' TERM INT
 while :; do
   sleep 1
@@ -304,7 +304,12 @@ done
 
     assert.match(stdout, /Companion services active: bot/);
     assert.doesNotMatch(log, /apps[/\\]api\|dev\|/);
-    assert.match(log, new RegExp(`apps[/\\\\]bot\\|dev\\|http://localhost:${port}`));
+    assert.match(
+      log,
+      new RegExp(
+        `apps[/\\\\]bot\\|dev\\|http://localhost:${port}\\|teleforge-local-dev-flow-secret`
+      )
+    );
   } finally {
     await cleanup();
   }
