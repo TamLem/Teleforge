@@ -1,363 +1,213 @@
 # Flow Coordination
 
-Flow coordination is Teleforge's main differentiator: a user starts in chat, continues in the Mini App, and returns to chat with structured state persisted across surfaces.
+Flow coordination is Teleforge's main product model: a user can start in chat, continue in the Mini App, and return to chat while the framework preserves flow state across surfaces.
 
-This guide walks through the flow-first coordination model using `apps/task-shop`.
+Use this guide after [Build Your First Feature](./first-feature.md). It describes the current high-level architecture used by generated apps and `teleforge start`.
 
-## Core Mental Model
+## Mental Model
 
+```txt
+flow -> step -> screen -> transition
 ```
-flow → step → screen → transition
-```
 
-- **Flow** defines the state machine: initial step, state shape, and step transitions
-- **Step** is a node in the flow: either `type: "chat"` (message with buttons) or `type: "miniapp"` (screen)
-- **Screen** is a React component registered by ID that renders a miniapp step
-- **Transition** is a state update + optional step change, triggered by submit or action
+- **Flow**: the complete journey, including state, entry command, and step graph.
+- **Step**: one interaction point, either `type: "chat"` or `type: "miniapp"`.
+- **Screen**: a React module registered with `defineScreen()` and referenced by a Mini App step.
+- **Transition**: a state update and optional move to another step.
+- **Runtime**: framework-owned bot, Mini App, and optional server-hook wiring.
 
-## The Lifecycle
+The app author should normally edit flow files and screen files. Teleforge owns command routing, signed Mini App launch payloads, client manifest generation, server-hook routing, and bot delivery.
 
-The coordinated flow in Task Shop is:
+## Default Lifecycle
 
-1. User sends `/start` in chat → bot creates a `FlowInstance`
-2. Bot sends a Mini App button with signed flow context URL
-3. Mini App opens, resolves screen from URL, loads persisted state
-4. User navigates screens, submits data → flow `onSubmit` handlers run
-5. Final step targets `chat` → Mini App transmits handoff to bot
-6. Bot renders chat step message with confirmation and next actions
+For a generated app, the normal lifecycle is:
 
-## 1. Define the Flow
+1. User sends a bot command such as `/start`.
+2. `startTeleforgeBot()` loads `teleforge.config.ts`, discovers flows, and enters the command's flow.
+3. The bot sends a Mini App launch button when the flow enters a Mini App step.
+4. `TeleforgeMiniApp` resolves the current URL against the client flow manifest and renders the matching screen.
+5. The screen calls `submit()` or an action helper.
+6. Teleforge runs the matching flow handler or trusted server hook, updates state, and moves to the next step.
+7. If the next step is a chat step, Teleforge hands control back to the bot runtime and renders the chat message.
 
-Open [`apps/task-shop/apps/bot/src/flows/task-shop-browse.flow.ts`](../../apps/task-shop/apps/bot/src/flows/task-shop-browse.flow.ts).
+The same flow definition owns both chat and Mini App steps. Do not split one journey into separate "bot flow" and "Mini App flow" files.
+
+## Flow Definition
 
 ```ts
-export default defineFlow<TaskShopFlowState>({
-  id: "task-shop-browse",
-  initialStep: "catalog",
-  finalStep: "completed",
-  state: { cart: [], lastOrder: null, selectedTaskId: null },
+import { chatStep, defineFlow, miniAppStep, openMiniAppAction } from "teleforge";
+
+export default defineFlow({
+  id: "checkout",
+  initialStep: "welcome",
+  state: {
+    selectedItemId: null as string | null
+  },
   bot: {
     command: {
       command: "start",
-      description: "Open the Task Shop Mini App",
-      text: "Welcome to Task Shop..."
+      description: "Start checkout",
+      text: "Open checkout to continue."
     }
   },
   miniApp: {
-    route: "/",
-    stepRoutes: {
-      cart: "/cart",
-      checkout: "/checkout",
-      detail: "/detail",
-      success: "/success"
-    }
+    route: "/checkout"
   },
   steps: {
-    catalog: {
-      screen: "task-shop.catalog",
-      type: "miniapp",
-      async onSubmit({ data, state }) {
-        // Handle add-item, view-detail, go-to-cart, go-to-checkout
-      }
-    },
-    checkout: {
-      screen: "task-shop.checkout",
-      type: "miniapp",
-      async onSubmit({ data, state }) {
-        if (data.type === "complete-order") {
-          return {
-            state: { ...state, cart: [], lastOrder: createOrderFromCart(state.cart) },
-            to: "success"
-          };
-        }
-      }
-    },
-    success: {
-      screen: "task-shop.success",
-      type: "miniapp"
-      // actions array defines "return-to-chat" button
-    },
-    completed: {
+    welcome: chatStep("Ready to shop?", [openMiniAppAction("Open checkout", "catalog")]),
+    catalog: miniAppStep("catalog"),
+    done: {
       type: "chat",
-      message: ({ state }) => `Order confirmed! Total: ${state.lastOrder?.total} Stars`
+      message: ({ state }) =>
+        state.selectedItemId ? `Selected ${state.selectedItemId}.` : "No item selected."
     }
   }
 });
 ```
 
-This file defines:
-
-- The flow ID: `task-shop-browse`
-- The state shape: `TaskShopFlowState`
-- The steps and their types (`miniapp` or `chat`)
-- The `onSubmit` handlers that process Mini App submissions
-- The bot command that enters the flow
-- The Mini App routes for each step
-
-## 2. Enter the Flow from the Bot
-
-Open [`apps/task-shop/apps/bot/src/index.ts`](../../apps/task-shop/apps/bot/src/index.ts).
-
-The task-shop example uses `createDiscoveredBotRuntime`, which is the lower-level escape hatch. The current scaffold uses `startTeleforgeBot()` from `teleforge` instead, which wraps the same discovery with config loading, secret resolution, and automatic polling startup.
-
-`createDiscoveredBotRuntime` automatically:
-
-1. Discovers all `.flow.ts` files in `apps/bot/src/flows/`
-2. Registers bot commands from each flow's `bot.command` definition
-3. Creates a `UserFlowStateManager` with configured storage
-4. Binds update handlers for commands, callbacks, and `web_app_data`
-
-When the user sends `/start`:
+Raw step objects are also supported when a helper does not fit:
 
 ```ts
-// Framework automatically:
-// 1. storage.startInstance(userId, flowId, initialStep, initialState, chatId)
-// 2. Creates signed flow context URL with stateKey
-// 3. Sends Mini App button with the signed URL
-```
-
-The chat button's `web_app.url` contains:
-
-```
-https://app.ngrok.app?tgWebAppStartParam=tfp1.{signedPayload}
-```
-
-The signed payload includes: `flowId`, `stepId`, `stateKey`, `route`, and any `miniApp.payload` from the action.
-
-## 3. Register Screens in the Mini App
-
-Open [`apps/task-shop/apps/web/src/main.tsx`](../../apps/task-shop/apps/web/src/main.tsx).
-
-```tsx
-import { TeleforgeMiniApp, createFetchMiniAppServerBridge } from "teleforge/web";
-
-import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
-
-const serverBridge = createFetchMiniAppServerBridge();
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <TeleforgeMiniApp
-    flowManifest={flowManifest}
-    screens={[catalogScreen, cartScreen, checkoutScreen, successScreen, taskDetailScreen]}
-    serverBridge={serverBridge}
-  />
-);
-```
-
-The `TeleforgeMiniApp` shell:
-
-1. Resolves the current pathname to a flow step using `resolveMiniAppScreen`
-2. Loads persisted state from the server bridge
-3. Merges launch payload (e.g., `selectedItem` from chat button) into state
-4. Renders the matching screen component with `state`, `submit`, `transitioning` props
-
-The manifest is intentionally client-safe. Do not import `apps/bot/src/flows/*` from the web entry; flow modules may contain server handlers and Node-only dependencies.
-
-## 4. Implement a Screen
-
-Open [`apps/task-shop/apps/web/src/screens/catalog.screen.tsx`](../../apps/task-shop/apps/web/src/screens/catalog.screen.tsx).
-
-```tsx
-export default defineScreen<TaskShopFlowState>({
-  id: "task-shop.catalog",
-  title: "Browse Tasks",
-  component({ state, submit, transitioning }) {
-    const handleSubmit = (payload: TaskShopSubmitPayload) => void submit?.(payload);
-
-    return (
-      <TaskShopFrame title="Task Shop">
-        <div className="catalog-grid">
-          {mockTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              onAdd={() => handleSubmit({ taskId: task.id, type: "add-item" })}
-              onViewDetail={() => handleSubmit({ taskId: task.id, type: "view-detail" })}
-              task={task}
-            />
-          ))}
-        </div>
-      </TaskShopFrame>
-    );
+catalog: {
+  screen: "catalog",
+  type: "miniapp",
+  onSubmit({ data, state }) {
+    return {
+      state: { ...state, selectedItemId: String(data.itemId) },
+      to: "done"
+    };
   }
-});
-```
-
-Screens receive:
-
-- **`state`** — The authoritative `FlowInstance.state` (from storage, merged with launch payload)
-- **`submit`** — Function to call flow `onSubmit` handler (triggers server-side transition)
-- **`transitioning`** — Boolean indicating a submit is in progress
-- **`loaderData`** — Optional data from server-side loader
-
-## 5. Submit and Transition
-
-When the user clicks "Add to cart":
-
-```
-Screen calls submit({ taskId: "task-001", type: "add-item" })
-  → executeMiniAppStepSubmit()
-    → serverBridge.submit({ data, flowId, state, stepId, stateKey })
-      → POST /api/teleforge/flow-hooks submit
-        → Server executes flow.onSubmit({ data, state })
-          → Returns { state: { cart: [...] } } (no `to` → stays on same step)
-            → Client updates state, re-renders screen
-```
-
-When the user clicks "Complete purchase":
-
-```
-Screen calls submit({ type: "complete-order" })
-  → Server executes flow.onSubmit()
-    → Returns { state: { cart: [], lastOrder: {...} }, to: "success" }
-      → Client transitions to success screen
-        → URL updates to /success
-          → persistMiniAppSnapshot saves state to sessionStorage
-```
-
-## 6. Return to Chat (Handoff)
-
-When the user clicks "Return to chat" on the success screen:
-
-```
-Screen action "return-to-chat" triggers
-  → executeMiniAppStepAction()
-    → Server finds action "return-to-chat" in flow definition
-      → Returns target: "chat", stepId: "completed"
-        → applyMiniAppExecutionResult()
-          → target === "chat"
-            → transmitMiniAppChatHandoff()
-              → serverBridge.chatHandoff({ flowContext, state, stateKey, stepId: "completed" })
-                → POST /api/teleforge/flow-hooks chatHandoff
-                  → Bot's handleChatHandoff() receives the call
-                    → storage.advanceStep(stateKey, "completed", state, "chat")
-                    → enterDiscoveredFlowStep()
-                      → sendChatStepMessage()
-                        → "Order confirmed! Items: 1, Total: 10 Stars"
-```
-
-## Chat-To-Mini App Deep Links
-
-A chat step action can transition directly into a Mini App step. When an action carries a `miniApp` marker, the framework renders it as a `web_app` inline keyboard button with a signed deep-link payload.
-
-Actions without a `miniApp` marker render as `callback_data` buttons. Both button types can coexist in a single chat step message.
-
-```ts
-actions: [
-  {
-    label: "Open checkout",
-    miniApp: { payload: { source: "chat" } },
-    to: "checkout"
-  },
-  {
-    label: "Ask a question",
-    to: "support"
-  }
-];
-```
-
-Runtime behavior:
-
-- `miniApp` action with `miniAppUrl` available → signed launch payload + `web_app` button
-- action without `miniApp` → callback data button
-- Mini App return to chat → `sendData` when available, otherwise server-hook bridge `chatHandoff`
-
-During local development, Task Shop proxies `/api/teleforge/flow-hooks` to the hooks server so the Mini App can use same-origin requests through the simulator and tunnel.
-
-## Standalone Mode
-
-When the Mini App is opened from Telegram's Mini Apps menu (no `tgWebAppStartParam`):
-
-1. `launchCoordination` returns `flowContext: null, stateKey: null`
-2. `resolveScreenWithStandaloneFallback` detects this and redirects to the first `type: "miniapp"` step
-3. Chat handoff is skipped — the app stays in the Mini App
-4. Screens should handle missing state gracefully (e.g., show a product picker when `selectedItem` is null)
-
-## Anti-Pattern: Splitting a Journey Across Flows
-
-Do not split a user journey that crosses chat and Mini App surfaces into separate "entry flow" and "miniapp flow" definitions. For example, do not create a `start` flow with a chat step and a separate `onboard` flow with a Mini App step when those steps belong to the same journey.
-
-The framework scopes flow state, signed launch context, and step transitions to a single flow. A `FlowInstance` records one `flowId`. The signed `tgWebAppStartParam` embeds that `flowId` at launch time. When a Mini App `onSubmit` returns `{ to: "confirm" }`, the runtime looks up step `"confirm"` in the flow that owns the instance — not in whatever flow the Mini App screen happened to resolve to by URL route.
-
-If the instance belongs to a `start` flow but the Mini App resolved to an `onboard` flow's route, the handoff will fail because `"confirm"` does not exist in the `start` flow. The `defineFlow` validation also enforces that all `action.to` references point to steps within the same flow.
-
-**Correct:** one flow with `chat → miniapp → chat` steps (like `shop-catalogue` in task-shop). The entry step's type (`"chat"` or `"miniapp"`) determines whether the bot command sends a chat message or a Mini App launch button, but both step types coexist in the same flow.
-
-```ts
-// ✅ One flow, multiple surface types
-defineFlow({
-  id: "onboard",
-  initialStep: "identify",
-  steps: {
-    identify: { type: "chat", ... },
-    home: { type: "miniapp", ... },
-    confirm: { type: "chat", ... }
-  }
-})
-
-// ❌ Two flows for one journey — handoff breaks
-defineFlow({ id: "start", steps: { identify: { type: "chat", ... } } })
-defineFlow({ id: "onboard", steps: { home: { type: "miniapp", ... }, confirm: { type: "chat", ... } } })
-```
-
-## What to Copy Into Your Own App
-
-1. **Define a flow** with `defineFlow({ id, initialStep, state, steps })`
-2. **Add a bot command** in `bot.command` for chat entry
-3. **Expose client-safe route metadata in `apps/web/src/teleforge-generated/client-flow-manifest.ts` (generated by `teleforge generate client-manifest`)** for URL-based screen resolution
-4. **Implement `onSubmit` handlers** in steps that need server-side logic
-5. **Create screens** with `defineScreen({ id, component })`
-6. **Register the flow manifest and screens** in `main.tsx`
-7. **Wire `createFetchMiniAppServerBridge()`** for server communication
-8. **Create a hooks server** in `apps/api` using `createDiscoveredServerHooksHandler` (or `startTeleforgeServer()` for the high-level bootstrap)
-
-## Hooks Server Setup
-
-For chat handoff to work through the server bridge (required for inline-keyboard-launched Mini Apps), the bot process must also run a hooks server with `onChatHandoff` wired to the bot runtime. Without this, the server bridge returns 501 for `chatHandoff` requests and the Mini App falls back to `sendData`, which only works for main-keyboard-launched Mini Apps.
-
-The modern high-level bootstrap uses `startTeleforgeServer()` from `teleforge`, which loads config, creates the discovered hooks handler, and starts a Node HTTP server automatically. When your app needs chat handoff, wire `onChatHandoff` to the bot runtime:
-
-```ts
-import { startTeleforgeBot, startTeleforgeServer } from "teleforge";
-
-const { runtime } = await startTeleforgeBot();
-const server = await startTeleforgeServer({ onChatHandoff: (input) => runtime.handleChatHandoff(input) });
-```
-
-If your app does not use chat handoff, the bare `startTeleforgeServer()` call is sufficient.
-
-For apps that need explicit wiring (like the current task-shop example), the lower-level escape hatch is:
-
-```ts
-// apps/bot/src/index.ts
-import { startHooksServer } from "../../api/src/index.ts";
-
-const runtime = await createDiscoveredBotRuntime(config);
-
-await startHooksServer({
-  cwd: process.cwd(),
-  onChatHandoff: (input) => runtime.handleChatHandoff(input),
-  storage: runtime.getStorage()
-});
-```
-
-```ts
-// apps/api/src/index.ts
-export async function startHooksServer(options) {
-  const hooksHandler = await createDiscoveredServerHooksHandler({
-    cwd: options.cwd,
-    onChatHandoff: options.onChatHandoff,
-    storage: options.storage
-  });
-
-  // Node HTTP server on port 3100 (or configured port)
-  // Vite dev server proxies /api/teleforge to this server
 }
 ```
 
-During local development, the Vite dev server proxies `/api/teleforge` to the hooks server so the Mini App can use same-origin requests through the tunnel.
+## Screen Registration
+
+Mini App screens live under the configured screen root, normally `apps/web/src/screens`.
+
+```tsx
+import { defineScreen, useTeleforgeMiniAppRuntime } from "teleforge/web";
+
+function CatalogScreen() {
+  const runtime = useTeleforgeMiniAppRuntime();
+
+  return (
+    <button onClick={() => runtime.submit({ itemId: "task-001" })}>
+      Select task-001
+    </button>
+  );
+}
+
+export default defineScreen({
+  component: CatalogScreen,
+  id: "catalog",
+  title: "Catalog"
+});
+```
+
+`apps/web/src/main.tsx` is the framework-owned Mini App shell:
+
+```tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { TeleforgeMiniApp } from "teleforge/web";
+
+import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
+import catalogScreen from "./screens/catalog.screen.js";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <TeleforgeMiniApp flowManifest={flowManifest} screens={[catalogScreen]} />
+  </React.StrictMode>
+);
+```
+
+The client manifest is browser-safe. Do not import `apps/bot/src/flows/*` from the web entry; flow files may contain server-only handlers or dependencies. `teleforge dev` refreshes the manifest when stale, and `teleforge doctor` reports drift.
+
+## Trusted Server Work
+
+Keep simple state transitions in flow `onSubmit` handlers. Use server hooks when a step needs authority the browser cannot have:
+
+- private data loading
+- permission checks
+- durable writes
+- payment/order/session creation
+- calls to services with server-only credentials
+
+Generate placeholder hook files with:
+
+```bash
+create-teleforge-app my-app --with-api
+```
+
+The default convention is:
+
+```txt
+apps/api/src/flow-hooks/{flowId}/{stepId}.ts
+```
+
+At runtime, `teleforge start` starts the framework-owned hooks server when hooks are discovered or when webhook delivery needs an HTTP endpoint.
+
+## Chat Handoff
+
+When a Mini App action transitions to a chat step, Teleforge attempts to hand control back to the bot runtime. The high-level runtime wires this path for generated apps and `teleforge start`.
+
+For most apps, the important rule is simple: keep the chat step in the same flow.
+
+```ts
+steps: {
+  catalog: {
+    screen: "catalog",
+    type: "miniapp",
+    actions: [
+      {
+        id: "complete",
+        label: "Return to chat",
+        to: "done"
+      }
+    ]
+  },
+  done: {
+    type: "chat",
+    message: "Done."
+  }
+}
+```
+
+## Anti-Pattern: Splitting One Journey Across Flows
+
+Do not create one flow for chat entry and another flow for the Mini App continuation when they are one user journey.
+
+The runtime signs launch context for a single `flowId` and advances steps inside that same flow. If a Mini App submit returns `{ to: "confirm" }`, the runtime looks for `confirm` in the flow that owns the active instance.
+
+```ts
+// Good: one flow owns both surfaces.
+defineFlow({
+  id: "onboarding",
+  steps: {
+    welcome: { type: "chat", ... },
+    profile: { type: "miniapp", screen: "profile" },
+    confirm: { type: "chat", ... }
+  }
+});
+
+// Bad: state and transitions are split across unrelated flows.
+defineFlow({ id: "start", steps: { welcome: { type: "chat", ... } } });
+defineFlow({ id: "profile", steps: { profile: { type: "miniapp", ... } } });
+```
+
+## Escape Hatches
+
+Advanced apps can still assemble lower-level runtime pieces manually:
+
+- `createDiscoveredBotRuntime()` for custom bot process ownership, storage, or service injection
+- `createDiscoveredServerHooksHandler()` for custom HTTP hosting
+- `teleforge/bot` webhook adapters for non-standard server frameworks
+
+Treat these as escape hatches. The default app path is `teleforge.config.ts`, flow files, screen files, optional server hooks, `teleforge dev`, and `teleforge start`.
 
 ## Read Alongside
 
-- [Flow State Design](./flow-state-design.md) — Storage model and execution architecture
-- [Mini App Architecture](./miniapp-architecture.md) — 18 frontend guidelines
-- [Framework Model](./framework-model.md) — flow-first authoring model and public imports
+- [Framework Model](./framework-model.md)
+- [Server Hooks](./server-hooks.md)
+- [Flow State Architecture](./flow-state-design.md)
+- [Deployment](./deployment.md)

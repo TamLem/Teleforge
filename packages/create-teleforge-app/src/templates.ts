@@ -133,7 +133,7 @@ ${apiStructure.trimEnd()}
 - \`apps/web/src/teleforge-generated/client-flow-manifest.ts\`: framework-generated client-safe flow metadata for the Mini App shell
 ${apiReadFirst.trimEnd()}
 
-The scaffold intentionally starts with one shared state type, one flow, and one screen. Run \`teleforge generate client-manifest\` to regenerate the client manifest after flow changes. Add more domain contracts, flow files, and screen modules as the app grows.
+The scaffold intentionally starts with one shared state type, one flow, and one screen. \`teleforge dev\` refreshes the client manifest when it is stale, \`teleforge doctor\` reports drift, and \`teleforge generate client-manifest\` is available when you want to regenerate it manually. Add more domain contracts, flow files, and screen modules as the app grows.
 
 ## Dev Workflow
 

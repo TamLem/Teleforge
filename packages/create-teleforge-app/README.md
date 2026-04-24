@@ -34,7 +34,7 @@ The scaffold is polling-first by default:
 
 Generated apps also export `apps/bot/src/runtime.ts`, so `teleforge dev` can execute `/start`, `web_app_data`, and callback flows directly inside the simulator chat without Telegram.
 
-The default scaffold does not include `apps/api` or `WEBHOOK_SECRET`. Generate with `--with-api` when the app needs trusted server hooks or a webhook placeholder. Those files do not make webhook mode active by themselves; webhook mode only makes sense once the primary web runtime actually serves `/api/webhook`.
+The default scaffold does not include `apps/api` or `WEBHOOK_SECRET`. Generate with `--with-api` when the app needs trusted server hooks or a webhook placeholder. Those files do not make webhook mode active by themselves; webhook mode only makes sense once `runtime.bot.delivery` is `"webhook"` and the deployed `teleforge start` server exposes the configured webhook path over public HTTPS.
 
 ## Recommended Reading After Generation
 

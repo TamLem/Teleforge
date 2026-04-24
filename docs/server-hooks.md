@@ -42,13 +42,13 @@ The hook should return typed data or transition results that the runtime can app
 apps/bot/src/flows/
   checkout.flow.ts
 
-apps/bot/src/flow-server-hooks/
+apps/api/src/flow-hooks/
   checkout/
     catalog.ts
     review.ts
 ```
 
-Use the flow and step ids as the filesystem boundary. This keeps backend logic close to the flow step that owns it.
+Use the flow and step ids as the filesystem boundary. The default scaffold does not include `apps/api`; generate placeholder hook files with `create-teleforge-app my-app --with-api` when a project needs trusted hooks or a webhook placeholder.
 
 ## Example Loader and Submit
 
@@ -89,9 +89,17 @@ The frontend can render UI and collect input. It is not authoritative for:
 
 Server hooks should validate those conditions before returning success.
 
-## Internal Backend Primitives
+## Runtime Wiring
 
-App authors should not import an internal package to build a normal Teleforge app. Use `teleforge/server-hooks` and the generated runtime conventions instead.
+In the default runtime path, `teleforge start` discovers server hooks and starts the hooks server when hooks are present. The server also hosts the Telegram webhook endpoint when `runtime.bot.delivery` is `"webhook"`.
+
+For local development, `teleforge dev` runs the simulator and companion services. Use `teleforge doctor` if a hook is not discovered or a Mini App step cannot resolve its trusted runtime path.
+
+## Escape Hatches
+
+App authors should not import internal implementation packages to build a normal Teleforge app. Use generated conventions and `teleforge start` first.
+
+When a custom server owns HTTP routing, import from `teleforge/server-hooks` and mount `createDiscoveredServerHooksHandler()` yourself. Keep that as an advanced hosting path, not the default scaffold model.
 
 ## Shared Phone Auth
 

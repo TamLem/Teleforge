@@ -51,13 +51,14 @@ The bot can receive updates by polling or webhook.
 Use `teleforge start` for the simplest production deployment:
 
 ```bash
-BOT_TOKEN=123456:token pnpm --dir apps/bot start
+BOT_TOKEN=123456:token teleforge start
 ```
 
 This calls the framework-owned `startTeleforgeBot()` which:
 - loads `teleforge.config.ts` and discovers flows
 - resolves secrets from the environment
-- starts polling automatically when `BOT_TOKEN` is present
+- starts polling automatically when `runtime.bot.delivery` is omitted or set to `"polling"`
+- starts webhook delivery without polling when `runtime.bot.delivery` is `"webhook"`
 - fails fast if required secrets are missing in live mode
 
 When implementing custom polling, request both `message` and `callback_query` update types. Chat inline-keyboard actions produce `callback_query` updates; Mini App `sendData` handoffs arrive as `message` updates with `web_app_data`. Omitting `callback_query` from `allowed_updates` causes inline keyboard buttons to be silently ignored:
@@ -80,6 +81,15 @@ Webhook delivery is supported by `teleforge start`. When `runtime.bot.delivery` 
 - do not run polling for the same bot at the same time
 
 Required environment variables for webhook mode: `BOT_TOKEN`, `TELEFORGE_FLOW_SECRET`, `MINI_APP_URL`, and the secret named in `bot.webhook.secretEnv`.
+
+## Production Runtime Matrix
+
+| Runtime need | Default path | Required config | Required environment |
+| ------------ | ------------ | --------------- | -------------------- |
+| Polling bot | `teleforge start` | `bot.username`, `bot.tokenEnv`; `runtime.bot.delivery` omitted or `"polling"` | `BOT_TOKEN`; `MINI_APP_URL` for live Mini App launches |
+| Webhook bot | `teleforge start` | `runtime.bot.delivery: "webhook"` plus `bot.webhook.path` and `bot.webhook.secretEnv` | `BOT_TOKEN`, `MINI_APP_URL`, `TELEFORGE_FLOW_SECRET`, webhook secret env |
+| Server hooks | `teleforge start` discovers hooks by convention | `flows.serverHooksRoot` if not using the default derived path | `TELEFORGE_FLOW_SECRET` for trusted flow payloads |
+| Static Mini App hosting | Deploy `apps/web` build to HTTPS host | `miniApp.entry` and production launch URL or env override | `MINI_APP_URL` when the runtime should override checked-in URL |
 
 ## Server Hooks
 

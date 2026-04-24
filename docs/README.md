@@ -1,30 +1,28 @@
 # Teleforge Documentation
 
-Teleforge documentation is organized around stable framework concepts:
+Teleforge docs are organized around the current flow-first framework path.
 
-- **Start**: Telegram basics, getting started, and the main developer workflow
-- **Guides**: building features, coordinating chat/Mini App flows, trusted server hooks, testing, and deployment
-- **Reference**: architecture, framework model, config, Mini App runtime, flow state, environment variables, and troubleshooting
-- **Examples**: Starter App and Task Shop
+Use the app-author path first if you are building a product. Use reference docs when you need exact API, config, runtime, or deployment details.
 
-Use the narrative docs first if you are learning the framework. Use the generated API reference after you know which public import surface you need.
-
-## Start
+## App Author Path
 
 - [Telegram Mini App Basics](./telegram-basics.md): plain-language primer on Mini Apps, `initData`, launch modes, `web_app_data`, and BotFather
 - [Getting Started](./getting-started.md): fastest path from clone to a working Teleforge app
 - [Developer Guide](./developer-guide.md): setup, daily workflow, public imports, and common implementation patterns
-- [Developer Experience Target](./developer-experience-target.md): desired end-state for Teleforge as a flow-first unified framework
-- [Developer Experience Roadmap](./developer-experience-roadmap.md): current DX review and prioritized improvements for setup, manifest generation, diagnostics, runtime bootstrap, simulator repeatability, and scaffold thinning
 
-## Guides
+## Build Guides
 
 - [Build Your First Feature](./first-feature.md): guided command and screen tutorial for scaffolded apps
-- [Flow Coordination](./flow-coordination.md): annotated walkthrough of Teleforge's chat → Mini App → chat lifecycle using Task Shop
-- [Server Hooks and Backend Internals](./server-hooks.md): trusted server-backed flow hooks
+- [Flow Coordination](./flow-coordination.md): current chat to Mini App to chat lifecycle and default runtime wiring
+- [Server Hooks](./server-hooks.md): trusted server-backed flow hooks and optional `--with-api` structure
 - [Shared Phone Auth](./shared-phone-auth.md): phone-number auth using bot contact sharing, Mini App launch tokens, and trusted server exchange
 - [Testing](./testing.md): how Teleforge apps are tested and how to add your own bot/web/integration tests
+
+## Operations
+
 - [Deployment](./deployment.md): production build, hosting, polling vs webhook, and rollout checklist
+- [Environment Variables](./environment-variables.md): central reference for app and devtools env vars
+- [Troubleshooting](./troubleshooting.md): common local-dev, validation, route, and server-hook failures
 
 ## Reference
 
@@ -32,8 +30,11 @@ Use the narrative docs first if you are learning the framework. Use the generate
 - [Config Reference](./config-reference.md): `teleforge.config.ts`, `defineFlow()`, discovery conventions, and environment variables
 - [Mini App Architecture](./miniapp-architecture.md): screen runtime, state boundaries, frontend delivery, and Telegram capability rules
 - [Flow State Architecture](./flow-state-design.md): storage model, FlowInstance lifecycle, effects, and execution architecture
-- [Environment Variables](./environment-variables.md): central reference for app and devtools env vars
-- [Troubleshooting](./troubleshooting.md): common local-dev, validation, route, and server-hook failures
+
+## Examples
+
+- [Starter App](../examples/starter-app/README.md): smallest runnable example
+- [Task Shop](../apps/task-shop/README.md): full reference app with chat/Mini App coordination
 
 ## API Reference
 

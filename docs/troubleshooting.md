@@ -24,6 +24,7 @@ teleforge doctor --fix
 - required environment variables
 - Mini App entry files
 - discovered routes and screens
+- client manifest drift against discovered flows
 - local HTTPS setup
 - dependency alignment around the unified `teleforge` package
 
@@ -104,7 +105,7 @@ Checks:
 - run `teleforge doctor`
 - confirm local ports are free
 - confirm `.env` contains the expected bot token
-- confirm `bot.webhook.path` is correct if webhook mode is being tested
+- confirm `runtime.bot.delivery` is `"webhook"` and `bot.webhook.path` is correct if webhook mode is being tested
 
 Fixes:
 

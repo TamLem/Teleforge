@@ -244,7 +244,11 @@ export async function startTeleforgeServer(
         const response = await hooksHandler(request);
 
         if (response) {
-          const headers = { ...Object.fromEntries(response.headers.entries()), ...corsHeaders };
+          const responseHeaders: Record<string, string> = {};
+          response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+          });
+          const headers = { ...responseHeaders, ...corsHeaders };
           res.writeHead(response.status, headers);
           res.end(await response.text());
         } else {

@@ -127,7 +127,7 @@ Use `teleforge dev` when:
 - you want the integrated Telegram simulator with chat plus the real Mini App
 - you do not need a Telegram-pasteable HTTPS URL yet
 
-If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default. When `apps/bot/src/runtime.ts` exports `createDevBotRuntime()` — a thin simulator bridge for `teleforge dev` — the simulator chat also executes that runtime directly for local `/start`, custom commands, `web_app_data`, and inline-keyboard `callback_query` flows. The same simulator can now save and reload full scenarios, including transcript and Telegram state, from `~/.teleforge/scenarios`.
+If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default. When `apps/bot/src/runtime.ts` exports `createDevBotRuntime()` — a thin simulator bridge for `teleforge dev` — the simulator chat also executes that runtime directly for local `/start`, custom commands, `web_app_data`, and inline-keyboard `callback_query` flows.
 
 The simulator-first workflow is:
 
@@ -135,10 +135,9 @@ The simulator-first workflow is:
 - use built-in fixtures to jump to known Telegram-like states quickly
 - drive commands, callbacks, and `web_app_data` from the chat pane
 - inspect the right-side debug panel for active sessions (flow id, step id, screen id, route, and latest transition), discovered flows, simulator actions, and live profile state
-- save a scenario when a flow becomes worth keeping
 - use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
 
-When you want the old UI-first behavior for fast frontend iteration, use:
+When you want the Mini App iframe to load immediately for fast frontend iteration, use:
 
 ```bash
 teleforge dev --autoload-app
@@ -158,7 +157,7 @@ Use `teleforge dev --public --live` when:
 
 Cloudflare Tunnel is the default tunnel provider for `teleforge dev --public --live`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`. `teleforge dev:https` is also available.
 
-Polling is the default bot delivery mode for the current scaffold and repo examples. Webhook mode is opt-in and should only be enabled when the primary web runtime actually serves `/api/webhook`.
+Polling is the default bot delivery mode for the current scaffold and repo examples. Webhook mode is opt-in and should only be enabled when `runtime.bot.delivery` is `"webhook"` and the deployed `teleforge start` server exposes the configured webhook path over public HTTPS.
 
 ### Use the Mock Environment
 
@@ -173,7 +172,7 @@ teleforge mock
 - switching launch modes
 - testing theme changes
 - simulating viewport and event changes
-- saving and sharing profiles in `~/.teleforge/profiles/`
+- saving and sharing Telegram-like profiles in `~/.teleforge/profiles/`
 
 For most day-to-day local app development, prefer `teleforge dev`; it hosts the primary simulator surface.
 

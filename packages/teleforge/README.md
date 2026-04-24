@@ -11,9 +11,9 @@ A Teleforge app is primarily:
 - `teleforge.config.ts` — app identity, flow discovery, Mini App defaults
 - `apps/bot/src/flows/*.flow.ts` — user journeys with chat steps, Mini App steps, and actions
 - `apps/web/src/screens/*.screen.tsx` — Mini App screens registered with `defineScreen()`
-- Optional `apps/api/src/flow-hooks/` — trusted server hooks for guards, loaders, submit handlers
+- Optional `apps/api/src/flow-hooks/` — trusted server hooks for guards, loaders, and submit handlers, usually added with `create-teleforge-app --with-api`
 
-The framework discovers flows and screens by convention, generates client-safe Mini App metadata, and wires the bot runtime, server hooks, and simulator automatically.
+The framework discovers flows and screens by convention, generates client-safe Mini App metadata, detects manifest drift in development, and wires the bot runtime, server hooks, and simulator automatically.
 
 ## Installation
 
@@ -78,11 +78,11 @@ export default defineScreen({
 ## CLI commands
 
 ```bash
-teleforge dev              # Local simulator with chat, Mini App, and companion services
-teleforge start            # Production bootstrap: polling bot + discovered server hooks from config
-teleforge doctor           # Environment, manifest, and wiring diagnostics
-teleforge generate client-manifest   # Regenerate client-safe flow metadata
-teleforge mock             # Standalone mock-state server for CI or manual testing
+teleforge dev              # Local simulator with chat, Mini App, companion services, and manifest preflight
+teleforge start            # Production bootstrap: polling or webhook bot + discovered server hooks
+teleforge doctor           # Environment, manifest drift, and wiring diagnostics
+teleforge generate client-manifest   # Manually regenerate client-safe flow metadata
+teleforge mock             # Standalone Telegram profile/state server for manual testing
 ```
 
 ## Public import surfaces

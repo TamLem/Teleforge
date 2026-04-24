@@ -20,11 +20,7 @@ export default defineTeleforgeApp({
   },
   bot: {
     username: "taskshopbot",
-    tokenEnv: "BOT_TOKEN",
-    webhook: {
-      path: "/api/webhook",
-      secretEnv: "WEBHOOK_SECRET"
-    }
+    tokenEnv: "BOT_TOKEN"
   },
   miniApp: {
     entry: "apps/web/src/main.tsx",
@@ -62,7 +58,25 @@ Flow files are discovered by convention and should export a `defineFlow()` defin
 | `webhook.path`      | `string` | Webhook endpoint path, such as `/api/webhook`    |
 | `webhook.secretEnv` | `string` | Environment variable for Telegram webhook secret |
 
-Polling and webhook delivery are deployment choices. They are not separate Teleforge product modes.
+Polling and webhook delivery are deployment choices. They are not separate Teleforge product modes. The default scaffold omits `bot.webhook`; add it only when `runtime.bot.delivery` is `"webhook"` or when you intentionally generate webhook placeholders with `--with-api`. Webhook delivery is active only when `runtime.bot.delivery` is `"webhook"`.
+
+Webhook example:
+
+```ts
+bot: {
+  username: "taskshopbot",
+  tokenEnv: "BOT_TOKEN",
+  webhook: {
+    path: "/api/webhook",
+    secretEnv: "WEBHOOK_SECRET"
+  }
+},
+runtime: {
+  bot: {
+    delivery: "webhook"
+  }
+}
+```
 
 ## `runtime`
 
@@ -274,8 +288,10 @@ Screen components receive flow context, loader data, transition state, and submi
 | ------------- | -------------------------------------------------------------- | ---------------------------------- |
 | Flows         | `apps/bot/src/flows/*.flow.{ts,mjs,js}`                        | `export default defineFlow(...)`   |
 | Flow handlers | `apps/bot/src/flow-handlers/{flowId}/{stepId}.{ts,mjs,js}`     | `export const actions = { ... }`   |
-| Server hooks  | `apps/bot/src/flow-server-hooks/{flowId}/{stepId}.{ts,mjs,js}` | `export const guard?, loader?`     |
+| Server hooks  | `apps/api/src/flow-hooks/{flowId}/{stepId}.{ts,mjs,js}`        | `export const guard?, loader?`     |
 | Screens       | `apps/web/src/screens/*.{screen,page}.{tsx,ts}`                | `export default defineScreen(...)` |
+
+`apps/api` is optional in generated projects. Add it with `create-teleforge-app my-app --with-api` or set `flows.serverHooksRoot` explicitly if your backend uses a different directory.
 
 ## Environment Variables
 
