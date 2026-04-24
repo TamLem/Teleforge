@@ -37,6 +37,20 @@ const pages = [
     section: "Guides"
   },
   {
+    id: "developer-experience-target",
+    source: "docs/developer-experience-target.md",
+    output: "developer-experience-target.html",
+    navLabel: "DX Target",
+    section: "Reference"
+  },
+  {
+    id: "developer-experience-roadmap",
+    source: "docs/developer-experience-roadmap.md",
+    output: "developer-experience-roadmap.html",
+    navLabel: "DX Roadmap",
+    section: "Reference"
+  },
+  {
     id: "first-feature",
     source: "docs/first-feature.md",
     output: "first-feature.html",

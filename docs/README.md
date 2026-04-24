@@ -15,7 +15,7 @@ Use the narrative docs first if you are learning the framework. Use the generate
 - [Getting Started](./getting-started.md): fastest path from clone to a working Teleforge app
 - [Developer Guide](./developer-guide.md): setup, daily workflow, public imports, and common implementation patterns
 - [Developer Experience Target](./developer-experience-target.md): desired end-state for Teleforge as a flow-first unified framework
-- [Developer Experience Roadmap](./developer-experience-roadmap.md): planned improvements for manifest generation, diagnostics, scaffold, devtools, testing, and framework thinning
+- [Developer Experience Roadmap](./developer-experience-roadmap.md): current DX review and prioritized improvements for setup, manifest generation, diagnostics, runtime bootstrap, simulator repeatability, and scaffold thinning
 
 ## Guides
 
