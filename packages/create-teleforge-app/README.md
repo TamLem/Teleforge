@@ -11,15 +11,17 @@ node dist/cli.js my-app
 ```
 
 Pass `--yes` to skip prompts.
+Pass `--with-api` when you want optional server-hook and webhook placeholder files.
 
 ## Supported Output
 
 - `apps/web` with the Teleforge Mini App shell, first screen module, and Vite delivery runtime
 - `apps/bot` starter runtime and `start` flow
-- `apps/api` starter server-hook and webhook placeholders
 - `teleforge.config.ts`
 - `.env.example`
 - root workspace scripts for `teleforge dev`, `teleforge dev --public --live`, and `teleforge doctor`
+
+With `--with-api`, the scaffold also includes `apps/api` server-hook and webhook placeholders.
 
 ## Generated Workflow
 
@@ -32,7 +34,7 @@ The scaffold is polling-first by default:
 
 Generated apps also export `apps/bot/src/runtime.ts`, so `teleforge dev` can execute `/start`, `web_app_data`, and callback flows directly inside the simulator chat without Telegram.
 
-The generated `apps/api` files are placeholders. They do not make webhook mode active by themselves; webhook mode only makes sense once the primary web runtime actually serves `/api/webhook`.
+The default scaffold does not include `apps/api` or `WEBHOOK_SECRET`. Generate with `--with-api` when the app needs trusted server hooks or a webhook placeholder. Those files do not make webhook mode active by themselves; webhook mode only makes sense once the primary web runtime actually serves `/api/webhook`.
 
 ## Recommended Reading After Generation
 

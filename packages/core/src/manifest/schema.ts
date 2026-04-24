@@ -165,6 +165,7 @@ const botSchema = z
         secretEnv: z.string().min(1)
       })
       .strict()
+      .optional()
   })
   .strict();
 

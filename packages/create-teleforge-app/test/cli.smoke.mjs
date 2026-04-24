@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { execFile, spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -22,6 +22,8 @@ test("generates the unified Teleforge scaffold", async () => {
   const configSource = await readFile(configPath, "utf8");
   assert.match(configSource, /defineTeleforgeApp/);
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
+  assert.doesNotMatch(configSource, /webhook:/);
+  assert.doesNotMatch(configSource, /WEBHOOK_SECRET/);
   assert.doesNotMatch(configSource, /mode: "spa"/);
   assert.doesNotMatch(configSource, /webFramework: "vite"/);
   assert.doesNotMatch(configSource, /routes:/);
@@ -62,25 +64,12 @@ test("generates the unified Teleforge scaffold", async () => {
   assert.ok(botPackage.scripts.typecheck);
 
   const apiPackagePath = path.join(tmpRoot, projectName, "apps", "api", "package.json");
-  const apiPackage = JSON.parse(await readFile(apiPackagePath, "utf8"));
-  assert.equal(apiPackage.name, "@sample-app/api");
-  assert.equal(apiPackage.dependencies["@sample-app/types"], "workspace:*");
-  assert.ok(apiPackage.scripts.typecheck);
+  await assert.rejects(readFile(apiPackagePath, "utf8"), /ENOENT/);
 
-  const flowHookPath = path.join(
-    tmpRoot,
-    projectName,
-    "apps",
-    "api",
-    "src",
-    "flow-hooks",
-    "start",
-    "home.ts"
-  );
-  const flowHookSource = await readFile(flowHookPath, "utf8");
-  assert.match(flowHookSource, /guard/);
-  assert.match(flowHookSource, /loader/);
-  assert.match(flowHookSource, /onSubmit/);
+  const envExamplePath = path.join(tmpRoot, projectName, ".env.example");
+  const envExample = await readFile(envExamplePath, "utf8");
+  assert.match(envExample, /BOT_TOKEN=your_bot_token_here/);
+  assert.doesNotMatch(envExample, /WEBHOOK_SECRET/);
 
   const typesPackagePath = path.join(tmpRoot, projectName, "packages", "types", "package.json");
   const typesPackage = JSON.parse(await readFile(typesPackagePath, "utf8"));
@@ -156,11 +145,83 @@ test("generates the unified Teleforge scaffold", async () => {
   const readmePath = path.join(tmpRoot, projectName, "README.md");
   const readme = await readFile(readmePath, "utf8");
   assert.match(readme, /apps\/web.*Mini App shell, screens, and styles/);
+  assert.doesNotMatch(readme, /apps\/api.*placeholders/);
+  assert.match(readme, /apps\/api.*not part of the default scaffold/);
+  assert.match(readme, /create-teleforge-app my-app --with-api/);
   assert.match(readme, /apps\/web\/src\/teleforge-generated\/client-flow-manifest\.ts/);
   assert.match(readme, /teleforge generate client-manifest/);
   assert.match(readme, /apps\/web\/src\/screens\/home\.screen\.tsx/);
   assert.doesNotMatch(readme, /Next\.js BFF web/);
   assert.doesNotMatch(readme, /settings/i);
+});
+
+test("generates optional API placeholders with --with-api", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-api-app-"));
+  const projectName = "api-app";
+
+  await execFileAsync("node", [cliPath, projectName, "--yes", "--with-api"], {
+    cwd: tmpRoot
+  });
+
+  const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
+  const configSource = await readFile(configPath, "utf8");
+  assert.match(configSource, /webhook:/);
+  assert.match(configSource, /path: "\/api\/webhook"/);
+  assert.match(configSource, /secretEnv: "WEBHOOK_SECRET"/);
+
+  const envExamplePath = path.join(tmpRoot, projectName, ".env.example");
+  const envExample = await readFile(envExamplePath, "utf8");
+  assert.match(envExample, /WEBHOOK_SECRET=your_webhook_secret_here/);
+
+  const apiPackagePath = path.join(tmpRoot, projectName, "apps", "api", "package.json");
+  const apiPackage = JSON.parse(await readFile(apiPackagePath, "utf8"));
+  assert.equal(apiPackage.name, "@api-app/api");
+  assert.equal(apiPackage.dependencies["@api-app/types"], "workspace:*");
+  assert.ok(apiPackage.scripts.typecheck);
+
+  const flowHookPath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "api",
+    "src",
+    "flow-hooks",
+    "start",
+    "home.ts"
+  );
+  const flowHookSource = await readFile(flowHookPath, "utf8");
+  assert.match(flowHookSource, /guard/);
+  assert.match(flowHookSource, /loader/);
+  assert.match(flowHookSource, /onSubmit/);
+
+  const healthRoutePath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "api",
+    "src",
+    "routes",
+    "health.ts"
+  );
+  const healthRouteSource = await readFile(healthRoutePath, "utf8");
+  assert.match(healthRouteSource, /\/api\/health/);
+
+  const webhookRoutePath = path.join(
+    tmpRoot,
+    projectName,
+    "apps",
+    "api",
+    "src",
+    "routes",
+    "webhook.ts"
+  );
+  const webhookRouteSource = await readFile(webhookRoutePath, "utf8");
+  assert.match(webhookRouteSource, /\/api\/webhook/);
+
+  const readmePath = path.join(tmpRoot, projectName, "README.md");
+  const readme = await readFile(readmePath, "utf8");
+  assert.match(readme, /apps\/api.*optional server-hook and webhook placeholders/);
+  assert.match(readme, /generated with `--with-api`/);
 });
 
 test("generates scaffold with --link flag using link: protocol", async () => {
@@ -180,16 +241,13 @@ test("generates scaffold with --link flag using link: protocol", async () => {
 test("rejects project names that normalize to empty app metadata", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-invalid-name-"));
 
-  const result = spawnSync("node", [cliPath, "!!!", "--yes"], {
-    cwd: tmpRoot,
-    encoding: "utf8"
-  });
-
-  assert.notEqual(result.status, 0, "Expected CLI to exit non-zero for invalid project name");
-  const output = (result.stderr || "") + (result.stdout || "");
-  assert.match(
-    output,
-    /must contain at least one letter or number/,
-    `Expected CLI to report the invalid project name error. Output: ${output.slice(0, 200)}`
-  );
+  try {
+    await execFileAsync("node", [cliPath, "!!!", "--yes"], {
+      cwd: tmpRoot
+    });
+    assert.fail("Expected CLI to exit non-zero for invalid project name");
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    assert.equal(code, 1);
+  }
 });

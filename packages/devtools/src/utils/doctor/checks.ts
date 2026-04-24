@@ -422,7 +422,7 @@ async function checkManifestConsistency(
     issues.push("Manifest is missing `bot.tokenEnv`.");
   }
 
-  if (!manifest.bot?.webhook?.path) {
+  if (manifest.runtime?.bot?.delivery === "webhook" && !manifest.bot?.webhook?.path) {
     issues.push("Manifest is missing `bot.webhook.path`.");
   }
 
@@ -522,7 +522,17 @@ function checkWebhookSecret(
   env: NodeJS.ProcessEnv,
   manifest: TeleforgeManifest | undefined
 ): DoctorCheck {
+  const delivery = manifest?.runtime?.bot?.delivery ?? "polling";
   const secretEnv = manifest?.bot?.webhook?.secretEnv;
+
+  if (delivery !== "webhook") {
+    return {
+      category: "Environment",
+      message: "Webhook secret check skipped for polling delivery.",
+      name: "webhook_secret",
+      status: "pass"
+    };
+  }
 
   if (!secretEnv) {
     return {
@@ -638,7 +648,17 @@ async function checkWebhookReachability(options: {
   manifest: TeleforgeManifest | undefined;
   publicUrl?: string;
 }): Promise<DoctorCheck> {
+  const delivery = options.manifest?.runtime?.bot?.delivery ?? "polling";
   const webhookPath = options.manifest?.bot?.webhook?.path;
+
+  if (delivery !== "webhook") {
+    return {
+      category: "Connectivity",
+      message: "Webhook reachability check skipped for polling delivery.",
+      name: "webhook_reachable",
+      status: "pass"
+    };
+  }
 
   if (!webhookPath) {
     return {

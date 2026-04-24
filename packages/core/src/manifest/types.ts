@@ -86,7 +86,7 @@ export interface TeleforgeManifest {
     }>;
     tokenEnv: string;
     username: string;
-    webhook: {
+    webhook?: {
       path: string;
       secretEnv: string;
     };

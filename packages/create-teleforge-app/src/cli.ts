@@ -6,6 +6,7 @@ import { generateProject } from "./generator.js";
 
 interface CliOptions {
   targetDir?: string;
+  includeApi: boolean;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
   overwrite: boolean;
@@ -15,6 +16,7 @@ interface CliOptions {
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
+    includeApi: false,
     overwrite: false,
     yes: false,
     help: false
@@ -44,6 +46,11 @@ function parseArgs(argv: string[]): CliOptions {
 
     if (arg === "--overwrite") {
       options.overwrite = true;
+      continue;
+    }
+
+    if (arg === "--with-api") {
+      options.includeApi = true;
       continue;
     }
 
@@ -79,6 +86,7 @@ function printHelp(): void {
   output.write(
     `  --overwrite                   Remove an existing target directory before generating\n`
   );
+  output.write(`  --with-api                    Include optional API hooks/webhook placeholders\n`);
   output.write(`  --link <path>                 Link packages to a local teleforge monorepo\n`);
   output.write(`  -y, --yes                     Accept defaults without prompts\n`);
   output.write(`  -h, --help                    Show help\n`);
@@ -118,6 +126,7 @@ async function run(): Promise<void> {
   const result = await generateProject({
     cwd: process.cwd(),
     targetDir: resolved.targetDir,
+    includeApi: options.includeApi,
     overwrite: options.overwrite,
     linkPath: options.linkPath
   });

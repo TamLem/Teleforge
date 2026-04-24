@@ -2,6 +2,7 @@ interface BuildProjectFilesOptions {
   appId: string;
   appName: string;
   botUsername: string;
+  includeApi?: boolean;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
 }
@@ -21,21 +22,17 @@ function teleforgeDependency(linkPath?: string): Record<string, string> {
 
 export function buildProjectFiles(options: BuildProjectFilesOptions): Record<string, string> {
   const packageNames = getPackageNames(options.appId);
+  const includeApi = options.includeApi ?? false;
 
   return {
-    ".env.example": envExample(),
+    ".env.example": envExample(includeApi),
     ".gitignore": generatedGitignore(),
     "README.md": generatedReadme(options),
     "package.json": generatedRootPackageJson(options),
     "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n  - "packages/*"\n',
     "teleforge.config.ts": generatedConfig(options),
     "tsconfig.base.json": generatedBaseTsconfig(),
-    "apps/api/package.json": generatedApiPackageJson(packageNames),
-    "apps/api/src/index.ts": apiIndexTs(),
-    "apps/api/src/flow-hooks/start/home.ts": apiFlowHookTs(),
-    "apps/api/src/routes/health.ts": apiHealthRouteTs(),
-    "apps/api/src/routes/webhook.ts": apiWebhookRouteTs(),
-    "apps/api/tsconfig.json": apiTsconfig(),
+    ...(includeApi ? generatedApiFiles(packageNames) : {}),
     "apps/bot/package.json": generatedBotPackageJson(packageNames),
     "apps/bot/src/flows/start.flow.ts": botStartFlowTs(options.appName, packageNames),
     "apps/bot/src/index.ts": botIndexTs(),
@@ -60,12 +57,32 @@ function getPackageNames(appId: string): PackageNames {
   };
 }
 
+function generatedApiFiles(packageNames: PackageNames): Record<string, string> {
+  return {
+    "apps/api/package.json": generatedApiPackageJson(packageNames),
+    "apps/api/src/index.ts": apiIndexTs(),
+    "apps/api/src/flow-hooks/start/home.ts": apiFlowHookTs(),
+    "apps/api/src/routes/health.ts": apiHealthRouteTs(),
+    "apps/api/src/routes/webhook.ts": apiWebhookRouteTs(),
+    "apps/api/tsconfig.json": apiTsconfig()
+  };
+}
+
 function generatedReadme(options: BuildProjectFilesOptions): string {
   const install = `pnpm install`;
   const run = `pnpm run dev`;
   const runPublic = `pnpm run dev:public`;
   const doctor = `pnpm run doctor`;
   const runTests = `pnpm test`;
+  const apiStructure = options.includeApi
+    ? "- `apps/api`: optional server-hook and webhook placeholders\n"
+    : "";
+  const apiReadFirst = options.includeApi
+    ? "- `apps/api/src/flow-hooks/start/home.ts`: optional trusted server-hook example for the first screen\n"
+    : "";
+  const apiRuntimeNote = options.includeApi
+    ? "- `apps/api`: included because this project was generated with `--with-api`; keep it only when you need trusted server hooks or a real webhook surface"
+    : "- add `apps/api` later when you need trusted server hooks or a real webhook surface";
 
   return `# ${options.appName}
 
@@ -101,7 +118,7 @@ ${doctor}
 
 - \`apps/web\`: Mini App shell, screens, and styles
 - \`apps/bot\`: Discovered flows and thin simulator bridge export in \`src/runtime.ts\`
-- \`apps/api\`: optional server-hook and webhook placeholders
+${apiStructure.trimEnd()}
 - \`packages/types\`: shared domain contracts used by bot, web, and server code
 - \`teleforge.config.ts\`: App definition
 
@@ -114,6 +131,7 @@ ${doctor}
 - \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint
 - \`apps/web/src/screens/home.screen.tsx\`: the first Mini App screen module
 - \`apps/web/src/teleforge-generated/client-flow-manifest.ts\`: framework-generated client-safe flow metadata for the Mini App shell
+${apiReadFirst.trimEnd()}
 
 The scaffold intentionally starts with one shared state type, one flow, and one screen. Run \`teleforge generate client-manifest\` to regenerate the client manifest after flow changes. Add more domain contracts, flow files, and screen modules as the app grows.
 
@@ -133,12 +151,12 @@ The scaffold intentionally starts with one shared state type, one flow, and one 
 - use Replay Last in the simulator to rerun the latest command, callback, or \`web_app_data\` payload while iterating
 - leave \`MINI_APP_URL\` blank unless you want to force a fixed override
 - \`dev\` and \`dev:public\` inject the resolved local or public URL into the companion bot automatically
-- the generated \`apps/api\` files are placeholders; webhook mode only makes sense once the primary web runtime actually serves \`/api/webhook\`
+- \`apps/api\` is not part of the default scaffold; generate it with \`create-teleforge-app my-app --with-api\` when the app needs trusted hooks or a webhook placeholder
 
 ## Runtime Notes
 
 - \`/\`: the generated start flow launches the Mini App here
-- \`apps/api\`: stays optional until you need trusted server hooks or a real webhook surface
+${apiRuntimeNote}
 `;
 }
 
@@ -175,6 +193,14 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
 }
 
 function generatedConfig(options: BuildProjectFilesOptions): string {
+  const webhookConfig = options.includeApi
+    ? `,
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }`
+    : "";
+
   return `import { defineTeleforgeApp } from "teleforge";
 
 export default defineTeleforgeApp({
@@ -194,11 +220,7 @@ export default defineTeleforgeApp({
   },
   bot: {
     username: ${JSON.stringify(options.botUsername)},
-    tokenEnv: "BOT_TOKEN",
-    webhook: {
-      path: "/api/webhook",
-      secretEnv: "WEBHOOK_SECRET"
-    }
+    tokenEnv: "BOT_TOKEN"${webhookConfig}
   },
   miniApp: {
     entry: "apps/web/src/main.tsx",
@@ -233,10 +255,12 @@ dist
 `;
 }
 
-function envExample(): string {
+function envExample(includeApi: boolean): string {
+  const webhookSecret = includeApi ? "WEBHOOK_SECRET=your_webhook_secret_here\n" : "";
+
   return `# Bot Configuration
 BOT_TOKEN=your_bot_token_here
-WEBHOOK_SECRET=your_webhook_secret_here
+${webhookSecret}
 
 # Mini App Configuration
 TELEGRAM_BOT_USERNAME=your_bot_username

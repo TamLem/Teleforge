@@ -139,7 +139,7 @@ node packages/create-teleforge-app/dist/cli.js my-app
 You should see:
 
 - a new project directory
-- `apps/web`, `apps/bot`, and optional `apps/api`
+- `apps/web` and `apps/bot`
 - `teleforge.config.ts`
 - `.env.example`
 - root scripts for `pnpm run dev`, `pnpm run dev:public`, and `pnpm run doctor`
@@ -268,7 +268,7 @@ Webhook mode is optional and more constrained than the polling flow:
 
 - use it only when your primary web runtime serves `/api/webhook`
 - the shipped starter and Task Shop examples do not use webhook mode
-- the generated scaffold includes webhook placeholders, but that does not make webhook mode active by itself
+- generate with `--with-api` when you want webhook placeholders; that does not make webhook mode active by itself
 
 ## 7. Understand the Generated Shape
 
@@ -280,7 +280,7 @@ The current generated path is intentionally framework-shaped:
 - `apps/web/src/screens/*.screen.tsx`: Mini App screens registered through `defineScreen()`
 - `apps/web/src/main.tsx`: the framework-owned `TeleforgeMiniApp` shell
 - `apps/bot/src/index.ts`: a thin bootstrap that calls `startTeleforgeBot()`; the framework owns polling, preview mode, and signal handling
-- `apps/api`: optional server-hook or webhook surface only when the flow needs trusted server execution
+- `apps/api`: optional `--with-api` server-hook or webhook surface only when the flow needs trusted server execution
 
 That means you normally start by editing a flow and a screen, not by wiring separate bot/web/backend runtimes manually. The lower-level `createDiscoveredBotRuntime()` remains available as an escape hatch for advanced deployments.
 

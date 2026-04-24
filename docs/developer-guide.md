@@ -47,8 +47,9 @@ Generated apps use:
 
 - `apps/web` with the Teleforge Mini App shell and screen modules
 - `apps/bot` for flow definitions and bot runtime execution
-- `apps/api` as an optional placeholder when flows later need trusted server hooks or a webhook surface
 - `teleforge.config.ts` as the source-of-truth app definition
+
+Generate with `--with-api` when you want `apps/api` placeholders for trusted server hooks or a webhook surface.
 
 ## Create a Project
 
@@ -68,10 +69,15 @@ The generated workspace includes:
 
 - `apps/web`
 - `apps/bot`
-- `apps/api`
 - `teleforge.config.ts`
 - `.env.example`
 - root scripts for Teleforge development, diagnostics, and baseline tests
+
+To include the optional API placeholder package at generation time, run:
+
+```bash
+node packages/create-teleforge-app/dist/cli.js my-app --with-api
+```
 
 If you want the smallest working example instead of a fresh scaffold, start with [`examples/starter-app`](../examples/starter-app/README.md). If you want the full reference flow, use [`apps/task-shop`](../apps/task-shop/README.md).
 
