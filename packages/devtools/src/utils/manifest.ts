@@ -829,11 +829,42 @@ function formatManifestValidationErrors(
   flowModules: RouteFlowDefinition[],
   errors: Array<{ message: string; path: string[] }>
 ): string {
+  const emptyRoutesIssue = errors.find(
+    (issue) => issue.path.length === 1 && issue.path[0] === "routes"
+  );
+  if (emptyRoutesIssue) {
+    const flowIdsWithoutMiniAppRoutes = flowModules
+      .filter((flow) => hasMiniAppStep(flow) && typeof flow.miniApp?.route !== "string")
+      .map((flow) => flow.id);
+    const details =
+      flowIdsWithoutMiniAppRoutes.length > 0
+        ? [
+            "No Mini App routes could be derived from discovered flows.",
+            `Flows with Mini App steps but no flow-level miniApp.route: ${flowIdsWithoutMiniAppRoutes.join(", ")}.`,
+            "Add `miniApp: { route: \"/\" }` to each flow that owns Mini App steps; use `miniApp.stepRoutes` for per-step paths."
+          ]
+        : [
+            "No Mini App routes were found.",
+            "Add a flow-level `miniApp.route`, define explicit `routes`, or remove `flows` if this project does not use flow discovery."
+          ];
+    return `Invalid ${path.basename(configPath)}:\n  - ${details.join("\n  - ")}`;
+  }
+
   const formatted = errors.map((issue) => {
     const context = inferManifestIssueContext(issue.path, flowModules);
     return context ? `${context}: ${issue.message}` : issue.message;
   });
   return `Invalid ${path.basename(configPath)}:\n  - ${formatted.join("\n  - ")}`;
+}
+
+function hasMiniAppStep(flow: RouteFlowDefinition): boolean {
+  return Object.values(flow.steps).some(
+    (step) =>
+      typeof step === "object" &&
+      step !== null &&
+      "type" in step &&
+      (step as { type?: unknown }).type === "miniapp"
+  );
 }
 
 function inferManifestIssueContext(

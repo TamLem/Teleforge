@@ -292,6 +292,85 @@ export default defineTeleforgeApp({
   assert.deepEqual(loaded.manifest.routes[0]?.coordination?.entryPoints, [{ type: "miniapp" }]);
 });
 
+test("loadManifest explains Mini App flows that omit flow-level miniApp.route", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-missing-flow-route-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const nodeModulesRoot = path.join(tmpRoot, "node_modules");
+  const teleforgeIndexUrl = pathToFileURL(
+    path.resolve(process.cwd(), "..", "teleforge", "src", "index.ts")
+  ).href;
+  const teleforgePackagePath = path.resolve(
+    process.cwd(),
+    "..",
+    "..",
+    "examples",
+    "starter-app",
+    "node_modules",
+    "teleforge"
+  );
+
+  await mkdir(flowsRoot, { recursive: true });
+  await mkdir(nodeModulesRoot, { recursive: true });
+  await symlink(teleforgePackagePath, path.join(nodeModulesRoot, "teleforge"), "dir");
+  await writeFile(
+    path.join(flowsRoot, "start.flow.ts"),
+    `import { defineFlow } from ${JSON.stringify(teleforgeIndexUrl)};
+
+export default defineFlow({
+  id: "start",
+  initialStep: "home",
+  state: {},
+  bot: {
+    command: {
+      command: "start",
+      description: "Open app",
+      text: "Open app"
+    }
+  },
+  steps: {
+    home: {
+      screen: "home",
+      type: "miniapp"
+    }
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(teleforgeIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: {
+    id: "missing-route-app",
+    name: "Missing Route App",
+    version: "1.0.0"
+  },
+  flows: {
+    root: "apps/bot/src/flows"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "missing_route_bot"
+  },
+  miniApp: {
+    capabilities: ["read_access"],
+    defaultMode: "inline",
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"]
+  },
+  runtime: {
+  }
+});
+`
+  );
+
+  await assert.rejects(
+    loadManifest(tmpRoot),
+    /Flows with Mini App steps but no flow-level miniApp\.route: start\.[\s\S]+Add `miniApp: \{ route: "\/" \}`/
+  );
+});
+
 test("loadManifest parses explicit dev.services companion service definitions", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-devtools-services-"));
   const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
