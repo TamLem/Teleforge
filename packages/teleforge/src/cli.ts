@@ -2,6 +2,7 @@ import process from "node:process";
 
 import {
   createTeleforgeRuntimeContext,
+  createTeleforgeWebhookHandler,
   loadTeleforgeFlowServerHooks,
   startTeleforgeBot,
   startTeleforgeServer
@@ -13,24 +14,48 @@ async function runStartCommand(): Promise<void> {
   // Resolve a shared runtime context once: config, secrets, storage.
   // Both bot and server bootstraps reuse this so initialization is not duplicated.
   const context = await createTeleforgeRuntimeContext({ cwd });
+  const delivery = context.app.runtime.bot?.delivery ?? "polling";
 
   // Discover server hooks once so the CLI decides whether to start the server.
   const serverHooks = await loadTeleforgeFlowServerHooks({ app: context.app, cwd });
   const hasServerHooks = serverHooks.length > 0;
+  const needsServer = hasServerHooks || delivery === "webhook";
 
   const { runtime: botRuntime, stop: stopBot } = await startTeleforgeBot({ context });
 
   let stopServer: (() => void) | undefined;
 
-  if (hasServerHooks) {
+  if (needsServer) {
+    // In webhook mode, mount the Telegram webhook handler on the hooks server
+    // at the configured webhook path alongside any flow-hooks routes.
+    const additionalRoutes: NonNullable<Parameters<typeof startTeleforgeServer>[0]>["additionalRoutes"] = [];
+
+    if (delivery === "webhook") {
+      const webhookPath = context.app.bot.webhook?.path;
+      const webhookSecretEnv = context.app.bot.webhook?.secretEnv;
+      const webhookSecret = webhookSecretEnv ? process.env[webhookSecretEnv]?.trim() : undefined;
+
+      if (webhookPath) {
+        const webhookHandler = createTeleforgeWebhookHandler(botRuntime, {
+          secretToken: webhookSecret
+        });
+        additionalRoutes!.push({ handler: webhookHandler, path: webhookPath });
+        console.log(`[teleforge:start] webhook endpoint mounted at ${webhookPath}`);
+      }
+    }
+
     const server = await startTeleforgeServer({
+      additionalRoutes,
       context,
       onChatHandoff: (input) => botRuntime.handleChatHandoff(input)
     });
     stopServer = server.stop;
-    console.log(
-      `[teleforge:start] server hooks running at ${server.url} (${serverHooks.length} hook(s) loaded)`
-    );
+
+    if (hasServerHooks) {
+      console.log(
+        `[teleforge:start] server hooks running at ${server.url} (${serverHooks.length} hook(s) loaded)`
+      );
+    }
   }
 
   console.log(

@@ -65,13 +65,13 @@ Improvement:
 
 Current friction:
 
-- webhook delivery is represented in config, but live webhook bootstrap is explicitly unsupported by `startTeleforgeBot()`
+- ~~webhook delivery is represented in config, but live webhook bootstrap is explicitly unsupported by `startTeleforgeBot()`~~ (resolved: `teleforge start` now supports webhook delivery)
 - `teleforge start` starts hooks only when hooks are discovered, but docs need to be clearer about how that maps to hosting topology
 - required secrets such as `TELEFORGE_FLOW_SECRET`, `MINI_APP_URL`, and phone-auth secrets are easy to discover only after startup fails or `doctor` is run
 
 Improvement:
 
-- implement and document webhook bootstrap for `teleforge start`
+- ~~implement and document webhook bootstrap for `teleforge start`~~ (done)
 - add a production runtime matrix covering polling, webhook, server hooks, and static Mini App hosting
 - make `teleforge doctor` report a readiness checklist for the selected delivery mode
 - keep `createDiscoveredBotRuntime()` and lower-level bot primitives as documented escape hatches, not the normal path
@@ -179,8 +179,8 @@ Outcome:
 
 Recommended work:
 
-- implement live webhook delivery in the high-level runtime path
-- document hosting modes and required environment variables
+- ~~implement live webhook delivery in the high-level runtime path~~ (done)
+- ~~document hosting modes and required environment variables~~ (done)
 - add doctor checks for each production mode
 
 ### P3. Improve simulator repeatability

@@ -9,6 +9,7 @@ import {
   createPhoneAuthLink,
   createPhoneNumberRequestMarkup,
   createSignedPayload,
+  createWebhookHandler,
   extractSharedLocation,
   extractSharedPhoneContact,
   extractFlowContext,
@@ -1607,6 +1608,8 @@ export async function startTeleforgeBot(
   let pollTimeout: ReturnType<typeof setTimeout> | undefined;
   const commands = runtime.getCommands();
 
+  const delivery = context.app.runtime.bot?.delivery ?? "polling";
+
   // If the caller provided a custom bot, bind it and let them drive updates.
   if (options.bot) {
     runtime.bindBot(options.bot);
@@ -1663,6 +1666,24 @@ export async function startTeleforgeBot(
     };
   }
 
+  // In webhook delivery mode, bind a real Telegram API bot for outbound
+  // messages but skip polling. The caller mounts the webhook HTTP handler
+  // (via createTeleforgeWebhookHandler) on the hooks server.
+  if (delivery === "webhook") {
+    const webhookBot = createTeleforgeWebhookBot(token);
+    runtime.bindBot(webhookBot);
+    await webhookBot.setCommands(commands);
+    console.log(
+      `[teleforge:bot] webhook delivery mode (${commands.length} commands registered, polling disabled)`
+    );
+    return {
+      runtime,
+      stop: () => {
+        stopped = true;
+      }
+    };
+  }
+
   const botInstance = createTeleforgePollingBot(token);
   runtime.bindBot(botInstance);
   await botInstance.setCommands(commands);
@@ -1712,11 +1733,14 @@ export async function startTeleforgeBot(
 }
 
 
-/* ───────────────────── Framework-owned polling / preview bots ───────────────────── */
+/* ───────────────────── Framework-owned polling / preview / webhook bots ───────────────────── */
 
-interface PollingBot extends BotInstance {
-  getUpdates(offset?: number): Promise<TelegramUpdate[]>;
+interface TelegramApiBot extends BotInstance {
   setCommands(commands: Iterable<Pick<BotCommandDefinition, "command" | "description">>): Promise<void>;
+}
+
+interface PollingBot extends TelegramApiBot {
+  getUpdates(offset?: number): Promise<TelegramUpdate[]>;
 }
 
 function createTeleforgePollingBot(token: string): PollingBot {
@@ -1747,6 +1771,94 @@ function createTeleforgePollingBot(token: string): PollingBot {
       });
     }
   };
+}
+
+function createTeleforgeWebhookBot(token: string): TelegramApiBot {
+  const baseUrl = `https://api.telegram.org/bot${token}`;
+
+  return {
+    async sendMessage(chatId, text, options = {}) {
+      return callTelegramApi<TelegramMessage>(baseUrl, "sendMessage", {
+        chat_id: chatId,
+        text,
+        ...toTelegramSendMessageOptions(options)
+      });
+    },
+    async setCommands(commands) {
+      await callTelegramApi(baseUrl, "setMyCommands", {
+        commands: Array.from(commands, (command) => ({
+          command: command.command,
+          description: command.description ?? command.command
+        }))
+      });
+    }
+  };
+}
+
+export interface CreateTeleforgeWebhookHandlerOptions {
+  /** The webhook secret token configured in bot.webhook.secretEnv. */
+  secretToken?: string;
+}
+
+/** Node.js HTTP handler compatible with `http.createServer` callbacks. */
+export type TeleforgeWebhookRequestHandler = (
+  request: { headers: Record<string, string | string[] | undefined>; method?: string; on: (...args: unknown[]) => unknown },
+  response: { writeHead: (statusCode: number, headers?: Record<string, string>) => unknown; end: (body?: string) => unknown }
+) => Promise<void>;
+
+/**
+ * Creates a Node.js HTTP request handler that receives Telegram webhook POSTs,
+ * validates the secret token, and forwards valid updates to the discovered bot
+ * runtime.
+ *
+ * The returned function has the standard `(req, res) => Promise<void>` Node.js
+ * HTTP signature and can be mounted on any compatible server.
+ */
+export function createTeleforgeWebhookHandler(
+  runtime: DiscoveredBotRuntime,
+  options: CreateTeleforgeWebhookHandlerOptions = {}
+): TeleforgeWebhookRequestHandler {
+  const handler = createWebhookHandler(
+    { handle: (update: TelegramUpdate) => runtime.handle(update) },
+    { secretToken: options.secretToken }
+  );
+
+  return async (request, response) => {
+    const body = await readHttpBody(request);
+
+    const result = await handler({
+      body,
+      headers: normalizeIncomingHeaders(request.headers),
+      method: request.method ?? "POST"
+    });
+
+    response.writeHead(result.status, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify(result));
+  };
+}
+
+function normalizeIncomingHeaders(
+  headers: Record<string, string | string[] | undefined>
+): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === "string") {
+      normalized[key.toLowerCase()] = value;
+    } else if (Array.isArray(value)) {
+      normalized[key.toLowerCase()] = value.join(", ");
+    }
+  }
+  return normalized;
+}
+
+function readHttpBody(request: { on: (...args: unknown[]) => unknown }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const req = request as NodeJS.EventEmitter & NodeJS.ReadableStream;
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
 }
 
 function createPreviewBot(log: (message: string) => void): BotInstance {

@@ -4,6 +4,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { checkClientManifestDrift } from "../client-manifest-drift.js";
 import { loadProjectEnv } from "../env.js";
 import { loadManifest, type TeleforgeManifest } from "../manifest.js";
 
@@ -98,6 +99,7 @@ export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<
   checks.push(checkFlowWiring(manifestState));
   checks.push(await checkRuntimeSecrets(env, manifestState));
   checks.push(checkWebhookMode(env, manifestState));
+  checks.push(await runClientManifestDriftCheck(options.cwd, manifestState));
 
   const summary = checks.reduce(
     (accumulator, check) => {
@@ -1267,15 +1269,75 @@ function checkWebhookMode(
     details: [
       `Delivery mode: webhook`,
       `Webhook path: ${webhookPath}`,
-      `Webhook secret env: ${webhookSecretEnv}`,
-      "Live webhook bootstrap is not yet implemented in teleforge start."
+      `Webhook secret env: ${webhookSecretEnv}`
     ],
     message:
-      "Webhook mode is configured, but live webhook delivery is not yet supported by the high-level bootstrap.",
+      "Webhook mode is configured and ready. Run `teleforge start` to start the webhook server.",
     name: "webhook_mode",
-    remediation:
-      "Use polling mode (default) or the lower-level createDiscoveredBotRuntime() escape hatch for webhook delivery.",
-    status: "warn"
+    status: "pass"
+  };
+}
+
+async function runClientManifestDriftCheck(
+  cwd: string,
+  manifestState: ManifestState
+): Promise<DoctorCheck> {
+  if (!manifestState.manifest) {
+    return {
+      category: "Configuration",
+      message: "Client manifest drift check skipped because the manifest could not be loaded.",
+      name: "client_manifest_drift",
+      status: "warn"
+    };
+  }
+
+  const discoveredFlows = manifestState.discoveredFlows ?? [];
+  if (discoveredFlows.length === 0) {
+    return {
+      category: "Configuration",
+      message: "No flows discovered; client manifest drift check skipped.",
+      name: "client_manifest_drift",
+      status: "pass"
+    };
+  }
+
+  const manifestPath = path.join(
+    cwd,
+    "apps",
+    "web",
+    "src",
+    "teleforge-generated",
+    "client-flow-manifest.ts"
+  );
+
+  const drift = await checkClientManifestDrift({ manifestPath, discoveredFlows });
+
+  if (drift.isStale) {
+    const details: string[] = [];
+    if (drift.reason?.includes("missing")) {
+      details.push(`Expected manifest at ${manifestPath}`);
+    }
+    if (drift.reason) {
+      details.push(drift.reason);
+    }
+
+    return {
+      category: "Configuration",
+      details,
+      message: drift.reason?.includes("missing")
+        ? "Client manifest is missing. Flows are discovered but no checked-in manifest was found."
+        : "Client manifest is out of sync with discovered flows.",
+      name: "client_manifest_drift",
+      remediation: "Run `teleforge generate client-manifest` to regenerate the client-safe flow metadata.",
+      status: "warn"
+    };
+  }
+
+  return {
+    category: "Configuration",
+    message: "Client manifest is in sync with discovered flows.",
+    name: "client_manifest_drift",
+    status: "pass"
   };
 }
 

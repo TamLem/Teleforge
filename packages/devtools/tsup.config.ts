@@ -7,6 +7,7 @@ export default defineConfig({
     cli: "src/cli.ts",
     index: "src/index.ts",
     "simulator-bot-worker": "src/simulator-bot-worker.ts",
+    "utils/client-manifest-drift": "src/utils/client-manifest-drift.ts",
     "utils/doctor/checks": "src/utils/doctor/checks.ts",
     "utils/tunnel": "src/utils/tunnel.ts",
     "utils/webhook": "src/utils/webhook.ts"

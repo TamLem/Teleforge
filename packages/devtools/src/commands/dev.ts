@@ -3,7 +3,9 @@ import path from "node:path";
 
 import qrcodeTerminal from "qrcode-terminal";
 
+import { checkClientManifestDrift } from "../utils/client-manifest-drift.js";
 import { createDevSimulator } from "../utils/dev-simulator.js";
+import { generateClientManifest } from "../utils/generate-manifest.js";
 import { loadManifest } from "../utils/manifest.js";
 import { injectTelegramMock } from "../utils/mock.js";
 import { openBrowser } from "../utils/open.js";
@@ -27,8 +29,35 @@ export interface DevCommandFlags extends SharedCommandFlags {
  */
 export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   let browserOpened = false;
-  const loadedState = flags.mock || flags.webhook ? await loadManifest(flags.cwd) : undefined;
-  const loadedManifest = loadedState?.manifest;
+  const loadedState = await loadManifest(flags.cwd);
+  const loadedManifest = loadedState.manifest;
+
+  if (loadedState.discoveredFlows.length > 0) {
+    const manifestPath = path.join(
+      flags.cwd,
+      "apps",
+      "web",
+      "src",
+      "teleforge-generated",
+      "client-flow-manifest.ts"
+    );
+    const drift = await checkClientManifestDrift({
+      discoveredFlows: loadedState.discoveredFlows,
+      manifestPath
+    });
+    if (drift.isStale) {
+      console.log(`[teleforge:dev] client manifest is stale: ${drift.reason}`);
+      try {
+        const regeneratedPath = await generateClientManifest({ cwd: flags.cwd });
+        console.log(`[teleforge:dev] regenerated client manifest at ${regeneratedPath}`);
+      } catch (error) {
+        console.log(
+          `[teleforge:dev] warning: could not auto-regenerate client manifest (${error instanceof Error ? error.message : String(error)}). Run \`teleforge generate client-manifest\` manually.`
+        );
+      }
+    }
+  }
+
   const manifest = flags.webhook ? loadedManifest : undefined;
   const webhookSupport =
     flags.webhook && manifest ? await resolveWebhookSupport(flags.cwd) : undefined;

@@ -5,7 +5,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { createDiscoveredBotRuntime, startTeleforgeBot } from "../dist/index.js";
+import http from "node:http";
+import { createDiscoveredBotRuntime, createTeleforgeWebhookHandler, startTeleforgeBot } from "../dist/index.js";
 import { verifySignedPhoneAuthToken } from "@teleforgex/core";
 
 test("createDiscoveredBotRuntime loads config and registers commands from discovered flows", async () => {
@@ -1435,7 +1436,7 @@ export default defineFlow({
   }
 });
 
-test("startTeleforgeBot fails fast in live mode when runtime.bot.delivery is webhook", async () => {
+test("startTeleforgeBot validates webhook config in live mode", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-start-webhook-delivery-"));
   const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
   const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
@@ -1475,14 +1476,14 @@ export default defineFlow({
 `
   );
 
-  // Set a token so the bootstrap enters live mode, which is where webhook is rejected.
+  // Set a token so the bootstrap enters live mode but omit required secrets.
   const originalToken = process.env.BOT_TOKEN;
   process.env.BOT_TOKEN = "123456:webhook-token";
 
   try {
     await assert.rejects(
       () => startTeleforgeBot({ cwd: tmpRoot }),
-      /live mode does not yet support webhook delivery/
+      /TELEFORGE_FLOW_SECRET/
     );
   } finally {
     if (originalToken !== undefined) process.env.BOT_TOKEN = originalToken;
@@ -1687,5 +1688,147 @@ export default defineFlow({
     else delete process.env.MINI_APP_URL;
     if (originalPhoneSecret !== undefined) process.env.CUSTOM_PHONE_SECRET = originalPhoneSecret;
     else delete process.env.CUSTOM_PHONE_SECRET;
+  }
+});
+
+/* ───────────────────── createTeleforgeWebhookHandler tests ───────────────────── */
+
+function createMockRuntime() {
+  const handled = [];
+  return {
+    handled,
+    runtime: {
+      handle(update) {
+        handled.push(update);
+      }
+    }
+  };
+}
+
+function sendRequest(server, { method = "POST", path = "/", headers = {}, body = "" } = {}) {
+  return new Promise((resolve, reject) => {
+    const address = server.address();
+    const req = http.request(
+      { hostname: "127.0.0.1", port: address.port, path, method, headers },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => { data += chunk; });
+        res.on("end", () => {
+          resolve({ status: res.statusCode, body: data ? JSON.parse(data) : null });
+        });
+      }
+    );
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+test("createTeleforgeWebhookHandler returns 200 and forwards valid updates to runtime.handle()", async () => {
+  const { runtime, handled } = createMockRuntime();
+  const handler = createTeleforgeWebhookHandler(runtime, { secretToken: "test-secret" });
+
+  const server = http.createServer(async (req, res) => { await handler(req, res); });
+  await new Promise((resolve) => server.listen(0, resolve));
+
+  try {
+    const update = { update_id: 42, message: { message_id: 1, chat: { id: 1, type: "private" }, text: "/start" } };
+    const result = await sendRequest(server, {
+      body: JSON.stringify(update),
+      headers: {
+        "content-type": "application/json",
+        "x-telegram-bot-api-secret-token": "test-secret"
+      }
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.ok, true);
+    assert.equal(result.body.updateId, 42);
+    assert.equal(handled.length, 1);
+    assert.equal(handled[0].update_id, 42);
+  } finally {
+    server.close();
+  }
+});
+
+test("createTeleforgeWebhookHandler returns 401 for wrong secret", async () => {
+  const { runtime } = createMockRuntime();
+  const handler = createTeleforgeWebhookHandler(runtime, { secretToken: "correct" });
+
+  const server = http.createServer(async (req, res) => { await handler(req, res); });
+  await new Promise((resolve) => server.listen(0, resolve));
+
+  try {
+    const update = { update_id: 1, message: { message_id: 1, chat: { id: 1, type: "private" }, text: "hi" } };
+    const result = await sendRequest(server, {
+      body: JSON.stringify(update),
+      headers: {
+        "content-type": "application/json",
+        "x-telegram-bot-api-secret-token": "wrong"
+      }
+    });
+
+    assert.equal(result.status, 401);
+    assert.equal(result.body.ok, false);
+  } finally {
+    server.close();
+  }
+});
+
+test("createTeleforgeWebhookHandler returns 401 for missing secret when configured", async () => {
+  const { runtime } = createMockRuntime();
+  const handler = createTeleforgeWebhookHandler(runtime, { secretToken: "expected" });
+
+  const server = http.createServer(async (req, res) => { await handler(req, res); });
+  await new Promise((resolve) => server.listen(0, resolve));
+
+  try {
+    const update = { update_id: 1, message: { message_id: 1, chat: { id: 1, type: "private" }, text: "hi" } };
+    const result = await sendRequest(server, {
+      body: JSON.stringify(update),
+      headers: { "content-type": "application/json" }
+    });
+
+    assert.equal(result.status, 401);
+    assert.equal(result.body.ok, false);
+  } finally {
+    server.close();
+  }
+});
+
+test("createTeleforgeWebhookHandler returns 400 for invalid payload", async () => {
+  const { runtime } = createMockRuntime();
+  const handler = createTeleforgeWebhookHandler(runtime);
+
+  const server = http.createServer(async (req, res) => { await handler(req, res); });
+  await new Promise((resolve) => server.listen(0, resolve));
+
+  try {
+    const result = await sendRequest(server, {
+      body: JSON.stringify({ not_a_telegram_update: true }),
+      headers: { "content-type": "application/json" }
+    });
+
+    assert.equal(result.status, 400);
+    assert.equal(result.body.ok, false);
+  } finally {
+    server.close();
+  }
+});
+
+test("createTeleforgeWebhookHandler returns 405 for non-POST methods", async () => {
+  const { runtime } = createMockRuntime();
+  const handler = createTeleforgeWebhookHandler(runtime);
+
+  const server = http.createServer(async (req, res) => { await handler(req, res); });
+  await new Promise((resolve) => server.listen(0, resolve));
+
+  try {
+    const result = await sendRequest(server, { method: "GET" });
+
+    assert.equal(result.status, 405);
+    assert.equal(result.body.ok, false);
+  } finally {
+    server.close();
   }
 });

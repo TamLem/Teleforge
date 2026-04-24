@@ -52,12 +52,30 @@ export async function createTeleforgeRuntimeContext(
   const rawFlowSecret = options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET");
   const rawMiniAppUrl = options.miniAppUrl ?? readEnv("MINI_APP_URL");
 
-  if (token) {
-    if (delivery === "webhook") {
+  if (token && delivery === "webhook") {
+    const webhookPath = app.bot.webhook?.path;
+    const webhookSecretEnv = app.bot.webhook?.secretEnv;
+    if (!webhookPath) {
       throw new Error(
-        "startTeleforgeBot live mode does not yet support webhook delivery. Use polling or the lower-level createDiscoveredBotRuntime() escape hatch."
+        "Webhook delivery requires bot.webhook.path in teleforge.config.ts."
       );
     }
+    if (!webhookSecretEnv) {
+      throw new Error(
+        "Webhook delivery requires bot.webhook.secretEnv in teleforge.config.ts."
+      );
+    }
+    if (!rawFlowSecret) {
+      throw new Error(
+        `startTeleforgeBot requires TELEFORGE_FLOW_SECRET (or options.flowSecret) when webhook delivery is configured.`
+      );
+    }
+    if (!rawMiniAppUrl) {
+      throw new Error(
+        `startTeleforgeBot requires MINI_APP_URL (or options.miniAppUrl) when webhook delivery is configured.`
+      );
+    }
+  } else if (token) {
     if (!rawFlowSecret) {
       throw new Error(
         `startTeleforgeBot requires TELEFORGE_FLOW_SECRET (or options.flowSecret) when ${tokenEnv} is configured.`

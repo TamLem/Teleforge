@@ -29,7 +29,8 @@ export {
   returnToChatAction
 } from "./flow.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
-export { createDiscoveredBotRuntime, startTeleforgeBot } from "./bot-runtime.js";
+export { createDiscoveredBotRuntime, createTeleforgeWebhookHandler, startTeleforgeBot } from "./bot-runtime.js";
+export type { CreateTeleforgeWebhookHandlerOptions } from "./bot-runtime.js";
 export type { SharedLocation } from "./flow.js";
 export {
   createTeleforgeRuntimeContext

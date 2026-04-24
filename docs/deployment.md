@@ -72,12 +72,14 @@ allowed_updates: ["message"]
 
 For advanced use cases, the lower-level `createDiscoveredBotRuntime()` escape hatch is available.
 
-Webhook delivery is configurable in `teleforge.config.ts`, but `teleforge start` does not yet implement live webhook bootstrap. Use the lower-level escape hatch if you need webhook delivery today. When webhook mode is fully supported:
+Webhook delivery is supported by `teleforge start`. When `runtime.bot.delivery` is `"webhook"`:
 
-- serve the configured webhook path from your bot/server runtime
-- set Telegram's webhook URL to that public HTTPS endpoint
-- set `WEBHOOK_SECRET` when your runtime validates Telegram's secret header
+- `teleforge start` mounts a Telegram webhook endpoint at `bot.webhook.path` on the hooks server
+- set Telegram's webhook URL to your public HTTPS endpoint pointing to that path
+- set the environment variable named in `bot.webhook.secretEnv` so the handler validates Telegram's secret header
 - do not run polling for the same bot at the same time
+
+Required environment variables for webhook mode: `BOT_TOKEN`, `TELEFORGE_FLOW_SECRET`, `MINI_APP_URL`, and the secret named in `bot.webhook.secretEnv`.
 
 ## Server Hooks
 

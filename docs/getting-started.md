@@ -227,7 +227,7 @@ For the polling-first scaffolds and repo examples, the minimum bot configuration
 - `bot.tokenEnv`
 - `runtime.bot.delivery` (defaults to polling)
 
-`bot.webhook.path` and `bot.webhook.secretEnv` are configured for webhook delivery, but `teleforge start` does not yet support live webhook bootstrap. Use polling (default) or the lower-level `createDiscoveredBotRuntime()` escape hatch for webhook delivery. The current starter and Task Shop flows use polling by default.
+`bot.webhook.path` and `bot.webhook.secretEnv` configure webhook delivery. When `runtime.bot.delivery` is set to `"webhook"`, `teleforge start` mounts a Telegram webhook endpoint on the hooks server at the configured path. The current starter and Task Shop flows use polling by default.
 
 ## 5. Open in Telegram
 

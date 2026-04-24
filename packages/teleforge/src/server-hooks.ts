@@ -152,6 +152,16 @@ export interface StartTeleforgeServerOptions {
   services?: unknown;
   storage?: UserFlowStateManager;
   trust?: TeleforgeServerHookTrustOptions;
+  /**
+   * Additional route handlers mounted on the server alongside flow-hooks.
+   * Each entry maps an exact URL pathname to a Node.js HTTP request handler.
+   * Used by the CLI to mount the Telegram webhook endpoint in webhook mode.
+   */
+  additionalRoutes?: Array<{
+    path: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    handler: (req: any, res: any) => Promise<void>;
+  }>;
 }
 
 export interface StartTeleforgeServerResult {
@@ -185,6 +195,7 @@ export async function startTeleforgeServer(
 
   const basePath = options.basePath ?? "/api/teleforge/flow-hooks";
   const requestedPort = options.port ?? app.runtime.server?.port ?? 3100;
+  const additionalRoutes = options.additionalRoutes ?? [];
 
   const hooksHandler = await createDiscoveredServerHooksHandler({
     basePath,
@@ -208,6 +219,16 @@ export async function startTeleforgeServer(
       res.writeHead(204, corsHeaders);
       res.end();
       return;
+    }
+
+    // Check additional routes (e.g., Telegram webhook endpoint).
+    // Use exact pathname matching so /api/webhook-extra does not hit /api/webhook.
+    const requestPathname = req.url ? new URL(req.url, "http://localhost").pathname : undefined;
+    for (const route of additionalRoutes) {
+      if (req.method === "POST" && requestPathname === route.path) {
+        await route.handler(req, res);
+        return;
+      }
     }
 
     if (req.method === "POST" && req.url?.startsWith(basePath)) {

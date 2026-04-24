@@ -30,7 +30,7 @@
     "format": "prettier --check .",
     "lint": "eslint . --ext .ts,.tsx,.mjs",
     "prepublishOnly": "pnpm run build",
-    "test": "pnpm --filter create-teleforge-app build && pnpm run build && node --test --test-concurrency=1 test/cli.smoke.mjs test/dev.mjs test/doctor.mjs test/generate.mjs test/manifest.mjs test/mock-server.mjs test/tunnel.mjs test/webhook.mjs"
+    "test": "pnpm --filter create-teleforge-app build && pnpm run build && node --test --test-concurrency=1 test/cli.smoke.mjs test/dev.mjs test/doctor.mjs test/client-manifest-drift.mjs test/generate.mjs test/manifest.mjs test/mock-server.mjs test/tunnel.mjs test/webhook.mjs"
   },
   "publishConfig": {
     "access": "public"

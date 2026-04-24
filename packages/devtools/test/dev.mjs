@@ -124,6 +124,18 @@ test("help text advertises the dev convenience flags", async () => {
   );
 });
 
+test("dev --no-mock fails fast when teleforge.config is missing", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-no-config-"));
+
+  try {
+    const result = await runCLI(["dev", "--no-mock", "--no-https"], tempRoot);
+    assert.notEqual(result.code, 0, "Expected dev command to fail without teleforge.config");
+    assert.match(result.stdout + result.stderr, /teleforge\.config/);
+  } finally {
+    await rm(tempRoot, { force: true, recursive: true });
+  }
+});
+
 test("dev logs upstream app 500 responses for simulator app requests", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-dev-upstream-error-"));
   const projectRoot = path.join(tempRoot, "project");
@@ -704,6 +716,29 @@ async function waitForChildExit(child) {
   }
 
   await new Promise((resolve) => child.once("exit", resolve));
+}
+
+async function runCLI(args, cwd, env = {}) {
+  return new Promise((resolve) => {
+    const child = spawn("node", [cliPath, ...args], {
+      cwd,
+      env: { ...process.env, ...env },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+
+    child.on("close", (code) => resolve({ code, stderr, stdout }));
+    child.on("error", (error) => resolve({ code: -1, stderr: String(error), stdout }));
+  });
 }
 
 async function getAvailablePort() {

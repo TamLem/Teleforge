@@ -151,6 +151,88 @@ test("doctor fails the node-version check below Node 18", async () => {
   assert.equal(names.get("node_version")?.status, "error");
 });
 
+test("doctor warns when client manifest is missing but flows are discovered", async () => {
+  const projectDir = await createDoctorFixture({ flowsDir: true });
+
+  const result = await runDoctorChecks({
+    cwd: projectDir,
+    execFileImpl: async () => ({
+      stderr: "",
+      stdout: "git version 2.43.0\n"
+    }),
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK"
+    }),
+    fix: false,
+    nodeVersion: "v20.11.0",
+    userAgent: "pnpm/10.15.0 npm/? node/v20.11.0 linux x64"
+  });
+
+  const names = new Map(result.checks.map((check) => [check.name, check]));
+  assert.equal(names.get("client_manifest_drift")?.status, "warn");
+  assert.match(
+    names.get("client_manifest_drift")?.message ?? "",
+    /missing/
+  );
+});
+
+test("doctor passes when client manifest is in sync with discovered flows", async () => {
+  const projectDir = await createDoctorFixture({ flowsDir: true, clientManifest: true });
+
+  const result = await runDoctorChecks({
+    cwd: projectDir,
+    execFileImpl: async () => ({
+      stderr: "",
+      stdout: "git version 2.43.0\n"
+    }),
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK"
+    }),
+    fix: false,
+    nodeVersion: "v20.11.0",
+    userAgent: "pnpm/10.15.0 npm/? node/v20.11.0 linux x64"
+  });
+
+  const names = new Map(result.checks.map((check) => [check.name, check]));
+  assert.equal(names.get("client_manifest_drift")?.status, "pass");
+});
+
+test("doctor warns when client manifest is out of sync with discovered flows", async () => {
+  const projectDir = await createDoctorFixture({
+    flowsDir: true,
+    clientManifest: true,
+    extraFlow: true,
+    staleManifest: true
+  });
+
+  const result = await runDoctorChecks({
+    cwd: projectDir,
+    execFileImpl: async () => ({
+      stderr: "",
+      stdout: "git version 2.43.0\n"
+    }),
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK"
+    }),
+    fix: false,
+    nodeVersion: "v20.11.0",
+    userAgent: "pnpm/10.15.0 npm/? node/v20.11.0 linux x64"
+  });
+
+  const names = new Map(result.checks.map((check) => [check.name, check]));
+  assert.equal(names.get("client_manifest_drift")?.status, "warn");
+  assert.match(
+    names.get("client_manifest_drift")?.details?.join(" ") ?? "",
+    /missing from manifest/
+  );
+});
+
 async function createDoctorFixture(options = {}) {
   const configFile = options.configFile ?? true;
   const envFile = options.envFile ?? true;
@@ -239,6 +321,9 @@ async function createDoctorFixture(options = {}) {
         },
         runtime: manifest.runtime,
         bot: manifest.bot,
+        ...(options.flowsDir || options.extraFlow
+          ? { flows: { root: "apps/bot/src/flows" } }
+          : {}),
         miniApp: {
           ...manifest.miniApp,
           entry: manifest.miniApp.entryPoint
@@ -269,6 +354,48 @@ async function createDoctorFixture(options = {}) {
     await writeFile(
       path.join(tempRoot, ".env"),
       "BOT_TOKEN=123:real-token\nWEBHOOK_SECRET=real-secret\nTELEFORGE_FLOW_SECRET=real-flow-secret\nPHONE_AUTH_SECRET=real-phone-secret\nTELEFORGE_PUBLIC_URL=https://public.example.test\nTELEFORGE_DEV_HTTPS=false\n",
+      "utf8"
+    );
+  }
+
+  if (options.flowsDir) {
+    await mkdir(path.join(tempRoot, "apps", "bot", "src", "flows"), { recursive: true });
+    await writeFile(
+      path.join(tempRoot, "apps", "bot", "src", "flows", "start.flow.mjs"),
+      `export default {
+        id: "start",
+        initialStep: "welcome",
+        state: {},
+        bot: { command: { command: "start", text: "Welcome!" } },
+        steps: {
+          welcome: { type: "chat", message: "Welcome!" }
+        }
+      };\n`,
+      "utf8"
+    );
+  }
+
+  if (options.extraFlow) {
+    await writeFile(
+      path.join(tempRoot, "apps", "bot", "src", "flows", "extra.flow.mjs"),
+      `export default {
+        id: "extra",
+        initialStep: "step1",
+        state: {},
+        steps: {
+          step1: { type: "chat", message: "Extra flow" }
+        }
+      };\n`,
+      "utf8"
+    );
+  }
+
+  if (options.clientManifest) {
+    await mkdir(path.join(tempRoot, "apps", "web", "src", "teleforge-generated"), { recursive: true });
+    const flowIds = options.staleManifest ? ["start"] : ["start", ...(options.extraFlow ? ["extra"] : [])];
+    await writeFile(
+      path.join(tempRoot, "apps", "web", "src", "teleforge-generated", "client-flow-manifest.ts"),
+      `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n${JSON.stringify(flowIds.map((id) => ({ id })), null, 2)}\n);\n`,
       "utf8"
     );
   }

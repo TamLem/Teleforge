@@ -5,11 +5,14 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
+import http from "node:http";
+
 import {
   UserFlowStateManager,
   createFlowStorage,
   createDiscoveredServerHooksHandler,
   createFetchMiniAppServerBridge,
+  createTeleforgeWebhookHandler,
   defineFlow,
   defineScreen,
   executeMiniAppStepAction,
@@ -755,6 +758,140 @@ export default defineFlow({
     const body = await response.json();
     assert.equal(body.kind, "load");
     assert.equal(body.result.allow, true);
+  } finally {
+    stop();
+  }
+});
+
+/* ───────────────── additionalRoutes + webhook path matching ───────────────── */
+
+test("startTeleforgeServer mounts additionalRoutes and matches exact pathname", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-webhook-route-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const hooksRoot = path.join(tmpRoot, "apps", "api", "src", "flow-hooks", "checkout");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await mkdir(hooksRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "webhook-route-app", name: "Webhook Route App", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  bot: { tokenEnv: "BOT_TOKEN", username: "webhook_route_bot", webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" } },
+  miniApp: { capabilities: ["read_access"], defaultMode: "inline", entry: "apps/web/src/main.tsx", launchModes: ["inline"] },
+  runtime: {}
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "main.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "main", initialStep: "home", state: {},
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+  await writeFile(path.join(hooksRoot, "address.mjs"), `export const loader = () => ({});`);
+
+  const handled = [];
+  const webhookHandler = createTeleforgeWebhookHandler(
+    { handle(update) { handled.push(update); } },
+    { secretToken: "wh-secret" }
+  );
+
+  const { port, stop } = await startTeleforgeServer({
+    cwd: tmpRoot,
+    port: 0,
+    additionalRoutes: [{ path: "/api/webhook", handler: webhookHandler }]
+  });
+
+  try {
+    // Valid POST to the exact webhook path should reach the handler
+    const update = { update_id: 99, message: { message_id: 1, chat: { id: 1, type: "private" }, text: "/start" } };
+    const okResponse = await fetch(`http://localhost:${port}/api/webhook`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-telegram-bot-api-secret-token": "wh-secret"
+      },
+      body: JSON.stringify(update)
+    });
+
+    assert.equal(okResponse.status, 200);
+    const okBody = await okResponse.json();
+    assert.equal(okBody.ok, true);
+    assert.equal(handled.length, 1);
+    assert.equal(handled[0].update_id, 99);
+
+    // POST to /api/webhook-extra should NOT match the /api/webhook route
+    const siblingResponse = await fetch(`http://localhost:${port}/api/webhook-extra`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}"
+    });
+    assert.equal(siblingResponse.status, 404);
+    assert.equal(handled.length, 1, "sibling path should not reach webhook handler");
+  } finally {
+    stop();
+  }
+});
+
+test("startTeleforgeServer starts when no server hooks exist but additionalRoutes are provided", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-webhook-nohooks-"));
+  const flowsRoot = path.join(tmpRoot, "apps", "bot", "src", "flows");
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+
+  await mkdir(flowsRoot, { recursive: true });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "nohooks-app", name: "No Hooks App", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  bot: { tokenEnv: "BOT_TOKEN", username: "nohooks_bot", webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" } },
+  miniApp: { capabilities: ["read_access"], defaultMode: "inline", entry: "apps/web/src/main.tsx", launchModes: ["inline"] },
+  runtime: {}
+});
+`
+  );
+  await writeFile(
+    path.join(flowsRoot, "main.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+export default defineFlow({
+  id: "main", initialStep: "home", state: {},
+  miniApp: { route: "/" },
+  steps: { home: { screen: "home", type: "miniapp" } }
+});
+`
+  );
+
+  const handled = [];
+  const webhookHandler = createTeleforgeWebhookHandler(
+    { handle(update) { handled.push(update); } }
+  );
+
+  const { port, stop } = await startTeleforgeServer({
+    cwd: tmpRoot,
+    port: 0,
+    additionalRoutes: [{ path: "/api/webhook", handler: webhookHandler }]
+  });
+
+  try {
+    const update = { update_id: 7, message: { message_id: 1, chat: { id: 1, type: "private" }, text: "hi" } };
+    const response = await fetch(`http://localhost:${port}/api/webhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(update)
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(handled.length, 1);
   } finally {
     stop();
   }

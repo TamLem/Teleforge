@@ -68,7 +68,7 @@ Polling and webhook delivery are deployment choices. They are not separate Telef
 
 | Field                    | Type       | Purpose                                                   |
 | ------------------------ | ---------- | --------------------------------------------------------- |
-| `bot.delivery`           | `"polling" \| "webhook"` | Bot update delivery mode. Defaults to polling. `teleforge start` does not yet support live webhook bootstrap; use the lower-level escape hatch for webhook delivery. |
+| `bot.delivery`           | `"polling" \| "webhook"` | Bot update delivery mode. Defaults to polling. When set to `"webhook"`, `teleforge start` mounts a Telegram webhook endpoint at `bot.webhook.path` on the hooks server. |
 | `server.port`          | `number`   | Default port for the hooks server. Defaults to 3100.      |
 | `phoneAuth.secretEnv`  | `string`   | Environment variable for phone-auth signing secret. Defaults to `PHONE_AUTH_SECRET`. |
 
