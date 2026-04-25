@@ -5,6 +5,8 @@ import type { TeleforgeFlowDefinition } from "./flow-definition.js";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
+type AnyScreenDefinition = TeleforgeScreenDefinition<any, any>;
+type AnyDiscoveredScreenModule = DiscoveredScreenModule<any>;
 type MaybePromise<T> = Promise<T> | T;
 
 export interface TeleforgeScreenComponentProps<TState = unknown> {
@@ -52,14 +54,14 @@ export interface DiscoveredScreenModule<TState = unknown> {
 export interface ResolveMiniAppScreenOptions {
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
   pathname: string;
-  screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>;
+  screens: Iterable<AnyScreenDefinition | AnyDiscoveredScreenModule>;
 }
 
 export interface ResolvedMiniAppScreen {
   flow: AnyFlowDefinition;
   flowId: string;
   routePath: string;
-  screen: TeleforgeScreenDefinition;
+  screen: AnyScreenDefinition;
   screenId: string;
   state: unknown;
   stepId: string;
@@ -91,9 +93,9 @@ export function defineScreen<TState>(
 }
 
 export function createScreenRegistry(
-  screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>
-): ReadonlyMap<string, TeleforgeScreenDefinition> {
-  const registry = new Map<string, TeleforgeScreenDefinition>();
+  screens: Iterable<AnyScreenDefinition | AnyDiscoveredScreenModule>
+): ReadonlyMap<string, AnyScreenDefinition> {
+  const registry = new Map<string, AnyScreenDefinition>();
 
   for (const entry of screens) {
     const screen = "screen" in entry ? entry.screen : entry;

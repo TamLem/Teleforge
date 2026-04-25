@@ -63,6 +63,8 @@ function resolveScreenWithStandaloneFallback(
 }
 
 type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
+type AnyScreenDefinition = TeleforgeScreenDefinition<any, any>;
+type AnyDiscoveredScreenModule = DiscoveredScreenModule<any>;
 
 export interface TeleforgeMiniAppProps {
   fallback?: ReactNode;
@@ -75,7 +77,7 @@ export interface TeleforgeMiniAppProps {
   renderChatHandoff?: (result: ChatHandoffMiniAppScreen) => ReactNode;
   renderError?: (error: UnresolvedMiniAppScreen) => ReactNode;
   renderRuntimeError?: (error: RuntimeErrorMiniAppScreen) => ReactNode;
-  screens: Iterable<TeleforgeScreenDefinition | DiscoveredScreenModule>;
+  screens: Iterable<AnyScreenDefinition | AnyDiscoveredScreenModule>;
   serverBridge?: TeleforgeMiniAppServerBridge;
 }
 

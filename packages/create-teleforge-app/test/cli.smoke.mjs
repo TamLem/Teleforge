@@ -37,10 +37,15 @@ test("generates the unified Teleforge scaffold", async () => {
     rootPackage.scripts.test,
     "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
   );
-  assert.ok(rootPackage.scripts.lint);
-  assert.ok(rootPackage.scripts.typecheck);
+  assert.equal(
+    rootPackage.scripts.lint,
+    "pnpm -r --if-present typecheck || echo 'Add eslint or biome to enable linting'"
+  );
+  assert.equal(rootPackage.scripts.pretypecheck, "teleforge generate client-manifest");
+  assert.equal(rootPackage.scripts.typecheck, "pnpm -r --if-present typecheck");
   assert.ok(rootPackage.scripts.build);
   assert.ok(rootPackage.scripts.check);
+  assert.equal(rootPackage.devDependencies["@types/node"], "24.12.0");
 
   const legacyManifestPath = path.join(tmpRoot, projectName, "teleforge.app.json");
   await assert.rejects(readFile(legacyManifestPath, "utf8"), /ENOENT/);

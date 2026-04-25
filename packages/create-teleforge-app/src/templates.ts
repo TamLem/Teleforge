@@ -175,8 +175,9 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
       "predev:public": "teleforge generate client-manifest",
       prebuild: "teleforge generate client-manifest",
       pretest: "teleforge generate client-manifest",
-      lint: "tsc -p tsconfig.base.json --noEmit || echo 'Add eslint or biome to enable linting'",
-      typecheck: "tsc -p tsconfig.base.json --noEmit",
+      pretypecheck: "teleforge generate client-manifest",
+      lint: "pnpm -r --if-present typecheck || echo 'Add eslint or biome to enable linting'",
+      typecheck: "pnpm -r --if-present typecheck",
       build: "pnpm -r build",
       check: "pnpm typecheck && pnpm test",
       test: "node --import tsx --test apps/bot/test/**/*.test.ts apps/web/test/**/*.test.tsx"
@@ -186,6 +187,7 @@ function generatedRootPackageJson(options: BuildProjectFilesOptions): string {
       dotenv: "^16.4.7"
     },
     devDependencies: {
+      "@types/node": "24.12.0",
       tsx: "^4.19.2",
       typescript: "^5.8.3"
     }
