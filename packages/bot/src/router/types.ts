@@ -73,7 +73,15 @@ export interface TelegramKeyboardMarkup {
   selective?: boolean;
 }
 
-export type TelegramReplyMarkup = TelegramInlineKeyboardMarkup | TelegramKeyboardMarkup;
+export interface TelegramReplyKeyboardRemove {
+  remove_keyboard: true;
+  selective?: boolean;
+}
+
+export type TelegramReplyMarkup =
+  | TelegramInlineKeyboardMarkup
+  | TelegramKeyboardMarkup
+  | TelegramReplyKeyboardRemove;
 
 export interface ReplyOptions {
   disable_web_page_preview?: boolean;

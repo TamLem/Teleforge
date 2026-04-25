@@ -570,7 +570,9 @@ export default defineFlow({
     update_id: 2
   });
 
-  assert.equal(sent[1]?.text, "Saved +12025550199 from +1 (202) 555-0199");
+  assert.equal(sent[1]?.text, "Phone number received.");
+  assert.equal(sent[1]?.options.reply_markup.remove_keyboard, true);
+  assert.equal(sent[2]?.text, "Saved +12025550199 from +1 (202) 555-0199");
 });
 
 test("createDiscoveredBotRuntime unifies phone share into Mini App phone-auth launch", async () => {
@@ -707,8 +709,10 @@ export default defineFlow({
     update_id: 2
   });
 
-  assert.equal(sent[1]?.text, "Continue in profile");
-  const launchedUrl = sent[1]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
+  assert.equal(sent[1]?.text, "Phone number received.");
+  assert.equal(sent[1]?.options.reply_markup.remove_keyboard, true);
+  assert.equal(sent[2]?.text, "Continue in profile");
+  const launchedUrl = sent[2]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
   assert.ok(launchedUrl);
   assert.match(launchedUrl, /tgWebAppStartParam=/);
   assert.match(launchedUrl, /tfPhoneAuth=/);
@@ -1664,8 +1668,10 @@ export default defineFlow({
       update_id: 2
     });
 
-    assert.equal(sent[1]?.text, "Continue in profile");
-    const launchedUrl = sent[1]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
+    assert.equal(sent[1]?.text, "Phone number received.");
+    assert.equal(sent[1]?.options.reply_markup.remove_keyboard, true);
+    assert.equal(sent[2]?.text, "Continue in profile");
+    const launchedUrl = sent[2]?.options.reply_markup.inline_keyboard[0][0].web_app?.url;
     assert.ok(launchedUrl);
     assert.match(launchedUrl, /tgWebAppStartParam=/);
     assert.match(launchedUrl, /tfPhoneAuth=/);

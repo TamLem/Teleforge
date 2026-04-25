@@ -670,6 +670,12 @@ function createDiscoveredFlowPhoneContactMiddleware(
       userId: String(context.user.id)
     });
 
+    await context.reply("Phone number received.", {
+      reply_markup: {
+        remove_keyboard: true
+      }
+    });
+
     await enterDiscoveredFlowStep(
       {
         chatId: context.chat.id,
