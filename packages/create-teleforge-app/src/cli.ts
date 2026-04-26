@@ -16,7 +16,7 @@ interface CliOptions {
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
-    includeApi: false,
+    includeApi: true,
     overwrite: false,
     yes: false,
     help: false
@@ -54,6 +54,11 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--without-api" || arg === "--minimal") {
+      options.includeApi = false;
+      continue;
+    }
+
     if (arg === "--link") {
       const value = argv[index + 1];
       if (!value || value.startsWith("-")) {
@@ -86,7 +91,8 @@ function printHelp(): void {
   output.write(
     `  --overwrite                   Remove an existing target directory before generating\n`
   );
-  output.write(`  --with-api                    Include optional API hooks/webhook placeholders\n`);
+  output.write(`  --without-api, --minimal      Generate a client-only scaffold without apps/api\n`);
+  output.write(`  --with-api                    Include apps/api (default)\n`);
   output.write(`  --link <path>                 Link packages to a local teleforge monorepo\n`);
   output.write(`  -y, --yes                     Accept defaults without prompts\n`);
   output.write(`  -h, --help                    Show help\n`);

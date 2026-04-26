@@ -48,7 +48,7 @@ apps/api/src/flow-hooks/
     review.ts
 ```
 
-Use the flow and step ids as the filesystem boundary. The default scaffold does not include `apps/api`; generate placeholder hook files with `create-teleforge-app my-app --with-api` when a project needs trusted hooks or a webhook placeholder.
+Use the flow and step ids as the filesystem boundary. The default scaffold includes `apps/api` because the Mini App server bridge depends on a backend surface for coordinated bot-owned state. Use `create-teleforge-app my-app --without-api` only for client-only experiments.
 
 ## Example Loader and Submit
 

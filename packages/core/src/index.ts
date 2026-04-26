@@ -129,12 +129,15 @@ export type {
 } from "./manifest/types.js";
 export {
   MemoryStorageAdapter,
+  RedisStorageAdapter,
   UserFlowStateManager,
   createFlowStorage,
   createStorage,
   decryptState,
   encryptState,
-  type FlowStorageOptions
+  type FlowStorageOptions,
+  type RedisStorageAdapterOptions,
+  type RedisStorageClient
 } from "./storage/index.js";
 export type {
   Effect,

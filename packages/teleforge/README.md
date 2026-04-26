@@ -11,7 +11,7 @@ A Teleforge app is primarily:
 - `teleforge.config.ts` — app identity, flow discovery, Mini App defaults
 - `apps/bot/src/flows/*.flow.ts` — user journeys with chat steps, Mini App steps, and actions
 - `apps/web/src/screens/*.screen.tsx` — Mini App screens registered with `defineScreen()`
-- Optional `apps/api/src/flow-hooks/` — trusted server hooks for guards, loaders, and submit handlers, usually added with `create-teleforge-app --with-api`
+- `apps/api/src/flow-hooks/` — trusted server hooks for guards, loaders, submit handlers, and coordinated bot/Mini App state
 
 The framework discovers flows and screens by convention, generates client-safe Mini App metadata, detects manifest drift in development, and wires the bot runtime, server hooks, and simulator automatically.
 

@@ -7,7 +7,11 @@ import { loadTeleforgeFlowServerHooks, loadTeleforgeFlows } from "./discovery.js
 import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
 
 import type { DiscoveredFlowStepServerHookModule, DiscoveredFlowModule } from "./discovery.js";
-import type { FlowTransitionResult, TeleforgeFlowDefinition } from "./flow-definition.js";
+import type {
+  FlowActionDefinition,
+  FlowTransitionResult,
+  TeleforgeFlowDefinition
+} from "./flow-definition.js";
 import type { TeleforgeScreenGuardBlock } from "./screens.js";
 import type {
   TeleforgeMiniAppServerChatHandoffInput,
@@ -203,7 +207,10 @@ export async function startTeleforgeServer(
     onChatHandoff: options.onChatHandoff,
     services: context?.services ?? options.services,
     storage,
-    trust: options.trust
+    trust: {
+      flowState: storage,
+      ...options.trust
+    }
   });
 
   const corsHeaders: Record<string, string> = {
@@ -358,6 +365,7 @@ export async function executeTeleforgeServerHookSubmit(options: {
   hooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   input: TeleforgeMiniAppServerSubmitInput;
   services?: unknown;
+  storage?: UserFlowStateManager;
 }): Promise<void | FlowTransitionResult<unknown>> {
   const step = getFlowStep(options.flow, options.input.stepId);
 
@@ -378,12 +386,23 @@ export async function executeTeleforgeServerHookSubmit(options: {
     );
   }
 
-  return (await handler({
+  const result = (await handler({
     data: options.input.data,
     flow: options.flow,
     services: options.services,
     state: options.input.state
   })) as void | FlowTransitionResult<unknown>;
+
+  await persistServerBridgeTransition({
+    currentStepId: options.input.stepId,
+    flow: options.flow,
+    result,
+    state: options.input.state,
+    stateKey: options.input.stateKey,
+    storage: options.storage
+  });
+
+  return result;
 }
 
 export async function executeTeleforgeServerHookAction(options: {
@@ -391,6 +410,7 @@ export async function executeTeleforgeServerHookAction(options: {
   hooks?: Iterable<DiscoveredFlowStepServerHookModule>;
   input: TeleforgeMiniAppServerActionInput;
   services?: unknown;
+  storage?: UserFlowStateManager;
 }): Promise<void | FlowTransitionResult<unknown>> {
   const step = getFlowStep(options.flow, options.input.stepId);
 
@@ -414,11 +434,23 @@ export async function executeTeleforgeServerHookAction(options: {
     );
   }
 
-  return (await handler({
+  const result = (await handler({
     flow: options.flow,
     services: options.services,
     state: options.input.state
   })) as void | FlowTransitionResult<unknown>;
+
+  await persistServerBridgeTransition({
+    action: actionDefinition,
+    currentStepId: options.input.stepId,
+    flow: options.flow,
+    result,
+    state: options.input.state,
+    stateKey: options.input.stateKey,
+    storage: options.storage
+  });
+
+  return result;
 }
 
 async function handleDiscoveredServerHooksRequest(
@@ -503,7 +535,8 @@ async function executeDiscoveredServerHookRequest(
             state: trusted.state,
             ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
           },
-          services: state.services
+          services: state.services,
+          storage: state.storage
         })
       };
     case "action":
@@ -517,10 +550,76 @@ async function executeDiscoveredServerHookRequest(
             state: trusted.state,
             ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
           },
-          services: state.services
+          services: state.services,
+          storage: state.storage
         })
       };
   }
+}
+
+async function persistServerBridgeTransition(options: {
+  action?: FlowActionDefinition<unknown, unknown>;
+  currentStepId: string;
+  flow: AnyFlowDefinition;
+  result: void | FlowTransitionResult<unknown>;
+  state: unknown;
+  stateKey?: string;
+  storage?: UserFlowStateManager;
+}): Promise<void> {
+  if (!options.storage || !options.stateKey) {
+    return;
+  }
+
+  const nextStepId = resolveServerBridgeNextStepId(
+    options.currentStepId,
+    options.action,
+    options.result
+  );
+  const nextState = resolveServerBridgeNextState(options.state, options.result);
+  const nextStep = getFlowStep(options.flow, nextStepId);
+  const surface = isMiniAppStep(nextStep) ? "miniapp" : "chat";
+
+  await options.storage.advanceStep(
+    options.stateKey,
+    nextStepId,
+    normalizeFlowStateRecord(nextState),
+    surface
+  );
+}
+
+function resolveServerBridgeNextState(
+  currentState: unknown,
+  result: void | FlowTransitionResult<unknown>
+): unknown {
+  if (isFlowTransitionResult(result) && result.state !== undefined) {
+    return result.state;
+  }
+
+  return currentState;
+}
+
+function resolveServerBridgeNextStepId(
+  currentStepId: string,
+  action: FlowActionDefinition<unknown, unknown> | undefined,
+  result: void | FlowTransitionResult<unknown>
+): string {
+  if (isFlowTransitionResult(result) && typeof result.to === "string" && result.to.length > 0) {
+    return result.to;
+  }
+
+  return action?.to ?? currentStepId;
+}
+
+function isFlowTransitionResult(value: unknown): value is FlowTransitionResult<unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeFlowStateRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return { ...(value as Record<string, unknown>) };
+  }
+
+  return {};
 }
 
 function createServerHookIndex(

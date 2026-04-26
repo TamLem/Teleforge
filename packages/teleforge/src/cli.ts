@@ -19,7 +19,7 @@ async function runStartCommand(): Promise<void> {
   // Discover server hooks once so the CLI decides whether to start the server.
   const serverHooks = await loadTeleforgeFlowServerHooks({ app: context.app, cwd });
   const hasServerHooks = serverHooks.length > 0;
-  const needsServer = hasServerHooks || delivery === "webhook";
+  const needsServer = Boolean(context.app.miniApp) || hasServerHooks || delivery === "webhook";
 
   const { runtime: botRuntime, stop: stopBot } = await startTeleforgeBot({ context });
 
@@ -55,6 +55,8 @@ async function runStartCommand(): Promise<void> {
       console.log(
         `[teleforge:start] server hooks running at ${server.url} (${serverHooks.length} hook(s) loaded)`
       );
+    } else {
+      console.log(`[teleforge:start] server bridge running at ${server.url}`);
     }
   }
 

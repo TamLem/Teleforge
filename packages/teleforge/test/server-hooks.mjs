@@ -256,6 +256,93 @@ test("createDiscoveredServerHooksHandler serves convention-discovered flow hooks
   });
 });
 
+test("server bridge submit persists authoritative Mini App state transitions", async () => {
+  const flowState = new UserFlowStateManager(
+    createFlowStorage({
+      backend: "memory",
+      defaultTTL: 900,
+      namespace: "teleforge-server-hooks-persist-test"
+    })
+  );
+  const { key: stateKey } = await flowState.startInstance("user_1", "inventory", "catalog", {
+    itemId: null,
+    refreshed: false
+  });
+  const flow = defineFlow({
+    id: "inventory",
+    initialStep: "catalog",
+    state: {
+      itemId: null,
+      refreshed: false
+    },
+    miniApp: {
+      route: "/inventory",
+      stepRoutes: {
+        confirm: "/inventory/confirm"
+      }
+    },
+    steps: {
+      catalog: {
+        screen: "inventory.catalog",
+        type: "miniapp"
+      },
+      confirm: {
+        screen: "inventory.confirm",
+        type: "miniapp"
+      }
+    }
+  });
+
+  const result = await executeTeleforgeServerHookSubmit({
+    flow,
+    hooks: [
+      {
+        actions: {},
+        flowId: "inventory",
+        onSubmit({ data }) {
+          return {
+            state: {
+              itemId: data.itemId,
+              refreshed: true
+            },
+            to: "confirm"
+          };
+        },
+        stepId: "catalog"
+      }
+    ],
+    input: {
+      data: {
+        itemId: "sku_123"
+      },
+      flowId: "inventory",
+      state: {
+        itemId: null,
+        refreshed: false
+      },
+      stateKey,
+      stepId: "catalog"
+    },
+    storage: flowState
+  });
+
+  assert.deepEqual(result, {
+    state: {
+      itemId: "sku_123",
+      refreshed: true
+    },
+    to: "confirm"
+  });
+
+  const persisted = await flowState.getInstance(stateKey);
+  assert.equal(persisted?.stepId, "confirm");
+  assert.equal(persisted?.currentSurface, "miniapp");
+  assert.deepEqual(persisted?.state, {
+    itemId: "sku_123",
+    refreshed: true
+  });
+});
+
 test("createDiscoveredServerHooksHandler enforces trusted actor ownership and state keys", async () => {
   const flowState = new UserFlowStateManager(
     createFlowStorage({

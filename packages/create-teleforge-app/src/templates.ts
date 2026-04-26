@@ -22,7 +22,7 @@ function teleforgeDependency(linkPath?: string): Record<string, string> {
 
 export function buildProjectFiles(options: BuildProjectFilesOptions): Record<string, string> {
   const packageNames = getPackageNames(options.appId);
-  const includeApi = options.includeApi ?? false;
+  const includeApi = options.includeApi ?? true;
 
   return {
     ".env.example": envExample(includeApi),
@@ -75,14 +75,14 @@ function generatedReadme(options: BuildProjectFilesOptions): string {
   const doctor = `pnpm run doctor`;
   const runTests = `pnpm test`;
   const apiStructure = options.includeApi
-    ? "- `apps/api`: optional server-hook and webhook placeholders\n"
+    ? "- `apps/api`: default server bridge hooks and webhook placeholders\n"
     : "";
   const apiReadFirst = options.includeApi
-    ? "- `apps/api/src/flow-hooks/start/home.ts`: optional trusted server-hook example for the first screen\n"
+    ? "- `apps/api/src/flow-hooks/start/home.ts`: trusted server-hook example for the first screen\n"
     : "";
   const apiRuntimeNote = options.includeApi
-    ? "- `apps/api`: included because this project was generated with `--with-api`; keep it only when you need trusted server hooks or a real webhook surface"
-    : "- add `apps/api` later when you need trusted server hooks or a real webhook surface";
+    ? "- `apps/api`: included by default because coordinated chat and Mini App flows use the server bridge"
+    : "- generated with `--without-api`; Mini App screens can render, but coordinated bot-owned state requires adding the server bridge surface back";
 
   return `# ${options.appName}
 
@@ -117,7 +117,7 @@ ${doctor}
 ## Structure
 
 - \`apps/web\`: Mini App shell, screens, and styles
-- \`apps/bot\`: Discovered flows and thin simulator bridge export in \`src/runtime.ts\`
+- \`apps/bot\`: Discovered flows plus the coordinated bot/server runtime in \`src/index.ts\`
 ${apiStructure.trimEnd()}
 - \`packages/types\`: shared domain contracts used by bot, web, and server code
 - \`teleforge.config.ts\`: App definition
@@ -128,7 +128,7 @@ ${apiStructure.trimEnd()}
 - \`apps/bot/src/flows/start.flow.ts\`: the first flow users hit, including its bot entry command and Mini App route
 - \`apps/bot/src/runtime.ts\`: thin simulator bridge for \`teleforge dev\`; the framework owns bot bootstrap
 - \`packages/types/src/index.ts\`: shared app state and domain contracts
-- \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint
+- \`apps/web/src/main.tsx\`: the framework-owned Mini App shell entrypoint with the default server bridge
 - \`apps/web/src/screens/home.screen.tsx\`: the first Mini App screen module
 - \`apps/web/src/teleforge-generated/client-flow-manifest.ts\`: framework-generated client-safe flow metadata for the Mini App shell
 ${apiReadFirst.trimEnd()}
@@ -145,13 +145,15 @@ The scaffold intentionally starts with one shared state type, one flow, and one 
 ## Bot Runtime
 
 - the scaffold runs the bot in polling mode by default via \`teleforge start\`
-- \`apps/bot/src/index.ts\` is a thin bootstrap that calls \`startTeleforgeBot()\` and handles process signals; the framework owns polling and preview mode
+- \`apps/bot/src/index.ts\` starts the bot and the Teleforge server bridge so chat and Mini App state stay coordinated
 - \`apps/bot/src/runtime.ts\` exports only \`createDevBotRuntime()\`, a thin bridge so \`teleforge dev\` can execute bot commands inside the local simulator chat
 - use built-in simulator fixtures to jump into fresh-session, dark-mobile, or resume-flow states during local work
 - use Replay Last in the simulator to rerun the latest command, callback, or \`web_app_data\` payload while iterating
 - leave \`MINI_APP_URL\` blank unless you want to force a fixed override
 - \`dev\` and \`dev:public\` inject the resolved local or public URL into the companion bot automatically
-- \`apps/api\` is not part of the default scaffold; generate it with \`create-teleforge-app my-app --with-api\` when the app needs trusted hooks or a webhook placeholder
+- \`serverBridge\` is enabled by default; Teleforge dev/start expose \`/api/teleforge/flow-hooks\` for coordinated bot and Mini App state
+- \`apps/api\` is part of the default scaffold; use \`create-teleforge-app my-app --without-api\` only for client-only experiments
+- for production split \`apps/bot\` and \`apps/api\` into separate processes by passing the same Redis-backed \`UserFlowStateManager\` to \`createTeleforgeRuntimeContext()\`
 
 ## Runtime Notes
 
@@ -312,7 +314,7 @@ export const apiRoutes = [healthRoute, webhookRoute];
 export function createApiServer() {
   return {
     routes: apiRoutes,
-    description: "Wire these routes into your server runtime when you need trusted server hooks or a standalone webhook surface."
+    description: "Run this API surface with the same Redis-backed Teleforge storage as apps/bot in split-process deployments."
   };
 }
 `;
@@ -403,23 +405,34 @@ function botIndexTs(): string {
   return `import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { startTeleforgeBot } from "teleforge";
+import { createTeleforgeRuntimeContext, startTeleforgeBot, startTeleforgeServer } from "teleforge";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-const { stop } = await startTeleforgeBot({
+const context = await createTeleforgeRuntimeContext({
   cwd: projectRoot
+});
+
+const { runtime, stop: stopBot } = await startTeleforgeBot({
+  context
+});
+
+const { stop: stopServer } = await startTeleforgeServer({
+  context,
+  onChatHandoff: (input) => runtime.handleChatHandoff(input)
 });
 
 process.on("SIGINT", () => {
   console.log("\\n[bot] shutting down...");
-  stop();
+  stopBot();
+  stopServer();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
   console.log("\\n[bot] shutting down...");
-  stop();
+  stopBot();
+  stopServer();
   process.exit(0);
 });
 `;
@@ -603,7 +616,12 @@ function viteConfigTs(): string {
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [react()]
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/api/teleforge": "http://localhost:3100"
+    }
+  }
 });
 `;
 }
@@ -611,15 +629,21 @@ export default defineConfig({
 function webMainTsx(): string {
   return `import React from "react";
 import ReactDOM from "react-dom/client";
-import { TeleforgeMiniApp } from "teleforge/web";
+import { TeleforgeMiniApp, createFetchMiniAppServerBridge } from "teleforge/web";
 
 import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
 import homeScreen from "./screens/home.screen.js";
 import "./styles.css";
 
+const serverBridge = createFetchMiniAppServerBridge();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <TeleforgeMiniApp flowManifest={flowManifest} screens={[homeScreen]} />
+    <TeleforgeMiniApp
+      flowManifest={flowManifest}
+      screens={[homeScreen]}
+      serverBridge={serverBridge}
+    />
   </React.StrictMode>
 );
 `;

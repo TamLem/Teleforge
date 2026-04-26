@@ -58,7 +58,7 @@ Flow files are discovered by convention and should export a `defineFlow()` defin
 | `webhook.path`      | `string` | Webhook endpoint path, such as `/api/webhook`    |
 | `webhook.secretEnv` | `string` | Environment variable for Telegram webhook secret |
 
-Polling and webhook delivery are deployment choices. They are not separate Teleforge product modes. The default scaffold omits `bot.webhook`; add it only when `runtime.bot.delivery` is `"webhook"` or when you intentionally generate webhook placeholders with `--with-api`. Webhook delivery is active only when `runtime.bot.delivery` is `"webhook"`.
+Polling and webhook delivery are deployment choices. They are not separate Teleforge product modes. Webhook delivery is active only when `runtime.bot.delivery` is `"webhook"`; otherwise any generated webhook path is an inactive placeholder.
 
 Webhook example:
 
@@ -291,7 +291,7 @@ Screen components receive flow context, loader data, transition state, and submi
 | Server hooks  | `apps/api/src/flow-hooks/{flowId}/{stepId}.{ts,mjs,js}`        | `export const guard?, loader?`     |
 | Screens       | `apps/web/src/screens/*.{screen,page}.{tsx,ts}`                | `export default defineScreen(...)` |
 
-`apps/api` is optional in generated projects. Add it with `create-teleforge-app my-app --with-api` or set `flows.serverHooksRoot` explicitly if your backend uses a different directory.
+Generated projects include `apps/api` by default so the Mini App server bridge has a backend surface for coordinated state. Use `create-teleforge-app my-app --without-api` only for client-only experiments, or set `flows.serverHooksRoot` explicitly if your backend uses a different directory.
 
 ## Environment Variables
 

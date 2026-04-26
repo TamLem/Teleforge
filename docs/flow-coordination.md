@@ -14,7 +14,7 @@ flow -> step -> screen -> transition
 - **Step**: one interaction point, either `type: "chat"` or `type: "miniapp"`.
 - **Screen**: a React module registered with `defineScreen()` and referenced by a Mini App step.
 - **Transition**: a state update and optional move to another step.
-- **Runtime**: framework-owned bot, Mini App, and optional server-hook wiring.
+- **Runtime**: framework-owned bot, Mini App, server bridge, and custom server-hook wiring.
 
 The app author should normally edit flow files and screen files. Teleforge owns command routing, signed Mini App launch payloads, client manifest generation, server-hook routing, and bot delivery.
 
@@ -133,10 +133,10 @@ Keep simple state transitions in flow `onSubmit` handlers. Use server hooks when
 - payment/order/session creation
 - calls to services with server-only credentials
 
-Generate placeholder hook files with:
+Generated apps include the API surface by default because coordinated chat and Mini App flows need the server bridge:
 
 ```bash
-create-teleforge-app my-app --with-api
+create-teleforge-app my-app
 ```
 
 The default convention is:
@@ -145,7 +145,31 @@ The default convention is:
 apps/api/src/flow-hooks/{flowId}/{stepId}.ts
 ```
 
-At runtime, `teleforge start` starts the framework-owned hooks server when hooks are discovered or when webhook delivery needs an HTTP endpoint.
+At runtime, `teleforge start` starts the framework-owned server bridge so Mini App loads, submits, actions, and chat handoff can use bot-owned flow state.
+
+## Runtime Communication Contract
+
+Bot, Mini App, API, and server bridge code should communicate through framework contracts rather than process-local objects:
+
+- server bridge requests: `load`, `submit`, `action`, and `chatHandoff`
+- flow storage: shared `UserFlowStateManager` over a durable `StorageAdapter`
+- event bus: `TeleforgeEventBus` and typed event sources for bot, Mini App, API, and system events
+- Telegram webhook or polling updates as transport input, not application state
+
+In local development these pieces can run in one process. In production they can run as split processes as long as both sides share storage and emit or consume events through the same application contract.
+
+```ts
+import { createEventBus } from "@teleforgex/core";
+
+export const events = createEventBus({
+  source: { surface: "api" }
+});
+
+events.emit("user:action", {
+  action: "checkout.submit",
+  data: { source: "miniapp" }
+});
+```
 
 ## Chat Handoff
 
@@ -203,7 +227,7 @@ Advanced apps can still assemble lower-level runtime pieces manually:
 - `createDiscoveredServerHooksHandler()` for custom HTTP hosting
 - `teleforge/bot` webhook adapters for non-standard server frameworks
 
-Treat these as escape hatches. The default app path is `teleforge.config.ts`, flow files, screen files, optional server hooks, `teleforge dev`, and `teleforge start`.
+Treat these as escape hatches. The default app path is `teleforge.config.ts`, flow files, screen files, the server bridge, `teleforge dev`, and `teleforge start`.
 
 ## Read Alongside
 

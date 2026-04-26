@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers the production shape for a Teleforge app built from one framework model: bot flows, Mini App screens, and optional server hooks.
+This guide covers the production shape for a Teleforge app built from one framework model: bot flows, Mini App screens, the server bridge, and custom server hooks.
 
 ## Production Requirements
 
@@ -82,6 +82,37 @@ Webhook delivery is supported by `teleforge start`. When `runtime.bot.delivery` 
 
 Required environment variables for webhook mode: `BOT_TOKEN`, `TELEFORGE_FLOW_SECRET`, `MINI_APP_URL`, and the secret named in `bot.webhook.secretEnv`.
 
+## Split Bot and API Processes
+
+The recommended production topology is split processes with shared storage:
+
+- `apps/bot`: owns Telegram delivery; use webhook mode for a single HTTP ingress in most hosted deployments
+- `apps/api`: owns the Mini App server bridge at `/api/teleforge/flow-hooks` and any custom flow hooks
+- `apps/web`: builds to static assets served by `apps/api` or a CDN
+- Redis or another durable `StorageAdapter`: shared by bot and API so both read/write the same flow instances
+
+Both processes create their own runtime context, but pass a storage manager backed by the same Redis instance:
+
+```ts
+import { RedisStorageAdapter, UserFlowStateManager } from "@teleforgex/core";
+import { createTeleforgeRuntimeContext } from "teleforge";
+
+const storage = new UserFlowStateManager(
+  new RedisStorageAdapter({
+    client: redis,
+    defaultTTL: 900,
+    namespace: "my-app"
+  })
+);
+
+export const context = await createTeleforgeRuntimeContext({
+  cwd: process.cwd(),
+  storage
+});
+```
+
+The storage adapter is intentionally small: `get`, `set`, `delete`, `touch`, and optional optimistic `compareAndSet`. Bot, Mini App, and API communication should go through runtime events and server-bridge requests, not direct process memory.
+
 ## Production Runtime Matrix
 
 | Runtime need | Default path | Required config | Required environment |
@@ -93,7 +124,7 @@ Required environment variables for webhook mode: `BOT_TOKEN`, `TELEFORGE_FLOW_SE
 
 ## Server Hooks
 
-Server hooks are optional trusted runtime endpoints used by flow screens for guard, loader, submit, and action work that cannot be trusted to the browser.
+The server bridge is the default runtime endpoint for coordinated Mini App state. Custom server hooks extend that endpoint with guard, loader, submit, and action work that cannot be trusted to the browser.
 
 Deploy them with the runtime that owns your backend entrypoint. Treat them as Teleforge runtime endpoints, not as a separate app product that users have to assemble.
 

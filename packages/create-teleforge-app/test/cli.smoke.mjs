@@ -22,8 +22,8 @@ test("generates the unified Teleforge scaffold", async () => {
   const configSource = await readFile(configPath, "utf8");
   assert.match(configSource, /defineTeleforgeApp/);
   assert.match(configSource, /root: "apps\/bot\/src\/flows"/);
-  assert.doesNotMatch(configSource, /webhook:/);
-  assert.doesNotMatch(configSource, /WEBHOOK_SECRET/);
+  assert.match(configSource, /webhook:/);
+  assert.match(configSource, /WEBHOOK_SECRET/);
   assert.doesNotMatch(configSource, /mode: "spa"/);
   assert.doesNotMatch(configSource, /webFramework: "vite"/);
   assert.doesNotMatch(configSource, /routes:/);
@@ -69,13 +69,16 @@ test("generates the unified Teleforge scaffold", async () => {
   assert.ok(botPackage.scripts.typecheck);
 
   const apiPackagePath = path.join(tmpRoot, projectName, "apps", "api", "package.json");
-  await assert.rejects(readFile(apiPackagePath, "utf8"), /ENOENT/);
+  const apiPackage = JSON.parse(await readFile(apiPackagePath, "utf8"));
+  assert.equal(apiPackage.name, "@sample-app/api");
+  assert.equal(apiPackage.dependencies["@sample-app/types"], "workspace:*");
+  assert.ok(apiPackage.scripts.typecheck);
 
   const envExamplePath = path.join(tmpRoot, projectName, ".env.example");
   const envExample = await readFile(envExamplePath, "utf8");
   assert.match(envExample, /BOT_TOKEN=your_bot_token_here/);
   assert.match(envExample, /TELEFORGE_FLOW_SECRET=/);
-  assert.doesNotMatch(envExample, /WEBHOOK_SECRET/);
+  assert.match(envExample, /WEBHOOK_SECRET=your_webhook_secret_here/);
 
   const typesPackagePath = path.join(tmpRoot, projectName, "packages", "types", "package.json");
   const typesPackage = JSON.parse(await readFile(typesPackagePath, "utf8"));
@@ -115,6 +118,9 @@ test("generates the unified Teleforge scaffold", async () => {
   const botIndexSource = await readFile(botIndexPath, "utf8");
   assert.match(botIndexSource, /const projectRoot = path\.resolve/);
   assert.match(botIndexSource, /cwd: projectRoot/);
+  assert.match(botIndexSource, /createTeleforgeRuntimeContext/);
+  assert.match(botIndexSource, /startTeleforgeServer/);
+  assert.match(botIndexSource, /runtime\.handleChatHandoff/);
   assert.match(botIndexSource, /console\.log\("\\n\[bot\] shutting down\.\.\."\)/);
   assert.doesNotMatch(botIndexSource, /console\.log\("\n\[bot\] shutting down/);
 
@@ -131,11 +137,17 @@ test("generates the unified Teleforge scaffold", async () => {
   const mainPath = path.join(tmpRoot, projectName, "apps", "web", "src", "main.tsx");
   const mainSource = await readFile(mainPath, "utf8");
   assert.match(mainSource, /TeleforgeMiniApp/);
+  assert.match(mainSource, /createFetchMiniAppServerBridge/);
+  assert.match(mainSource, /serverBridge=\{serverBridge\}/);
   assert.match(mainSource, /flowManifest/);
   assert.match(mainSource, /flowManifest=\{flowManifest\}/);
   assert.doesNotMatch(mainSource, /bot\/src\/flows/);
   assert.match(mainSource, /homeScreen/);
   assert.match(mainSource, /teleforge-generated\/client-flow-manifest/);
+
+  const viteConfigPath = path.join(tmpRoot, projectName, "apps", "web", "vite.config.ts");
+  const viteConfig = await readFile(viteConfigPath, "utf8");
+  assert.match(viteConfig, /"\/api\/teleforge": "http:\/\/localhost:3100"/);
 
   const screenPath = path.join(
     tmpRoot,
@@ -160,9 +172,9 @@ test("generates the unified Teleforge scaffold", async () => {
   const readmePath = path.join(tmpRoot, projectName, "README.md");
   const readme = await readFile(readmePath, "utf8");
   assert.match(readme, /apps\/web.*Mini App shell, screens, and styles/);
-  assert.doesNotMatch(readme, /apps\/api.*placeholders/);
-  assert.match(readme, /apps\/api.*not part of the default scaffold/);
-  assert.match(readme, /create-teleforge-app my-app --with-api/);
+  assert.match(readme, /apps\/api.*default server bridge hooks/);
+  assert.match(readme, /serverBridge.*enabled by default/);
+  assert.match(readme, /create-teleforge-app my-app --without-api/);
   assert.match(readme, /apps\/web\/src\/teleforge-generated\/client-flow-manifest\.ts/);
   assert.match(readme, /teleforge generate client-manifest/);
   assert.match(readme, /apps\/web\/src\/screens\/home\.screen\.tsx/);
@@ -170,7 +182,28 @@ test("generates the unified Teleforge scaffold", async () => {
   assert.doesNotMatch(readme, /settings/i);
 });
 
-test("generates optional API placeholders with --with-api", async () => {
+test("generates client-only scaffold with --without-api", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-minimal-app-"));
+  const projectName = "minimal-app";
+
+  await execFileAsync("node", [cliPath, projectName, "--yes", "--without-api"], {
+    cwd: tmpRoot
+  });
+
+  const configPath = path.join(tmpRoot, projectName, "teleforge.config.ts");
+  const configSource = await readFile(configPath, "utf8");
+  assert.doesNotMatch(configSource, /webhook:/);
+  assert.doesNotMatch(configSource, /WEBHOOK_SECRET/);
+
+  const envExamplePath = path.join(tmpRoot, projectName, ".env.example");
+  const envExample = await readFile(envExamplePath, "utf8");
+  assert.doesNotMatch(envExample, /WEBHOOK_SECRET/);
+
+  const apiPackagePath = path.join(tmpRoot, projectName, "apps", "api", "package.json");
+  await assert.rejects(readFile(apiPackagePath, "utf8"), /ENOENT/);
+});
+
+test("generates API placeholders with explicit --with-api", async () => {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-api-app-"));
   const projectName = "api-app";
 
@@ -235,8 +268,8 @@ test("generates optional API placeholders with --with-api", async () => {
 
   const readmePath = path.join(tmpRoot, projectName, "README.md");
   const readme = await readFile(readmePath, "utf8");
-  assert.match(readme, /apps\/api.*optional server-hook and webhook placeholders/);
-  assert.match(readme, /generated with `--with-api`/);
+  assert.match(readme, /apps\/api.*default server bridge hooks/);
+  assert.match(readme, /coordinated chat and Mini App flows use the server bridge/);
 });
 
 test("generates scaffold with --link flag using link: protocol", async () => {

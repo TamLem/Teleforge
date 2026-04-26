@@ -7,7 +7,7 @@ It focuses on the implemented workflow in this repository:
 - scaffold a project
 - start from the default Teleforge app shape
 - run locally with Teleforge devtools
-- build Mini App, bot, and optional server-hook features with the shipped packages
+- build Mini App, bot, default server bridge, and custom server-hook features with the shipped packages
 - validate and test before release
 
 Use this guide as the hub. The step-by-step companions are:
@@ -37,7 +37,8 @@ The framework is most useful when you need some combination of:
 - secure `initData` validation
 - route-level launch-mode and capability guards
 - coordinated chat-to-Mini-App flows
-- optional trusted server hooks in front of existing services when a flow needs server authority
+- a default server bridge for coordinated chat-to-Mini-App state
+- custom trusted server hooks in front of existing services when a flow needs server authority
 
 ## Scaffolded App Shape
 
@@ -47,9 +48,10 @@ Generated apps use:
 
 - `apps/web` with the Teleforge Mini App shell and screen modules
 - `apps/bot` for flow definitions and bot runtime execution
+- `apps/api` for the default Mini App server bridge and trusted server hooks
 - `teleforge.config.ts` as the source-of-truth app definition
 
-Generate with `--with-api` when you want `apps/api` placeholders for trusted server hooks or a webhook surface.
+Use `--without-api` only when you intentionally want a client-only Mini App experiment without coordinated bot-owned state.
 
 ## Create a Project
 
@@ -69,14 +71,15 @@ The generated workspace includes:
 
 - `apps/web`
 - `apps/bot`
+- `apps/api`
 - `teleforge.config.ts`
 - `.env.example`
 - root scripts for Teleforge development, diagnostics, and baseline tests
 
-To include the optional API placeholder package at generation time, run:
+To generate the smallest client-only scaffold instead, run:
 
 ```bash
-node packages/create-teleforge-app/dist/cli.js my-app --with-api
+node packages/create-teleforge-app/dist/cli.js my-app --without-api
 ```
 
 If you want the smallest working example instead of a fresh scaffold, start with [`examples/starter-app`](../examples/starter-app/README.md). If you want the full reference flow, use [`apps/task-shop`](../apps/task-shop/README.md).
@@ -334,12 +337,12 @@ runtime.router.onWebAppData(async (context) => {
 Mini App-side:
 
 - use the framework-owned `TeleforgeMiniApp` path when the result should progress the flow or return to chat
-- use optional server hooks when the result needs trusted server execution
+- use custom server hooks when the result needs trusted server execution beyond the default bridge
 - use lower-level `teleforge/web` hooks only when you need direct control outside the default shell
 
-### Optional Server Hooks
+### Custom Server Hooks
 
-Server hooks are optional until a flow step needs trusted server execution such as:
+The server bridge is part of the default app path. Add custom server-hook modules when a flow step needs trusted execution such as:
 
 - authoritative guards
 - authoritative loaders
@@ -389,7 +392,7 @@ That includes:
 - Mini App step progression
 - persisted Mini App state snapshots
 - structured return-to-chat handoff through `web_app_data`
-- optional server-hook execution for trusted flow steps
+- custom server-hook execution for trusted flow steps
 
 Use the higher-level `defineFlow`, `defineScreen`, and `TeleforgeMiniApp` APIs as the default authoring surface. Lower-level coordination primitives are available from `teleforge/bot` and `teleforge/web` when custom routing is needed.
 

@@ -1,4 +1,9 @@
 export { MemoryStorageAdapter } from "./adapters/memory.js";
+export {
+  RedisStorageAdapter,
+  type RedisStorageAdapterOptions,
+  type RedisStorageClient
+} from "./adapters/redis.js";
 export { decryptState, encryptState } from "./crypto.js";
 export { createFlowStorage, createStorage, type FlowStorageOptions } from "./factory.js";
 export { UserFlowStateManager } from "./manager.js";

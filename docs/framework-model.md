@@ -8,7 +8,7 @@ The public authoring model is:
 - define flows with chat and Mini App steps
 - bind Mini App steps to screens
 - attach handlers, guards, loaders, submits, and actions where behavior lives
-- let Teleforge wire bot launch, Mini App runtime, state, resume, and optional trusted server hooks
+- let Teleforge wire bot launch, Mini App runtime, server bridge, state, resume, and custom trusted server hooks
 
 The developer should start from the product journey, not from package boundaries or runtime topology.
 
@@ -78,7 +78,8 @@ From the app config, flow definitions, and screen definitions, Teleforge derives
 - typed flow state persistence
 - Mini App submit/action execution
 - return-to-chat and resume behavior
-- optional server-hook execution for trusted guards, loaders, submits, and actions
+- default server-bridge execution for coordinated Mini App state
+- custom server-hook execution for trusted guards, loaders, submits, and actions
 
 The framework owns repetitive cross-surface wiring. App code owns product behavior.
 

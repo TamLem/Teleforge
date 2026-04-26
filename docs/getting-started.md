@@ -267,7 +267,7 @@ Webhook mode is optional and more constrained than the polling flow:
 
 - use it only when your deployed `teleforge start` server exposes the configured webhook path over public HTTPS
 - the shipped starter and Task Shop examples do not use webhook mode
-- generate with `--with-api` when you want webhook placeholders; that does not make webhook mode active by itself
+- generated webhook placeholders do not make webhook mode active by themselves
 
 ## 7. Understand the Generated Shape
 
@@ -277,9 +277,9 @@ The current generated path is intentionally framework-shaped:
 - `apps/bot/src/flows/*.flow.ts`: user journeys, bot entry commands, and Mini App step metadata
 - `apps/web/src/teleforge-generated/client-flow-manifest.ts`: framework-owned browser-safe flow metadata; `teleforge dev` refreshes it when stale and `teleforge doctor` reports drift
 - `apps/web/src/screens/*.screen.tsx`: Mini App screens registered through `defineScreen()`
-- `apps/web/src/main.tsx`: the framework-owned `TeleforgeMiniApp` shell
-- `apps/bot/src/index.ts`: a thin bootstrap that calls `startTeleforgeBot()`; the framework owns polling, preview mode, and signal handling
-- `apps/api`: optional `--with-api` server-hook or webhook surface only when the flow needs trusted server execution
+- `apps/web/src/main.tsx`: the framework-owned `TeleforgeMiniApp` shell with the default server bridge
+- `apps/bot/src/index.ts`: a bootstrap that starts the bot and server bridge; the framework owns polling, preview mode, and signal handling
+- `apps/api`: default server-hook and bridge surface for coordinated bot-owned Mini App state
 
 That means you normally start by editing a flow and a screen, not by wiring separate bot/web/backend runtimes manually. The lower-level `createDiscoveredBotRuntime()` remains available as an escape hatch for advanced deployments.
 
