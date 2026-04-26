@@ -343,6 +343,128 @@ test("server bridge submit persists authoritative Mini App state transitions", a
   });
 });
 
+test("server bridge load advances openMiniAppAction launches without callback_query", async () => {
+  const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "teleforge-open-miniapp-load-"));
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), "dist", "index.js")).href;
+  const flowState = new UserFlowStateManager(
+    createFlowStorage({
+      backend: "memory",
+      defaultTTL: 900,
+      namespace: "teleforge-open-miniapp-load-test"
+    })
+  );
+  const { key: stateKey } = await flowState.startInstance("user_1", "inventory", "summary", {
+    itemId: "sku_123",
+    refreshed: false
+  });
+
+  await mkdir(path.join(tmpRoot, "apps", "bot", "src", "flows"), {
+    recursive: true
+  });
+  await writeFile(
+    path.join(tmpRoot, "teleforge.config.ts"),
+    `import { defineTeleforgeApp } from ${JSON.stringify(distIndexUrl)};
+
+export default defineTeleforgeApp({
+  app: { id: "open-miniapp-load", name: "Open MiniApp Load", version: "1.0.0" },
+  flows: { root: "apps/bot/src/flows" },
+  runtime: {},
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "open_miniapp_bot",
+    webhook: { path: "/api/webhook", secretEnv: "WEBHOOK_SECRET" }
+  },
+  miniApp: {
+    entry: "apps/web/src/main.tsx",
+    launchModes: ["inline", "compact", "fullscreen"],
+    defaultMode: "inline",
+    capabilities: ["read_access"]
+  }
+});
+`
+  );
+  await writeFile(
+    path.join(tmpRoot, "apps", "bot", "src", "flows", "inventory.flow.mjs"),
+    `import { defineFlow } from ${JSON.stringify(distIndexUrl)};
+
+export default defineFlow({
+    id: "inventory",
+    initialStep: "summary",
+    state: {
+      itemId: null,
+      refreshed: false
+    },
+    miniApp: {
+      route: "/inventory"
+    },
+    steps: {
+      summary: {
+        actions: [
+          {
+            label: "Track delivery",
+            miniApp: {},
+            to: "catalog"
+          }
+        ],
+        message: "Found deliveries.",
+        type: "chat"
+      },
+      catalog: {
+        screen: "inventory.catalog",
+        type: "miniapp"
+      }
+    }
+  });
+`
+  );
+
+  const handler = await createDiscoveredServerHooksHandler({
+    cwd: tmpRoot,
+    trust: {
+      flowState
+    }
+  });
+  const response = await handler(
+    new Request("https://example.com/api/teleforge/flow-hooks", {
+      body: JSON.stringify({
+        input: {
+          flowId: "inventory",
+          routePath: "/inventory",
+          screenId: "inventory.catalog",
+          state: {
+            itemId: "sku_123",
+            refreshed: false
+          },
+          stateKey,
+          stepId: "catalog"
+        },
+        kind: "load"
+      }),
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    })
+  );
+
+  assert.equal(response?.status, 200);
+  const body = await response?.json();
+  assert.deepEqual(body, {
+    kind: "load",
+    result: {
+      allow: true,
+      state: {
+        itemId: "sku_123",
+        refreshed: false
+      }
+    }
+  });
+
+  const persisted = await flowState.getInstance(stateKey);
+  assert.equal(persisted?.stepId, "catalog");
+  assert.equal(persisted?.currentSurface, "miniapp");
+});
+
 test("createDiscoveredServerHooksHandler enforces trusted actor ownership and state keys", async () => {
   const flowState = new UserFlowStateManager(
     createFlowStorage({

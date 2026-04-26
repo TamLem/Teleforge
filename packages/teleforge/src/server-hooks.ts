@@ -506,7 +506,7 @@ async function executeDiscoveredServerHookRequest(
   }
 
   const flow = findDiscoveredFlow(state.flows, request.input.flowId);
-  const trusted = await resolveTrustedExecutionInput(sourceRequest, request, state.trust);
+  const trusted = await resolveTrustedExecutionInput(sourceRequest, flow, request, state.trust);
 
   switch (request.kind) {
     case "load":
@@ -622,6 +622,40 @@ function normalizeFlowStateRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
+async function tryAdvanceStoredMiniAppLaunch(options: {
+  flow: AnyFlowDefinition;
+  hookRequest: Exclude<TeleforgeServerHookRequest, { kind: "chatHandoff" }>;
+  stateKey: string;
+  storage: UserFlowStateManager;
+  storedState: FlowInstance;
+}): Promise<FlowInstance | null> {
+  if (options.hookRequest.kind !== "load") {
+    return null;
+  }
+
+  const currentStep = getFlowStep(options.flow, options.storedState.stepId);
+  const targetStep = getFlowStep(options.flow, options.hookRequest.input.stepId);
+
+  if (currentStep.type !== "chat" || !isMiniAppStep(targetStep)) {
+    return null;
+  }
+
+  const launchAction = (currentStep.actions ?? []).find(
+    (action) => action.miniApp && action.to === options.hookRequest.input.stepId
+  );
+
+  if (!launchAction) {
+    return null;
+  }
+
+  return options.storage.advanceStep(
+    options.stateKey,
+    options.hookRequest.input.stepId,
+    normalizeFlowStateRecord(options.storedState.state),
+    "miniapp"
+  );
+}
+
 function createServerHookIndex(
   hooks: Iterable<DiscoveredFlowStepServerHookModule> | undefined
 ): ReadonlyMap<string, DiscoveredFlowStepServerHookModule> {
@@ -670,6 +704,7 @@ function normalizeServerGuardBlock(result: unknown): TeleforgeScreenGuardBlock {
 
 async function resolveTrustedExecutionInput(
   request: Request,
+  flow: AnyFlowDefinition,
   hookRequest: Exclude<TeleforgeServerHookRequest, { kind: "chatHandoff" }>,
   trust: TeleforgeServerHookTrustOptions
 ): Promise<{ state: unknown; stateKey: string | null }> {
@@ -714,10 +749,22 @@ async function resolveTrustedExecutionInput(
     }
 
     if (storedState.stepId !== hookRequest.input.stepId) {
-      throw new TeleforgeServerHookRequestError(
-        `Flow state "${stateKey}" is on step "${storedState.stepId}", not "${hookRequest.input.stepId}".`,
-        409
-      );
+      const launchAdvance = await tryAdvanceStoredMiniAppLaunch({
+        flow,
+        hookRequest,
+        stateKey,
+        storage: trust.flowState,
+        storedState
+      });
+
+      if (!launchAdvance) {
+        throw new TeleforgeServerHookRequestError(
+          `Flow state "${stateKey}" is on step "${storedState.stepId}", not "${hookRequest.input.stepId}".`,
+          409
+        );
+      }
+
+      storedState = launchAdvance;
     }
 
     if (actorId && storedState.userId !== actorId) {
