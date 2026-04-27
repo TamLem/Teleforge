@@ -240,7 +240,11 @@ export async function startTeleforgeBot(
 
   const bot = createTeleforgePollingBot(token);
   runtime.bindBot(bot);
-  await bot.setCommands(commands);
+  try {
+    await bot.setCommands(commands);
+  } catch (err) {
+    console.error("[teleforge:bot] failed to register bot commands:", err instanceof Error ? err.message : err);
+  }
 
   console.log(`[teleforge:bot] polling Telegram (${commands.length} commands registered)`);
 

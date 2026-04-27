@@ -83,11 +83,13 @@ export type TeleforgeMiniAppRuntimeState =
 
 export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
   const launchCoordination = useLaunchCoordination();
+  const defaultRoute = parseEntryRoute(launchCoordination, props.flowManifest);
   const [activePathname, setActivePathname] = useState(
-    () => props.pathname ?? launchCoordination.entryRoute ?? resolveWindowPathname()
+    () => props.pathname ?? defaultRoute ?? resolveWindowPathname()
   );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [handoff, setHandoff] = useState<ChatHandoffMiniAppScreen | null>(null);
+  const [navigationData, setNavigationData] = useState<unknown>(undefined);
   const resolution = useTeleforgeMiniAppRuntime({
     ...props,
     pathname: activePathname
@@ -123,9 +125,12 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
   const screen = resolution as ReadyMiniAppScreen;
   const ScreenComponent = screen.screen.component;
 
-  // Parse signed context subject as initial screen data
+  // Parse signed context subject as initial screen data,
+  // then merge with data carried from the last runAction
   const signedData = parseSignedContextSubject(launchCoordination.rawFlowContext);
-  const screenData = signedData ?? screen.loaderData;
+  const screenData = navigationData && typeof navigationData === "object"
+    ? { ...(signedData ?? {}), ...(navigationData as Record<string, unknown>) }
+    : (signedData ?? screen.loaderData);
 
   return (
     <ScreenComponent
@@ -148,7 +153,11 @@ export function TeleforgeMiniApp(props: TeleforgeMiniAppProps) {
 
             if (result && typeof result === "object") {
               if ("navigate" in result && typeof result.navigate === "string") {
+                setNavigationData("data" in result ? (result as ActionResult).data : undefined);
                 setActivePathname(resolveScreenRoute(result.navigate, props.flowManifest));
+              } else if ("data" in result && result.data && typeof result.data === "object") {
+                // Non-navigate result: merge data for current screen
+                setNavigationData(result.data);
               }
               if ("showHandoff" in result && (result as ActionResult).showHandoff) {
                 handleShowHandoff(result as ActionResult, setHandoff, props);
@@ -284,17 +293,48 @@ function manifestToFlows(
 function parseSignedContextSubject(rawContext: string | null): Record<string, unknown> | undefined {
   if (!rawContext) return undefined;
   try {
-    const parts = rawContext.split(".");
-    if (parts.length < 3) return undefined;
-    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-    const parsed = JSON.parse(json);
-    if (parsed && typeof parsed === "object" && "subject" in parsed && parsed.subject) {
-      return parsed.subject as Record<string, unknown>;
+    const payload = parseTfp2Payload(rawContext);
+    if (payload && typeof payload === "object" && "subject" in payload && payload.subject) {
+      return payload.subject as Record<string, unknown>;
     }
   } catch {
     // ignore parse errors
   }
   return undefined;
+}
+
+function parseEntryRoute(
+  launch: { rawFlowContext: string | null; entryRoute: string | null },
+  manifest?: TeleforgeClientFlowManifest
+): string | null {
+  if (launch.entryRoute) return launch.entryRoute;
+  const rawContext = launch.rawFlowContext;
+  if (!rawContext || !manifest?.flows) return null;
+
+  const payload = parseTfp2Payload(rawContext);
+  if (!payload || typeof payload.screenId !== "string") return null;
+
+  for (const flow of manifest.flows) {
+    if (flow.miniApp?.routes) {
+      for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
+        if (screenId === payload.screenId) return route;
+      }
+    }
+  }
+  return null;
+}
+
+function parseTfp2Payload(rawContext: string): Record<string, unknown> | null {
+  if (!rawContext.startsWith("tfp2.")) return null;
+  const parts = rawContext.split(".");
+  if (parts.length < 3) return null;
+  try {
+    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
 }
 
 function resolveScreenRoute(screenId: string, manifest?: TeleforgeClientFlowManifest): string {

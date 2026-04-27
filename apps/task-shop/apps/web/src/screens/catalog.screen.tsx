@@ -1,84 +1,90 @@
-import {
-  getCartCount,
-  getCartTotal,
-  mockTasks,
-  type TaskShopFlowState,
-  type TaskShopSubmitPayload
-} from "@task-shop/types";
-import { TgButton, TgCard, TgText } from "@teleforgex/ui";
-import { useLaunch } from "teleforge/web";
 import { defineScreen } from "teleforge/web";
 
-import { InitDataStatus } from "../components/InitDataStatus";
-import { TaskCard } from "../components/TaskCard";
+import type { CartItem, Product } from "@task-shop/types";
+import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-import { TaskShopFrame } from "./TaskShopFrame";
+interface CatalogData {
+  products?: Product[];
+  cart?: CartItem[];
+  itemCount?: number;
+  justAdded?: string;
+}
 
-export default defineScreen<TaskShopFlowState>({
-  component({ state, submit, transitioning }) {
-    const { user } = useLaunch();
-    const cartCount = getCartCount(state.cart);
-    const cartTotal = getCartTotal(state.cart);
+const CATEGORIES = ["Phones", "Laptops", "Tablets", "Audio", "Accessories"] as const;
 
-    const handleSubmit = (payload: TaskShopSubmitPayload) => void submit?.(payload);
+function CatalogScreen({ data, runAction, transitioning }: TeleforgeScreenComponentProps<CatalogData>) {
+  const screenData = data as CatalogData;
+  const products = screenData?.products ?? [];
+  const cart = screenData?.cart ?? [];
+  const itemCount = screenData?.itemCount ?? 0;
 
-    return (
-      <TaskShopFrame
-        actions={
-          <>
-            <TgButton
-              onClick={() => handleSubmit({ type: "go-to-cart" })}
-              size="sm"
-              variant="secondary"
-            >
-              View cart ({cartCount})
-            </TgButton>
-            <TgButton
-              onClick={() => handleSubmit({ type: "go-to-checkout" })}
-              size="sm"
-              variant="primary"
-            >
-              Checkout
-            </TgButton>
-          </>
-        }
-        subtitle={`${cartCount} item(s) in cart · ${cartTotal} Stars`}
-        title="Task Shop"
-      >
-        <div className="page-grid">
-          <TgCard padding="lg">
-            <div className="hero-card">
-              <div className="hero-card__copy">
-                <span className="hero-tag">Flow-first sample</span>
-                <TgText variant="title">Browse Telegram-native tasks</TgText>
-                <TgText variant="body">
-                  This Mini App is now driven by Teleforge flow definitions and discovered screens
-                  instead of a local route switcher.
-                </TgText>
-                <TgText variant="hint">
-                  {user
-                    ? `Signed in as ${user.first_name}.`
-                    : "Launch from Telegram to attach user context."}
-                </TgText>
-              </div>
-            </div>
-          </TgCard>
-          <InitDataStatus />
-          <div className="catalog-grid">
-            {mockTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                onAdd={() => handleSubmit({ taskId: task.id, type: "add-item" })}
-                onViewDetail={() => handleSubmit({ taskId: task.id, type: "view-detail" })}
-                task={task}
-              />
-            ))}
-          </div>
-          {transitioning ? <TgText variant="hint">Updating your Task Shop flow…</TgText> : null}
+  return (
+    <main className="shell">
+      <header className="hero">
+        <p className="eyebrow">GadgetShop</p>
+        <h1>Latest Tech</h1>
+        <p className="lede">Smartphones, laptops, audio, and accessories</p>
+      </header>
+
+      <div className="top-bar">
+        <button className={`btn-primary${itemCount === 0 ? " btn-ghost" : ""}`} onClick={() => runAction("viewCart", { cart })}>
+          Cart ({itemCount})
+        </button>
+      </div>
+
+      {screenData?.justAdded && (
+        <div className="card card-highlight">
+          <p style={{ margin: 0 }}>Added {screenData.justAdded} to cart</p>
         </div>
-      </TaskShopFrame>
-    );
-  },
-  id: "task-shop.catalog",
-  title: "Browse Tasks"
+      )}
+
+      {CATEGORIES.map((category) => {
+        const catProducts = products.filter((p) => p.category === category);
+        if (catProducts.length === 0) return null;
+
+        return (
+          <div key={category}>
+            <p className="category-header">{category}</p>
+            <div className="product-grid">
+              {catProducts.map((product) => (
+                <div key={product.id} className="card">
+                  <div className="product-row">
+                    <span className="icon">{product.image}</span>
+                    <div className="info">
+                      <h3>{product.name}</h3>
+                      <p>{product.description}</p>
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.25rem" }}>
+                        <span className="price">${product.price}</span>
+                        {!product.inStock && <span className="badge" style={{ background: "#ffebee", color: "#c62828" }}>Out of stock</span>}
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button className="btn-small" onClick={() => runAction("viewDetail", { productId: product.id, cart })}>
+                        Details
+                      </button>
+                      {product.inStock && (
+                        <button
+                          className="btn-primary btn-small"
+                          disabled={transitioning}
+                          onClick={() => runAction("addToCart", { productId: product.id, qty: 1, cart })}
+                        >
+                          + Add
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </main>
+  );
+}
+
+export default defineScreen<CatalogData>({
+  component: CatalogScreen,
+  id: "catalog",
+  title: "GadgetShop"
 });

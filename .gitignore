@@ -8,3 +8,4 @@ execution-progress.*.log
 benchmark/results
 .factory/*
 skills/*
+**/dist*/**/*
