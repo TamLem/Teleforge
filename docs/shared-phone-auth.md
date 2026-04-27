@@ -1,85 +1,93 @@
 # Shared Phone Auth
 
-This guide shows how to build a Teleforge auth flow where Telegram proves that a user controls a phone number.
+This guide shows how to build a Teleforge auth flow where Telegram proves that a user controls a
+phone number.
 
-Use this when phone number is the application's primary login key, but Telegram should anchor the trust chain.
+Use this when phone number is the application's primary login key, but Telegram should anchor the
+trust chain.
 
 ## End-to-End Flow
 
 1. A bot asks the user to share their own phone number.
 2. The bot verifies that the shared contact belongs to the sending Telegram user.
-3. The bot signs a short-lived phone-auth token into the Mini App URL.
-4. The Mini App reads the token from launch context.
-5. A trusted server hook verifies the token and resolves the app user.
+3. The bot signs a short-lived signed context into the Mini App URL.
+4. The Mini App reads the context from the launch URL.
+5. Server actions use the verified phone from the signed context.
 
-## Public Helpers
+## Using `onContact` Handler
 
-Use these public Teleforge surfaces:
-
-- `teleforge/bot` for contact request and Mini App launch helpers
-- `teleforge/web` for Mini App launch context
-- `teleforge/server-hooks` for trusted token exchange and session/domain logic
-- `teleforge` for shared flow state helpers when the exchange is part of a flow
-
-## Flow-First Shortcut
-
-When phone sharing is part of a normal discovered Teleforge flow, prefer the higher-level `requestPhoneAction()` helper from `teleforge` instead of wiring the Telegram contact request manually.
+The simplest way is the `onContact` handler on a flow:
 
 ```ts
-import { chatStep, defineFlow, requestPhoneAction } from "teleforge";
+import { defineFlow } from "teleforge";
 
 export default defineFlow({
   id: "login",
-  initialStep: "askPhone",
-  state: {},
-  steps: {
-    askPhone: chatStep("Share the phone number tied to your account.", [
-      requestPhoneAction("Share phone number", "finish", {
-        rawStateField: "rawPhoneNumber",
-        stateField: "phoneNumber"
-      })
-    ]),
-    finish: chatStep(({ state }) => `Saved ${state.phoneNumber}`)
+
+  handlers: {
+    onContact: async ({ ctx, shared, sign, services }) => {
+      // shared.normalizedPhone is already extracted and verified as self-shared
+      const user = await services.users.findByPhone(shared.normalizedPhone);
+
+      const launch = await sign({
+        flowId: "login",
+        screenId: "profile",
+        subject: { phone: shared.normalizedPhone },
+        allowedActions: ["editProfile", "logout"]
+      });
+
+      await ctx.reply(
+        user
+          ? `Welcome back, ${user.name}. Continue in the Mini App.`
+          : "Phone verified. Complete your profile in the Mini App.",
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "Open Profile", web_app: { url: launch } }
+            ]]
+          }
+        }
+      );
+    }
+  },
+
+  miniApp: {
+    routes: {
+      "/": "profile",
+      "/edit": "profile.edit"
+    },
+    defaultRoute: "/"
+  },
+
+  actions: {
+    editProfile: {
+      handler: async ({ ctx, data, services }) => {
+        await services.users.update(ctx.userId, data);
+        return { data: { updated: true } };
+      }
+    }
   }
 });
 ```
 
-At runtime Teleforge:
+The framework handles:
+- rendering a reply-keyboard contact request button (send a message with
+  `reply_markup: { keyboard: [[{ text: "Share phone", request_contact: true }]] }`)
+- accepting only self-shared contacts from the sending Telegram user
+- normalizing the phone number before passing it to the handler
 
-- renders a reply-keyboard contact request button
-- accepts only self-shared contacts from the sending Telegram user
-- normalizes the phone number before storing it
-- merges the normalized number into flow state before advancing
-- passes the shared phone details to any action handler as `input.phone`
+## Collision Rules
 
-If the next step is a Mini App auth/onboarding step, use `requestPhoneAuthAction()` instead:
+Only one flow may define an `onContact` handler across all flows. If multiple flows need
+phone auth, scope the handler to a single "gate" flow and use signed context tokens to
+pass the verified phone to other flows.
 
-```ts
-import { chatStep, defineFlow, miniAppStep, requestPhoneAuthAction } from "teleforge";
+## Bot-Only Approach (No Flow)
 
-export default defineFlow({
-  id: "login",
-  initialStep: "askPhone",
-  state: {},
-  steps: {
-    askPhone: chatStep("Share the phone number tied to your account.", [
-      requestPhoneAuthAction("Share phone number", "profile", {
-        rawStateField: "rawPhoneNumber",
-        stateField: "phoneNumber"
-      })
-    ]),
-    profile: miniAppStep("profile")
-  }
-});
-```
-
-That unified path keeps the flow-first authoring model intact. Teleforge validates the shared contact, stores the normalized phone number in flow state, signs `tfPhoneAuth`, and sends the Mini App launch button for the target step.
-
-## Bot Step
+When using `teleforge/bot` directly without a flow definition:
 
 ```ts
 import {
-  createPhoneAuthLink,
   createPhoneNumberRequestMarkup,
   extractSharedPhoneContact
 } from "teleforge/bot";
@@ -100,72 +108,55 @@ router.use(async (context, next) => {
     return;
   }
 
-  const url = await createPhoneAuthLink({
-    phoneNumber: sharedContact.normalizedPhoneNumber,
-    secret: process.env.PHONE_AUTH_SECRET!,
-    telegramUserId: sharedContact.telegramUserId,
-    webAppUrl: process.env.MINI_APP_URL!
+  const token = createSignedActionContextToken({
+    appId: "my-app",
+    flowId: "login",
+    userId: String(context.user!.id),
+    subject: { phone: sharedContact.normalizedPhoneNumber },
+    secret: process.env.TELEFORGE_FLOW_SECRET!
   });
 
-  await context.replyWithWebApp("Continue in the Mini App", "Open App", url);
+  await context.reply("Continue in the Mini App", {
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "Open App", web_app: { url: `https://my.app/?tgWebAppStartParam=${token}` } }
+      ]]
+    }
+  });
 });
 ```
 
 `extractSharedPhoneContact()` rejects contacts that do not belong to the sending Telegram user.
 
-## Mini App Step
+## Mini App Side
 
 ```tsx
-import { useLaunch } from "teleforge/web";
+import { useLaunchCoordination } from "teleforge/web";
 
-export function LoginGate() {
-  const launch = useLaunch();
+function ProfileGate() {
+  const launch = useLaunchCoordination();
 
-  async function exchange() {
-    if (!launch.phoneAuthToken) {
-      return;
-    }
+  // The signed context is available as launch.rawFlowContext
+  // Pass it to runAction() which sends it to the action server
 
-    await fetch("/api/teleforge/phone/exchange", {
-      body: JSON.stringify({
-        phoneAuthToken: launch.phoneAuthToken
-      }),
-      headers: {
-        "content-type": "application/json",
-        "x-telegram-init-data": launch.initData
-      },
-      method: "POST"
-    });
-  }
-
-  return <button onClick={exchange}>Finish sign in</button>;
+  return (
+    // Screen renders normally — the action server validates the context
+  );
 }
 ```
 
-For a full flow screen, prefer calling the Teleforge screen submit/action helper so the exchange can transition the flow after success.
-
-## Server Hook Step
-
-The trusted exchange should:
-
-- verify the signed phone-auth token
-- check that the token's Telegram user id matches the authenticated request
-- normalize the phone number before lookup
-- resolve or create the app user according to application policy
-- issue an app session or commit the identity result into flow/domain state
-
-The exchange belongs server-side because the browser cannot be trusted to assert identity ownership.
+For a flow screen, call `runAction()` with the action id. The action server validates
+the signed context (including the phone subject) before running the handler.
 
 ## Security Notes
 
-- phone-auth tokens should be short-lived and signed
-- the trusted endpoint must still validate Telegram launch/auth context
-- token verification must bind the token to the current Telegram user
+- phone-auth tokens are signed and short-lived (default 15 minutes)
+- the action server validates the signature and expiry on every request
 - phone numbers should be normalized before storage or comparison
-- session issuance should happen only after the server-side identity lookup succeeds
+- only self-shared contacts are accepted (framework rejects contacts from other users)
 
 ## Read Next
 
-- [Server Hooks and Backend Internals](./server-hooks.md)
-- [Developer Guide](./developer-guide.md)
+- [Action Server](./server-hooks.md)
+- [Flow Coordination](./flow-coordination.md)
 - [Telegram Mini App Basics](./telegram-basics.md)

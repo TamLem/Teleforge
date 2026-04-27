@@ -6,18 +6,17 @@ export { createDefaultHelpHandler, createDefaultStartHandler } from "./handlers/
 export { createWebAppReplyOptions } from "./handlers/webapp.js";
 export { createDefaultWebAppDataHandler, parseWebAppPayload } from "./handlers/webapp-data.js";
 export {
-  createDefaultReturnHandlers,
-  handleMiniAppReturnData
-} from "./coordination/handle-return.js";
-export { handleMiniAppReturn, initiateCoordinatedFlow } from "./coordination/state-bridge.js";
-export {
+  createActionCallbackData,
   createFlowCallback,
   createMiniAppButton,
+  createMiniAppLaunchButton,
+  createMiniAppLaunchUrl,
   createPhoneAuthLink,
   createLocationRequestButton,
   createLocationRequestMarkup,
   createPhoneNumberRequestButton,
   createPhoneNumberRequestMarkup,
+  createSignedActionContextToken,
   generateMiniAppLink,
   createSignedPayload,
   extractSharedLocation,
@@ -25,11 +24,15 @@ export {
   extractFlowContext,
   handleFlowCallback,
   sendFlowInit,
-  templates
+  templates,
+  validateActionContext,
+  verifyActionCallback
 } from "./primitives/index.js";
-export type { MiniAppReturnData, ReturnHandlers } from "./coordination/handle-return.js";
-export type { CoordinatedFlowOptions } from "./coordination/state-bridge.js";
+
 export type {
+  CreateActionCallbackOptions,
+  CreateActionContextOptions,
+  CreateMiniAppLaunchUrlOptions,
   FlowCallbackData,
   FlowCallbackOptions,
   FlowCallbackSource,

@@ -961,52 +961,9 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
     const flowHeader = `Flow: ${flow.id}`;
     const flowDetails: string[] = [];
 
-    for (const step of flow.steps) {
-      const stepPrefix = `  Step: ${step.id}`;
-
-      if (step.type === "miniapp" && step.screen && step.screenResolved === false) {
-        flowDetails.push(
-          `${stepPrefix} references screen "${step.screen}", but no matching screen was discovered under apps/web/src/screens.`
-        );
-        errorCount += 1;
-      }
-
-      if (step.type === "miniapp" && !step.screen) {
-        flowDetails.push(`${stepPrefix} is a Mini App step but has no screen id.`);
-        errorCount += 1;
-      }
-
-      if (step.unresolvedActionIds.length > 0) {
-        for (const actionId of step.unresolvedActionIds) {
-          flowDetails.push(
-            `${stepPrefix} action "${actionId}" has no transition target or handler.`
-          );
-          errorCount += 1;
-        }
-      }
-
-      if (step.extraActionHandlerIds.length > 0) {
-        for (const handlerId of step.extraActionHandlerIds) {
-          flowDetails.push(
-            `${stepPrefix} discovered extra action handler "${handlerId}" not declared in the flow.`
-          );
-          warnCount += 1;
-        }
-      }
-
-      if (step.extraServerActionIds.length > 0) {
-        for (const serverId of step.extraServerActionIds) {
-          flowDetails.push(
-            `${stepPrefix} discovered extra server hook "${serverId}" not declared in the flow.`
-          );
-          warnCount += 1;
-        }
-      }
-    }
-
     if (flow.hasWiringGaps) {
-      const allSteps = flow.steps.map((s) => `    ${s.id}: ${s.status}`);
-      flowDetails.unshift(...allSteps);
+      flowDetails.push(`  Warning: flow has unresolved wiring gaps.`);
+      warnCount += 1;
     }
 
     if (flowDetails.length > 0) {
@@ -1022,7 +979,7 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
       message: `${errorCount} flow wiring issue${errorCount === 1 ? "" : "s"} found across ${flows.length} flow${flows.length === 1 ? "" : "s"}.`,
       name: "flow_wiring",
       remediation:
-        "Add missing screens, declare action transitions or handlers, and remove orphaned handlers.",
+        "Add missing screens, declare action handlers, and ensure route mappings are correct.",
       status: "error"
     };
   }
@@ -1033,7 +990,7 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
       details,
       message: `${warnCount} flow wiring warning${warnCount === 1 ? "" : "s"} found across ${flows.length} flow${flows.length === 1 ? "" : "s"}.`,
       name: "flow_wiring",
-      remediation: "Review discovered extra handlers and server hooks that are not referenced by flows.",
+      remediation: "Review unresolved handler references and route gaps.",
       status: "warn"
     };
   }
@@ -1153,7 +1110,7 @@ async function checkRuntimeSecrets(
   const usesPhoneAuth = await hasPhoneAuthUsage(manifestState);
   if (!hasRealValue(phoneAuthSecret) && usesPhoneAuth) {
     issues.push(
-      `${phoneAuthSecretEnv} is not set. Phone-auth flows (requestPhoneAuthAction) are used in this app.`
+      `${phoneAuthSecretEnv} is not set. Phone-auth flows (onContact handler) are used in this app.`
     );
   }
 
@@ -1196,8 +1153,8 @@ async function hasPhoneAuthUsage(manifestState: ManifestState): Promise<boolean>
     try {
       const content = await readFile(flow.filePath, "utf8");
       if (
-        content.includes("requestPhoneAuthAction") ||
-        (content.includes("phoneRequest") && content.includes("auth"))
+        content.includes("onContact") ||
+        content.includes("requestPhoneAuthAction")
       ) {
         return true;
       }

@@ -34,3 +34,18 @@ export {
 } from "./location.js";
 export type { FlowResult, MessageTemplate } from "./templates.js";
 export { templates } from "./templates.js";
+export type {
+  CreateActionCallbackOptions,
+  CreateActionContextOptions
+} from "./action.js";
+export {
+  createActionCallbackData,
+  createSignedActionContextToken,
+  validateActionContext,
+  verifyActionCallback
+} from "./action.js";
+export type { CreateMiniAppLaunchUrlOptions } from "./miniapp.js";
+export {
+  createMiniAppLaunchButton,
+  createMiniAppLaunchUrl
+} from "./miniapp.js";

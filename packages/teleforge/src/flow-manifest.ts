@@ -1,73 +1,98 @@
-import { defineFlow, resolveFlowActionKey } from "./flow-definition.js";
-
 import type { DiscoveredFlowModule } from "./discovery.js";
-import type {
-  ChatFlowStepDefinition,
-  FlowActionDefinition,
-  FlowStepDefinition,
-  MiniAppFlowStepDefinition,
-  TeleforgeFlowDefinition,
-  TeleforgeFlowDefinitionInput
-} from "./flow-definition.js";
+import type { ActionFlowDefinition } from "./flow-definition.js";
+import type { ClientFlowManifest, ClientFlowManifestEntry, ClientScreenManifestEntry } from "@teleforgex/core";
 
-type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
-type AnyFlowDefinitionInput = TeleforgeFlowDefinitionInput<unknown, unknown>;
+type AnyFlowDefinition = ActionFlowDefinition;
 
-export type TeleforgeClientFlowManifest = readonly AnyFlowDefinition[];
+export type TeleforgeClientFlowManifest = ClientFlowManifest;
 
 export function defineClientFlowManifest(
-  flows: Iterable<AnyFlowDefinitionInput>
-): TeleforgeClientFlowManifest {
-  return Object.freeze(Array.from(flows, (flow) => defineFlow(flow)));
-}
-
-export function createClientFlowManifest(
-  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
-): TeleforgeClientFlowManifest {
-  return Object.freeze(
-    Array.from(flows, (entry) => stripFlowForClient("flow" in entry ? entry.flow : entry))
-  );
-}
-
-function stripFlowForClient(flow: AnyFlowDefinition): AnyFlowDefinition {
-  return defineFlow({
-    ...(flow.bot ? { bot: flow.bot } : {}),
-    finalStep: flow.finalStep,
-    id: flow.id,
-    initialStep: flow.initialStep,
-    ...(flow.miniApp ? { miniApp: flow.miniApp } : {}),
-    ...(flow.onComplete ? { onComplete: flow.onComplete } : {}),
-    state: structuredClone(flow.state),
-    steps: Object.fromEntries(
-      Object.entries(flow.steps).map(([stepId, step]) => [stepId, stripStepForClient(step)])
+  manifest: ClientFlowManifest
+): Readonly<ClientFlowManifest> {
+  return Object.freeze({
+    flows: Object.freeze(
+      manifest.flows.map((entry) =>
+        Object.freeze({
+          ...entry,
+          ...(entry.miniApp
+            ? {
+                miniApp: Object.freeze({
+                  ...entry.miniApp,
+                  routes: Object.freeze({ ...entry.miniApp.routes })
+                })
+              }
+            : {}),
+          screens: Object.freeze(
+            entry.screens.map((screen) => Object.freeze({ ...screen }))
+          )
+        })
+      )
     )
   });
 }
 
-function stripStepForClient(step: FlowStepDefinition<unknown, unknown>) {
-  if (step.type === "chat") {
-    return {
-      ...(step.actions ? { actions: stripActionsForClient(step.actions) } : {}),
-      message: typeof step.message === "string" ? step.message : "",
-      ...(step.miniApp ? { miniApp: step.miniApp } : {}),
-      type: "chat" as const
-    } satisfies ChatFlowStepDefinition<unknown, unknown>;
+export function createClientFlowManifest(
+  flows: Iterable<ActionFlowDefinition | DiscoveredFlowModule>,
+  screens?: Iterable<{ id: string; title?: string }>
+): ClientFlowManifest {
+  const screenMap = new Map<string, string>();
+  if (screens) {
+    for (const screen of screens) {
+      if (screen.title) {
+        screenMap.set(screen.id, screen.title);
+      }
+    }
+  }
+
+  return Object.freeze({
+    flows: Object.freeze(
+      Array.from(flows, (entry) => {
+        const flow = "flow" in entry ? entry.flow : entry;
+        return createManifestEntry(flow, screenMap);
+      })
+    )
+  });
+}
+
+function createManifestEntry(
+  flow: ActionFlowDefinition,
+  screenTitles: Map<string, string>
+): ClientFlowManifestEntry {
+  const screens: ClientScreenManifestEntry[] = [];
+
+  if (flow.miniApp?.routes) {
+    const seen = new Set<string>();
+    for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
+      if (seen.has(screenId)) {
+        continue;
+      }
+      seen.add(screenId);
+
+      const screenActions = flow.actions
+        ? Object.keys(flow.actions)
+        : undefined;
+
+      screens.push({
+        actions: screenActions,
+        id: screenId,
+        requiresSession: flow.session?.enabled,
+        route,
+        title: screenTitles.get(screenId)
+      });
+    }
   }
 
   return {
-    ...(step.actions ? { actions: stripActionsForClient(step.actions) } : {}),
-    screen: step.screen,
-    type: "miniapp" as const
-  } satisfies MiniAppFlowStepDefinition<unknown, unknown, unknown>;
-}
-
-function stripActionsForClient(
-  actions: ReadonlyArray<FlowActionDefinition<unknown, unknown>>
-): Array<FlowActionDefinition<unknown, unknown>> {
-  return actions.map((action) => ({
-    id: resolveFlowActionKey(action),
-    label: action.label,
-    ...(action.miniApp ? { miniApp: action.miniApp } : {}),
-    ...(action.to ? { to: action.to } : {})
-  }));
+    id: flow.id,
+    ...(flow.miniApp
+      ? {
+          miniApp: {
+            defaultRoute: flow.miniApp.defaultRoute,
+            routes: { ...flow.miniApp.routes },
+            title: flow.miniApp.title
+          }
+        }
+      : {}),
+    screens: Object.freeze(screens)
+  };
 }

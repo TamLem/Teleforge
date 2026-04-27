@@ -312,7 +312,7 @@ The public framework surface is the `teleforge` unified package. Most app code i
 - `teleforge`: app config (`defineTeleforgeApp`), flow definitions (`defineFlow`), and discovered runtime bootstrapping
 - `teleforge/web`: Mini App shell (`TeleforgeMiniApp`), screen registration (`defineScreen`), and launch coordination
 - `teleforge/bot`: bot runtime types and command handlers for discovered flows
-- `teleforge/server-hooks`: trusted server-side load, submit, and action hooks
+- `teleforge`: action server hooks (`createActionServerHooksHandler`) for trusted server-side action execution
 - CLI commands such as `teleforge dev`, `teleforge doctor`, and `teleforge mock` from the unified package
 
 ## Next Reading

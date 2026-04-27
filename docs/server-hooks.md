@@ -1,114 +1,210 @@
-# Server Hooks and Backend Internals
+# Action Server and Backend
 
-This guide explains Teleforge's trusted server-side path.
+This guide explains Teleforge's trusted server-side action execution path.
 
 The public model is:
 
 - define product behavior as flows
-- bind Mini App steps to screens
-- add server hooks only when a step needs trusted server authority
+- bind Mini App routes to screens
+- define action handlers in the flow for server-trusted work
 
-Do not treat backend work as a separate Teleforge app mode. Server hooks are part of the flow runtime.
+Do not treat backend work as a separate Teleforge app mode. Actions are part of the flow definition.
 
-## When to Use Server Hooks
+## When to Use Server Actions
 
-Use server hooks for work the browser must not control:
+Use action handlers for work the browser must not control:
 
-- checking flow instance ownership
+- checking identity and ownership
 - enforcing permissions
 - loading user-specific or private data
-- validating submit/action payloads on the server
+- validating action payloads on the server
 - creating orders, payments, sessions, tickets, or other durable records
 - calling downstream services with server-only credentials
+- managing session state for draft flows
 
-Keep simple local UI state in the screen. Keep durable product state in the flow instance or domain services.
+Keep simple local UI state in the screen. Keep durable product state in domain services.
 
-## Hook Types
+## Action Handler Types
 
-Server hooks are discovered by convention and executed through the framework bridge.
+Actions are defined in the flow file and executed by the action server through a validated
+signed context.
 
-Common hook responsibilities are:
+```ts
+actions: {
+  submitOrder: {
+    handler: async ({ ctx, data, services }) => {
+      // ctx = validated signed action context
+      // data = payload from Mini App
+      // services = app services container
 
-- `guard`: decide whether the user can enter a step
-- `loader`: prepare screen-specific data before render or refresh
-- `submit`: complete or advance a Mini App step with trusted validation
-- `action`: run a trusted interaction that may not complete the step
+      await services.orders.create(data);
 
-The hook should return typed data or transition results that the runtime can apply to the current flow instance.
+      return {
+        navigate: "shop.success",
+        data: { orderId: "ord_123" }
+      };
+    }
+  },
+
+  cancel: {
+    handler: async ({ ctx }) => {
+      return {
+        showHandoff: "Returning to chat...",
+        closeMiniApp: true,
+        effects: [{ type: "chatMessage", text: "Order cancelled." }]
+      };
+    }
+  }
+}
+```
+
+### Action handler context
+
+```ts
+interface ActionFlowActionHandlerContext {
+  ctx: ActionContextToken;    // Verified signed context
+  data: unknown;              // Payload from runAction()
+  services: unknown;          // App services container
+  session?: SessionHandle;    // Only for session flows or requiresSession
+}
+```
+
+### Action result
+
+```ts
+interface ActionResult {
+  data?: Record<string, unknown>;    // Returned to screen
+  navigate?: string;                 // Navigate to screenId
+  closeMiniApp?: boolean;            // Close the Mini App
+  showHandoff?: string | boolean;    // Show handoff and close
+  effects?: ActionEffect[];          // Side effects
+}
+```
 
 ## Suggested Structure
 
-```text
+```
 apps/bot/src/flows/
-  checkout.flow.ts
+  checkout.flow.ts          ← flow with actions defined inline
 
-apps/api/src/flow-hooks/
-  checkout/
-    catalog.ts
-    review.ts
+apps/web/src/screens/
+  catalog.screen.tsx        ← screen that calls runAction()
+  success.screen.tsx
 ```
 
-Use the flow and step ids as the filesystem boundary. The default scaffold includes `apps/api` because the Mini App server bridge depends on a backend surface for coordinated bot-owned state. Use `create-teleforge-app my-app --without-api` only for client-only experiments.
+Actions live in the flow file — no separate per-step hook directory.
 
-## Example Loader and Submit
+## Example: Complete Action Flow
 
 ```ts
-export async function loader({ state, actor, services }) {
-  const products = await services.catalog.listForUser(actor.id);
+import { defineFlow } from "teleforge";
 
-  return {
-    products,
-    selectedItemId: state.selectedItemId ?? null
-  };
-}
+export default defineFlow({
+  id: "checkout",
 
-export async function submit({ data, state, services }) {
-  const item = await services.catalog.requireAvailable(data.itemId);
+  command: {
+    command: "checkout",
+    description: "Start checkout",
+    handler: async ({ ctx, sign }) => {
+      const launch = await sign({
+        flowId: "checkout",
+        screenId: "catalog",
+        allowedActions: ["addToCart", "checkout"]
+      });
 
-  return {
-    state: {
-      ...state,
-      selectedItemId: item.id
+      await ctx.reply("Open checkout to continue.", {
+        reply_markup: {
+          inline_keyboard: [[{ text: "Open", web_app: { url: launch } }]]
+        }
+      });
+    }
+  },
+
+  miniApp: {
+    routes: { "/": "catalog", "/success": "success" },
+    defaultRoute: "/"
+  },
+
+  actions: {
+    addToCart: {
+      handler: async ({ ctx, data, services }) => {
+        const { productId } = data as { productId: string };
+        await services.cart.add(ctx.userId, productId);
+        return { data: { added: true } };
+      }
     },
-    to: "review"
-  };
-}
-```
 
-The exact service wiring is app-owned. Teleforge owns the bridge, state handoff, and flow transition contract.
+    checkout: {
+      handler: async ({ ctx, data, services }) => {
+        const order = await services.orders.create(ctx.userId);
+        return {
+          navigate: "success",
+          data: { orderId: order.id }
+        };
+      }
+    }
+  }
+});
+```
 
 ## Security Boundary
 
 The frontend can render UI and collect input. It is not authoritative for:
 
 - identity trust
-- flow instance ownership
-- step validity
 - permission decisions
 - durable state mutation
+- service calls with server-only credentials
 
-Server hooks should validate those conditions before returning success.
+The action server validates the signed action context (signature, expiry, allowed actions)
+before running any handler.
 
 ## Runtime Wiring
 
-In the default runtime path, `teleforge start` discovers server hooks and starts the hooks server when hooks are present. The server also hosts the Telegram webhook endpoint when `runtime.bot.delivery` is `"webhook"`.
+In the default runtime path, `teleforge start` starts the action server at
+`/api/teleforge/actions`. The server also hosts the Telegram webhook endpoint when
+`runtime.bot.delivery` is `"webhook"`.
 
-For local development, `teleforge dev` runs the simulator and companion services. Use `teleforge doctor` if a hook is not discovered or a Mini App step cannot resolve its trusted runtime path.
+For local development, `teleforge dev` runs the simulator and companion services.
+Use `teleforge doctor` if an action is not resolving correctly.
 
 ## Escape Hatches
 
-App authors should not import internal implementation packages to build a normal Teleforge app. Use generated conventions and `teleforge start` first.
+App authors should not import internal implementation packages to build a normal Teleforge app.
+Use generated conventions and `teleforge start` first.
 
-When a custom server owns HTTP routing, import from `teleforge/server-hooks` and mount `createDiscoveredServerHooksHandler()` yourself. Keep that as an advanced hosting path, not the default scaffold model.
+When a custom server owns HTTP routing, import from `teleforge` and use
+`createActionServerHooksHandler()` directly. Keep that as an advanced hosting path,
+not the default scaffold model.
 
 ## Shared Phone Auth
 
-Phone auth is also a server-hook concern:
+Phone auth uses the `onContact` flow handler:
 
-1. the bot requests a self-shared contact
-2. the bot signs a short-lived phone-auth token
-3. the Mini App passes that token to trusted server code
-4. the server validates the token, matches it to the Telegram user, and resolves the app user
+1. the flow declares an `onContact` handler
+2. the framework validates the self-shared contact
+3. the handler signs an action context with the phone as subject
+4. the Mini App receives it and can call actions
+
+```ts
+handlers: {
+  onContact: async ({ ctx, shared, sign, services }) => {
+    // shared.normalizedPhone is already extracted and verified
+    const launch = await sign({
+      flowId: "login",
+      screenId: "profile",
+      subject: { phone: shared.normalizedPhone },
+      allowedActions: ["finishLogin"]
+    });
+
+    await ctx.reply("Continue in the Mini App.", {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Open App", web_app: { url: launch } }]]
+      }
+    });
+  }
+}
+```
 
 See [Shared Phone Auth](./shared-phone-auth.md) for the end-to-end flow.
 

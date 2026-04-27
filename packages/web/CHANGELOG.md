@@ -1,5 +1,26 @@
 # @teleforgex/web
 
+## 0.2.0
+
+### Minor Changes
+
+- **Removed**: `FlowInstance`, `FlowInstanceStatus`, `FlowInstanceSurface`, `FlowStateResolver`, `ResumeFlowError`, `ResumeFlowResult` from browser exports — these step-machine types no longer exist.
+- **Added**: `ActionContextToken`, `ActionResult` types in browser exports.
+
+### Patch Changes
+
+- Updated dependencies
+
+- 2fa207c: Add shared phone-number auth utilities across Teleforge.
+
+  Core now exposes normalized phone-number helpers, signed phone-auth tokens, and launch parsing support for `tfPhoneAuth`. Web exposes the parsed launch token through `useLaunch()`. Bot adds reply-keyboard contact request helpers, self-shared contact extraction, and signed phone-auth Mini App links. Server hooks centralize identity resolution behind a provider-backed identity manager and add a phone-auth exchange handler that issues sessions from the signed phone token flow.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [2fa207c]
+  - @teleforgex/core@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes

@@ -1,310 +1,515 @@
 # Teleforge Config Reference
 
-`teleforge.config.ts` is the source of truth for a Teleforge app.
+## `teleforge.config.ts`
 
-It defines app identity, bot metadata, Mini App entry settings, and discovery paths for flows, screens, and server hooks. It does not ask users to choose between separate framework modes.
-
-## Top-Level Example
+The root config file exports a Teleforge app configuration via `export default defineTeleforgeApp({...})`.
 
 ```ts
 import { defineTeleforgeApp } from "teleforge";
 
 export default defineTeleforgeApp({
   app: {
-    id: "task-shop",
-    name: "Task Shop",
+    id: "my-app",
+    name: "My App",
     version: "1.0.0"
+  },
+  bot: {
+    tokenEnv: "BOT_TOKEN",
+    username: "MyAppBot",
+    webhook: {
+      path: "/api/webhook",
+      secretEnv: "WEBHOOK_SECRET"
+    }
+  },
+  miniApp: {
+    entry: "apps/web/src/main.tsx",
+    screensRoot: "apps/web/src/screens",
+    launchModes: ["inline", "compact", "fullscreen"],
+    defaultMode: "compact",
+    capabilities: []
   },
   flows: {
     root: "apps/bot/src/flows"
   },
-  bot: {
-    username: "taskshopbot",
-    tokenEnv: "BOT_TOKEN"
-  },
-  miniApp: {
-    entry: "apps/web/src/main.tsx",
-    route: "/",
-    title: "Task Shop",
-    launchModes: ["inline", "compact", "fullscreen"],
-    defaultMode: "inline"
+  runtime: {
+    server: { port: 3100 },
+    phoneAuth: { secretEnv: "PHONE_AUTH_SECRET" }
   }
 });
 ```
 
-## `app`
+### `TeleforgeAppConfig`
 
-| Field     | Type     | Purpose                   |
-| --------- | -------- | ------------------------- |
-| `id`      | `string` | Kebab-case app identifier |
-| `name`    | `string` | Human-readable app name   |
-| `version` | `string` | App version               |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `app` | `TeleforgeAppIdentity` | Yes | App identity (id, name, version) |
+| `bot` | `TeleforgeBotConfig` | Yes | Bot username, token env var, webhook config |
+| `miniApp` | `TeleforgeMiniAppConfig` | Yes | Mini App entry, screens root, launch modes |
+| `flows` | `TeleforgeFlowConventions` | No | Flow discovery paths |
+| `routes` | `RouteDefinition[]` | No | Additional route definitions |
+| `runtime` | `TeleforgeRuntime` | No | Runtime delivery mode, ports, secrets |
+| `permissions` | `TeleforgePermission[]` | No | App capability declarations |
+| `features` | Object | No | Feature flags (backButton, cloudStorage, etc.) |
+| `security` | Object | No | Security settings (allowedOrigins, etc.) |
 
-## `flows`
+---
 
-| Field  | Type     | Purpose                                                         |
-| ------ | -------- | --------------------------------------------------------------- |
-| `root` | `string` | Directory path for flow discovery, such as `apps/bot/src/flows` |
+## `defineFlow()`
 
-Flow files are discovered by convention and should export a `defineFlow()` definition.
+Flow definitions live in `apps/bot/src/flows/*.flow.ts`. Each file exports a flow
+definition via `export default defineFlow({...})`.
 
-## `bot`
-
-| Field               | Type     | Purpose                                          |
-| ------------------- | -------- | ------------------------------------------------ |
-| `username`          | `string` | Telegram bot username without `@`                |
-| `tokenEnv`          | `string` | Environment variable name for the bot token      |
-| `webhook`           | `object` | Optional webhook configuration                   |
-| `webhook.path`      | `string` | Webhook endpoint path, such as `/api/webhook`    |
-| `webhook.secretEnv` | `string` | Environment variable for Telegram webhook secret |
-
-Polling and webhook delivery are deployment choices. They are not separate Teleforge product modes. Webhook delivery is active only when `runtime.bot.delivery` is `"webhook"`; otherwise any generated webhook path is an inactive placeholder.
-
-Webhook example:
-
-```ts
-bot: {
-  username: "taskshopbot",
-  tokenEnv: "BOT_TOKEN",
-  webhook: {
-    path: "/api/webhook",
-    secretEnv: "WEBHOOK_SECRET"
-  }
-},
-runtime: {
-  bot: {
-    delivery: "webhook"
-  }
-}
-```
-
-## `runtime`
-
-| Field                    | Type       | Purpose                                                   |
-| ------------------------ | ---------- | --------------------------------------------------------- |
-| `bot.delivery`           | `"polling" \| "webhook"` | Bot update delivery mode. Defaults to polling. When set to `"webhook"`, `teleforge start` mounts a Telegram webhook endpoint at `bot.webhook.path` on the hooks server. |
-| `server.port`          | `number`   | Default port for the hooks server. Defaults to 3100.      |
-| `phoneAuth.secretEnv`  | `string`   | Environment variable for phone-auth signing secret. Defaults to `PHONE_AUTH_SECRET`. |
-
-## `miniApp`
-
-| Field                | Type       | Purpose                                 |
-| -------------------- | ---------- | --------------------------------------- |
-| `entry`              | `string`   | Path to the Mini App entry file         |
-| `route`              | `string`   | Base route for the Mini App             |
-| `title`              | `string`   | Mini App title                          |
-| `launchModes`        | `string[]` | Allowed Telegram launch modes           |
-| `defaultMode`        | `string`   | Default launch mode                     |
-| `capabilities`       | `string[]` | Optional required capabilities          |
-| `requestWriteAccess` | `boolean`  | Whether to request write access         |
-| `returnToChat`       | `object`   | Optional return-to-chat button behavior |
-
-Step-to-screen mapping belongs in flow definitions. App-level Mini App config should stay focused on runtime entry and defaults.
-
-## `dev`
-
-| Field       | Type       | Purpose                                        |
-| ----------- | ---------- | ---------------------------------------------- |
-| `port`      | `number`   | Preferred local dev server port                |
-| `httpsPort` | `number`   | Preferred HTTPS port when `--https` is used    |
-| `tunnel`    | `boolean`  | Whether to enable a public tunnel by default   |
-| `services`  | `object[]` | Optional companion services to start in dev    |
-
-Each companion service supports:
-
-| Field     | Type     | Purpose                                         |
-| --------- | -------- | ----------------------------------------------- |
-| `name`    | `string` | Service label shown in dev output               |
-| `command` | `string` | Simple command string to start the service (use a wrapper script for quoted arguments or shell operators) |
-| `health`  | `string` | Optional health URL polled after startup        |
-
-Example:
-
-```ts
-dev: {
-  port: 3000,
-  services: [
-    {
-      name: "mock-api",
-      command: "pnpm --filter @app/mock-api dev",
-      health: "http://127.0.0.1:3001/health"
-    }
-  ]
-}
-```
-
-When `services` is omitted, `teleforge dev` auto-discovers companion services from `apps/bot` if it has a `dev` script.
-
-## Flow Definitions
-
-Flows are the main authoring unit:
+### Action-first flow (default)
 
 ```ts
 import { defineFlow } from "teleforge";
 
-export default defineFlow<FlowState>({
-  id: "checkout",
-  initialStep: "catalog",
-  finalStep: "done",
-  state: { cart: [] },
-  bot: {
-    command: {
-      command: "shop",
-      description: "Open the shop",
-      text: "Choose an item",
-      buttonText: "Open shop"
+export default defineFlow({
+  id: "my-flow",
+
+  command: {
+    command: "start",
+    description: "Start the flow",
+    handler: async ({ ctx, sign, services }) => {
+      const launch = await sign({
+        flowId: "my-flow",
+        screenId: "home",
+        allowedActions: ["submitForm", "cancel"]
+      });
+
+      await ctx.reply("Welcome! Tap below to continue.", {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Open Mini App", web_app: { url: launch } }
+          ]]
+        }
+      });
     }
   },
-  steps: {
-    catalog: {
-      type: "miniapp",
-      screen: "catalog",
-      onSubmit: async ({ data, state }) => ({
-        state: { ...state, cart: [data.itemId] },
-        to: "review"
-      })
+
+  handlers: {
+    onContact: async ({ ctx, shared, sign, services }) => {
+      const launch = await sign({
+        flowId: "my-flow",
+        screenId: "profile",
+        subject: { phone: shared.normalizedPhone },
+        allowedActions: ["editProfile"]
+      });
+
+      await ctx.reply("Phone verified. Continue in the Mini App.", {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Open Profile", web_app: { url: launch } }
+          ]]
+        }
+      });
     },
-    review: {
-      type: "miniapp",
-      screen: "checkout.review"
+
+    onLocation: async ({ ctx, location, sign, services }) => {
+      const launch = await sign({
+        flowId: "my-flow",
+        screenId: "nearby",
+        subject: { lat: location.latitude, lng: location.longitude },
+        allowedActions: ["viewResult"]
+      });
+
+      await ctx.reply("Location received. Opening nearby results.");
+    }
+  },
+
+  miniApp: {
+    routes: {
+      "/": "home",
+      "/form": "form",
+      "/confirm": "confirm"
     },
-    done: {
-      type: "chat",
-      message: "Order received."
+    defaultRoute: "/",
+    title: "My Flow",
+    launchModes: ["inline", "compact", "fullscreen"],
+    requestWriteAccess: true
+  },
+
+  actions: {
+    submitForm: {
+      handler: async ({ ctx, data, services }) => {
+        await services.database.save(data);
+        return {
+          navigate: "confirm",
+          data: { saved: true }
+        };
+      }
+    },
+
+    cancel: {
+      handler: async () => {
+        return {
+          showHandoff: "Returning to chat...",
+          closeMiniApp: true,
+          effects: [{ type: "chatMessage", text: "Action cancelled." }]
+        };
+      }
     }
   }
 });
 ```
 
-### Mini App Step
+### `ActionFlowDefinition`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | `string` | Yes | Unique flow identifier |
+| `command` | `ActionFlowCommandDefinition` | No | Bot slash command registration |
+| `handlers` | `ActionFlowHandlers` | No | Bot event handlers (onContact, onLocation, etc.) |
+| `miniApp` | `ActionFlowMiniAppDefinition` | No | Mini App route/screen mapping |
+| `actions` | `Record<string, ActionFlowActionDefinition>` | No | Server-side action handlers |
+| `session` | `ActionFlowSessionDefinition` | No | Opt-in session state configuration |
+
+### `command`
 
 ```ts
-{
-  type: "miniapp",
-  screen: "screen-id",
-  onSubmit?: async ({ data, state }) => ({ state?, to? }),
-  actions?: [{ id, label, to }]
+interface ActionFlowCommandDefinition {
+  command: string;        // Slash command, e.g. "start"
+  description: string;    // Shown in bot command menu
+  handler: (ctx: ActionFlowCommandHandlerContext) => Promise<void>;
+}
+
+interface ActionFlowCommandHandlerContext {
+  ctx: UpdateContext;           // Bot update context (bot, chat, user, reply)
+  sign: SignContextFn;          // Create signed action context tokens
+  services: unknown;            // App services container
+  session?: SessionHandle;      // Only when session.enabled
 }
 ```
 
-### Chat Step
+### `handlers`
 
 ```ts
-{
-  type: "chat",
-  message: "Text shown in chat",
-  actions?: [{ id, label, to, miniApp?: { payload? } }]
+interface ActionFlowHandlers {
+  onContact?: (ctx: ActionFlowContactHandlerContext) => Promise<void>;
+  onLocation?: (ctx: ActionFlowLocationHandlerContext) => Promise<void>;
+  onCallback?: (ctx: ActionFlowCallbackHandlerContext) => Promise<void>;
+  onWebAppData?: (ctx: ActionFlowWebAppDataHandlerContext) => Promise<void>;
+}
+
+interface ActionFlowContactHandlerContext {
+  ctx: UpdateContext;           // Bot update context
+  shared: {                     // Validated phone contact
+    normalizedPhone: string;
+    phoneNumber: string;
+    telegramUserId: number;
+  };
+  sign: SignContextFn;
+  services: unknown;
+}
+
+interface ActionFlowLocationHandlerContext {
+  ctx: UpdateContext;           // Bot update context
+  location: {                   // Shared location
+    latitude: number;
+    longitude: number;
+    horizontalAccuracy?: number;
+  };
+  sign: SignContextFn;
+  services: unknown;
 }
 ```
 
-### Flow Authoring Helpers
+**Collision rules:**
+- Only one flow may define an `onContact` handler across all flows.
+- Only one flow may define an `onLocation` handler across all flows.
+- Duplicate `command` names across flows cause a registration error.
 
-The framework provides helpers that remove repetitive `type` fields and make action intent explicit:
+### `miniApp`
 
 ```ts
-import {
-  chatStep,
-  defineFlow,
-  miniAppStep,
-  openMiniAppAction,
-  requestLocationAction,
-  requestPhoneAuthAction,
-  requestPhoneAction,
-  returnToChatAction
-} from "teleforge";
+interface ActionFlowMiniAppDefinition {
+  routes: Record<string, string>;   // URL path → screenId
+  defaultRoute?: string;            // Fallback route
+  title?: string;                   // Mini App header title
+  launchModes?: LaunchMode[];       // Allowed launch modes
+  requestWriteAccess?: boolean;     // Request tg write access
+}
+```
 
-export default defineFlow({
-  id: "checkout",
-  initialStep: "cart",
-  state: { items: [] },
-  steps: {
-    cart: miniAppStep("checkout.cart", {
-      onSubmit: async ({ data, state }) => ({
-        state: { ...state, items: [data.itemId] },
-        to: "review"
-      })
-    }),
-    review: miniAppStep("checkout.review", {
-      actions: [returnToChatAction("Cancel", "abandoned")]
-    }),
-    done: chatStep("Order confirmed!", [
-      openMiniAppAction("Track order", "track", { orderId: "abc" })
-    ]),
-    verifyPhone: chatStep("Verify your phone number", [
-      requestPhoneAction("Share phone", "done", {
-        rawStateField: "rawPhoneNumber",
-        stateField: "phoneNumber"
-      })
-    ]),
-    verifyPhoneForApp: chatStep("Verify your phone number and continue in the Mini App", [
-      requestPhoneAuthAction("Share phone", "track", {
-        rawStateField: "rawPhoneNumber",
-        stateField: "phoneNumber"
-      })
-    ]),
-    askLocation: chatStep("Share your location", [
-      requestLocationAction("Share location", "map", {
-        stateField: "coords"
-      })
-    ]),
-    abandoned: chatStep("Cart abandoned. Come back anytime!"),
-    track: miniAppStep("checkout.track")
+The `routes` map binds URL paths to screen IDs. The first matching route (by
+pathname) determines which screen renders. Routes may include path parameters:
+
+```ts
+routes: {
+  "/": "catalog",
+  "/product/:productId": "product.detail",
+  "/cart": "cart"
+}
+```
+
+### `actions`
+
+```ts
+interface ActionFlowActionDefinition {
+  handler: (ctx: ActionFlowActionHandlerContext) => Promise<ActionResult>;
+  requiresSession?: boolean;   // Load session before handler
+}
+
+interface ActionFlowActionHandlerContext {
+  ctx: ActionContextToken;     // Verified signed context
+  data: unknown;               // Payload from Mini App
+  services: unknown;
+  session?: SessionHandle;     // Only when requiresSession or session.enabled
+}
+```
+
+Action handlers return an `ActionResult`:
+
+```ts
+interface ActionResult {
+  data?: Record<string, unknown>;    // Data returned to Mini App
+  navigate?: string;                 // Navigate to screenId or route
+  closeMiniApp?: boolean;            // Close the Mini App
+  showHandoff?: string | boolean;    // Show handoff message, close after delay
+  effects?: ActionEffect[];          // Side effects
+}
+
+type ActionEffect =
+  | { type: "chatMessage"; text: string; chatId?: string }
+  | { type: "openMiniApp"; launchUrl: string }
+  | { type: "navigate"; screenId: string; params?: Record<string, unknown> }
+  | { type: "webhook"; url: string; payload: unknown }
+  | { type: "custom"; kind: string; payload: unknown };
+```
+
+### `session` (optional)
+
+```ts
+interface ActionFlowSessionDefinition {
+  enabled: true;                         // Must be explicitly true
+  ttlSeconds?: number;                   // Session expiry (default 900s)
+  initialState?: Record<string, unknown>; // Initial session state
+}
+```
+
+Sessions are opt-in. Only flows that declare `session.enabled = true` create
+server-side session state. Session state is small, scoped, and TTL-bound.
+
+---
+
+## `defineScreen()`
+
+```ts
+import { defineScreen } from "teleforge";
+
+export default defineScreen({
+  id: "home",
+  title: "Home",
+  component: HomeScreen
+});
+```
+
+### `TeleforgeScreenDefinition`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | `string` | Yes | Unique screen identifier (matches route map) |
+| `component` | `ComponentType<TeleforgeScreenComponentProps>` | Yes | React component |
+| `title` | `string` | No | Screen title |
+| `guard` | `(ctx) => Promise<boolean \| { allow: false; reason?: string }>` | No | Client-side access guard |
+| `loader` | `(ctx) => Promise<TLoaderData>` | No | Client-side data loader |
+
+### Screen component props
+
+```ts
+interface TeleforgeScreenComponentProps {
+  launch: LaunchContext;       // Parsed Telegram launch context
+  screenId: string;           // Current screen identifier
+  routePath: string;          // Current URL pathname
+  data?: unknown;             // Context data from signed token
+  loaderData?: unknown;       // Resolved loader data
+  session?: unknown;          // Session state (only for session flows)
+  transitioning: boolean;     // Action in progress
+  runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
+  navigate: (screenIdOrRoute: string, params?: Record<string, unknown>) => void;
+}
+```
+
+---
+
+## `defineTeleforgeApp()`
+
+```ts
+import { defineTeleforgeApp } from "teleforge";
+import type { TeleforgeAppConfig } from "teleforge";
+
+export default defineTeleforgeApp<TeleforgeAppConfig>({
+  app: { id: "my-app", name: "My App", version: "1.0.0" },
+  bot: { tokenEnv: "BOT_TOKEN", username: "MyAppBot" },
+  miniApp: { entry: "apps/web/src/main.tsx", launchModes: ["compact"], defaultMode: "compact" },
+  runtime: { bot: { delivery: "polling" }, server: { port: 3100 } }
+});
+```
+
+---
+
+## Signed Action Context
+
+Every Mini App action carries a signed context token (prefix `tfp2`). The token
+is HMAC-SHA256 signed and contains:
+
+```ts
+interface ActionContextToken {
+  appId: string;
+  flowId: string;
+  screenId?: string;
+  userId: string;
+  subject?: Record<string, unknown>;
+  allowedActions?: string[];
+  issuedAt: number;
+  expiresAt: number;
+  nonce?: string;
+}
+```
+
+The server validates the token on every action request: signature, expiry, and
+that the requested action is in `allowedActions`.
+
+### `sign()` context function
+
+Available in command and handler contexts:
+
+```ts
+type SignContextFn = (params: {
+  flowId: string;
+  screenId: string;
+  subject?: Record<string, unknown>;
+  allowedActions?: string[];
+}) => Promise<string>;  // Returns signed token string ready for tgWebAppStartParam
+```
+
+---
+
+## Server (`startTeleforgeServer`)
+
+```ts
+import { startTeleforgeServer } from "teleforge";
+
+const { url, port, stop } = await startTeleforgeServer({
+  flowSecret: process.env.TELEFORGE_FLOW_SECRET,
+  port: 3100,
+  onChatHandoff: async ({ message, context }) => {
+    await bot.sendMessage(context.userId, message);
   }
 });
 ```
 
-| Helper                | Replaces                                    |
-| --------------------- | ------------------------------------------- |
-| `miniAppStep(screen)` | `{ type: "miniapp", screen: "..." }`          |
-| `chatStep(message)`   | `{ type: "chat", message: "..." }`          |
-| `openMiniAppAction`   | Action with `miniApp` payload to open a step |
-| `requestPhoneAction`  | Chat action that asks Telegram for a self-shared contact |
-| `requestPhoneAuthAction` | Chat action that asks for a self-shared contact, then launches a Mini App step with `tfPhoneAuth` |
-| `requestLocationAction` | Chat action that asks Telegram for a self-shared location |
-| `returnToChatAction`  | Action that returns to a chat step         |
+### Server endpoints
 
-Raw object definitions remain fully supported for cases the helpers do not cover.
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/teleforge/actions` | POST | Action execution hub (`runAction`, `loadScreenContext`, `handoff`) |
 
-## Screen Definitions
+### Request shapes
 
-Screens are the frontend unit bound to Mini App steps:
+```ts
+// runAction
+{ kind: "runAction", input: { flowId, actionId, signedContext, payload? } }
 
-```tsx
-import { defineScreen } from "teleforge/web";
+// loadScreenContext
+{ kind: "loadScreenContext", input: { flowId, screenId, signedContext } }
 
-export default defineScreen<FlowState>({
-  id: "catalog",
-  title: "Catalog",
-  loader: async (context) => ({ products: [] }),
-  component: CatalogScreen
+// handoff
+{ kind: "handoff", input: { signedContext, message } }
+```
+
+---
+
+## Bot (`startTeleforgeBot`)
+
+```ts
+import { startTeleforgeBot } from "teleforge";
+
+const { runtime, stop } = await startTeleforgeBot({
+  flowSecret: process.env.TELEFORGE_FLOW_SECRET,
+  miniAppUrl: process.env.MINI_APP_URL,
+  token: process.env.BOT_TOKEN
 });
 ```
 
-Screen components receive flow context, loader data, transition state, and submit/action helpers from the Mini App runtime.
+### Runtime lifecycle
+
+1. Flows are discovered from `apps/bot/src/flows/*.flow.ts`
+2. Commands, contact handlers, location handlers, callbacks, and web_app_data handlers are registered from flow definitions
+3. Action registry is built (`flowId:actionId` → handler)
+4. Route registry is built (URL path → `{ flowId, screenId }`)
+
+---
 
 ## Discovery Conventions
 
-| Discovery     | Path Pattern                                                   | Export                             |
-| ------------- | -------------------------------------------------------------- | ---------------------------------- |
-| Flows         | `apps/bot/src/flows/*.flow.{ts,mjs,js}`                        | `export default defineFlow(...)`   |
-| Flow handlers | `apps/bot/src/flow-handlers/{flowId}/{stepId}.{ts,mjs,js}`     | `export const actions = { ... }`   |
-| Server hooks  | `apps/api/src/flow-hooks/{flowId}/{stepId}.{ts,mjs,js}`        | `export const guard?, loader?`     |
-| Screens       | `apps/web/src/screens/*.{screen,page}.{tsx,ts}`                | `export default defineScreen(...)` |
+| Artifact | Pattern | Loader |
+|---|---|---|
+| Flows | `{root}/*.flow.{ts,mjs,js}` | `loadTeleforgeFlows` |
+| Screens | `{screensRoot}/*.screen.{tsx,ts,jsx,js}` | `loadTeleforgeScreens` |
+| App config | `teleforge.config.{ts,mts,js,mjs}` | `loadTeleforgeApp` |
 
-Generated projects include `apps/api` by default so the Mini App server bridge has a backend surface for coordinated state. Use `create-teleforge-app my-app --without-api` only for client-only experiments, or set `flows.serverHooksRoot` explicitly if your backend uses a different directory.
+The `flows.root` default is `"flows"`, resolved relative to the project root as
+`apps/bot/src/flows`. Configure via `flows.root` in `teleforge.config.ts`.
 
-## Environment Variables
+---
 
-| Variable                | Purpose                          | Required                    |
-| ----------------------- | -------------------------------- | --------------------------- |
-| `BOT_TOKEN`             | Telegram bot token               | live Telegram bot runtime   |
-| `WEBHOOK_SECRET`        | Webhook verification secret      | webhook deployments         |
-| `MINI_APP_URL`          | Public Mini App URL override     | production or public tunnel |
-| `TELEFORGE_FLOW_SECRET` | Signing secret for flow contexts | trusted runtime payloads    |
+## Client Manifest
 
-## Read Alongside
+A stripped, client-safe manifest is generated for the Mini App bundle.
 
-- [Framework Model](./framework-model.md)
-- [Flow Coordination](./flow-coordination.md)
-- [Flow State Architecture](./flow-state-design.md)
-- [Mini App Architecture](./miniapp-architecture.md)
+```ts
+interface ClientFlowManifest {
+  flows: readonly Array<{
+    id: string;
+    miniApp?: {
+      routes: Record<string, string>;
+      defaultRoute?: string;
+      title?: string;
+    };
+    screens: readonly Array<{
+      id: string;
+      route?: string;
+      title?: string;
+      actions?: readonly string[];
+      requiresSession?: boolean;
+    }>;
+  }>;
+}
+```
+
+Generate via:
+
+```ts
+import { createClientFlowManifest } from "teleforge";
+
+const manifest = createClientFlowManifest(flows, screens);
+```
+
+---
+
+## Flow Authoring Helpers
+
+### `resolveFlowAction(actionId: string): string`
+
+Normalizes an action ID string. Replaces the old `resolveFlowActionKey`.
+
+---
+
+## Migration from step-machine flows
+
+| Old API | New API |
+|---|---|
+| `defineFlow({ steps, initialStep, finalStep, state })` | `defineFlow({ id, command?, handlers?, miniApp?, actions?, session? })` |
+| `chatStep(message, actions)` | Define in `command.handler` or `handlers.onContact` |
+| `miniAppStep(screen, { onSubmit })` | Define in `miniApp.routes` + `actions` |
+| `openMiniAppAction(label, to)` | `ctx.reply(...)` with `web_app` button + signed URL |
+| `requestPhoneAction(label, to)` | `ctx.reply(...)` with `requestContact` button + `onContact` handler |
+| `requestLocationAction(label, to)` | `ctx.reply(...)` with `requestLocation` button + `onLocation` handler |
+| `returnToChatAction(label, to)` | `return { showHandoff: true, closeMiniApp: true }` in action handler |
+| `FlowTransitionResult { state, to }` | `ActionResult { data, navigate, effects }` |
+| `UserFlowStateManager` | `SessionManager` (session flows only) |
+| `advanceStep(key, step, state)` | Not needed; actions are stateless by default |
+| Server hooks `flow-hooks/{flowId}/{stepId}.ts` | Actions defined inline in flow or server |
+| `miniApp.stepRoutes` | `miniApp.routes` |
+| Screen props `{ flow, state, stepId, submit }` | Screen props `{ launch, runAction, navigate, session? }` |

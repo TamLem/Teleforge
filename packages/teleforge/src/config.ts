@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 
 import { createFlowRoutes } from "./discovery.js";
 
-import type { TeleforgeFlowDefinition } from "./flow.js";
+import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { TeleforgeAppConfig } from "@teleforgex/core";
 
 const execFileAsync = promisify(execFile);
@@ -144,11 +144,7 @@ async function deriveLoadedFlowRoutes(
   };
 }
 
-type LoadedRouteFlow = TeleforgeFlowDefinition<
-  unknown,
-  unknown,
-  Record<string, import("./flow.js").FlowStepDefinition<unknown, unknown>>
->;
+type LoadedRouteFlow = ActionFlowDefinition;
 
 async function loadFlowModulesForConfig(cwd: string, root: string): Promise<LoadedRouteFlow[]> {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-"));

@@ -2,24 +2,38 @@ import { defineFlow } from "teleforge/web";
 
 export default defineFlow({
   id: "start",
-  initialStep: "home",
-  state: {},
-  bot: {
-    command: {
-      buttonText: "Open Starter App",
-      command: "start",
-      description: "Open the Starter App",
-      text: "Starter App is ready. Open the Mini App to inspect Telegram theme, user data, and MainButton behavior."
+
+  command: {
+    command: "start",
+    description: "Open the starter Mini App",
+    handler: async ({ ctx, sign }) => {
+      const launch = await sign({
+        flowId: "start",
+        screenId: "home",
+        allowedActions: ["navigate"]
+      });
+
+      await ctx.reply("Welcome! Open the Mini App to get started.", {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Open App", web_app: { url: launch } }
+          ]]
+        }
+      });
     }
   },
+
   miniApp: {
-    launchModes: ["inline", "compact", "fullscreen"],
-    route: "/"
+    routes: { "/": "home" },
+    defaultRoute: "/",
+    title: "Starter App"
   },
-  steps: {
-    home: {
-      screen: "home",
-      type: "miniapp"
+
+  actions: {
+    navigate: {
+      handler: async ({ data }) => {
+        return { navigate: (data as Record<string, string>).screenId };
+      }
     }
   }
 });

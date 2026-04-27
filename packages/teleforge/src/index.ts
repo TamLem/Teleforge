@@ -3,9 +3,7 @@ export {
   teleforgeAppToManifest,
   type TeleforgeAppConfig,
   type TeleforgeAppIdentity,
-  type TeleforgeMiniAppConfig,
-  UserFlowStateManager,
-  createFlowStorage
+  type TeleforgeMiniAppConfig
 } from "@teleforgex/core";
 
 export type {
@@ -14,24 +12,46 @@ export type {
   TeleforgeRouteCapability,
   TeleforgeRuntime
 } from "@teleforgex/core";
+
 export {
-  chatStep,
-  createFlowCoordinationConfig,
-  createFlowStartCommand,
   defineFlow,
-  getFlowStep,
-  isMiniAppStep,
-  miniAppStep,
-  openMiniAppAction,
-  requestLocationAction,
-  requestPhoneAuthAction,
-  requestPhoneAction,
-  returnToChatAction
-} from "./flow.js";
+  resolveFlowAction
+} from "./flow-definition.js";
+
+export type {
+  ActionFlowActionDefinition,
+  ActionFlowActionHandlerContext,
+  ActionFlowCallbackHandlerContext,
+  ActionFlowCommandDefinition,
+  ActionFlowCommandHandlerContext,
+  ActionFlowContactHandlerContext,
+  ActionFlowDefinition,
+  ActionFlowDefinitionInput,
+  ActionFlowHandlers,
+  ActionFlowLocationHandlerContext,
+  ActionFlowMiniAppDefinition,
+  ActionFlowSessionDefinition,
+  ActionFlowWebAppDataHandlerContext,
+  SharedLocation,
+  SharedPhoneContact
+} from "./flow-definition.js";
+
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
-export { createDiscoveredBotRuntime, createTeleforgeWebhookHandler, startTeleforgeBot } from "./bot-runtime.js";
-export type { CreateTeleforgeWebhookHandlerOptions } from "./bot-runtime.js";
-export type { SharedLocation } from "./flow.js";
+export type { TeleforgeClientFlowManifest } from "./flow-manifest.js";
+
+export {
+  createDiscoveredBotRuntime,
+  createTeleforgeWebhookHandler,
+  startTeleforgeBot
+} from "./bot-runtime.js";
+export type {
+  CreateDiscoveredBotRuntimeOptions,
+  CreateTeleforgeWebhookHandlerOptions,
+  DiscoveredBotRuntime,
+  StartTeleforgeBotOptions,
+  StartTeleforgeBotResult
+} from "./bot-runtime.js";
+
 export {
   createTeleforgeRuntimeContext
 } from "./runtime-context.js";
@@ -39,91 +59,66 @@ export type {
   CreateTeleforgeRuntimeContextOptions,
   TeleforgeRuntimeContext
 } from "./runtime-context.js";
+
 export {
-  executeMiniAppStepAction,
-  executeMiniAppStepSubmit,
-  loadMiniAppScreenRuntime,
-  TeleforgeMiniApp,
-  useTeleforgeMiniAppRuntime
+  TeleforgeMiniApp
 } from "./miniapp-runtime.js";
+
 export {
-  createDiscoveredServerHooksHandler,
+  createActionServerHooksHandler,
   createFetchMiniAppServerBridge,
   DEFAULT_SERVER_HOOKS_PATH,
-  executeTeleforgeServerHookAction,
-  executeTeleforgeServerHookLoad,
-  executeTeleforgeServerHookSubmit,
   startTeleforgeServer
 } from "./server-hooks.js";
+
+export type {
+  ActionServerHookTrustContext,
+  ActionServerHookTrustOptions,
+  CreateActionServerHooksHandlerOptions,
+  StartTeleforgeServerOptions,
+  StartTeleforgeServerResult
+} from "./server-hooks.js";
+
 export {
-  createFlowRoutes,
   createFlowCommands,
   createFlowCoordinationConfigFromFlows,
+  createFlowRoutes,
   createFlowRuntimeSummaries,
   createFlowRuntimeSummary,
-  discoverScreenFiles,
-  discoverFlowHandlerFiles,
-  discoverFlowServerHookFiles,
   discoverFlowFiles,
-  loadTeleforgeScreens,
-  loadTeleforgeFlowHandlers,
-  loadTeleforgeFlowServerHooks,
+  discoverScreenFiles,
+  loadActionRegistry,
+  loadRouteRegistry,
   loadTeleforgeFlows,
+  loadTeleforgeScreens,
   resolveFlowServerHooksRoot,
   resolveScreenRoot
 } from "./discovery.js";
+
+export type {
+  CreateFlowCommandsOptions,
+  CreateFlowRoutesOptions,
+  CreateFlowRuntimeSummaryOptions,
+  DiscoveredFlowModule,
+  DiscoveredFlowActionSummary,
+  DiscoveredFlowRuntimeSummary,
+  DiscoveredFlowStepHandlerModule,
+  DiscoveredFlowStepServerHookModule,
+  DiscoverFlowFilesOptions,
+  DiscoverScreenFilesOptions,
+  LoadTeleforgeFlowsOptions,
+  LoadTeleforgeScreensOptions,
+  TeleforgeFlowConventions
+} from "./discovery.js";
+
 export {
   loadTeleforgeApp,
   loadTeleforgeAppFromFile,
   resolveTeleforgeConfigPath
 } from "./config.js";
-export type {
-  ChatFlowStepDefinition,
-  CreateFlowCoordinationConfigOptions,
-  CreateFlowStartCommandOptions,
-  FlowActionDefinition,
-  FlowHandlerContext,
-  FlowStepDefinition,
-  FlowSubmitContext,
-  FlowTransitionResult,
-  MiniAppFlowStepDefinition,
-  TeleforgeFlowBotCommandDefinition,
-  TeleforgeFlowBotDefinition,
-  TeleforgeFlowDefinition,
-  TeleforgeFlowDefinitionInput
-} from "./flow.js";
-export { createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
-export type {
-  CreateFlowCommandsOptions,
-  CreateFlowCoordinationConfigFromFlowsOptions,
-  CreateFlowRuntimeSummaryOptions,
-  CreateFlowRoutesOptions,
-  DiscoveredFlowActionSummary,
-  DiscoveredFlowStepHandlerModule,
-  DiscoveredFlowStepServerHookModule,
-  DiscoveredFlowModule,
-  DiscoveredFlowRuntimeSummary,
-  DiscoveredFlowStepSummary,
-  DiscoverFlowHandlerFilesOptions,
-  DiscoverFlowServerHookFilesOptions,
-  DiscoverFlowFilesOptions,
-  DiscoverScreenFilesOptions,
-  LoadTeleforgeFlowHandlersOptions,
-  LoadTeleforgeFlowServerHooksOptions,
-  LoadTeleforgeFlowsOptions,
-  LoadTeleforgeScreensOptions,
-  TeleforgeFlowConventions
-} from "./discovery.js";
-export type {
-  CreateDiscoveredBotRuntimeOptions,
-  DiscoveredBotRuntime,
-  DiscoveredFlowRuntimeDebugState,
-  DiscoveredFlowRuntimeMiniAppDebugState,
-  DiscoveredFlowRuntimeSessionDebugState,
-  StartTeleforgeBotOptions,
-  StartTeleforgeBotResult
-} from "./bot-runtime.js";
 export type { LoadedTeleforgeApp } from "./config.js";
+
+export { createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
 export type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,
@@ -134,33 +129,12 @@ export type {
   TeleforgeScreenRuntimeContext,
   UnresolvedMiniAppScreen
 } from "./screens.js";
+
 export type {
-  CreateDiscoveredServerHooksHandlerOptions,
   CreateFetchMiniAppServerBridgeOptions,
-  StartTeleforgeServerOptions,
-  StartTeleforgeServerResult,
-  TeleforgeMiniAppServerActionInput,
-  TeleforgeMiniAppServerBridge,
-  TeleforgeMiniAppServerChatHandoffInput,
-  TeleforgeMiniAppServerLoadAllowedResult,
-  TeleforgeMiniAppServerLoadBlockedResult,
-  TeleforgeMiniAppServerLoadInput,
-  TeleforgeMiniAppServerLoadResult,
-  TeleforgeMiniAppServerSubmitInput,
-  TeleforgeServerHookTrustContext,
-  TeleforgeServerHookTrustOptions
-} from "./server-hooks.js";
-export type {
-  BlockedMiniAppScreen,
-  ChatHandoffMiniAppScreen,
-  ChatMiniAppTransitionResult,
-  ExecuteMiniAppStepActionOptions,
-  ExecuteMiniAppStepSubmitOptions,
-  MiniAppStepExecutionResult,
-  ReadyMiniAppScreen,
-  RuntimeErrorMiniAppScreen,
-  ScreenMiniAppTransitionResult,
-  TeleforgeMiniAppRuntimeState
-} from "./miniapp-runtime.js";
-export type { TeleforgeFlowMiniAppDefinition } from "./flow.js";
-export type { TeleforgeClientFlowManifest } from "./flow-manifest.js";
+  TeleforgeActionServerBridge,
+  TeleforgeActionServerHandoffInput,
+  TeleforgeActionServerLoadInput,
+  TeleforgeActionServerLoadResult,
+  TeleforgeActionServerRunActionInput
+} from "./server-bridge.js";

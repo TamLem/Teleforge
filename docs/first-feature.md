@@ -1,15 +1,17 @@
 # Build Your First Feature
 
-This walkthrough adds a second flow to a generated Teleforge app. It uses the flow-first model: define a flow, add a screen, then let Teleforge discover the runtime wiring.
+This walkthrough adds a second flow to a generated Teleforge app. It uses the flow-first,
+action-first model: define a flow with a command and an action, add a screen, then let
+Teleforge discover the runtime wiring.
 
 ## Goal
 
 Add:
 
 - an `/orders` bot command
-- an `orders` Mini App step
-- an `orders` screen module
-- a simple submit transition back to chat
+- an `orders` screen
+- a `selectOrder` action that navigates to a confirmation screen
+- a `done` screen with return-to-chat
 
 ## 1. Add The Flow
 
@@ -20,30 +22,58 @@ import { defineFlow } from "teleforge";
 
 export default defineFlow({
   id: "orders",
-  initialStep: "orders",
-  state: {
-    selectedOrderId: null as string | null
-  },
-  bot: {
-    command: {
-      buttonText: "Open Orders",
-      command: "orders",
-      description: "Open recent orders",
-      text: "Open the Mini App to review recent orders."
+
+  command: {
+    command: "orders",
+    description: "Open recent orders",
+    handler: async ({ ctx, sign }) => {
+      const launch = await sign({
+        flowId: "orders",
+        screenId: "orders",
+        allowedActions: ["selectOrder"]
+      });
+
+      await ctx.reply("Open the Mini App to review recent orders.", {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Open Orders", web_app: { url: launch } }
+          ]]
+        }
+      });
     }
   },
+
   miniApp: {
-    route: "/orders"
-  },
-  steps: {
-    orders: {
-      screen: "orders",
-      type: "miniapp"
+    routes: {
+      "/": "orders",
+      "/done": "done"
     },
-    done: {
-      message: ({ state }) =>
-        state.selectedOrderId ? `Selected order ${state.selectedOrderId}.` : "No order selected.",
-      type: "chat"
+    defaultRoute: "/",
+    title: "Orders"
+  },
+
+  actions: {
+    selectOrder: {
+      handler: async ({ ctx, data }) => {
+        const payload = data as { selectedOrderId: string };
+        return {
+          navigate: "done",
+          data: { selectedOrderId: payload.selectedOrderId }
+        };
+      }
+    },
+
+    returnToChat: {
+      handler: async () => {
+        return {
+          showHandoff: "Returning to chat...",
+          closeMiniApp: true,
+          effects: [{
+            type: "chatMessage",
+            text: "Order review complete."
+          }]
+        };
+      }
     }
   }
 });
@@ -56,21 +86,16 @@ export default defineFlow({
 Create `apps/web/src/screens/orders.screen.tsx`:
 
 ```tsx
-import { defineScreen, useTeleforgeMiniAppRuntime } from "teleforge/web";
+import { defineScreen } from "teleforge/web";
 
-function OrdersScreen() {
-  const runtime = useTeleforgeMiniAppRuntime();
-
+function OrdersScreen({ runAction, transitioning }) {
   return (
     <main className="stack">
       <p className="badge">Screen: orders</p>
       <h2>Recent Orders</h2>
       <button
-        onClick={() =>
-          runtime.submit({
-            selectedOrderId: "order_1001"
-          })
-        }
+        onClick={() => runAction("selectOrder", { selectedOrderId: "order_1001" })}
+        disabled={transitioning}
       >
         Select order_1001
       </button>
@@ -85,32 +110,40 @@ export default defineScreen({
 });
 ```
 
-Screen modules are discovered from `miniApp.screensRoot` when set, or the default screen root used by the scaffold.
+Screen modules are discovered from `miniApp.screensRoot` when set, or the default screen root
+used by the scaffold.
 
-## 3. Handle Submit
+## 3. Add The Done Screen
 
-For a purely local flow, add `onSubmit` to the Mini App step:
+Create `apps/web/src/screens/done.screen.tsx`:
 
-```ts
-orders: {
-  screen: "orders",
-  type: "miniapp",
-  onSubmit({ data, state }) {
-    return {
-      state: {
-        ...state,
-        selectedOrderId:
-          typeof data === "object" && data && "selectedOrderId" in data
-            ? String(data.selectedOrderId)
-            : null
-      },
-      to: "done"
-    };
-  }
+```tsx
+import { defineScreen } from "teleforge/web";
+
+function DoneScreen({ data, runAction, transitioning }) {
+  const orderId = (data as Record<string, string>)?.selectedOrderId ?? "unknown";
+
+  return (
+    <main className="stack">
+      <p className="badge">Screen: done</p>
+      <h2>Order Selected</h2>
+      <p>You selected: {orderId}</p>
+      <button
+        onClick={() => runAction("returnToChat")}
+        disabled={transitioning}
+      >
+        Return to chat
+      </button>
+    </main>
+  );
 }
-```
 
-If the submit must call a database or trusted service, move that work into a server hook instead of doing it in browser code.
+export default defineScreen({
+  component: DoneScreen,
+  id: "done",
+  title: "Done"
+});
+```
 
 ## 4. Run It
 
@@ -122,14 +155,15 @@ Then:
 
 1. Send `/orders` in the simulator chat.
 2. Open the Mini App from the bot message.
-3. Click the screen button.
-4. Confirm the flow returns to the `done` chat step.
+3. Click "Select order_1001".
+4. See the confirmation screen with the order ID.
+5. Click "Return to chat" to close the Mini App.
 
 ## 5. Add Tests
 
 Use the generated tests as the pattern:
 
-- flow tests assert command metadata, steps, and transitions
+- flow tests assert command metadata and action registration
 - screen tests render the screen component
 - runtime tests exercise the discovered bot runtime or Mini App screen runtime
 
@@ -137,4 +171,5 @@ For the larger reference pattern, inspect `apps/task-shop`.
 
 ## Next Step
 
-Read [Flow Coordination](./flow-coordination.md) for cross-surface continuity and [Server Hooks and Backend Internals](./server-hooks.md) for trusted server-side work.
+Read [Flow Coordination](./flow-coordination.md) for cross-surface continuity and
+[Action Server and Backend](./server-hooks.md) for trusted server-side work.

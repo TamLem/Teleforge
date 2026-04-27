@@ -1440,66 +1440,18 @@ function createSimulatorUiHtml(options: {
           secondary.style.whiteSpace = "pre-wrap";
           card.appendChild(secondary);
 
-          if (Array.isArray(flow.steps) && flow.steps.length > 0) {
+          if (Array.isArray(flow.routes) && flow.routes.length > 0) {
             const stepList = document.createElement("div");
             stepList.className = "flow-meta";
             stepList.style.whiteSpace = "pre-wrap";
-            stepList.textContent = flow.steps
-              .map((step) => {
-                const parts = [
-                  step.id + " [" + step.status + "]",
-                  "type=" + step.type
-                ];
+            stepList.textContent = flow.routes
+              .map((route: string) => {
+                const parts = ["route=" + route, "wired"];
 
-                if (step.screen) {
-                  parts.push(
-                    "screen=" + step.screen + (step.screenResolved === false ? " (missing)" : "")
-                  );
-                }
+                const matchingActions = flow.actions ?? ([] as any[]);
+                parts.push("actions=" + matchingActions.length);
 
-                if (step.screenTitle) {
-                  parts.push("title=" + step.screenTitle);
-                }
-
-                if (step.screenFilePath) {
-                  parts.push("screenFile=" + step.screenFilePath);
-                }
-
-                parts.push("enter=" + String(Boolean(step.resolvedOnEnter)));
-                parts.push("submit=" + String(Boolean(step.resolvedOnSubmit)));
-                parts.push("serverGuard=" + String(Boolean(step.resolvedServerGuard)));
-                parts.push("serverLoader=" + String(Boolean(step.resolvedServerLoader)));
-                parts.push("serverSubmit=" + String(Boolean(step.resolvedServerSubmit)));
-                parts.push(
-                  "actions=" +
-                    String(step.resolvedActionCount || 0) +
-                    "/" +
-                    String(step.actionCount || 0)
-                );
-
-                if (step.serverHookFile) {
-                  parts.push("serverFile=" + step.serverHookFile);
-                }
-
-                if (Array.isArray(step.unresolvedActionIds) && step.unresolvedActionIds.length > 0) {
-                  parts.push("missing=" + step.unresolvedActionIds.join(","));
-                }
-
-                if (
-                  Array.isArray(step.extraActionHandlerIds) &&
-                  step.extraActionHandlerIds.length > 0
-                ) {
-                  parts.push("extra=" + step.extraActionHandlerIds.join(","));
-                }
-
-                if (
-                  Array.isArray(step.extraServerActionIds) &&
-                  step.extraServerActionIds.length > 0
-                ) {
-                  parts.push("serverExtra=" + step.extraServerActionIds.join(","));
-                }
-
-                return parts.join(" | ");
+                return parts.join(", ");
               })
               .join("\\n");
             card.appendChild(stepList);

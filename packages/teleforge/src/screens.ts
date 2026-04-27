@@ -1,33 +1,26 @@
-import { getFlowStep, isMiniAppStep } from "./flow-definition.js";
-
 import type { DiscoveredFlowModule } from "./discovery.js";
-import type { TeleforgeFlowDefinition } from "./flow-definition.js";
+import type { ActionFlowDefinition } from "./flow-definition.js";
+import type { ActionResult, LaunchContext, SessionHandle } from "@teleforgex/core";
 import type { ComponentType } from "react";
 
-type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
-type AnyScreenDefinition = TeleforgeScreenDefinition<any, any>;
-type AnyDiscoveredScreenModule = DiscoveredScreenModule<any>;
+type AnyFlowDefinition = ActionFlowDefinition;
+type AnyScreenDefinition = TeleforgeScreenDefinition;
+type AnyDiscoveredScreenModule = DiscoveredScreenModule;
 type MaybePromise<T> = Promise<T> | T;
 
-export interface TeleforgeScreenComponentProps<TState = unknown> {
-  flow: TeleforgeFlowDefinition<TState, unknown>;
-  flowId: string;
-  loaderData?: unknown;
-  routePath: string;
-  runAction?: (action: string) => Promise<void>;
+export interface TeleforgeScreenComponentProps<TData = unknown, TSession = unknown> {
+  launch: LaunchContext;
+  data?: TData;
+  session?: TSession;
+  runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
+  navigate: (screenIdOrRoute: string, params?: Record<string, unknown>) => void;
+  transitioning: boolean;
   screenId: string;
-  state: TState;
-  stepId: string;
-  submit?: (data: unknown) => Promise<void>;
-  transitioning?: boolean;
+  routePath: string;
+  loaderData?: unknown;
 }
 
-export interface TeleforgeScreenRuntimeContext<TState = unknown> extends Omit<
-  TeleforgeScreenComponentProps<TState>,
-  "loaderData"
-> {
-  serverLoaderData?: unknown;
-}
+export type TeleforgeScreenRuntimeContext = TeleforgeScreenComponentProps;
 
 export interface TeleforgeScreenGuardBlock {
   allow: false;
@@ -36,19 +29,19 @@ export interface TeleforgeScreenGuardBlock {
 
 export type TeleforgeScreenGuardResult = boolean | TeleforgeScreenGuardBlock;
 
-export interface TeleforgeScreenDefinition<TState = unknown, TLoaderData = unknown> {
-  component: ComponentType<TeleforgeScreenComponentProps<TState>>;
+export interface TeleforgeScreenDefinition<TData = unknown, TLoaderData = unknown> {
+  component: ComponentType<TeleforgeScreenComponentProps<TData>>;
   guard?: (
-    context: TeleforgeScreenRuntimeContext<TState>
+    context: TeleforgeScreenComponentProps<TData>
   ) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
-  loader?: (context: TeleforgeScreenRuntimeContext<TState>) => MaybePromise<TLoaderData>;
+  loader?: (context: TeleforgeScreenComponentProps<TData>) => MaybePromise<TLoaderData>;
   title?: string;
 }
 
-export interface DiscoveredScreenModule<TState = unknown> {
+export interface DiscoveredScreenModule<TData = unknown> {
   filePath: string;
-  screen: TeleforgeScreenDefinition<TState>;
+  screen: TeleforgeScreenDefinition<TData>;
 }
 
 export interface ResolveMiniAppScreenOptions {
@@ -63,22 +56,20 @@ export interface ResolvedMiniAppScreen {
   routePath: string;
   screen: AnyScreenDefinition;
   screenId: string;
-  state: unknown;
-  stepId: string;
+  launch?: LaunchContext;
 }
 
 export interface UnresolvedMiniAppScreen {
   flow?: AnyFlowDefinition;
   flowId?: string;
   pathname: string;
-  reason: "missing_miniapp_step" | "missing_route" | "missing_screen";
+  reason: "missing_route" | "missing_screen";
   screenId?: string;
-  stepId?: string;
 }
 
-export function defineScreen<TState>(
-  screen: TeleforgeScreenDefinition<TState>
-): Readonly<TeleforgeScreenDefinition<TState>> {
+export function defineScreen<TData>(
+  screen: TeleforgeScreenDefinition<TData>
+): Readonly<TeleforgeScreenDefinition<TData>> {
   if (typeof screen.id !== "string" || screen.id.trim().length === 0) {
     throw new Error("Screen id must be a non-empty string.");
   }
@@ -118,25 +109,17 @@ export function resolveMiniAppScreen(
   const registry = createScreenRegistry(options.screens);
 
   for (const flow of flows) {
-    const resolvedStepId = resolveMiniAppStepFromPath(flow, options.pathname);
-
-    if (!resolvedStepId) {
+    if (!flow.miniApp) {
       continue;
     }
 
-    const step = getFlowStep(flow, resolvedStepId);
+    const screenId = resolveScreenIdFromPath(flow, options.pathname);
 
-    if (!isMiniAppStep(step)) {
-      return {
-        flow,
-        flowId: flow.id,
-        pathname: options.pathname,
-        reason: "missing_miniapp_step",
-        stepId: resolvedStepId
-      };
+    if (!screenId) {
+      continue;
     }
 
-    const screen = registry.get(step.screen);
+    const screen = registry.get(screenId);
 
     if (!screen) {
       return {
@@ -144,8 +127,7 @@ export function resolveMiniAppScreen(
         flowId: flow.id,
         pathname: options.pathname,
         reason: "missing_screen",
-        screenId: step.screen,
-        stepId: resolvedStepId
+        screenId
       };
     }
 
@@ -154,9 +136,7 @@ export function resolveMiniAppScreen(
       flowId: flow.id,
       routePath: options.pathname,
       screen,
-      screenId: screen.id,
-      state: structuredClone(flow.state),
-      stepId: resolvedStepId
+      screenId: screen.id
     };
   }
 
@@ -166,44 +146,81 @@ export function resolveMiniAppScreen(
   };
 }
 
+export function createRouteRegistry(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
+): ReadonlyMap<string, { flowId: string; screenId: string }> {
+  const routes = new Map<string, { flowId: string; screenId: string }>();
+
+  for (const entry of flows) {
+    const flow = "flow" in entry ? entry.flow : entry;
+
+    if (!flow.miniApp) {
+      continue;
+    }
+
+    for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
+      if (routes.has(route)) {
+        throw new Error(
+          `Duplicate Mini App route "${route}" discovered across flows.`
+        );
+      }
+
+      routes.set(route, { flowId: flow.id, screenId });
+    }
+  }
+
+  return routes;
+}
+
 function normalizeDiscoveredFlows(
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
 ): AnyFlowDefinition[] {
   return Array.from(flows, (entry) => ("flow" in entry ? entry.flow : entry));
 }
 
-function resolveMiniAppStepFromPath(flow: AnyFlowDefinition, pathname: string): string | null {
-  const miniApp = flow.miniApp;
-
-  if (!miniApp) {
+function resolveScreenIdFromPath(
+  flow: AnyFlowDefinition,
+  pathname: string
+): string | null {
+  const routes = flow.miniApp?.routes;
+  if (!routes) {
     return null;
   }
 
-  if (miniApp.route === pathname) {
-    return resolveMiniAppEntryStep(flow);
+  if (routes[pathname]) {
+    return routes[pathname];
   }
 
-  for (const [stepId, routePath] of Object.entries(miniApp.stepRoutes ?? {})) {
-    if (routePath === pathname) {
-      return stepId;
+  for (const [route, screenId] of Object.entries(routes)) {
+    if (routePatternMatches(route, pathname)) {
+      return screenId;
     }
   }
 
   return null;
 }
 
-function resolveMiniAppEntryStep(flow: AnyFlowDefinition): string {
-  const initialStep = getFlowStep(flow, String(flow.initialStep));
-
-  if (isMiniAppStep(initialStep)) {
-    return String(flow.initialStep);
+function routePatternMatches(pattern: string, pathname: string): boolean {
+  if (!pattern.includes(":")) {
+    return pattern === pathname;
   }
 
-  for (const [stepId, step] of Object.entries(flow.steps)) {
-    if (isMiniAppStep(step)) {
-      return stepId;
+  const patternParts = pattern.split("/").filter(Boolean);
+  const pathnameParts = pathname.split("/").filter(Boolean);
+
+  if (patternParts.length !== pathnameParts.length) {
+    return false;
+  }
+
+  for (let i = 0; i < patternParts.length; i++) {
+    if (patternParts[i].startsWith(":")) {
+      continue;
+    }
+
+    if (patternParts[i] !== pathnameParts[i]) {
+      return false;
     }
   }
 
-  return String(flow.initialStep);
+  return true;
 }

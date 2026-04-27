@@ -11,8 +11,7 @@ export default defineConfig({
       "server-hooks": "src/server-hooks-entry.ts",
       "test-utils": "src/test-utils.ts",
       web: "src/web.ts"
-    },
-    resolve: true
+    }
   },
   entry: {
     bot: "src/bot.ts",

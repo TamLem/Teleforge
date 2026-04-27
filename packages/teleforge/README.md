@@ -2,18 +2,21 @@
 
 Unified TypeScript framework for Telegram-native bots and Mini Apps.
 
-Teleforge lets you describe product journeys as flows — chat steps, Mini App screens, and transitions — while the framework handles Telegram transport, runtime bootstrap, and local development.
+Teleforge lets you describe product journeys as **flows** — bot commands, Mini App screens, and
+server-side action handlers — while the framework handles Telegram transport, runtime bootstrap,
+and local development.
 
 ## What you build
 
 A Teleforge app is primarily:
 
 - `teleforge.config.ts` — app identity, flow discovery, Mini App defaults
-- `apps/bot/src/flows/*.flow.ts` — user journeys with chat steps, Mini App steps, and actions
+- `apps/bot/src/flows/*.flow.ts` — user journeys with commands, contact/location handlers, Mini App routes, and actions
 - `apps/web/src/screens/*.screen.tsx` — Mini App screens registered with `defineScreen()`
-- `apps/api/src/flow-hooks/` — trusted server hooks for guards, loaders, submit handlers, and coordinated bot/Mini App state
 
-The framework discovers flows and screens by convention, generates client-safe Mini App metadata, detects manifest drift in development, and wires the bot runtime, server hooks, and simulator automatically.
+The framework discovers flows and screens by convention, generates client-safe Mini App metadata,
+detects manifest drift in development, and wires the bot runtime, action server, and simulator
+automatically.
 
 ## Installation
 
@@ -49,17 +52,41 @@ export default defineTeleforgeApp({
 
 ```ts
 // apps/bot/src/flows/start.flow.ts
-import { chatStep, defineFlow, miniAppStep, openMiniAppAction } from "teleforge";
+import { defineFlow } from "teleforge";
 
 export default defineFlow({
   id: "start",
-  initialStep: "welcome",
-  state: {},
-  bot: { command: { command: "start", text: "Welcome!" } },
-  miniApp: { route: "/" },
-  steps: {
-    welcome: chatStep("Welcome!", [openMiniAppAction("Open app", "home")]),
-    home: miniAppStep("home")
+
+  command: {
+    command: "start",
+    description: "Start the Mini App",
+    handler: async ({ ctx, sign }) => {
+      const launch = await sign({
+        flowId: "start",
+        screenId: "home",
+        allowedActions: ["navigate"]
+      });
+
+      await ctx.reply("Welcome! Open the Mini App to get started.", {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Open App", web_app: { url: launch } }
+          ]]
+        }
+      });
+    }
+  },
+
+  miniApp: {
+    routes: { "/": "home" },
+    defaultRoute: "/",
+    title: "My App"
+  },
+
+  actions: {
+    navigate: {
+      handler: async ({ data }) => ({ navigate: (data as { screenId: string }).screenId })
+    }
   }
 });
 ```
@@ -79,7 +106,7 @@ export default defineScreen({
 
 ```bash
 teleforge dev              # Local simulator with chat, Mini App, companion services, and manifest preflight
-teleforge start            # Production bootstrap: polling or webhook bot + discovered server hooks
+teleforge start            # Production bootstrap: polling or webhook bot + action server
 teleforge doctor           # Environment, manifest drift, and wiring diagnostics
 teleforge generate client-manifest   # Manually regenerate client-safe flow metadata
 teleforge mock             # Standalone Telegram profile/state server for manual testing
@@ -88,12 +115,11 @@ teleforge mock             # Standalone Telegram profile/state server for manual
 ## Public import surfaces
 
 | Import path | Purpose |
-|-------------|---------|
-| `teleforge` | App config (`defineTeleforgeApp`), flow definitions (`defineFlow`, `chatStep`, `miniAppStep`, action helpers), and high-level bootstrap (`startTeleforgeBot`, `startTeleforgeServer`) |
+|---|---|
+| `teleforge` | App config (`defineTeleforgeApp`), flow definitions (`defineFlow`), and high-level bootstrap (`startTeleforgeBot`, `startTeleforgeServer`) |
 | `teleforge/web` | Mini App shell (`TeleforgeMiniApp`), screen registration (`defineScreen`), and launch coordination hooks |
 | `teleforge/bot` | Bot runtime types, command handlers, and lower-level primitives for custom routing |
-| `teleforge/server-hooks` | Trusted server-side load, submit, and action hooks |
-| `teleforge/test` | Framework test helpers: `validateDiscoveredWiring`, `createMockWebApp` |
+| `teleforge/test` | Framework test helpers |
 
 ## Default path vs escape hatches
 
@@ -107,19 +133,18 @@ await startTeleforgeBot();
 
 **Escape hatches** for advanced use cases:
 
-- `createDiscoveredBotRuntime()` — lower-level bot runtime with explicit storage, secrets, and custom delivery wiring
-- `createDiscoveredServerHooksHandler()` — manual hooks server assembly
+- `createDiscoveredBotRuntime()` — lower-level bot runtime with explicit secrets and custom delivery wiring
+- `createActionServerHooksHandler()` — manual action server assembly
 - `teleforge/bot` primitives — custom command routing, webhook adapters, callback handling
 
 Simple apps should stay on the default path. Advanced apps pay complexity only when needed.
 
 ## Documentation
 
-- [Getting Started](https://tamlem.github.io/Teleforge/getting-started.html) — fastest path to a working app
-- [Developer Guide](https://tamlem.github.io/Teleforge/developer-guide.html) — daily workflow and conventions
-- [Config Reference](https://tamlem.github.io/Teleforge/config-reference.html) — `teleforge.config.ts` fields and flow authoring helpers
-- [Deployment](https://tamlem.github.io/Teleforge/deployment.html) — production build, polling, and hosting
-- [API Reference](https://tamlem.github.io/Teleforge/api/index.html) — TypeDoc generated from public exports
+- [Getting Started](https://tamlem.github.io/Teleforge/getting-started.html)
+- [Developer Guide](https://tamlem.github.io/Teleforge/developer-guide.html)
+- [Config Reference](https://tamlem.github.io/Teleforge/config-reference.html)
+- [Deployment](https://tamlem.github.io/Teleforge/deployment.html)
 
 ## Requirements
 

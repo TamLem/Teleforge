@@ -1,166 +1,246 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
+import {
+  createSignedActionContext,
+  MemorySessionStorageAdapter,
+  SessionManager,
+  validateActionContext,
+  type ActionContextToken,
+  type ActionResult
+} from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
-import { loadTeleforgeFlowServerHooks, loadTeleforgeFlows } from "./discovery.js";
-import { getFlowStep, isMiniAppStep, resolveFlowActionKey } from "./flow-definition.js";
+import { loadActionRegistry, loadTeleforgeFlows } from "./discovery.js";
 
-import type { DiscoveredFlowStepServerHookModule, DiscoveredFlowModule } from "./discovery.js";
-import type {
-  FlowActionDefinition,
-  FlowTransitionResult,
-  TeleforgeFlowDefinition
-} from "./flow-definition.js";
-import type { TeleforgeScreenGuardBlock } from "./screens.js";
-import type {
-  TeleforgeMiniAppServerChatHandoffInput,
-  TeleforgeMiniAppServerLoadInput,
-  TeleforgeMiniAppServerLoadResult,
-  TeleforgeMiniAppServerSubmitInput,
-  TeleforgeMiniAppServerActionInput
-} from "./server-bridge.js";
-import type { FlowInstance, TeleforgeAppConfig } from "@teleforgex/core";
+import type { DiscoveredFlowModule } from "./discovery.js";
+import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
+import type { TeleforgeAppConfig } from "@teleforgex/core";
 
 export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
 
-export type {
-  CreateFetchMiniAppServerBridgeOptions,
-  TeleforgeMiniAppServerActionInput,
-  TeleforgeMiniAppServerBridge,
-  TeleforgeMiniAppServerChatHandoffInput,
-  TeleforgeMiniAppServerLoadAllowedResult,
-  TeleforgeMiniAppServerLoadBlockedResult,
-  TeleforgeMiniAppServerLoadInput,
-  TeleforgeMiniAppServerLoadResult,
-  TeleforgeMiniAppServerSubmitInput
-} from "./server-bridge.js";
-
-type AnyFlowDefinition = TeleforgeFlowDefinition<unknown, unknown>;
+type AnyFlowDefinition = ActionFlowDefinition;
 type MaybePromise<T> = Promise<T> | T;
 
-type TeleforgeServerHookRequest =
-  | {
-      kind: "load";
-      input: TeleforgeMiniAppServerLoadInput;
-    }
-  | {
-      kind: "submit";
-      input: TeleforgeMiniAppServerSubmitInput;
-    }
-  | {
-      kind: "action";
-      input: TeleforgeMiniAppServerActionInput;
-    }
-  | {
-      kind: "chatHandoff";
-      input: TeleforgeMiniAppServerChatHandoffInput;
-    };
+export interface TeleforgeActionServerHooksHandler {
+  handleRequest(request: Request): Promise<Response | null>;
+}
 
-type TeleforgeServerHookResponse =
-  | {
-      kind: "load";
-      result: TeleforgeMiniAppServerLoadResult;
-    }
-  | {
-      kind: "submit";
-      result: void | FlowTransitionResult<unknown>;
-    }
-  | {
-      kind: "action";
-      result: void | FlowTransitionResult<unknown>;
-    }
-  | {
-      kind: "chatHandoff";
-      result: void;
-    };
-
-export interface CreateDiscoveredServerHooksHandlerOptions {
+export interface CreateActionServerHooksHandlerOptions {
   basePath?: string;
   cwd: string;
-  onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
+  flowSecret: string;
+  onChatHandoff?: (input: { message: string; context: ActionContextToken }) => MaybePromise<void>;
   services?: unknown;
-  storage?: UserFlowStateManager;
-  trust?: TeleforgeServerHookTrustOptions;
+  sessionManager?: SessionManager;
+  trust?: ActionServerHookTrustOptions;
 }
 
-interface TeleforgeDiscoveredServerHooksHandlerState {
-  basePath: string;
-  flows: readonly DiscoveredFlowModule[];
-  hooks: readonly DiscoveredFlowStepServerHookModule[];
-  onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
-  services?: unknown;
-  storage?: UserFlowStateManager;
-  trust: TeleforgeServerHookTrustOptions;
+export interface ActionServerHookTrustOptions {
+  requireActor?: boolean;
+  resolveActorId?: (request: Request) => MaybePromise<string | null>;
+  validate?: (context: ActionServerHookTrustContext) => MaybePromise<void>;
 }
 
-export interface TeleforgeServerHookTrustContext {
+export interface ActionServerHookTrustContext {
   actorId: string | null;
   flowId: string;
-  kind: "action" | "load" | "submit";
+  screenId?: string;
+  actionId?: string;
+  signedContext: ActionContextToken;
   request: Request;
-  state: unknown;
-  stateKey: string | null;
-  stepId: string;
-  storedState: FlowInstance | null;
 }
 
-export interface TeleforgeServerHookTrustOptions {
-  flowState?: UserFlowStateManager;
-  requireActor?: boolean;
-  requireStateKey?: boolean;
-  resolveActorId?: (request: Request) => MaybePromise<string | null | undefined>;
-  validate?: (context: TeleforgeServerHookTrustContext) => MaybePromise<void>;
-}
-
-export async function createDiscoveredServerHooksHandler(
-  options: CreateDiscoveredServerHooksHandlerOptions
-): Promise<(request: Request) => Promise<Response | null>> {
+export async function createActionServerHooksHandler(
+  options: CreateActionServerHooksHandlerOptions
+): Promise<TeleforgeActionServerHooksHandler> {
   const loadedApp = await loadTeleforgeApp(options.cwd);
-  const flows = await loadTeleforgeFlows({
-    app: loadedApp.app,
-    cwd: options.cwd
-  });
-  const hooks = await loadTeleforgeFlowServerHooks({
-    app: loadedApp.app,
-    cwd: options.cwd
-  });
-  const state: TeleforgeDiscoveredServerHooksHandlerState = {
-    basePath: options.basePath ?? "/api/teleforge/flow-hooks",
-    flows,
-    hooks,
-    ...(options.onChatHandoff ? { onChatHandoff: options.onChatHandoff } : {}),
-    ...(options.services !== undefined ? { services: options.services } : {}),
-    ...(options.storage ? { storage: options.storage } : {}),
-    trust: options.trust ?? {}
-  };
+  const flows = await loadTeleforgeFlows({ app: loadedApp.app, cwd: options.cwd });
+  const actions = loadActionRegistry(flows);
 
-  return async (request: Request) => handleDiscoveredServerHooksRequest(request, state);
+  const basePath = options.basePath ?? "/api/teleforge/actions";
+  const services = options.services;
+  const sessionManager =
+    options.sessionManager ??
+    new SessionManager(
+      new MemorySessionStorageAdapter({
+        defaultTTL: 900,
+        namespace: loadedApp.app.app.id
+      })
+    );
+  const flowSecret = options.flowSecret;
+  const trust = options.trust ?? {};
+  const onChatHandoff = options.onChatHandoff;
+
+  return {
+    async handleRequest(request: Request) {
+      const url = new URL(request.url);
+
+      if (request.method !== "POST" || url.pathname !== basePath) {
+        return null;
+      }
+
+      try {
+        const payload = (await request.json()) as ActionServerHookRequest;
+        const response = await executeActionServerHook({
+          actions,
+          flowSecret,
+          flows,
+          onChatHandoff,
+          payload,
+          request,
+          services,
+          sessionManager,
+          trust
+        });
+
+        return new Response(JSON.stringify(response), {
+          headers: { "content-type": "application/json" },
+          status: 200
+        });
+      } catch (error) {
+        if (error instanceof ActionServerHookRequestError) {
+          return new Response(error.message, { status: error.statusCode });
+        }
+
+        return new Response(
+          error instanceof Error ? error.message : "Action server hook execution failed.",
+          { status: 400 }
+        );
+      }
+    }
+  };
+}
+
+type ActionServerHookRequest =
+  | { kind: "loadScreenContext"; input: { flowId: string; screenId: string; signedContext: string } }
+  | { kind: "runAction"; input: { flowId: string; actionId: string; signedContext: string; payload?: unknown } }
+  | { kind: "handoff"; input: { signedContext: string; message: string } };
+
+interface ExecuteActionServerHookOptions {
+  actions: ReadonlyMap<string, ActionFlowActionDefinition>;
+  flowSecret: string;
+  flows: readonly DiscoveredFlowModule[];
+  onChatHandoff?: (input: { message: string; context: ActionContextToken }) => MaybePromise<void>;
+  payload: ActionServerHookRequest;
+  request: Request;
+  services?: unknown;
+  sessionManager: SessionManager;
+  trust: ActionServerHookTrustOptions;
+}
+
+async function executeActionServerHook(
+  options: ExecuteActionServerHookOptions
+): Promise<unknown> {
+  switch (options.payload.kind) {
+    case "loadScreenContext": {
+      const { flowId, screenId, signedContext } = options.payload.input;
+      const context = validateActionContext(signedContext, options.flowSecret, {
+        flowId,
+        screenId
+      });
+
+      if (!context) {
+        throw new ActionServerHookRequestError("Invalid or expired action context.", 401);
+      }
+
+      const flow = findFlowById(options.flows, flowId);
+      if (!flow) {
+        throw new ActionServerHookRequestError(`Flow "${flowId}" not found.`, 404);
+      }
+
+      await options.trust.validate?.({
+        actionId: undefined,
+        actorId: flowId ? context.userId : null,
+        flowId,
+        request: options.request,
+        screenId,
+        signedContext: context
+      });
+
+      let session = undefined;
+      if (flow.session?.enabled) {
+        const handle = await options.sessionManager.get(context.userId, flowId, context.userId);
+        if (handle) {
+          session = await handle.get();
+        }
+      }
+
+      return { data: context.subject ?? {}, session };
+    }
+
+    case "runAction": {
+      const { flowId, actionId, signedContext, payload } = options.payload.input;
+      const context = validateActionContext(signedContext, options.flowSecret, {
+        allowedAction: actionId,
+        flowId
+      });
+
+      if (!context) {
+        throw new ActionServerHookRequestError("Invalid or expired action context.", 401);
+      }
+
+      const key = `${flowId}:${actionId}`;
+      const action = options.actions.get(key);
+      if (!action) {
+        throw new ActionServerHookRequestError(`Action "${key}" not found.`, 404);
+      }
+
+      let session = undefined;
+      if (action.requiresSession) {
+        const handle = await options.sessionManager.get(context.userId, flowId, context.userId);
+        if (handle) {
+          session = handle;
+        }
+      }
+
+      const result = await action.handler({
+        ctx: context,
+        data: payload ?? {},
+        services: options.services as never,
+        session
+      });
+
+      if (result.effects && options.onChatHandoff) {
+        for (const effect of result.effects) {
+          if (effect.type === "chatMessage" && typeof effect.text === "string") {
+            await options.onChatHandoff({
+              context,
+              message: effect.text
+            });
+          }
+        }
+      }
+
+      return result;
+    }
+
+    case "handoff": {
+      const { signedContext, message } = options.payload.input;
+      const context = validateActionContext(signedContext, options.flowSecret);
+      if (!context) {
+        throw new ActionServerHookRequestError("Invalid or expired action context.", 401);
+      }
+
+      if (!options.onChatHandoff) {
+        throw new ActionServerHookRequestError("Chat handoff handler not configured.", 501);
+      }
+
+      await options.onChatHandoff({ context, message });
+      return {};
+    }
+  }
 }
 
 export interface StartTeleforgeServerOptions {
-  /**
-   * Pre-loaded app config. When provided, the bootstrap skips config loading
-   * and uses this object directly.
-   */
   app?: TeleforgeAppConfig;
   basePath?: string;
-  /**
-   * Shared runtime context. When provided, the bootstrap skips config,
-   * storage, and service resolution and uses the context directly.
-   */
-  context?: import("./runtime-context.js").TeleforgeRuntimeContext;
   cwd?: string;
-  onChatHandoff?: (input: TeleforgeMiniAppServerChatHandoffInput) => MaybePromise<void>;
+  flowSecret?: string;
+  onChatHandoff?: (input: { message: string; context: ActionContextToken }) => MaybePromise<void>;
   port?: number;
   services?: unknown;
-  storage?: UserFlowStateManager;
-  trust?: TeleforgeServerHookTrustOptions;
-  /**
-   * Additional route handlers mounted on the server alongside flow-hooks.
-   * Each entry maps an exact URL pathname to a Node.js HTTP request handler.
-   * Used by the CLI to mount the Telegram webhook endpoint in webhook mode.
-   */
+  sessionManager?: SessionManager;
+  trust?: ActionServerHookTrustOptions;
   additionalRoutes?: Array<{
     path: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,43 +254,25 @@ export interface StartTeleforgeServerResult {
   url: string;
 }
 
-/**
- * High-level server bootstrap that loads config, creates the discovered server
- * hooks handler, and starts a local HTTP server on the configured port.
- *
- * This wraps {@link createDiscoveredServerHooksHandler} and keeps it available
- * as the lower-level escape hatch for advanced use cases.
- */
 export async function startTeleforgeServer(
   options: StartTeleforgeServerOptions = {}
 ): Promise<StartTeleforgeServerResult> {
-  const context = options.context;
-  const cwd = context?.cwd ?? options.cwd ?? process.cwd();
-  const app = context?.app ?? options.app ?? (await loadTeleforgeApp(cwd)).app;
+  const cwd = options.cwd ?? process.cwd();
+  const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
 
-  const storage = context?.storage ?? options.storage ??
-    new UserFlowStateManager(
-      createFlowStorage({
-        backend: "memory",
-        defaultTTL: 900,
-        namespace: app.app.id
-      })
-    );
-
-  const basePath = options.basePath ?? "/api/teleforge/flow-hooks";
+  const flowSecret = options.flowSecret ?? `${app.app.id}-preview-secret`;
+  const basePath = options.basePath ?? "/api/teleforge/actions";
   const requestedPort = options.port ?? app.runtime.server?.port ?? 3100;
   const additionalRoutes = options.additionalRoutes ?? [];
 
-  const hooksHandler = await createDiscoveredServerHooksHandler({
+  const hooksHandler = await createActionServerHooksHandler({
     basePath,
     cwd,
+    flowSecret,
     onChatHandoff: options.onChatHandoff,
-    services: context?.services ?? options.services,
-    storage,
-    trust: {
-      flowState: storage,
-      ...options.trust
-    }
+    services: options.services,
+    sessionManager: options.sessionManager,
+    trust: options.trust
   });
 
   const corsHeaders: Record<string, string> = {
@@ -228,8 +290,6 @@ export async function startTeleforgeServer(
       return;
     }
 
-    // Check additional routes (e.g., Telegram webhook endpoint).
-    // Use exact pathname matching so /api/webhook-extra does not hit /api/webhook.
     const requestPathname = req.url ? new URL(req.url, "http://localhost").pathname : undefined;
     for (const route of additionalRoutes) {
       if (req.method === "POST" && requestPathname === route.path) {
@@ -241,14 +301,13 @@ export async function startTeleforgeServer(
     if (req.method === "POST" && req.url?.startsWith(basePath)) {
       try {
         const body = await readIncomingMessageBody(req);
-        // Use the actual bound port so Request URL is correct even when port: 0
         const request = new Request(`http://localhost:${resolvedPort}${req.url}`, {
           body,
           headers: { "content-type": req.headers["content-type"] ?? "application/json" },
           method: "POST"
         });
 
-        const response = await hooksHandler(request);
+        const response = await hooksHandler.handleRequest(request);
 
         if (response) {
           const responseHeaders: Record<string, string> = {};
@@ -295,6 +354,13 @@ export async function startTeleforgeServer(
   };
 }
 
+function findFlowById(
+  flows: readonly DiscoveredFlowModule[],
+  flowId: string
+): ActionFlowDefinition | undefined {
+  return flows.find(({ flow }) => flow.id === flowId)?.flow;
+}
+
 function readIncomingMessageBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -304,551 +370,13 @@ function readIncomingMessageBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-export async function executeTeleforgeServerHookLoad(options: {
-  flow: AnyFlowDefinition;
-  hooks?: Iterable<DiscoveredFlowStepServerHookModule>;
-  input: TeleforgeMiniAppServerLoadInput;
-  services?: unknown;
-  storage?: UserFlowStateManager;
-}): Promise<TeleforgeMiniAppServerLoadResult> {
-  const step = getFlowStep(options.flow, options.input.stepId);
-
-  if (!isMiniAppStep(step)) {
-    throw new Error(
-      `Flow "${options.input.flowId}" step "${options.input.stepId}" is not a Mini App step.`
-    );
-  }
-
-  let persistedState = options.input.state;
-  if (options.storage && options.input.stateKey) {
-    const stored = await options.storage.getInstance(options.input.stateKey);
-    if (stored) {
-      persistedState =
-        stored.state && Object.keys(stored.state).length > 0 ? stored.state : options.input.state;
-    }
-  }
-
-  const hook = createServerHookIndex(options.hooks).get(
-    createServerHookKey(options.input.flowId, options.input.stepId)
-  );
-  const context = {
-    flow: options.flow,
-    flowId: options.input.flowId,
-    routePath: options.input.routePath,
-    screenId: options.input.screenId,
-    services: options.services,
-    state: persistedState,
-    stepId: options.input.stepId
-  };
-
-  const guardResult: unknown = hook?.guard ? await hook.guard(context) : true;
-
-  if (guardResult !== true) {
-    return {
-      allow: false,
-      block: normalizeServerGuardBlock(guardResult),
-      ...(persistedState !== undefined ? { state: persistedState } : {})
-    };
-  }
-
-  const result: TeleforgeMiniAppServerLoadResult = {
-    allow: true,
-    ...(hook?.loader ? { loaderData: await hook.loader(context) } : {}),
-    ...(persistedState !== undefined ? { state: persistedState } : {})
-  };
-
-  return result;
-}
-
-export async function executeTeleforgeServerHookSubmit(options: {
-  flow: AnyFlowDefinition;
-  hooks?: Iterable<DiscoveredFlowStepServerHookModule>;
-  input: TeleforgeMiniAppServerSubmitInput;
-  services?: unknown;
-  storage?: UserFlowStateManager;
-}): Promise<void | FlowTransitionResult<unknown>> {
-  const step = getFlowStep(options.flow, options.input.stepId);
-
-  if (!isMiniAppStep(step)) {
-    throw new Error(
-      `Flow "${options.input.flowId}" step "${options.input.stepId}" is not a Mini App step.`
-    );
-  }
-
-  const hook = createServerHookIndex(options.hooks).get(
-    createServerHookKey(options.input.flowId, options.input.stepId)
-  );
-  const handler = hook?.onSubmit ?? step.onSubmit;
-
-  if (!handler) {
-    throw new Error(
-      `Flow "${options.input.flowId}" step "${options.input.stepId}" does not define a server submit hook.`
-    );
-  }
-
-  const result = (await handler({
-    data: options.input.data,
-    flow: options.flow,
-    services: options.services,
-    state: options.input.state
-  })) as void | FlowTransitionResult<unknown>;
-
-  await persistServerBridgeTransition({
-    currentStepId: options.input.stepId,
-    flow: options.flow,
-    result,
-    state: options.input.state,
-    stateKey: options.input.stateKey,
-    storage: options.storage
-  });
-
-  return result;
-}
-
-export async function executeTeleforgeServerHookAction(options: {
-  flow: AnyFlowDefinition;
-  hooks?: Iterable<DiscoveredFlowStepServerHookModule>;
-  input: TeleforgeMiniAppServerActionInput;
-  services?: unknown;
-  storage?: UserFlowStateManager;
-}): Promise<void | FlowTransitionResult<unknown>> {
-  const step = getFlowStep(options.flow, options.input.stepId);
-
-  if (!isMiniAppStep(step)) {
-    throw new Error(
-      `Flow "${options.input.flowId}" step "${options.input.stepId}" is not a Mini App step.`
-    );
-  }
-
-  const hook = createServerHookIndex(options.hooks).get(
-    createServerHookKey(options.input.flowId, options.input.stepId)
-  );
-  const actionDefinition = (step.actions ?? []).find(
-    (candidate) => resolveFlowActionKey(candidate) === options.input.action
-  );
-  const handler = hook?.actions[options.input.action] ?? actionDefinition?.handler;
-
-  if (!handler) {
-    throw new Error(
-      `Flow "${options.input.flowId}" step "${options.input.stepId}" action "${options.input.action}" does not define a server action hook.`
-    );
-  }
-
-  const result = (await handler({
-    flow: options.flow,
-    services: options.services,
-    state: options.input.state
-  })) as void | FlowTransitionResult<unknown>;
-
-  await persistServerBridgeTransition({
-    action: actionDefinition,
-    currentStepId: options.input.stepId,
-    flow: options.flow,
-    result,
-    state: options.input.state,
-    stateKey: options.input.stateKey,
-    storage: options.storage
-  });
-
-  return result;
-}
-
-async function handleDiscoveredServerHooksRequest(
-  request: Request,
-  state: TeleforgeDiscoveredServerHooksHandlerState
-): Promise<Response | null> {
-  const url = new URL(request.url);
-
-  if (request.method !== "POST" || url.pathname !== state.basePath) {
-    return null;
-  }
-
-  try {
-    const payload = (await request.json()) as TeleforgeServerHookRequest;
-    const response = await executeDiscoveredServerHookRequest(payload, request, state);
-    return jsonResponse(response);
-  } catch (error) {
-    if (error instanceof TeleforgeServerHookRequestError) {
-      return new Response(error.message, {
-        status: error.statusCode
-      });
-    }
-
-    return new Response(
-      error instanceof Error ? error.message : "Teleforge server hook execution failed.",
-      {
-        status: 400
-      }
-    );
-  }
-}
-
-async function executeDiscoveredServerHookRequest(
-  request: TeleforgeServerHookRequest,
-  sourceRequest: Request,
-  state: TeleforgeDiscoveredServerHooksHandlerState
-): Promise<TeleforgeServerHookResponse> {
-  if (request.kind === "chatHandoff") {
-    console.log("[teleforge:server-hooks] chatHandoff request received:", {
-      stepId: request.input.stepId,
-      stateKey: request.input.stateKey
-    });
-    if (!state.onChatHandoff) {
-      throw new TeleforgeServerHookRequestError(
-        "Teleforge server-hook handler does not have a chat handoff handler configured.",
-        501
-      );
-    }
-
-    await state.onChatHandoff(request.input);
-    console.log("[teleforge:server-hooks] chatHandoff onChatHandoff completed");
-    return { kind: "chatHandoff", result: undefined };
-  }
-
-  const flow = findDiscoveredFlow(state.flows, request.input.flowId);
-  const trusted = await resolveTrustedExecutionInput(sourceRequest, flow, request, state.trust);
-
-  switch (request.kind) {
-    case "load":
-      return {
-        kind: "load",
-        result: await executeTeleforgeServerHookLoad({
-          flow,
-          hooks: state.hooks,
-          input: {
-            ...request.input,
-            state: trusted.state,
-            ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
-          },
-          services: state.services,
-          storage: state.storage
-        })
-      };
-    case "submit":
-      return {
-        kind: "submit",
-        result: await executeTeleforgeServerHookSubmit({
-          flow,
-          hooks: state.hooks,
-          input: {
-            ...request.input,
-            state: trusted.state,
-            ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
-          },
-          services: state.services,
-          storage: state.storage
-        })
-      };
-    case "action":
-      return {
-        kind: "action",
-        result: await executeTeleforgeServerHookAction({
-          flow,
-          hooks: state.hooks,
-          input: {
-            ...request.input,
-            state: trusted.state,
-            ...(trusted.stateKey ? { stateKey: trusted.stateKey } : {})
-          },
-          services: state.services,
-          storage: state.storage
-        })
-      };
-  }
-}
-
-async function persistServerBridgeTransition(options: {
-  action?: FlowActionDefinition<unknown, unknown>;
-  currentStepId: string;
-  flow: AnyFlowDefinition;
-  result: void | FlowTransitionResult<unknown>;
-  state: unknown;
-  stateKey?: string;
-  storage?: UserFlowStateManager;
-}): Promise<void> {
-  if (!options.storage || !options.stateKey) {
-    return;
-  }
-
-  const nextStepId = resolveServerBridgeNextStepId(
-    options.currentStepId,
-    options.action,
-    options.result
-  );
-  const nextState = resolveServerBridgeNextState(options.state, options.result);
-  const nextStep = getFlowStep(options.flow, nextStepId);
-  const surface = isMiniAppStep(nextStep) ? "miniapp" : "chat";
-
-  await options.storage.advanceStep(
-    options.stateKey,
-    nextStepId,
-    normalizeFlowStateRecord(nextState),
-    surface
-  );
-}
-
-function resolveServerBridgeNextState(
-  currentState: unknown,
-  result: void | FlowTransitionResult<unknown>
-): unknown {
-  if (isFlowTransitionResult(result) && result.state !== undefined) {
-    return result.state;
-  }
-
-  return currentState;
-}
-
-function resolveServerBridgeNextStepId(
-  currentStepId: string,
-  action: FlowActionDefinition<unknown, unknown> | undefined,
-  result: void | FlowTransitionResult<unknown>
-): string {
-  if (isFlowTransitionResult(result) && typeof result.to === "string" && result.to.length > 0) {
-    return result.to;
-  }
-
-  return action?.to ?? currentStepId;
-}
-
-function isFlowTransitionResult(value: unknown): value is FlowTransitionResult<unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function normalizeFlowStateRecord(value: unknown): Record<string, unknown> {
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    return { ...(value as Record<string, unknown>) };
-  }
-
-  return {};
-}
-
-async function tryAdvanceStoredMiniAppLaunch(options: {
-  flow: AnyFlowDefinition;
-  hookRequest: Exclude<TeleforgeServerHookRequest, { kind: "chatHandoff" }>;
-  stateKey: string;
-  storage: UserFlowStateManager;
-  storedState: FlowInstance;
-}): Promise<FlowInstance | null> {
-  if (options.hookRequest.kind !== "load") {
-    return null;
-  }
-
-  const currentStep = getFlowStep(options.flow, options.storedState.stepId);
-  const targetStep = getFlowStep(options.flow, options.hookRequest.input.stepId);
-
-  if (currentStep.type !== "chat" || !isMiniAppStep(targetStep)) {
-    return null;
-  }
-
-  const launchAction = (currentStep.actions ?? []).find(
-    (action) => action.miniApp && action.to === options.hookRequest.input.stepId
-  );
-
-  if (!launchAction) {
-    return null;
-  }
-
-  return options.storage.advanceStep(
-    options.stateKey,
-    options.hookRequest.input.stepId,
-    normalizeFlowStateRecord(options.storedState.state),
-    "miniapp"
-  );
-}
-
-function createServerHookIndex(
-  hooks: Iterable<DiscoveredFlowStepServerHookModule> | undefined
-): ReadonlyMap<string, DiscoveredFlowStepServerHookModule> {
-  return new Map(
-    Array.from(hooks ?? [], (hook) => [createServerHookKey(hook.flowId, hook.stepId), hook])
-  );
-}
-
-function createServerHookKey(flowId: string, stepId: string): string {
-  return `${flowId}:${stepId}`;
-}
-
-function findDiscoveredFlow(
-  flows: readonly DiscoveredFlowModule[],
-  flowId: string
-): AnyFlowDefinition {
-  const flow = flows.find((candidate) => candidate.flow.id === flowId)?.flow;
-
-  if (!flow) {
-    throw new Error(`Teleforge could not find flow "${flowId}" for server-hook execution.`);
-  }
-
-  return flow;
-}
-
-function normalizeServerGuardBlock(result: unknown): TeleforgeScreenGuardBlock {
-  if (result === false) {
-    return {
-      allow: false
-    };
-  }
-
-  if (
-    typeof result === "object" &&
-    result !== null &&
-    "allow" in result &&
-    result.allow === false
-  ) {
-    return result as TeleforgeScreenGuardBlock;
-  }
-
-  return {
-    allow: false
-  };
-}
-
-async function resolveTrustedExecutionInput(
-  request: Request,
-  flow: AnyFlowDefinition,
-  hookRequest: Exclude<TeleforgeServerHookRequest, { kind: "chatHandoff" }>,
-  trust: TeleforgeServerHookTrustOptions
-): Promise<{ state: unknown; stateKey: string | null }> {
-  const actorId = await resolveActorId(request, trust.resolveActorId);
-  const stateKey =
-    "stateKey" in hookRequest.input && typeof hookRequest.input.stateKey === "string"
-      ? hookRequest.input.stateKey
-      : null;
-
-  if (trust.requireActor && !actorId) {
-    throw new TeleforgeServerHookRequestError(
-      "Teleforge server-hook request requires an authenticated actor.",
-      401
-    );
-  }
-
-  if (trust.requireStateKey && !stateKey) {
-    throw new TeleforgeServerHookRequestError(
-      "Teleforge server-hook request requires a stateKey.",
-      400
-    );
-  }
-
-  let storedState: FlowInstance | null = null;
-  let authoritativeState = hookRequest.input.state;
-
-  if (trust.flowState && stateKey) {
-    storedState = await trust.flowState.getInstance(stateKey);
-
-    if (!storedState) {
-      throw new TeleforgeServerHookRequestError(
-        `Teleforge flow state "${stateKey}" was not found or expired.`,
-        404
-      );
-    }
-
-    if (storedState.flowId !== hookRequest.input.flowId) {
-      throw new TeleforgeServerHookRequestError(
-        `Flow state "${stateKey}" does not belong to flow "${hookRequest.input.flowId}".`,
-        409
-      );
-    }
-
-    if (storedState.stepId !== hookRequest.input.stepId) {
-      const launchAdvance = await tryAdvanceStoredMiniAppLaunch({
-        flow,
-        hookRequest,
-        stateKey,
-        storage: trust.flowState,
-        storedState
-      });
-
-      if (!launchAdvance) {
-        throw new TeleforgeServerHookRequestError(
-          `Flow state "${stateKey}" is on step "${storedState.stepId}", not "${hookRequest.input.stepId}".`,
-          409
-        );
-      }
-
-      storedState = launchAdvance;
-    }
-
-    if (actorId && storedState.userId !== actorId) {
-      throw new TeleforgeServerHookRequestError(
-        `Authenticated actor "${actorId}" does not own flow state "${stateKey}".`,
-        403
-      );
-    }
-
-    const storedFlowState =
-      storedState.state && Object.keys(storedState.state).length > 0
-        ? structuredClone(storedState.state)
-        : undefined;
-
-    if (storedFlowState !== undefined) {
-      if (
-        hookRequest.input.state !== undefined &&
-        !isJsonEqual(hookRequest.input.state, storedFlowState)
-      ) {
-        throw new TeleforgeServerHookRequestError(
-          `Flow state "${stateKey}" does not match the provided runtime state.`,
-          409
-        );
-      }
-
-      authoritativeState = storedFlowState;
-    }
-  }
-
-  const trustContext: TeleforgeServerHookTrustContext = {
-    actorId,
-    flowId: hookRequest.input.flowId,
-    kind: hookRequest.kind,
-    request,
-    state: authoritativeState,
-    stateKey,
-    stepId: hookRequest.input.stepId,
-    storedState
-  };
-
-  await trust.validate?.(trustContext);
-
-  return {
-    state: authoritativeState,
-    stateKey
-  };
-}
-
-async function resolveActorId(
-  request: Request,
-  resolver: TeleforgeServerHookTrustOptions["resolveActorId"]
-): Promise<string | null> {
-  if (!resolver) {
-    return null;
-  }
-
-  const resolved = await resolver(request);
-  const actorId = typeof resolved === "string" ? resolved.trim() : "";
-  return actorId.length > 0 ? actorId : null;
-}
-
-function isJsonEqual(left: unknown, right: unknown): boolean {
-  try {
-    return JSON.stringify(left) === JSON.stringify(right);
-  } catch {
-    return false;
-  }
-}
-
-class TeleforgeServerHookRequestError extends Error {
+class ActionServerHookRequestError extends Error {
   constructor(
     message: string,
     readonly statusCode: number
   ) {
     super(message);
-    this.name = "TeleforgeServerHookRequestError";
+    this.name = "ActionServerHookRequestError";
   }
 }
 
-function jsonResponse(body: TeleforgeServerHookResponse): Response {
-  return new Response(JSON.stringify(body), {
-    headers: {
-      "content-type": "application/json"
-    },
-    status: 200
-  });
-}

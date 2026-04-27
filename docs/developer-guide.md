@@ -7,7 +7,7 @@ It focuses on the implemented workflow in this repository:
 - scaffold a project
 - start from the default Teleforge app shape
 - run locally with Teleforge devtools
-- build Mini App, bot, default server bridge, and custom server-hook features with the shipped packages
+- build Mini App, bot, and action server features with the shipped packages
 - validate and test before release
 
 Use this guide as the hub. The step-by-step companions are:
@@ -137,7 +137,7 @@ The simulator-first workflow is:
 - land in a chat-first shell with the Mini App closed by default
 - use built-in fixtures to jump to known Telegram-like states quickly
 - drive commands, callbacks, and `web_app_data` from the chat pane
-- inspect the right-side debug panel for active sessions (flow id, step id, screen id, route, and latest transition), discovered flows, simulator actions, and live profile state
+- inspect the right-side debug panel for active sessions (flow id, screen id, route), discovered flows, simulator actions, and live profile state
 - use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
 
 When you want the Mini App iframe to load immediately for fast frontend iteration, use:
@@ -217,7 +217,7 @@ Use these imports in app code:
 - `teleforge/bot` for lower-level Telegram bot primitives when a custom bot runtime needs them
 - `teleforge/web` for `TeleforgeMiniApp`, `defineScreen()`, Telegram hooks, and Mini App runtime helpers
 - `teleforge/core/browser` for browser-safe launch and validation helpers
-- `teleforge/server-hooks` for trusted server hook bridge helpers
+- `teleforge` for the action server handler (`createActionServerHooksHandler`)
 
 Do not import internal implementation packages from app code. Those packages implement the framework inside this repository, but the public developer experience is the unified `teleforge` package.
 
@@ -342,15 +342,15 @@ Mini App-side:
 
 ### Custom Server Hooks
 
-The server bridge is part of the default app path. Add custom server-hook modules when a flow step needs trusted execution such as:
+The action server is part of the default app path. Define action handlers in your flow when a screen action needs trusted execution such as:
 
-- authoritative guards
-- authoritative loaders
-- trusted submit handlers
-- trusted action handlers
-- webhook delivery
+- server-side guard before navigating to a screen
+- private data loading
+- server-side permission enforcement
+- payment, order, or session creation
+- calls to services with server-only credentials
 
-The framework discovers flow-scoped server hooks by convention and executes them through a framework-owned bridge. Keep hook code scoped to the flow step that needs trusted work.
+The framework discovers actions from flow definitions and executes them through the action server with validated signed context. Keep action handlers scoped to the flow that owns them.
 
 ### Provider-Based Identity
 
@@ -363,7 +363,7 @@ When your app needs a Telegram user to prove control of a phone number, use bot 
 Bot side:
 
 - use `requestPhoneAction()` when the phone request is part of a discovered Teleforge flow
-- use `requestPhoneAuthAction()` when the phone request should immediately continue into a Mini App step with a signed `tfPhoneAuth` token
+- use the `onContact` flow handler when the phone request should continue into a Mini App with a signed action context
 - request a self-shared contact with `createPhoneNumberRequestMarkup()`
 - validate it with `extractSharedPhoneContact()`
 - launch the Mini App with `createPhoneAuthLink()`
@@ -389,10 +389,10 @@ That includes:
 
 - discovered flow entry from bot commands
 - Mini App screen resolution through `TeleforgeMiniApp`
-- Mini App step progression
+- action-based screen navigation
 - persisted Mini App state snapshots
 - structured return-to-chat handoff through `web_app_data`
-- custom server-hook execution for trusted flow steps
+- action execution for trusted server-side work
 
 Use the higher-level `defineFlow`, `defineScreen`, and `TeleforgeMiniApp` APIs as the default authoring surface. Lower-level coordination primitives are available from `teleforge/bot` and `teleforge/web` when custom routing is needed.
 

@@ -127,35 +127,7 @@ export type {
   TeleforgeRouteCapability,
   TeleforgeRuntime
 } from "./manifest/types.js";
-export {
-  MemoryStorageAdapter,
-  RedisStorageAdapter,
-  UserFlowStateManager,
-  createFlowStorage,
-  createStorage,
-  decryptState,
-  encryptState,
-  type FlowStorageOptions,
-  type RedisStorageAdapterOptions,
-  type RedisStorageClient
-} from "./storage/index.js";
-export type {
-  Effect,
-  EffectType,
-  EncryptedState,
-  FlowInstance,
-  FlowInstanceStatus,
-  FlowInstanceSurface,
-  FlowInstanceWaitReason,
-  FlowStateResolver,
-  ResumeFlowError,
-  ResumeFlowResult,
-  RuntimeSignal,
-  StorageAdapter,
-  StorageBackend,
-  StorageOptions,
-  TransitionResult
-} from "./storage/index.js";
+
 export type {
   Ed25519ValidationOptions,
   ValidateInitDataFailure,
@@ -165,3 +137,43 @@ export type {
 } from "./validation/types.js";
 export { validateInitDataBotToken } from "./validation/botToken.js";
 export { validateInitDataEd25519 } from "./validation/ed25519.js";
+export {
+  SessionManager,
+  MemorySessionStorageAdapter
+} from "./session/index.js";
+export type {
+  SessionHandle,
+  SessionStorageAdapter,
+  TeleforgeSession,
+  TeleforgeSessionStatus
+} from "./session/index.js";
+export {
+  SIGNED_ACTION_CONTEXT_PREFIX,
+  createSignedActionContext,
+  decodeActionBase64Url,
+  decodeActionContextToken,
+  encodeActionBase64Url,
+  validateActionContext,
+  verifySignedActionContext
+} from "./action/index.js";
+export type {
+  ActionContextToken,
+  ActionEffect,
+  ActionEffectType,
+  ActionResult,
+  ActionHandler,
+  ActionHandlerContext,
+  ActionHandlerDefinition,
+  ChatMessageEffect,
+  CustomEffect,
+  NavigateEffect,
+  OpenMiniAppEffect,
+  SignActionContextParams,
+  SignContextFn,
+  WebhookEffect
+} from "./action/index.js";
+export type {
+  ClientFlowManifest,
+  ClientFlowManifestEntry,
+  ClientScreenManifestEntry
+} from "./manifest/client-types.js";

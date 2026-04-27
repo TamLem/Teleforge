@@ -1,14 +1,14 @@
 # Framework Model
 
-Teleforge is a flow-first framework for Telegram-native products.
+Teleforge is a flow-first, action-first framework for Telegram-native products.
 
 The public authoring model is:
 
 - define a Teleforge app in `teleforge.config.ts`
-- define flows with chat and Mini App steps
-- bind Mini App steps to screens
-- attach handlers, guards, loaders, submits, and actions where behavior lives
-- let Teleforge wire bot launch, Mini App runtime, server bridge, state, resume, and custom trusted server hooks
+- define flows with bot commands, Mini App routes, and action handlers
+- bind Mini App routes to screens
+- attach handlers where behavior lives — in commands, contact/location handlers, and actions
+- let Teleforge wire bot launch, Mini App runtime, server bridge, and optional session state
 
 The developer should start from the product journey, not from package boundaries or runtime topology.
 
@@ -17,69 +17,87 @@ The developer should start from the product journey, not from package boundaries
 | Concept      | Meaning                                                                 |
 | ------------ | ----------------------------------------------------------------------- |
 | `Flow`       | Complete user journey such as checkout, onboarding, or phone auth       |
-| `Step`       | One unit of interaction in chat or in the Mini App                      |
-| `Screen`     | Frontend UI bound to a Mini App step                                    |
-| `Handler`    | Application logic attached to a step, action, submit, guard, or loader  |
-| `State`      | Typed data accumulated through the flow                                 |
-| `Transition` | Runtime decision that moves the flow to another step, surface, or state |
+| `Screen`     | Frontend UI bound to a Mini App route                                   |
+| `Action`     | Named server-side handler producing results and effects                 |
+| `Handler`    | Application logic in commands, contact/location handlers, and actions   |
+| `Effect`     | Side effect produced by an action (chat message, navigation, handoff)   |
+| `Session`    | Optional server-side state for drafts, multi-step wizards, external waits |
 
 ## Example Shape
 
 ```ts
 import { defineFlow } from "teleforge";
 
-export const orderFlow = defineFlow({
+export default defineFlow({
   id: "order",
-  initialStep: "welcome",
-  state: {} as {
-    productId?: string;
-    quantity?: number;
+
+  command: {
+    command: "start",
+    description: "Start a new order",
+    handler: async ({ ctx, sign }) => {
+      const launch = await sign({
+        flowId: "order",
+        screenId: "catalog",
+        allowedActions: ["selectProduct", "confirmOrder"]
+      });
+
+      await ctx.reply("What would you like to order?", {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Open catalog", web_app: { url: launch } }
+          ]]
+        }
+      });
+    }
   },
-  steps: {
-    welcome: {
-      type: "chat",
-      message: "What would you like to order?",
-      actions: [{ label: "Open catalog", to: "catalog" }]
+
+  miniApp: {
+    routes: {
+      "/": "catalog",
+      "/confirm": "confirm"
     },
-    catalog: {
-      type: "miniapp",
-      screen: "catalog",
-      onSubmit: async ({ state, data }) => ({
-        state: {
-          ...state,
-          productId: data.productId,
-          quantity: data.quantity
-        },
-        to: "confirm"
-      })
+    defaultRoute: "/",
+    title: "Order"
+  },
+
+  actions: {
+    selectProduct: {
+      handler: async ({ ctx, data }) => {
+        const payload = data as { productId: string; quantity: number };
+        return {
+          navigate: "confirm",
+          data: { productId: payload.productId, quantity: payload.quantity }
+        };
+      }
     },
-    confirm: {
-      type: "chat",
-      message: ({ state }) => `Confirm order for ${state.quantity} item(s)?`,
-      actions: [{ label: "Confirm", to: "done" }]
-    },
-    done: {
-      type: "chat",
-      message: "Order placed."
+
+    confirmOrder: {
+      handler: async ({ ctx, data, services }) => {
+        return {
+          showHandoff: "Order placed.",
+          closeMiniApp: true,
+          effects: [{ type: "chatMessage", text: "Your order has been placed." }]
+        };
+      }
     }
   }
 });
 ```
 
-The important center of gravity is the flow definition. The bot runtime, Mini App runtime, screen registry, server-hook bridge, and state manager interpret that definition across surfaces.
+The flow definition is the center of gravity. The bot runtime, Mini App runtime, screen registry, and
+action server interpret that definition across surfaces.
 
 ## What Teleforge Derives
 
 From the app config, flow definitions, and screen definitions, Teleforge derives:
 
 - bot command and callback registration
-- Mini App launch buttons and deep-link payloads
-- flow routes and screen resolution
-- typed flow state persistence
-- Mini App submit/action execution
-- return-to-chat and resume behavior
-- default server-bridge execution for coordinated Mini App state
-- custom server-hook execution for trusted guards, loaders, submits, and actions
+- Mini App launch buttons with signed action context
+- route-to-screen resolution
+- optional session state persistence
+- Mini App action execution with server-side validation
+- return-to-chat and handoff behavior
+- default action server execution
 
 The framework owns repetitive cross-surface wiring. App code owns product behavior.
 
@@ -89,22 +107,23 @@ Teleforge treats chat and Mini App interaction as one continuous journey.
 
 A flow can:
 
-- begin from a bot command or button
+- begin from a bot command or phone share
 - move into a Mini App screen for richer UI
-- transition between Mini App screens
-- return to chat for confirmation or completion
-- pause and resume later from saved state
+- navigate between Mini App screens via action results
+- return to chat via handoff effects
+- optionally use session state for drafts or resumability
 
-When a chat step action targets a Mini App step, the framework renders it as a `web_app` button. Actions that carry Mini App launch metadata produce signed deep-link buttons; actions without it remain chat callbacks. See [Flow Coordination](./flow-coordination.md) for routing and handoff details.
+When a command handler signs a launch URL, the framework produces a `web_app` button with an
+HMAC-signed action context token. The Mini App receives this token, the server validates it
+on every action call. See [Flow Coordination](./flow-coordination.md) for details.
 
 ## Public Imports
 
 Application code should use the unified package surfaces:
 
-- `teleforge`: app config, flows, discovered runtimes, shared flow state helpers
+- `teleforge`: app config, flows, discovered runtimes, action server hooks
 - `teleforge/bot`: lower-level bot primitives when custom routing is needed
 - `teleforge/web`: Mini App shell, screen definitions, Telegram hooks, and runtime helpers
-- `teleforge/server-hooks`: trusted server-side load, submit, and action hooks
 - `teleforge/core/browser`: browser-safe launch and validation helpers
 
 Internal workspace packages implement these surfaces. They are not the app authoring model.
@@ -113,7 +132,7 @@ Internal workspace packages implement these surfaces. They are not the app autho
 
 The repository contains internal packages that implement the framework:
 
-- `packages/core`: shared schemas, launch parsing, validation, flow-state storage contracts
+- `packages/core`: shared schemas, launch parsing, validation, action context signing, session storage
 - `packages/bot`: Telegram update routing and chat primitives
 - `packages/web`: Mini App hooks, flow bridge, and browser runtime helpers
 - `packages/ui`: React UI primitives built on top of the web runtime
@@ -130,13 +149,14 @@ The bot runtime is responsible for:
 
 - loading `teleforge.config.ts`
 - discovering flow modules
-- registering bot commands from flow metadata
-- rendering chat steps
-- sending Mini App launch buttons
-- accepting `web_app_data` and structured return-to-chat handoffs
-- resuming persisted flow instances
+- registering bot commands from flow definitions
+- handling contact and location shares via flow handlers
+- sending Mini App launch buttons with signed action context
+- accepting `web_app_data` and callback queries with action context validation
+- dispatching action handlers from verified signed context
 
-Apps normally enter this through `startTeleforgeBot()` from `teleforge`, which loads config, resolves secrets, and starts polling or webhook delivery automatically. The lower-level `createDiscoveredBotRuntime()` escape hatch is also available from `teleforge` when custom routing, custom storage, or non-standard hosting is needed.
+Apps normally enter this through `startTeleforgeBot()` from `teleforge`, which loads config, resolves secrets,
+and starts polling or webhook delivery automatically.
 
 ### Mini App Runtime
 
@@ -145,29 +165,29 @@ The Mini App runtime is a screen runtime, not a generic website shell.
 It is responsible for:
 
 - bootstrapping Telegram WebApp context
-- resolving the active flow instance and step
-- loading the registered screen for a Mini App step
+- parsing the signed action context from the launch URL
+- matching the current URL path to a screen via route registry
 - running client-side loaders and bridge calls
-- submitting typed payloads back to the flow runtime
-- transitioning between Mini App screens without hard reloads where possible
-- handing control back to chat when the next flow step is a chat step
+- invoking server-side actions via `runAction()`
+- navigating between screens based on action results
+- showing handoff UI and closing the Mini App when actions request it
 
-Screens are registered with `defineScreen()` from `teleforge/web`. The app shell is normally `TeleforgeMiniApp`.
+Screens are registered with `defineScreen()` from `teleforge/web`. The app shell is `TeleforgeMiniApp`.
 
-## Server Hooks
+## Action Server
 
-Server hooks are the trusted backend extension point for a flow step.
+The action server is the trusted backend execution hub for flow actions.
 
-Use them when the browser cannot be the authority for:
+Use it when the browser cannot be the authority for:
 
 - identity trust
-- flow instance ownership
-- step validity
 - permission decisions
-- durable state mutation
+- durable writes
 - downstream service calls with server-only credentials
+- session state operations
 
-The public model is still flow-first: server hooks attach to steps; they are not a separate app mode.
+The public model is flow-first: actions are defined in the flow and executed by the server.
+Each action request carries a signed action context token validated by the server.
 
 ## Local Tooling
 
@@ -184,7 +204,7 @@ The CLI is shipped through the unified `teleforge` package even though its imple
 
 Use [`examples/starter-app`](../examples/starter-app/README.md) for the smallest working app.
 
-Use [`apps/task-shop`](../apps/task-shop/README.md) for the full reference flow with chat/Mini App coordination, persisted state, server bridge usage, and screen runtime patterns.
+Use [`apps/task-shop`](../apps/task-shop/README.md) for the full reference flow with chat/Mini App coordination, action handlers, and screen runtime patterns.
 
 ## Non-Goals
 
@@ -200,8 +220,8 @@ Teleforge is not:
 
 - Start from the flow, not from package topology.
 - Keep screen code responsible for presentation and local UI state.
-- Keep durable product state in flow state or domain services.
-- Keep trusted decisions in server hooks or server runtime code.
+- Keep durable product state in domain services or optional session state.
+- Keep trusted decisions in action handlers.
 - Use the simulator-first local workflow before switching to real Telegram.
 - Keep public docs and examples on the unified `teleforge` package.
 

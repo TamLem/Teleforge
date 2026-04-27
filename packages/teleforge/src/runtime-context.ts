@@ -1,4 +1,4 @@
-import { UserFlowStateManager, createFlowStorage } from "@teleforgex/core";
+import { MemorySessionStorageAdapter, SessionManager } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
 
@@ -11,34 +11,21 @@ export interface TeleforgeRuntimeContext {
   miniAppUrl: string;
   phoneAuthSecret?: string;
   services?: unknown;
-  storage: UserFlowStateManager;
-  /** Resolved bot token from the environment, if present. */
+  sessionManager: SessionManager;
   token?: string;
 }
 
 export interface CreateTeleforgeRuntimeContextOptions {
-  /** Pre-loaded app config. When omitted, config is loaded from cwd. */
   app?: TeleforgeAppConfig;
   cwd?: string;
-  /** Explicit flow secret. Overrides env resolution. */
   flowSecret?: string;
-  /** Explicit Mini App URL. Overrides env resolution. */
   miniAppUrl?: string;
-  /** Explicit phone-auth secret. Overrides env resolution. */
   phoneAuthSecret?: string;
-  /** Services container passed to runtime handlers. */
   services?: unknown;
-  /** Pre-built storage. When omitted, an in-memory store is created. */
-  storage?: UserFlowStateManager;
-  /** TTL for auto-created in-memory storage, in seconds. Defaults to 900. */
-  storageTtlSeconds?: number;
+  sessionManager?: SessionManager;
+  sessionTtlSeconds?: number;
 }
 
-/**
- * Creates a shared runtime context that resolves config, secrets, and storage
- * once so it can be reused across bot bootstrap, server bootstrap, and dev
- * tooling without redundant initialization.
- */
 export async function createTeleforgeRuntimeContext(
   options: CreateTeleforgeRuntimeContextOptions = {}
 ): Promise<TeleforgeRuntimeContext> {
@@ -93,12 +80,11 @@ export async function createTeleforgeRuntimeContext(
   const phoneAuthSecretEnv = app.runtime.phoneAuth?.secretEnv ?? "PHONE_AUTH_SECRET";
   const phoneAuthSecret = options.phoneAuthSecret ?? readEnv(phoneAuthSecretEnv);
 
-  const storage =
-    options.storage ??
-    new UserFlowStateManager(
-      createFlowStorage({
-        backend: "memory",
-        defaultTTL: options.storageTtlSeconds ?? 900,
+  const sessionManager =
+    options.sessionManager ??
+    new SessionManager(
+      new MemorySessionStorageAdapter({
+        defaultTTL: options.sessionTtlSeconds ?? 900,
         namespace: app.app.id
       })
     );
@@ -110,7 +96,7 @@ export async function createTeleforgeRuntimeContext(
     miniAppUrl,
     phoneAuthSecret,
     services: options.services,
-    storage,
+    sessionManager,
     token
   };
 }

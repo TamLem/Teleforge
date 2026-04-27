@@ -1,10 +1,45 @@
-import type { FlowTransitionResult } from "./flow-definition.js";
-import type { TeleforgeScreenGuardBlock } from "./screens.js";
+import type { ActionResult } from "@teleforgex/core";
 
 type MaybePromise<T> = Promise<T> | T;
 
-export const DEFAULT_SERVER_HOOKS_PATH = "/api/teleforge/flow-hooks";
+export const DEFAULT_SERVER_HOOKS_PATH = "/api/teleforge/actions";
 
+export interface TeleforgeActionServerLoadInput {
+  flowId: string;
+  screenId: string;
+  signedContext: string;
+}
+
+export interface TeleforgeActionServerLoadResult {
+  data?: unknown;
+  session?: unknown;
+}
+
+export interface TeleforgeActionServerRunActionInput {
+  actionId: string;
+  flowId: string;
+  payload?: unknown;
+  signedContext: string;
+}
+
+export interface TeleforgeActionServerHandoffInput {
+  message: string;
+  signedContext: string;
+}
+
+export interface TeleforgeActionServerBridge {
+  handoff(input: TeleforgeActionServerHandoffInput): Promise<void>;
+  loadScreenContext(input: TeleforgeActionServerLoadInput): Promise<TeleforgeActionServerLoadResult>;
+  runAction(input: TeleforgeActionServerRunActionInput): Promise<void | ActionResult>;
+}
+
+export interface CreateFetchMiniAppServerBridgeOptions {
+  basePath?: string;
+  fetch?: typeof fetch;
+  headers?: HeadersInit | (() => MaybePromise<HeadersInit | undefined> | undefined);
+}
+
+// Legacy types kept for compat with modules not yet rewritten
 export interface TeleforgeMiniAppServerLoadInput {
   flowId: string;
   routePath: string;
@@ -45,7 +80,7 @@ export interface TeleforgeMiniAppServerLoadAllowedResult {
 
 export interface TeleforgeMiniAppServerLoadBlockedResult {
   allow: false;
-  block: TeleforgeScreenGuardBlock;
+  block: { allow: false; reason?: string };
   state?: unknown;
 }
 
@@ -54,57 +89,15 @@ export type TeleforgeMiniAppServerLoadResult =
   | TeleforgeMiniAppServerLoadBlockedResult;
 
 export interface TeleforgeMiniAppServerBridge {
-  action(input: TeleforgeMiniAppServerActionInput): Promise<void | FlowTransitionResult<unknown>>;
+  action(input: TeleforgeMiniAppServerActionInput): Promise<void | unknown>;
   chatHandoff(input: TeleforgeMiniAppServerChatHandoffInput): Promise<void>;
   load(input: TeleforgeMiniAppServerLoadInput): Promise<TeleforgeMiniAppServerLoadResult>;
-  submit(input: TeleforgeMiniAppServerSubmitInput): Promise<void | FlowTransitionResult<unknown>>;
+  submit(input: TeleforgeMiniAppServerSubmitInput): Promise<void | unknown>;
 }
-
-export interface CreateFetchMiniAppServerBridgeOptions {
-  basePath?: string;
-  fetch?: typeof fetch;
-  headers?: HeadersInit | (() => MaybePromise<HeadersInit | undefined> | undefined);
-}
-
-type TeleforgeServerHookRequest =
-  | {
-      kind: "load";
-      input: TeleforgeMiniAppServerLoadInput;
-    }
-  | {
-      kind: "submit";
-      input: TeleforgeMiniAppServerSubmitInput;
-    }
-  | {
-      kind: "action";
-      input: TeleforgeMiniAppServerActionInput;
-    }
-  | {
-      kind: "chatHandoff";
-      input: TeleforgeMiniAppServerChatHandoffInput;
-    };
-
-type TeleforgeServerHookResponse =
-  | {
-      kind: "load";
-      result: TeleforgeMiniAppServerLoadResult;
-    }
-  | {
-      kind: "submit";
-      result: void | FlowTransitionResult<unknown>;
-    }
-  | {
-      kind: "action";
-      result: void | FlowTransitionResult<unknown>;
-    }
-  | {
-      kind: "chatHandoff";
-      result: void;
-    };
 
 export function createFetchMiniAppServerBridge(
   options: CreateFetchMiniAppServerBridgeOptions = {}
-): TeleforgeMiniAppServerBridge {
+): TeleforgeActionServerBridge {
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
   if (typeof fetchImpl !== "function") {
@@ -115,81 +108,28 @@ export function createFetchMiniAppServerBridge(
   const resolveHeaders = options.headers;
 
   return Object.freeze({
-    action: async (
-      input: TeleforgeMiniAppServerActionInput
-    ): Promise<void | FlowTransitionResult<unknown>> => {
-      const payload = await postServerHookRequest<
-        Extract<TeleforgeServerHookResponse, { kind: "action" }>
-      >(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "action"
-        },
-        resolveHeaders
-      );
-      return payload.result;
+    handoff: async (input: TeleforgeActionServerHandoffInput): Promise<void> => {
+      await postBridge(fetchImpl, basePath, { input, kind: "handoff" }, resolveHeaders);
     },
-    chatHandoff: async (input: TeleforgeMiniAppServerChatHandoffInput): Promise<void> => {
-      console.log("[teleforge:server-bridge] chatHandoff request:", {
-        basePath,
-        stepId: input.stepId
-      });
-      await postServerHookRequest<Extract<TeleforgeServerHookResponse, { kind: "chatHandoff" }>>(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "chatHandoff"
-        },
-        resolveHeaders
-      );
-      console.log("[teleforge:server-bridge] chatHandoff response received");
+
+    loadScreenContext: async (input: TeleforgeActionServerLoadInput): Promise<TeleforgeActionServerLoadResult> => {
+      return postBridge(fetchImpl, basePath, { input, kind: "loadScreenContext" }, resolveHeaders) as Promise<TeleforgeActionServerLoadResult>;
     },
-    load: async (
-      input: TeleforgeMiniAppServerLoadInput
-    ): Promise<TeleforgeMiniAppServerLoadResult> => {
-      const payload = await postServerHookRequest<
-        Extract<TeleforgeServerHookResponse, { kind: "load" }>
-      >(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "load"
-        },
-        resolveHeaders
-      );
-      return payload.result;
-    },
-    submit: async (
-      input: TeleforgeMiniAppServerSubmitInput
-    ): Promise<void | FlowTransitionResult<unknown>> => {
-      const payload = await postServerHookRequest<
-        Extract<TeleforgeServerHookResponse, { kind: "submit" }>
-      >(
-        fetchImpl,
-        basePath,
-        {
-          input,
-          kind: "submit"
-        },
-        resolveHeaders
-      );
-      return payload.result;
+
+    runAction: async (input: TeleforgeActionServerRunActionInput): Promise<ActionResult> => {
+      const response = await postBridge(fetchImpl, basePath, { input, kind: "runAction" }, resolveHeaders);
+      return (response ?? { data: {} }) as ActionResult;
     }
   });
 }
 
-async function postServerHookRequest<TResponse extends TeleforgeServerHookResponse>(
+async function postBridge(
   fetchImpl: typeof fetch,
   basePath: string,
-  payload: TeleforgeServerHookRequest,
+  payload: unknown,
   resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
-): Promise<TResponse> {
+): Promise<unknown> {
   const headers = await resolveBridgeHeaders(resolveHeaders);
-  console.log("[teleforge:server-bridge] POST", basePath, payload.kind);
   const response = await fetchImpl(basePath, {
     body: JSON.stringify(payload),
     headers: {
@@ -198,11 +138,9 @@ async function postServerHookRequest<TResponse extends TeleforgeServerHookRespon
     },
     method: "POST"
   });
-  console.log("[teleforge:server-bridge] response status:", response.status);
 
   if (!response.ok) {
     const message = await response.text();
-    console.log("[teleforge:server-bridge] error response:", message);
     throw new Error(
       message.trim().length > 0
         ? message
@@ -210,7 +148,7 @@ async function postServerHookRequest<TResponse extends TeleforgeServerHookRespon
     );
   }
 
-  return (await response.json()) as TResponse;
+  return response.json();
 }
 
 async function resolveBridgeHeaders(

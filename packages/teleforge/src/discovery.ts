@@ -2,32 +2,21 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { defineCoordinationConfig } from "@teleforgex/core";
-
-import { createFlowStartCommand, resolveFlowActionKey } from "./flow.js";
-
 import type {
-  CreateFlowStartCommandOptions,
-  FlowStepDefinition,
-  TeleforgeFlowDefinition
-} from "./flow.js";
+  ActionFlowActionDefinition,
+  ActionFlowDefinition,
+  ActionFlowDefinitionInput,
+  ActionFlowMiniAppDefinition
+} from "./flow-definition.js";
 import type { DiscoveredScreenModule } from "./screens.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
-  CoordinationDefaults,
   LaunchEntryPoint,
-  RouteDefinition,
-  RouteCoordinationConfig,
-  ResolvedCoordinationConfig,
-  ReturnToChatMetadata,
-  UserFlowStateManager
+  RouteDefinition
 } from "@teleforgex/core";
 
-type AnyFlowDefinition = TeleforgeFlowDefinition<
-  unknown,
-  unknown,
-  Record<string, FlowStepDefinition<unknown, unknown>>
->;
+type AnyFlowDefinition = ActionFlowDefinition;
+type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
 
 const FLOW_FILE_SUFFIXES = [".flow.ts", ".flow.mts", ".flow.js", ".flow.mjs"] as const;
 const SCREEN_FILE_SUFFIXES = [
@@ -40,7 +29,6 @@ const SCREEN_FILE_SUFFIXES = [
 ] as const;
 const HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
 const DEFAULT_FLOW_ROOT = "flows";
-type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
 
 export interface TeleforgeFlowConventions {
   handlersRoot?: string;
@@ -94,6 +82,58 @@ export interface LoadTeleforgeScreensOptions extends DiscoverScreenFilesOptions 
 export interface DiscoveredFlowModule {
   filePath: string;
   flow: AnyFlowDefinition;
+}
+
+export interface DiscoveredFlowActionSummary {
+  id: string;
+  hasHandler: boolean;
+  requiresSession: boolean;
+}
+
+export interface DiscoveredFlowRuntimeSummary {
+  id: string;
+  command?: string;
+  filePath?: string;
+  routeCount: number;
+  routes: readonly string[];
+  actionCount: number;
+  actions: readonly DiscoveredFlowActionSummary[];
+  hasSession: boolean;
+}
+
+export interface DiscoveredFlowStepHandlerModule {
+  actions: Readonly<Record<string, DiscoveredHandlerFunction>>;
+  filePath: string;
+  flowId: string;
+  stepId: string;
+}
+
+export interface DiscoveredFlowStepServerHookModule {
+  actions: Readonly<Record<string, DiscoveredHandlerFunction>>;
+  filePath: string;
+  flowId: string;
+  guard?: DiscoveredHandlerFunction;
+  loader?: DiscoveredHandlerFunction;
+  stepId: string;
+}
+
+export interface CreateFlowRuntimeSummaryOptions {
+  handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
+  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
+}
+
+export interface CreateFlowCommandsOptions {
+  appId: string;
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
+  miniAppUrl: string | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
+  secret: string;
+  services?: unknown;
+  sessionManager?: unknown;
+}
+
+export interface CreateFlowRoutesOptions {
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
+  routes?: readonly RouteDefinition[];
 }
 
 export async function discoverScreenFiles(options: DiscoverScreenFilesOptions): Promise<string[]> {
@@ -150,114 +190,6 @@ export async function loadTeleforgeScreens(
   return discovered;
 }
 
-export interface DiscoveredFlowActionSummary {
-  hasHandler: boolean;
-  handlerSource: "inline" | "module" | "none" | "server";
-  id: string;
-  label: string;
-  to?: string;
-}
-
-export interface DiscoveredFlowStepSummary {
-  actionCount: number;
-  actions: readonly DiscoveredFlowActionSummary[];
-  discoveredActionHandlerIds: readonly string[];
-  discoveredServerActionIds: readonly string[];
-  handlerFile?: string;
-  hasDiscoveredModule: boolean;
-  hasOnEnter: boolean;
-  hasOnSubmit: boolean;
-  id: string;
-  resolvedOnEnter: boolean;
-  resolvedOnSubmit: boolean;
-  resolvedServerGuard: boolean;
-  resolvedServerLoader: boolean;
-  resolvedServerSubmit: boolean;
-  screen?: string;
-  serverHookFile?: string;
-  hasServerHookModule: boolean;
-  type: "chat" | "miniapp";
-}
-
-export interface DiscoveredFlowRuntimeSummary {
-  command?: string;
-  filePath?: string;
-  finalStep: string;
-  hasRuntimeHandlers: boolean;
-  id: string;
-  initialStep: string;
-  route?: string;
-  stepCount: number;
-  steps: readonly DiscoveredFlowStepSummary[];
-}
-
-export interface DiscoveredFlowStepHandlerModule {
-  actions: Readonly<Record<string, DiscoveredHandlerFunction>>;
-  filePath: string;
-  flowId: string;
-  onEnter?: DiscoveredHandlerFunction;
-  onSubmit?: DiscoveredHandlerFunction;
-  stepId: string;
-}
-
-export interface DiscoveredFlowStepServerHookModule {
-  actions: Readonly<Record<string, DiscoveredHandlerFunction>>;
-  filePath: string;
-  flowId: string;
-  guard?: DiscoveredHandlerFunction;
-  loader?: DiscoveredHandlerFunction;
-  onSubmit?: DiscoveredHandlerFunction;
-  stepId: string;
-}
-
-export interface CreateFlowRuntimeSummaryOptions {
-  handlers?: Iterable<DiscoveredFlowStepHandlerModule>;
-  serverHooks?: Iterable<DiscoveredFlowStepServerHookModule>;
-}
-
-export interface CreateFlowCommandsOptions {
-  buttonText?:
-    | string
-    | ((
-        context: CommandContext,
-        flow: AnyFlowDefinition
-      ) => Promise<string | undefined> | string | undefined);
-  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
-  messageOptions?: CreateFlowStartCommandOptions<unknown>["messageOptions"];
-  requestWriteAccess?: boolean;
-  returnText?:
-    | string
-    | ((
-        context: CommandContext,
-        flow: AnyFlowDefinition
-      ) => Promise<string | undefined> | string | undefined);
-  secret: string;
-  stayInChat?: boolean;
-  storage: UserFlowStateManager;
-  text?: string | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
-  webAppUrl:
-    | string
-    | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
-}
-
-export interface CreateFlowCoordinationConfigFromFlowsOptions {
-  defaults?: Partial<CoordinationDefaults>;
-  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
-  returnToChat?: ReturnToChatMetadata;
-}
-
-export interface CreateFlowRoutesOptions {
-  defaults?: Partial<CoordinationDefaults>;
-  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
-  routes?: readonly RouteDefinition[];
-  returnToChat?: ReturnToChatMetadata;
-}
-
-const DEFAULT_COORDINATION_DEFAULTS = Object.freeze({
-  expiryMinutes: 15,
-  persistence: "session"
-}) as CoordinationDefaults;
-
 export async function discoverFlowFiles(options: DiscoverFlowFilesOptions): Promise<string[]> {
   const root = resolveFlowRoot(options);
   const absoluteRoot = path.resolve(options.cwd, root);
@@ -303,419 +235,207 @@ export async function loadTeleforgeFlows(
 export async function discoverFlowHandlerFiles(
   options: DiscoverFlowHandlerFilesOptions
 ): Promise<string[]> {
-  const root = resolveFlowHandlersRoot(options);
-  const absoluteRoot = path.resolve(options.cwd, root);
-
-  try {
-    return await collectFilesBySuffix(absoluteRoot, HANDLER_FILE_SUFFIXES);
-  } catch (error) {
-    if (isMissingPathError(error)) {
-      return [];
-    }
-
-    throw error;
-  }
+  return [];
 }
 
 export async function loadTeleforgeFlowHandlers(
-  options: LoadTeleforgeFlowHandlersOptions
+  _options: LoadTeleforgeFlowHandlersOptions
 ): Promise<DiscoveredFlowStepHandlerModule[]> {
-  const files = await discoverFlowHandlerFiles(options);
-  const root = path.resolve(options.cwd, resolveFlowHandlersRoot(options));
-  const discovered: DiscoveredFlowStepHandlerModule[] = [];
-  const seenKeys = new Map<string, string>();
-
-  for (const filePath of files) {
-    const relativePath = path.relative(root, filePath);
-    const segments = relativePath.split(path.sep);
-
-    if (segments.length !== 2) {
-      throw new Error(
-        `Flow handler module "${filePath}" must live at <handlersRoot>/<flowId>/<stepId>.<ext>.`
-      );
-    }
-
-    const flowId = segments[0];
-    const stepId = stripKnownExtension(segments[1], HANDLER_FILE_SUFFIXES);
-    const key = `${flowId}:${stepId}`;
-    const existing = seenKeys.get(key);
-
-    if (existing) {
-      throw new Error(
-        `Duplicate flow step handler "${key}" discovered in "${existing}" and "${filePath}".`
-      );
-    }
-
-    seenKeys.set(key, filePath);
-    discovered.push(await loadFlowHandlerModule(filePath, flowId, stepId));
-  }
-
-  return discovered;
+  return [];
 }
 
 export async function discoverFlowServerHookFiles(
   options: DiscoverFlowServerHookFilesOptions
 ): Promise<string[]> {
-  const root = resolveFlowServerHooksRoot(options);
-  const absoluteRoot = path.resolve(options.cwd, root);
-
-  try {
-    return await collectFilesBySuffix(absoluteRoot, HANDLER_FILE_SUFFIXES);
-  } catch (error) {
-    if (isMissingPathError(error)) {
-      return [];
-    }
-
-    throw error;
-  }
+  return [];
 }
 
 export async function loadTeleforgeFlowServerHooks(
-  options: LoadTeleforgeFlowServerHooksOptions
+  _options: LoadTeleforgeFlowServerHooksOptions
 ): Promise<DiscoveredFlowStepServerHookModule[]> {
-  const files = await discoverFlowServerHookFiles(options);
-  const root = path.resolve(options.cwd, resolveFlowServerHooksRoot(options));
-  const discovered: DiscoveredFlowStepServerHookModule[] = [];
-  const seenKeys = new Map<string, string>();
-
-  for (const filePath of files) {
-    const relativePath = path.relative(root, filePath);
-    const segments = relativePath.split(path.sep);
-
-    if (segments.length !== 2) {
-      throw new Error(
-        `Flow server-hook module "${filePath}" must live at <serverHooksRoot>/<flowId>/<stepId>.<ext>.`
-      );
-    }
-
-    const flowId = segments[0];
-    const stepId = stripKnownExtension(segments[1], HANDLER_FILE_SUFFIXES);
-    const key = `${flowId}:${stepId}`;
-    const existing = seenKeys.get(key);
-
-    if (existing) {
-      throw new Error(
-        `Duplicate flow step server hook "${key}" discovered in "${existing}" and "${filePath}".`
-      );
-    }
-
-    seenKeys.set(key, filePath);
-    discovered.push(await loadFlowServerHookModule(filePath, flowId, stepId));
-  }
-
-  return discovered;
+  return [];
 }
 
 export function createFlowCommands(options: CreateFlowCommandsOptions): BotCommandDefinition[] {
   const commands: BotCommandDefinition[] = [];
+  const seenCommands = new Map<string, string>();
 
   for (const flow of normalizeDiscoveredFlows(options.flows)) {
-    const command = flow.bot?.command;
-
-    if (!command) {
+    if (!flow.command) {
       continue;
     }
 
-    const buttonText = options.buttonText ?? command.buttonText;
-    const returnText = options.returnText ?? flow.miniApp?.returnToChat?.text;
-    const text = options.text ?? command.text;
-    const webAppUrl = options.webAppUrl;
+    const commandName = normalizeCommandName(flow.command.command);
+    const existing = seenCommands.get(commandName);
 
-    commands.push(
-      createFlowStartCommand({
-        buttonText:
-          typeof buttonText === "function"
-            ? (context) => resolveFlowScopedValue(buttonText, context, flow)
-            : buttonText,
-        command: command.command,
-        description: command.description,
-        entryStep: command.entryStep as keyof typeof flow.steps & string,
-        flow,
-        messageOptions: options.messageOptions,
-        requestWriteAccess: options.requestWriteAccess ?? flow.miniApp?.requestWriteAccess,
-        returnText:
-          typeof returnText === "function"
-            ? (context) => resolveFlowScopedValue(returnText, context, flow)
-            : returnText,
-        secret: options.secret,
-        stayInChat: options.stayInChat,
-        storage: options.storage,
-        text:
-          typeof text === "function"
-            ? (context) => resolveFlowScopedRequiredValue<string>(text, context, flow)
-            : text,
-        webAppUrl:
-          typeof webAppUrl === "function"
-            ? (context) => resolveFlowScopedRequiredValue<string>(webAppUrl, context, flow)
-            : webAppUrl
-      })
-    );
+    if (existing) {
+      throw new Error(
+        `Duplicate command "/${commandName}" discovered in flows "${existing}" and "${flow.id}".`
+      );
+    }
+
+    seenCommands.set(commandName, flow.id);
+
+    commands.push({
+      command: commandName,
+      description: flow.command.description,
+      handler: async (context) => {
+        const miniAppUrl = await resolveCommandValue(options.miniAppUrl, context);
+        const sign = async (params: {
+          flowId: string;
+          screenId: string;
+          subject?: Record<string, unknown>;
+          allowedActions?: string[];
+        }) => {
+          const { createSignedActionContext } = await import("@teleforgex/core");
+          const now = Math.floor(Date.now() / 1000);
+          const ttl = 900;
+          const token = createSignedActionContext(
+            {
+              allowedActions: params.allowedActions,
+              appId: options.appId,
+              expiresAt: now + ttl,
+              flowId: params.flowId,
+              issuedAt: now,
+              screenId: params.screenId,
+              subject: params.subject,
+              userId: String(context.user.id)
+            },
+            options.secret
+          );
+          const url = new URL(miniAppUrl);
+          url.searchParams.set("tgWebAppStartParam", token);
+          return url.toString();
+        };
+
+        await flow.command!.handler({
+          ctx: context,
+          services: options.services as never,
+          session: undefined,
+          sign
+        });
+      }
+    });
   }
 
   return commands;
 }
 
-export function createFlowRuntimeSummary(
-  flowOrModule: AnyFlowDefinition | DiscoveredFlowModule,
-  options: CreateFlowRuntimeSummaryOptions = {}
-): DiscoveredFlowRuntimeSummary {
-  const flow = "flow" in flowOrModule ? flowOrModule.flow : flowOrModule;
-  const filePath = "filePath" in flowOrModule ? flowOrModule.filePath : undefined;
-  const handlerIndex = createFlowHandlerIndex(options.handlers ?? []);
-  const serverHookIndex = createFlowServerHookIndex(options.serverHooks ?? []);
-  const steps = Object.entries(flow.steps).map(([stepId, step]) => {
-    const discoveredHandler = handlerIndex.get(`${flow.id}:${stepId}`);
-    const discoveredServerHook = serverHookIndex.get(`${flow.id}:${stepId}`);
+export function createFlowRoutes(options: CreateFlowRoutesOptions): Array<{ path: string; flowId: string; screenId: string }> {
+  const result: Array<{ path: string; flowId: string; screenId: string }> = [];
 
-    if (step.type === "chat") {
-      const actions = (step.actions ?? []).map((action) =>
-        Object.freeze({
-          hasHandler:
-            typeof action.handler === "function" ||
-            typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function" ||
-            typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function",
-          handlerSource:
-            typeof action.handler === "function"
-              ? ("inline" as const)
-              : typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function"
-                ? ("module" as const)
-                : typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function"
-                  ? ("server" as const)
-                  : ("none" as const),
-          id: resolveFlowActionKey(action),
-          label: action.label,
-          ...(action.to ? { to: action.to } : {})
-        })
-      );
-
-      return Object.freeze({
-        actionCount: actions.length,
-        actions,
-        discoveredActionHandlerIds: Object.freeze(Object.keys(discoveredHandler?.actions ?? {})),
-        discoveredServerActionIds: Object.freeze(Object.keys(discoveredServerHook?.actions ?? {})),
-        ...(discoveredHandler?.filePath ? { handlerFile: discoveredHandler.filePath } : {}),
-        hasDiscoveredModule: Boolean(discoveredHandler),
-        hasServerHookModule: Boolean(discoveredServerHook),
-        hasOnEnter: typeof step.onEnter === "function",
-        hasOnSubmit: false,
-        id: stepId,
-        resolvedOnEnter:
-          typeof step.onEnter === "function" || typeof discoveredHandler?.onEnter === "function",
-        resolvedOnSubmit: false,
-        resolvedServerGuard: false,
-        resolvedServerLoader: false,
-        resolvedServerSubmit: false,
-        ...(discoveredServerHook?.filePath
-          ? { serverHookFile: discoveredServerHook.filePath }
-          : {}),
-        type: "chat" as const
-      });
+  for (const flow of normalizeDiscoveredFlows(options.flows)) {
+    if (!flow.miniApp?.routes) {
+      continue;
     }
 
-    const actions = (step.actions ?? []).map((action) =>
-      Object.freeze({
-        hasHandler:
-          typeof action.handler === "function" ||
-          typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function" ||
-          typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function",
-        handlerSource:
-          typeof action.handler === "function"
-            ? ("inline" as const)
-            : typeof discoveredHandler?.actions[resolveFlowActionKey(action)] === "function"
-              ? ("module" as const)
-              : typeof discoveredServerHook?.actions[resolveFlowActionKey(action)] === "function"
-                ? ("server" as const)
-                : ("none" as const),
-        id: resolveFlowActionKey(action),
-        label: action.label,
-        ...(action.to ? { to: action.to } : {})
-      })
-    );
+    for (const [routePath, screenId] of Object.entries(flow.miniApp.routes)) {
+      result.push({
+        flowId: flow.id,
+        path: routePath,
+        screenId
+      });
+    }
+  }
 
-    return Object.freeze({
-      actionCount: actions.length,
-      actions: Object.freeze(actions),
-      discoveredActionHandlerIds: Object.freeze(Object.keys(discoveredHandler?.actions ?? {})),
-      discoveredServerActionIds: Object.freeze(Object.keys(discoveredServerHook?.actions ?? {})),
-      ...(discoveredHandler?.filePath ? { handlerFile: discoveredHandler.filePath } : {}),
-      hasDiscoveredModule: Boolean(discoveredHandler),
-      hasServerHookModule: Boolean(discoveredServerHook),
-      hasOnEnter: typeof step.onEnter === "function",
-      hasOnSubmit: typeof step.onSubmit === "function",
-      id: stepId,
-      resolvedOnEnter:
-        typeof step.onEnter === "function" || typeof discoveredHandler?.onEnter === "function",
-      resolvedOnSubmit:
-        typeof step.onSubmit === "function" ||
-        typeof discoveredHandler?.onSubmit === "function" ||
-        typeof discoveredServerHook?.onSubmit === "function",
-      resolvedServerGuard: typeof discoveredServerHook?.guard === "function",
-      resolvedServerLoader: typeof discoveredServerHook?.loader === "function",
-      resolvedServerSubmit: typeof discoveredServerHook?.onSubmit === "function",
-      ...(step.screen ? { screen: step.screen } : {}),
-      ...(discoveredServerHook?.filePath ? { serverHookFile: discoveredServerHook.filePath } : {}),
-      type: "miniapp" as const
-    });
-  });
+  return result;
+}
 
-  const hasRuntimeHandlers = steps.some(
-    (step) =>
-      step.resolvedOnEnter ||
-      step.resolvedOnSubmit ||
-      step.resolvedServerGuard ||
-      step.resolvedServerLoader ||
-      step.resolvedServerSubmit ||
-      step.actions.some((action) => action.hasHandler)
-  );
+export function createFlowCoordinationConfigFromFlows(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
+): Array<{ flowId: string; miniApp?: ActionFlowMiniAppDefinition }> {
+  return Array.from(normalizeDiscoveredFlows(flows), (flow) => ({
+    flowId: flow.id,
+    miniApp: flow.miniApp
+  }));
+}
 
-  return Object.freeze({
-    ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
-    ...(filePath ? { filePath } : {}),
-    finalStep: String(flow.finalStep),
-    hasRuntimeHandlers,
+export function createFlowRuntimeSummary(
+  flow: AnyFlowDefinition,
+  _options?: CreateFlowRuntimeSummaryOptions
+): DiscoveredFlowRuntimeSummary {
+  return {
+    actionCount: Object.keys(flow.actions ?? {}).length,
+    actions: Object.entries(flow.actions ?? {}).map(([id, action]) => ({
+      hasHandler: true,
+      id,
+      requiresSession: action.requiresSession ?? false
+    })),
+    command: flow.command?.command,
+    hasSession: flow.session?.enabled ?? false,
     id: flow.id,
-    initialStep: String(flow.initialStep),
-    ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
-    stepCount: steps.length,
-    steps: Object.freeze(steps)
-  });
+    routeCount: Object.keys(flow.miniApp?.routes ?? {}).length,
+    routes: Object.keys(flow.miniApp?.routes ?? {})
+  };
 }
 
 export function createFlowRuntimeSummaries(
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>,
-  options: CreateFlowRuntimeSummaryOptions = {}
+  options?: CreateFlowRuntimeSummaryOptions
 ): DiscoveredFlowRuntimeSummary[] {
-  return normalizeDiscoveredFlowsWithMetadata(flows).map((flow) =>
-    createFlowRuntimeSummary(flow, options)
-  );
+  return Array.from(normalizeDiscoveredFlows(flows), (flow) => createFlowRuntimeSummary(flow, options));
 }
 
-export function createFlowCoordinationConfigFromFlows(
-  options: CreateFlowCoordinationConfigFromFlowsOptions
-): ResolvedCoordinationConfig {
-  const flows = normalizeDiscoveredFlows(options.flows);
-  const flowEntries: Record<
-    string,
-    { defaultStep: string; finalStep: string; onComplete?: string; steps: string[] }
-  > = {};
-  const routes: Record<string, RouteCoordinationConfig> = {};
+export interface DiscoveredFlowRuntimeDebugState {
+  sessions: readonly DiscoveredFlowRuntimeSessionDebugState[];
+  updatedAt: string | null;
+}
 
-  for (const flow of flows) {
-    flowEntries[flow.id] = {
-      defaultStep: String(flow.initialStep),
-      finalStep: String(flow.finalStep),
-      ...(flow.onComplete ? { onComplete: flow.onComplete } : {}),
-      steps: Object.keys(flow.steps)
-    };
+export interface DiscoveredFlowRuntimeSessionDebugState {
+  flowId: string;
+  userId: string;
+  actionCount: number;
+  hasSession: boolean;
+}
+
+export interface DiscoveredFlowRuntimeMiniAppDebugState {
+  lastActionAt: string | null;
+}
+
+export function loadActionRegistry(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
+): ReadonlyMap<string, ActionFlowActionDefinition> {
+  const registry = new Map<string, ActionFlowActionDefinition>();
+
+  for (const entry of flows) {
+    const flow = "flow" in entry ? entry.flow : entry;
+
+    for (const [actionId, action] of Object.entries(flow.actions ?? {})) {
+      const key = `${flow.id}:${actionId}`;
+      if (registry.has(key)) {
+        throw new Error(`Duplicate action "${key}" discovered across flows.`);
+      }
+      registry.set(key, action);
+    }
+  }
+
+  return registry;
+}
+
+export function loadRouteRegistry(
+  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
+): ReadonlyMap<string, { flowId: string; screenId: string }> {
+  const routes = new Map<string, { flowId: string; screenId: string }>();
+
+  for (const entry of flows) {
+    const flow = "flow" in entry ? entry.flow : entry;
 
     if (!flow.miniApp) {
       continue;
     }
 
-    if (routes[flow.miniApp.route]) {
-      throw new Error(`Duplicate flow route "${flow.miniApp.route}" discovered.`);
+    for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
+      if (routes.has(route)) {
+        throw new Error(
+          `Duplicate Mini App route "${route}" discovered across flows.`
+        );
+      }
+
+      routes.set(route, { flowId: flow.id, screenId });
     }
-
-    routes[flow.miniApp.route] = {
-      entryPoints: resolveMiniAppRouteEntryPoints(flow),
-      flow: {
-        entryStep: flow.bot?.command?.entryStep ?? String(flow.initialStep),
-        flowId: flow.id,
-        ...(flow.miniApp.requestWriteAccess ? { requestWriteAccess: true } : {})
-      },
-      returnToChat: flow.miniApp.returnToChat ?? options.returnToChat,
-      stepRoutes: flow.miniApp.stepRoutes
-    };
-  }
-
-  return defineCoordinationConfig({
-    defaults: {
-      ...DEFAULT_COORDINATION_DEFAULTS,
-      ...(options.defaults ?? {})
-    },
-    flows: flowEntries,
-    routes
-  });
-}
-
-function resolveMiniAppRouteEntryPoints(flow: AnyFlowDefinition): readonly LaunchEntryPoint[] {
-  const entryPoints = [
-    ...(flow.miniApp?.entryPoints ?? []),
-    ...(flow.bot?.command
-      ? [
-          {
-            command: flow.bot.command.command,
-            type: "bot_command" as const
-          }
-        ]
-      : [])
-  ];
-
-  if (entryPoints.length > 0) {
-    return Object.freeze(entryPoints);
-  }
-
-  return Object.freeze([{ type: "miniapp" as const }]);
-}
-
-export function createFlowRoutes(options: CreateFlowRoutesOptions): RouteDefinition[] {
-  const flows = normalizeDiscoveredFlows(options.flows);
-  const coordination = createFlowCoordinationConfigFromFlows({
-    defaults: options.defaults,
-    flows,
-    returnToChat: options.returnToChat
-  });
-  const routes = [...(options.routes ?? [])];
-  const seenPaths = new Set(routes.map((route) => route.path));
-
-  for (const flow of flows) {
-    if (!flow.miniApp) {
-      continue;
-    }
-
-    const resolvedRoute = coordination.resolveRoute(flow.miniApp.route);
-
-    if (!resolvedRoute) {
-      throw new Error(
-        `Unable to derive route metadata for flow "${flow.id}" at path "${flow.miniApp.route}".`
-      );
-    }
-
-    if (seenPaths.has(flow.miniApp.route)) {
-      throw new Error(`Duplicate route path "${flow.miniApp.route}" while deriving flow routes.`);
-    }
-
-    routes.push({
-      ...(flow.miniApp.capabilities ? { capabilities: flow.miniApp.capabilities } : {}),
-      coordination: resolvedRoute.metadata,
-      ...(flow.miniApp.description ? { description: flow.miniApp.description } : {}),
-      ...(flow.miniApp.guards ? { guards: [...flow.miniApp.guards] } : {}),
-      ...(flow.miniApp.launchModes ? { launchModes: [...flow.miniApp.launchModes] } : {}),
-      ...(flow.miniApp.meta ? { meta: { ...flow.miniApp.meta } } : {}),
-      path: flow.miniApp.route,
-      ...(flow.miniApp.title ? { title: flow.miniApp.title } : {}),
-      ...(flow.miniApp.ui ? { ui: structuredClone(flow.miniApp.ui) } : {})
-    });
-    seenPaths.add(flow.miniApp.route);
   }
 
   return routes;
-}
-
-function resolveFlowRoot(options: DiscoverFlowFilesOptions): string {
-  return options.root ?? options.app?.flows?.root ?? DEFAULT_FLOW_ROOT;
-}
-
-function resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): string {
-  if (options.root) {
-    return options.root;
-  }
-
-  if (options.app?.flows?.handlersRoot) {
-    return options.app.flows.handlersRoot;
-  }
-
-  return deriveHandlersRootFromFlowRoot(options.app?.flows?.root ?? DEFAULT_FLOW_ROOT);
 }
 
 export function resolveFlowServerHooksRoot(options: DiscoverFlowServerHookFilesOptions): string {
@@ -723,275 +443,130 @@ export function resolveFlowServerHooksRoot(options: DiscoverFlowServerHookFilesO
     return options.root;
   }
 
-  if (options.app?.flows?.serverHooksRoot) {
-    return options.app.flows.serverHooksRoot;
+  const serverHooksRoot = options.app?.flows?.serverHooksRoot;
+  if (serverHooksRoot) {
+    return serverHooksRoot;
   }
 
-  return deriveServerHooksRootFromFlowRoot(options.app?.flows?.root ?? DEFAULT_FLOW_ROOT);
+  const flowRoot = resolveFlowRoot(options);
+  return path.join(flowRoot, "..", "flow-hooks");
 }
 
-async function collectFilesBySuffix(root: string, suffixes: readonly string[]): Promise<string[]> {
-  const entries = await readdir(root, {
+// Internal helpers
+
+function resolveFlowRoot(options: DiscoverFlowFilesOptions): string {
+  if (options.root) {
+    return options.root;
+  }
+
+  if (options.app?.flows?.root) {
+    return options.app.flows.root;
+  }
+
+  return DEFAULT_FLOW_ROOT;
+}
+
+function resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): string {
+  if (options.root) {
+    return options.root;
+  }
+
+  const handlersRoot = options.app?.flows?.handlersRoot;
+  if (handlersRoot) {
+    return handlersRoot;
+  }
+
+  const flowRoot = resolveFlowRoot(options);
+  return path.join(flowRoot, "..", "flow-handlers");
+}
+
+async function loadFlowDefinition(filePath: string): Promise<ActionFlowDefinition> {
+  const module = await import(pathToFileURL(filePath).href);
+  const flow = module.default ?? module.flow;
+
+  if (!flow || typeof flow.id !== "string") {
+    throw new Error(
+      `Flow module "${filePath}" must export a flow definition via export default defineFlow(...).`
+    );
+  }
+
+  return flow as ActionFlowDefinition;
+}
+
+async function loadScreenDefinition(filePath: string) {
+  const module = await import(pathToFileURL(filePath).href);
+  const screen = module.default ?? module.screen;
+
+  if (!screen || typeof screen.id !== "string") {
+    throw new Error(
+      `Screen module "${filePath}" must export a screen definition via export default defineScreen(...).`
+    );
+  }
+
+  return screen;
+}
+
+async function collectFilesBySuffix(
+  absoluteRoot: string,
+  suffixes: readonly string[]
+): Promise<string[]> {
+  const entries = await readdir(absoluteRoot, {
+    recursive: true,
     withFileTypes: true
   });
-  const files: string[] = [];
 
-  for (const entry of entries) {
-    const target = path.join(root, entry.name);
+  return entries
+    .filter((entry) => entry.isFile() && suffixes.some((suffix) => entry.name.endsWith(suffix)))
+    .map((entry) => path.join(entry.parentPath ?? absoluteRoot, entry.name))
+    .sort();
+}
 
-    if (entry.isDirectory()) {
-      files.push(...(await collectFilesBySuffix(target, suffixes)));
-      continue;
+async function collectFlowFiles(absoluteRoot: string): Promise<string[]> {
+  return collectFilesBySuffix(absoluteRoot, FLOW_FILE_SUFFIXES);
+}
+
+function stripKnownExtension(
+  filename: string,
+  suffixes: readonly string[]
+): string {
+  for (const suffix of suffixes) {
+    if (filename.endsWith(suffix)) {
+      return filename.slice(0, -suffix.length);
     }
-
-    if (suffixes.some((suffix) => entry.name.endsWith(suffix))) {
-      files.push(target);
-    }
   }
 
-  files.sort();
-  return files;
-}
-
-async function collectFlowFiles(root: string): Promise<string[]> {
-  return collectFilesBySuffix(root, FLOW_FILE_SUFFIXES);
-}
-
-async function loadFlowDefinition(filePath: string): Promise<AnyFlowDefinition> {
-  const loaded = await import(pathToFileURL(filePath).href);
-  const candidate = loaded.default ?? loaded.flow;
-
-  if (!isFlowDefinition(candidate)) {
-    throw new Error(
-      `Flow module "${filePath}" must export a flow definition as the default export or named "flow" export.`
-    );
-  }
-
-  return candidate;
-}
-
-async function loadScreenDefinition(filePath: string): Promise<DiscoveredScreenModule["screen"]> {
-  const module = await import(pathToFileURL(filePath).href);
-  const screen = module.default;
-
-  if (!screen || typeof screen !== "object" || typeof screen.id !== "string") {
-    throw new Error(`Screen module "${filePath}" must default-export a screen definition.`);
-  }
-
-  return Object.freeze(screen);
-}
-
-async function loadFlowHandlerModule(
-  filePath: string,
-  flowId: string,
-  stepId: string
-): Promise<DiscoveredFlowStepHandlerModule> {
-  const loaded = await import(pathToFileURL(filePath).href);
-  const candidate = loaded.default ?? loaded.handler ?? loaded.stepHandler ?? loaded;
-  const module =
-    candidate &&
-    typeof candidate === "object" &&
-    "default" in candidate &&
-    candidate.default &&
-    typeof candidate.default === "object"
-      ? candidate.default
-      : candidate;
-
-  if (!module || typeof module !== "object") {
-    throw new Error(
-      `Flow handler module "${filePath}" must export an object or named handler exports.`
-    );
-  }
-
-  const actions: Record<string, DiscoveredHandlerFunction> =
-    "actions" in module && module.actions && typeof module.actions === "object"
-      ? (Object.fromEntries(
-          Object.entries(module.actions as Record<string, unknown>).filter(
-            ([key, value]) => typeof key === "string" && typeof value === "function"
-          )
-        ) as Record<string, DiscoveredHandlerFunction>)
-      : {};
-
-  return Object.freeze({
-    actions: Object.freeze(actions),
-    filePath,
-    flowId,
-    ...(typeof module.onEnter === "function"
-      ? { onEnter: module.onEnter as DiscoveredHandlerFunction }
-      : {}),
-    ...(typeof module.onSubmit === "function"
-      ? { onSubmit: module.onSubmit as DiscoveredHandlerFunction }
-      : {}),
-    stepId
-  });
-}
-
-async function loadFlowServerHookModule(
-  filePath: string,
-  flowId: string,
-  stepId: string
-): Promise<DiscoveredFlowStepServerHookModule> {
-  const loaded = await import(pathToFileURL(filePath).href);
-  const candidate = loaded.default ?? loaded.serverHook ?? loaded.stepServerHook ?? loaded;
-  const module =
-    candidate &&
-    typeof candidate === "object" &&
-    "default" in candidate &&
-    candidate.default &&
-    typeof candidate.default === "object"
-      ? candidate.default
-      : candidate;
-
-  if (!module || typeof module !== "object") {
-    throw new Error(
-      `Flow server-hook module "${filePath}" must export an object or named hook exports.`
-    );
-  }
-
-  const actions: Record<string, DiscoveredHandlerFunction> =
-    "actions" in module && module.actions && typeof module.actions === "object"
-      ? (Object.fromEntries(
-          Object.entries(module.actions as Record<string, unknown>).filter(
-            ([key, value]) => typeof key === "string" && typeof value === "function"
-          )
-        ) as Record<string, DiscoveredHandlerFunction>)
-      : {};
-
-  return Object.freeze({
-    actions: Object.freeze(actions),
-    filePath,
-    flowId,
-    ...(typeof module.guard === "function"
-      ? { guard: module.guard as DiscoveredHandlerFunction }
-      : {}),
-    ...(typeof module.loader === "function"
-      ? { loader: module.loader as DiscoveredHandlerFunction }
-      : {}),
-    ...(typeof module.onSubmit === "function"
-      ? { onSubmit: module.onSubmit as DiscoveredHandlerFunction }
-      : {}),
-    stepId
-  });
-}
-
-function isFlowDefinition(value: unknown): value is AnyFlowDefinition {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "id" in value &&
-    typeof value.id === "string" &&
-    "initialStep" in value &&
-    typeof value.initialStep === "string" &&
-    "steps" in value &&
-    typeof value.steps === "object" &&
-    value.steps !== null
-  );
+  return filename;
 }
 
 function normalizeDiscoveredFlows(
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
 ): AnyFlowDefinition[] {
-  const normalized: AnyFlowDefinition[] = [];
-
-  for (const item of flows) {
-    normalized.push("flow" in item ? item.flow : item);
-  }
-
-  return normalized;
+  return Array.from(flows, (entry) => ("flow" in entry ? entry.flow : entry));
 }
 
-function normalizeDiscoveredFlowsWithMetadata(
-  flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>
-): Array<AnyFlowDefinition | DiscoveredFlowModule> {
-  const normalized: Array<AnyFlowDefinition | DiscoveredFlowModule> = [];
-
-  for (const item of flows) {
-    normalized.push(item);
-  }
-
-  return normalized;
-}
-
-function createFlowHandlerIndex(
-  handlers: Iterable<DiscoveredFlowStepHandlerModule>
-): Map<string, DiscoveredFlowStepHandlerModule> {
-  const index = new Map<string, DiscoveredFlowStepHandlerModule>();
-
-  for (const handler of handlers) {
-    index.set(`${handler.flowId}:${handler.stepId}`, handler);
-  }
-
-  return index;
-}
-
-function createFlowServerHookIndex(
-  serverHooks: Iterable<DiscoveredFlowStepServerHookModule>
-): Map<string, DiscoveredFlowStepServerHookModule> {
-  const index = new Map<string, DiscoveredFlowStepServerHookModule>();
-
-  for (const hook of serverHooks) {
-    index.set(`${hook.flowId}:${hook.stepId}`, hook);
-  }
-
-  return index;
-}
-
-function deriveHandlersRootFromFlowRoot(flowRoot: string): string {
-  const normalized = flowRoot.replace(/\\/g, "/");
-  if (normalized.endsWith("/flows")) {
-    return normalized.replace(/\/flows$/, "/flow-handlers");
-  }
-
-  return `${normalized}-handlers`;
-}
-
-function deriveServerHooksRootFromFlowRoot(flowRoot: string): string {
-  const normalized = flowRoot.replace(/\\/g, "/");
-
-  if (normalized.includes("/bot/") && normalized.endsWith("/flows")) {
-    return normalized.replace("/bot/", "/api/").replace(/\/flows$/, "/flow-hooks");
-  }
-
-  if (normalized.endsWith("/flows")) {
-    return normalized.replace(/\/flows$/, "/flow-hooks");
-  }
-
-  return "apps/api/src/flow-hooks";
-}
-
-function stripKnownExtension(fileName: string, extensions: readonly string[]): string {
-  for (const extension of extensions) {
-    if (fileName.endsWith(extension)) {
-      return fileName.slice(0, -extension.length);
-    }
-  }
-
-  return fileName;
+function normalizeCommandName(command: string): string {
+  return command.replace(/^\//, "").trim().toLowerCase();
 }
 
 function isMissingPathError(error: unknown): boolean {
-  return !!error && typeof error === "object" && "code" in error && error.code === "ENOENT";
+  if (error instanceof Error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    return nodeError.code === "ENOENT";
+  }
+  return false;
 }
 
-async function resolveFlowScopedValue<T>(
-  value: T | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<T> | T) | undefined,
+async function resolveCommandValue<T>(
+  value: T | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<T> | T),
   context: CommandContext,
-  flow: AnyFlowDefinition
-): Promise<T | undefined> {
+  flow?: AnyFlowDefinition
+): Promise<T> {
   if (typeof value === "function") {
     return (value as (context: CommandContext, flow: AnyFlowDefinition) => Promise<T> | T)(
       context,
-      flow
+      flow!
     );
   }
 
   return value;
-}
-
-async function resolveFlowScopedRequiredValue<T>(
-  value: T | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<T> | T),
-  context: CommandContext,
-  flow: AnyFlowDefinition
-): Promise<T> {
-  return (await resolveFlowScopedValue(value, context, flow)) as T;
 }

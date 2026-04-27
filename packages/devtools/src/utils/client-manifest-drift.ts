@@ -20,12 +20,18 @@ export async function readClientManifestFlowIds(manifestPath: string): Promise<s
 
   try {
     const parsed = JSON.parse(arrayMatch[1]) as unknown;
-    if (!Array.isArray(parsed)) {
+    let flows: Array<{ id?: unknown }>;
+
+    if (Array.isArray(parsed)) {
+      flows = parsed;
+    } else if (typeof parsed === "object" && parsed !== null && "flows" in parsed && Array.isArray((parsed as Record<string, unknown>).flows)) {
+      flows = (parsed as Record<string, unknown>).flows as Array<{ id?: unknown }>;
+    } else {
       return null;
     }
 
     const flowIds: string[] = [];
-    for (const item of parsed) {
+    for (const item of flows) {
       if (typeof item !== "object" || item === null) {
         return null;
       }

@@ -29,17 +29,15 @@ export type TeleforgeManifest = CoreTeleforgeManifest;
 export interface DiscoveredTeleforgeFlowSummary {
   command?: string;
   filePath?: string;
-  finalStep: string;
   hasRuntimeHandlers: boolean;
   hasWiringGaps: boolean;
   id: string;
-  initialStep: string;
-  passiveStepCount: number;
   route?: string;
-  stepCount: number;
-  steps: readonly DiscoveredTeleforgeFlowStepSummary[];
-  warningStepCount: number;
+  routeCount: number;
+  actionCount: number;
   wiredStepCount: number;
+  routes: readonly string[];
+  actions: readonly DiscoveredTeleforgeFlowActionSummary[];
 }
 
 export interface DiscoveredTeleforgeFlowActionSummary {
@@ -248,33 +246,17 @@ function deriveConfigRoutes(
 
 interface RouteFlowDefinition {
   __filePath?: string;
-  bot?: {
-    command?: {
-      command: string;
-      entryStep?: string;
-    };
-  };
-  finalStep?: string;
   id: string;
-  initialStep: string;
-  miniApp?: {
-    capabilities?: RouteDefinition["capabilities"];
-    description?: string;
-    entryPoints?: LaunchEntryPoint[];
-    guards?: string[];
-    launchModes?: Array<"compact" | "fullscreen" | "inline">;
-    meta?: RouteDefinition["meta"];
-    requestWriteAccess?: boolean;
-    returnToChat?: {
-      stayInChat?: boolean;
-      text: string;
-    };
-    route: string;
-    stepRoutes?: Record<string, string>;
-    title?: string;
-    ui?: RouteDefinition["ui"];
+  command?: {
+    command: string;
+    description: string;
   };
-  steps: Record<string, unknown>;
+  miniApp?: {
+    routes: Record<string, string>;
+    defaultRoute?: string;
+    title?: string;
+  };
+  actions?: Record<string, unknown>;
 }
 
 function summarizeFlows(
@@ -287,47 +269,30 @@ function summarizeFlows(
 
   return flows.map((flow) => {
     const runtimeSummary = runtimeSummariesById.get(flow.id);
-    const steps = (runtimeSummary?.steps ?? []).map((step) => {
-      if (!step.screen) {
-        return step;
-      }
-
-      const screenSummary = screenSummariesById.get(step.screen);
-      const screenResolved = Boolean(screenSummary);
-      const hasWiringGaps = step.hasWiringGaps || !screenResolved;
-      const status = hasWiringGaps
-        ? ("warning" as const)
-        : step.hasRuntimeWiring
-          ? ("wired" as const)
-          : ("passive" as const);
-
-      return Object.freeze({
-        ...step,
-        hasWiringGaps,
-        ...(screenSummary ? { screenFilePath: screenSummary.filePath } : {}),
-        screenResolved,
-        ...(screenSummary?.title ? { screenTitle: screenSummary.title } : {}),
-        status
-      });
-    });
-    const warningStepCount = steps.filter((step) => step.status === "warning").length;
-    const wiredStepCount = steps.filter((step) => step.status === "wired").length;
-    const passiveStepCount = steps.filter((step) => step.status === "passive").length;
+    const routeCount = Object.keys(flow.miniApp?.routes ?? {}).length;
+    const actionCount = Object.keys(flow.actions ?? {}).length;
+    const routes = Object.keys(flow.miniApp?.routes ?? {});
+    const actions = (runtimeSummary?.actions ?? []).map((a) => ({
+      hasHandler: a.hasHandler,
+      handlerSource: a.hasHandler ? ("inline" as const) : ("none" as const),
+      id: a.id,
+      isResolved: a.hasHandler,
+      label: a.id,
+      resolution: a.hasHandler ? ("handler" as const) : ("none" as const)
+    }));
 
     return {
-      ...(flow.bot?.command?.command ? { command: flow.bot.command.command } : {}),
+      ...(flow.command?.command ? { command: flow.command.command } : {}),
       ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
-      finalStep: flow.finalStep ?? flow.initialStep,
       hasRuntimeHandlers: runtimeSummary?.hasRuntimeHandlers ?? false,
-      hasWiringGaps: warningStepCount > 0,
+      hasWiringGaps: false,
       id: flow.id,
-      initialStep: flow.initialStep,
-      passiveStepCount: runtimeSummary ? passiveStepCount : Object.keys(flow.steps).length,
-      ...(flow.miniApp?.route ? { route: flow.miniApp.route } : {}),
-      stepCount: Object.keys(flow.steps).length,
-      steps: Object.freeze(steps),
-      warningStepCount,
-      wiredStepCount
+      ...(flow.miniApp?.defaultRoute ? { route: flow.miniApp.defaultRoute } : {}),
+      routeCount,
+      actionCount,
+      wiredStepCount: routeCount,
+      routes,
+      actions
     };
   });
 }
@@ -480,13 +445,13 @@ interface RuntimeFlowStepSummary {
 interface RuntimeFlowSummary {
   command?: string;
   filePath?: string;
-  finalStep: string;
   hasRuntimeHandlers: boolean;
   id: string;
-  initialStep: string;
-  route?: string;
-  stepCount: number;
-  steps: readonly RuntimeFlowStepSummary[];
+  routeCount: number;
+  actionCount: number;
+  routes: readonly string[];
+  actions: readonly { id: string; hasHandler: boolean; requiresSession: boolean }[];
+  hasSession: boolean;
 }
 
 async function loadScreenSummaries(options: {
@@ -585,18 +550,7 @@ async function loadFlowRuntimeSummaries(options: {
       app,
       cwd
     });
-    const handlers = await teleforge.loadTeleforgeFlowHandlers({
-      app,
-      cwd
-    });
-    const serverHooks = await teleforge.loadTeleforgeFlowServerHooks({
-      app,
-      cwd
-    });
-    const summaries = teleforge.createFlowRuntimeSummaries(flows, {
-      handlers,
-      serverHooks
-    });
+    const summaries = teleforge.createFlowRuntimeSummaries(flows);
 
     await writeFile(outputPath, JSON.stringify(summaries));
   `;
@@ -638,70 +592,20 @@ function createDiagnosticSummaries(
   summaries: RuntimeFlowSummary[]
 ): DiscoveredTeleforgeFlowSummary[] {
   return summaries.map((summary) => {
-    const steps = summary.steps.map((step) => {
-      const actions = step.actions.map((action) => {
-        const isResolved = action.hasHandler || typeof action.to === "string";
-
-        return Object.freeze({
-          ...action,
-          isResolved,
-          resolution: action.hasHandler
-            ? ("handler" as const)
-            : typeof action.to === "string"
-              ? ("transition" as const)
-              : ("none" as const)
-        });
-      });
-      const actionIds = new Set(actions.map((action) => action.id));
-      const unresolvedActionIds = actions
-        .filter((action) => !action.isResolved)
-        .map((action) => action.id);
-      const extraActionHandlerIds = step.discoveredActionHandlerIds.filter(
-        (id) => !actionIds.has(id)
-      );
-      const extraServerActionIds = step.discoveredServerActionIds.filter(
-        (id) => !actionIds.has(id)
-      );
-      const resolvedActionCount = actions.filter((action) => action.isResolved).length;
-      const hasRuntimeWiring =
-        step.resolvedOnEnter ||
-        step.resolvedOnSubmit ||
-        step.resolvedServerGuard ||
-        step.resolvedServerLoader ||
-        step.resolvedServerSubmit ||
-        resolvedActionCount > 0;
-      const hasWiringGaps =
-        unresolvedActionIds.length > 0 ||
-        extraActionHandlerIds.length > 0 ||
-        extraServerActionIds.length > 0;
-
-      return Object.freeze({
-        ...step,
-        actions: Object.freeze(actions),
-        extraActionHandlerIds: Object.freeze(extraActionHandlerIds),
-        extraServerActionIds: Object.freeze(extraServerActionIds),
-        hasRuntimeWiring,
-        hasWiringGaps,
-        resolvedActionCount,
-        status: hasWiringGaps
-          ? ("warning" as const)
-          : hasRuntimeWiring
-            ? ("wired" as const)
-            : ("passive" as const),
-        unresolvedActionIds: Object.freeze(unresolvedActionIds)
-      });
-    });
-    const warningStepCount = steps.filter((step) => step.status === "warning").length;
-    const wiredStepCount = steps.filter((step) => step.status === "wired").length;
-    const passiveStepCount = steps.filter((step) => step.status === "passive").length;
+    const actions = summary.actions.map((action) => ({
+      hasHandler: action.hasHandler,
+      handlerSource: action.hasHandler ? ("inline" as const) : ("none" as const),
+      id: action.id,
+      isResolved: action.hasHandler,
+      label: action.id,
+      resolution: action.hasHandler ? ("handler" as const) : ("none" as const)
+    }));
 
     return Object.freeze({
       ...summary,
-      hasWiringGaps: warningStepCount > 0,
-      passiveStepCount,
-      steps: Object.freeze(steps),
-      warningStepCount,
-      wiredStepCount
+      hasWiringGaps: false,
+      wiredStepCount: summary.routeCount,
+      actions: Object.freeze(actions)
     });
   });
 }
@@ -714,51 +618,37 @@ function createRoutesFromFlows(
   const seenPaths = new Set(routes.map((route) => route.path));
 
   for (const flow of flows) {
-    if (!flow.miniApp) {
+    if (!flow.miniApp?.routes) {
       continue;
     }
 
-    if (seenPaths.has(flow.miniApp.route)) {
-      throw new Error(`Duplicate route path "${flow.miniApp.route}" while deriving flow routes.`);
-    }
+    for (const [routePath, screenId] of Object.entries(flow.miniApp.routes)) {
+      if (seenPaths.has(routePath)) {
+        throw new Error(`Duplicate route path "${routePath}" while deriving flow routes.`);
+      }
 
-    routes.push({
-      ...(flow.miniApp.capabilities ? { capabilities: flow.miniApp.capabilities } : {}),
-      coordination: {
-        entryPoints: resolveMiniAppRouteEntryPoints(flow),
-        flow: {
-          entryStep: flow.bot?.command?.entryStep ?? String(flow.initialStep),
-          flowId: flow.id,
-          ...(flow.miniApp.requestWriteAccess ? { requestWriteAccess: true } : {})
+      routes.push({
+        coordination: {
+          entryPoints: resolveMiniAppRouteEntryPoints(flow),
+          flow: {
+            entryStep: screenId,
+            flowId: flow.id
+          }
         },
-        ...(flow.miniApp.returnToChat ? { returnToChat: flow.miniApp.returnToChat } : {})
-      },
-      ...(flow.miniApp.description ? { description: flow.miniApp.description } : {}),
-      ...(flow.miniApp.guards ? { guards: [...flow.miniApp.guards] } : {}),
-      ...(flow.miniApp.launchModes ? { launchModes: [...flow.miniApp.launchModes] } : {}),
-      ...(flow.miniApp.meta ? { meta: { ...flow.miniApp.meta } } : {}),
-      path: flow.miniApp.route,
-      ...(flow.miniApp.title ? { title: flow.miniApp.title } : {}),
-      ...(flow.miniApp.ui ? { ui: structuredClone(flow.miniApp.ui) } : {})
-    });
-    seenPaths.add(flow.miniApp.route);
+        path: routePath,
+        ...(flow.miniApp.title ? { title: flow.miniApp.title } : {})
+      });
+      seenPaths.add(routePath);
+    }
   }
 
   return routes;
 }
 
 function resolveMiniAppRouteEntryPoints(flow: RouteFlowDefinition): LaunchEntryPoint[] {
-  const entryPoints = [
-    ...(flow.miniApp?.entryPoints ?? []),
-    ...(flow.bot?.command
-      ? [
-          {
-            command: flow.bot.command.command,
-            type: "bot_command" as const
-          }
-        ]
-      : [])
-  ];
+  const entryPoints: LaunchEntryPoint[] = flow.command
+    ? [{ command: flow.command.command, type: "bot_command" as const }]
+    : [];
 
   return entryPoints.length > 0 ? entryPoints : [{ type: "miniapp" as const }];
 }
@@ -834,14 +724,14 @@ function formatManifestValidationErrors(
   );
   if (emptyRoutesIssue) {
     const flowIdsWithoutMiniAppRoutes = flowModules
-      .filter((flow) => hasMiniAppStep(flow) && typeof flow.miniApp?.route !== "string")
+      .filter((flow) => hasMiniAppStep(flow) && !flow.miniApp?.routes)
       .map((flow) => flow.id);
     const details =
       flowIdsWithoutMiniAppRoutes.length > 0
         ? [
             "No Mini App routes could be derived from discovered flows.",
-            `Flows with Mini App steps but no flow-level miniApp.route: ${flowIdsWithoutMiniAppRoutes.join(", ")}.`,
-            "Add `miniApp: { route: \"/\" }` to each flow that owns Mini App steps; use `miniApp.stepRoutes` for per-step paths."
+            `Flows with Mini App screens but no flow-level miniApp.routes: ${flowIdsWithoutMiniAppRoutes.join(", ")}.`,
+            "Add `miniApp: { routes: { \"/\": \"screenId\" } }` to each flow that owns Mini App screens."
           ]
         : [
             "No Mini App routes were found.",
@@ -858,13 +748,7 @@ function formatManifestValidationErrors(
 }
 
 function hasMiniAppStep(flow: RouteFlowDefinition): boolean {
-  return Object.values(flow.steps).some(
-    (step) =>
-      typeof step === "object" &&
-      step !== null &&
-      "type" in step &&
-      (step as { type?: unknown }).type === "miniapp"
-  );
+  return Boolean(flow.miniApp && Object.keys(flow.miniApp.routes ?? {}).length > 0);
 }
 
 function inferManifestIssueContext(
@@ -881,8 +765,13 @@ function inferManifestIssueContext(
     const routeIndex = Number.parseInt(rest[0], 10);
     const routeField = rest[1];
     const derivedFlowRoutes = flowModules
-      .filter((f) => typeof f.miniApp?.route === "string")
-      .map((f) => ({ flowId: f.id, route: f.miniApp!.route }));
+      .filter((f) => f.miniApp?.routes)
+      .flatMap((f) =>
+        Object.keys(f.miniApp!.routes).map((route) => ({
+          flowId: f.id,
+          route
+        }))
+      );
 
     if (!Number.isNaN(routeIndex)) {
       if (routeField === "coordination" && rest[2] === "entryPoints") {

@@ -1,22 +1,16 @@
 export {
-  createDiscoveredServerHooksHandler,
+  createActionServerHooksHandler,
   createFetchMiniAppServerBridge,
-  DEFAULT_SERVER_HOOKS_PATH,
-  executeTeleforgeServerHookAction,
-  executeTeleforgeServerHookLoad,
-  executeTeleforgeServerHookSubmit
+  DEFAULT_SERVER_HOOKS_PATH
 } from "./server-hooks.js";
 
 export type {
-  CreateDiscoveredServerHooksHandlerOptions,
-  CreateFetchMiniAppServerBridgeOptions,
-  TeleforgeMiniAppServerActionInput,
-  TeleforgeMiniAppServerBridge,
-  TeleforgeMiniAppServerLoadAllowedResult,
-  TeleforgeMiniAppServerLoadBlockedResult,
-  TeleforgeMiniAppServerLoadInput,
-  TeleforgeMiniAppServerLoadResult,
-  TeleforgeMiniAppServerSubmitInput,
-  TeleforgeServerHookTrustContext,
-  TeleforgeServerHookTrustOptions
+  CreateActionServerHooksHandlerOptions,
+  ActionServerHookTrustContext,
+  ActionServerHookTrustOptions
 } from "./server-hooks.js";
+
+export type {
+  CreateFetchMiniAppServerBridgeOptions,
+  TeleforgeMiniAppServerBridge
+} from "./server-bridge.js";
