@@ -1,16 +1,18 @@
 import { useLaunchCoordination } from "@teleforgex/web";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { MiniAppStateProvider, useAppState } from "./miniapp-state.js";
-import { extractRouteParams, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
+import { extractRouteParams, findRoutePattern, resolveMiniAppScreen, toHelperName, validateRouteParams } from "./screens.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { TeleforgeClientFlowManifest } from "./flow-manifest.js";
 import type { MiniAppState } from "./miniapp-state.js";
 import type {
+  ActionHelpers,
   DiscoveredScreenModule,
   LoaderState,
+  NavigationHelpers,
   ResolvedMiniAppScreen,
   TeleforgeScreenDefinition,
   TeleforgeScreenGuardBlock,
@@ -38,6 +40,8 @@ export interface ScreenProps {
   loader: LoaderState;
   loaderData?: unknown;
   appState: MiniAppState;
+  actions: ActionHelpers;
+  nav: NavigationHelpers;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenId: string, options?: NavigateOptions) => void;
   transitioning: boolean;
@@ -220,13 +224,13 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
   const appState = useAppState();
   const scopeData = parseSignedContextSubject(launchCoordination.rawFlowContext);
 
-  const navigateClient = (screenId: string, options?: NavigateOptions) => {
+  const navigateClient = useCallback((screenId: string, options?: NavigateOptions) => {
     setRouteData(options?.data);
     const path = resolveRoute(screenId, options?.params, props.flowManifest);
     setActivePathname(path);
-  };
+  }, [props.flowManifest]);
 
-  const runActionClosure = async (actionId: string, payload?: unknown): Promise<ActionResult> => {
+  const runActionClosure = useCallback(async (actionId: string, payload?: unknown): Promise<ActionResult> => {
     setIsTransitioning(true);
     try {
       if (props.serverBridge) {
@@ -248,7 +252,6 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
             if (result.handoff.closeMiniApp) {
               scheduleClose(props.onReturnToChat);
             } else {
-              // Dismiss non-close handoff after a short delay
               setTimeout(() => setHandoff(null), 2000);
             }
           }
@@ -279,7 +282,46 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
     } finally {
       setIsTransitioning(false);
     }
-  };
+  }, [screen.flowId, props.serverBridge, launchCoordination.rawFlowContext, props.onReturnToChat, navigateClient]);
+
+  const actions: ActionHelpers = useMemo(() => {
+    const entries = Object.keys(screen.flow.actions ?? {}).map((actionId) => [
+      actionId,
+      (payload?: unknown) => runActionClosure(actionId, payload)
+    ]);
+    return Object.freeze(Object.fromEntries(entries));
+  }, [screen.flow.actions, runActionClosure]);
+
+  const nav: NavigationHelpers = useMemo(() => {
+    const routes = screen.flow.miniApp?.routes ?? {};
+    const screenToRoute = new Map<string, string>();
+    const seenHelpers = new Map<string, string>();
+    const entries: Array<[string, (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => void]> = [];
+
+    for (const [routePath, sid] of Object.entries(routes)) {
+      if (screenToRoute.has(sid)) continue;
+      screenToRoute.set(sid, routePath);
+
+      const helperName = toHelperName(sid);
+      const existing = seenHelpers.get(helperName);
+      if (existing) {
+        throw new Error(
+          `Screen IDs "${existing}" and "${sid}" both normalize to helper name "${helperName}". Rename one to avoid collision.`
+        );
+      }
+      seenHelpers.set(helperName, sid);
+
+      entries.push([
+        helperName,
+        (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => {
+          validateRouteParams(routePath, params);
+          navigateClient(sid, { params, data: options?.data });
+        }
+      ]);
+    }
+
+    return Object.freeze(Object.fromEntries(entries));
+  }, [screen.flow.miniApp?.routes, navigateClient]);
 
   const loaderData = loader.status === "ready" ? loader.data : undefined;
 
@@ -291,6 +333,8 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
       loader={loader}
       loaderData={loaderData}
       appState={appState}
+      actions={actions}
+      nav={nav}
       runAction={runActionClosure}
       navigate={navigateClient}
       transitioning={isTransitioning}

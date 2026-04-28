@@ -15,6 +15,14 @@ export type LoaderState =
   | { status: "error"; error: Error }
   | { status: "idle" };
 
+export type ActionHelpers<TActionId extends string = string> = Readonly<
+  Record<TActionId, (payload?: unknown) => Promise<ActionResult>>
+>;
+
+export type NavigationHelpers<TScreenId extends string = string> = Readonly<
+  Record<TScreenId, (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => void>
+>;
+
 export interface TeleforgeScreenComponentProps {
   scopeData?: Record<string, unknown>;
   routeParams: Record<string, string>;
@@ -22,6 +30,8 @@ export interface TeleforgeScreenComponentProps {
   loader: LoaderState;
   loaderData?: unknown;
   appState?: MiniAppState;
+  actions: ActionHelpers;
+  nav: NavigationHelpers;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenIdOrRoute: string, paramsOrOptions?: Record<string, unknown>) => void;
   transitioning: boolean;
@@ -282,4 +292,47 @@ export function extractRouteParams(
   }
 
   return params;
+}
+
+export function toHelperName(id: string): string {
+  const name = id
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part, index) =>
+      index === 0
+        ? part.charAt(0).toLowerCase() + part.slice(1)
+        : part.charAt(0).toUpperCase() + part.slice(1)
+    )
+    .join("");
+
+  if (name.length === 0) {
+    throw new Error(`Screen ID "${id}" normalizes to an empty helper name.`);
+  }
+
+  if (/^[0-9]/.test(name)) {
+    throw new Error(
+      `Screen ID "${id}" normalizes to "${name}" which starts with a digit. Helper names must start with a letter.`
+    );
+  }
+
+  return name;
+}
+
+export function extractRequiredRouteParams(pattern: string): string[] {
+  const parts = pattern.split("/").filter(Boolean);
+  return parts
+    .filter((p) => p.startsWith(":"))
+    .map((p) => p.slice(1));
+}
+
+export function validateRouteParams(pattern: string, params?: Record<string, string>): void {
+  const required = extractRequiredRouteParams(pattern);
+  if (required.length === 0) return;
+
+  const missing = required.filter((name) => !params || !(name in params));
+  if (missing.length > 0) {
+    throw new Error(
+      `Navigation requires params [${missing.join(", ")}] for route "${pattern}".`
+    );
+  }
 }

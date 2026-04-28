@@ -130,11 +130,13 @@ export {
 } from "./config.js";
 export type { LoadedTeleforgeApp } from "./config.js";
 
-export { createScreenRegistry, defineScreen, extractRouteParams, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
+export { createScreenRegistry, defineScreen, extractRequiredRouteParams, extractRouteParams, findRoutePattern, resolveMiniAppScreen, toHelperName, validateRouteParams } from "./screens.js";
 export type {
+  ActionHelpers,
   DiscoveredScreenModule,
   LoaderRegistry,
   LoaderState,
+  NavigationHelpers,
   ResolvedMiniAppScreen,
   ServerLoaderContext,
   TeleforgeScreenComponentProps,
