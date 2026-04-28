@@ -1,19 +1,25 @@
 import { defineScreen } from "teleforge/web";
 
-import type { CartItem } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-interface CartScreenData {
-  cart?: CartItem[];
-  subtotal?: number;
-  itemCount?: number;
-}
+type CartItem = { productId: string; name: string; price: number; quantity: number; image: string };
 
-function CartScreen({ data, runAction, transitioning }: TeleforgeScreenComponentProps<CartScreenData>) {
-  const screenData = data as CartScreenData;
-  const cart = screenData?.cart ?? [];
-  const subtotal = screenData?.subtotal ?? cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const itemCount = screenData?.itemCount ?? cart.reduce((s, i) => s + i.quantity, 0);
+function CartScreen({ routeData, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
+  const cart = ((routeData?.cart ?? appState?.value?.cart ?? []) as CartItem[]);
+  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  const handleRemove = async (productId: string) => {
+    const result = await runAction("removeFromCart", { productId, cart });
+    if (result.data?.cart) appState?.patch({ cart: result.data.cart });
+  };
+
+  const handlePlaceOrder = async () => {
+    const result = await runAction("placeOrder", { cart });
+    if (result.data?.order) {
+      navigate("confirmation", { data: { order: result.data.order } });
+    }
+  };
 
   return (
     <main className="shell">
@@ -25,9 +31,7 @@ function CartScreen({ data, runAction, transitioning }: TeleforgeScreenComponent
       {cart.length === 0 ? (
         <div className="card">
           <p style={{ margin: 0 }}>Browse our catalog to add products.</p>
-          <button className="btn-primary" onClick={() => runAction("backToCatalog", { cart })}>
-            Browse Catalog
-          </button>
+          <button className="btn-primary" onClick={() => navigate("catalog")}>Browse Catalog</button>
         </div>
       ) : (
         <>
@@ -38,19 +42,9 @@ function CartScreen({ data, runAction, transitioning }: TeleforgeScreenComponent
                 <div className="details">
                   <h3>{item.name}</h3>
                   <p>${item.price} each</p>
-                  <p>
-                    <strong>Qty: {item.quantity}</strong>
-                    {" · "}
-                    <span className="price">${(item.price * item.quantity).toFixed(2)}</span>
-                  </p>
+                  <p><strong>Qty: {item.quantity}</strong>{" · "}<span className="price">${(item.price * item.quantity).toFixed(2)}</span></p>
                 </div>
-                <button
-                  className="btn-danger btn-small"
-                  disabled={transitioning}
-                  onClick={() => runAction("removeFromCart", { productId: item.productId, cart })}
-                >
-                  Remove
-                </button>
+                <button className="btn-danger btn-small" disabled={transitioning} onClick={() => handleRemove(item.productId)}>Remove</button>
               </div>
             </div>
           ))}
@@ -63,16 +57,8 @@ function CartScreen({ data, runAction, transitioning }: TeleforgeScreenComponent
           </div>
 
           <div className="actions-row">
-            <button disabled={transitioning} onClick={() => runAction("backToCatalog", { cart })}>
-              Continue Shopping
-            </button>
-            <button
-              className="btn-primary"
-              disabled={transitioning || cart.length === 0}
-              onClick={() => runAction("placeOrder", { cart })}
-            >
-              Place Order
-            </button>
+            <button disabled={transitioning} onClick={() => navigate("catalog")}>Continue Shopping</button>
+            <button className="btn-primary" disabled={transitioning} onClick={handlePlaceOrder}>Place Order</button>
           </div>
         </>
       )}
@@ -80,7 +66,7 @@ function CartScreen({ data, runAction, transitioning }: TeleforgeScreenComponent
   );
 }
 
-export default defineScreen<CartScreenData>({
+export default defineScreen({
   component: CartScreen,
   id: "cart",
   title: "Cart"

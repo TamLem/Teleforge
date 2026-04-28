@@ -1,15 +1,9 @@
 import { defineScreen } from "teleforge/web";
 
-import type { Order } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-interface ConfirmationData {
-  order?: Order;
-}
-
-function ConfirmationScreen({ data, runAction }: TeleforgeScreenComponentProps<ConfirmationData>) {
-  const screenData = data as ConfirmationData;
-  const order = screenData?.order;
+function ConfirmationScreen({ routeData, navigate }: TeleforgeScreenComponentProps) {
+  const order = routeData?.order as Record<string, unknown> | undefined;
 
   if (!order) {
     return (
@@ -18,6 +12,9 @@ function ConfirmationScreen({ data, runAction }: TeleforgeScreenComponentProps<C
       </main>
     );
   }
+
+  const items = order.items as Array<{ productId: string; name: string; price: number; quantity: number; image: string }>;
+  const total = order.total as number;
 
   return (
     <main className="shell">
@@ -28,15 +25,15 @@ function ConfirmationScreen({ data, runAction }: TeleforgeScreenComponentProps<C
       </header>
 
       <div className="order-section">
-        <h2 style={{ margin: "0 0 0.5rem" }}>Order #{order.id}</h2>
+        <h2 style={{ margin: "0 0 0.5rem" }}>Order #{order.id as string}</h2>
         <p className="muted" style={{ margin: 0 }}>
-          {new Date(order.createdAt).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          {new Date(order.createdAt as string).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>
 
       <div className="card">
         <h2>Order Summary</h2>
-        {order.items.map((item) => (
+        {items.map((item) => (
           <div key={item.productId} className="line-item" style={{ borderBottom: "1px solid #f0f2f5", paddingBottom: "0.5rem" }}>
             <span style={{ fontSize: "1.5rem" }}>{item.image}</span>
             <div className="details">
@@ -48,16 +45,15 @@ function ConfirmationScreen({ data, runAction }: TeleforgeScreenComponentProps<C
         ))}
         <div className="total-row">
           <span>Total</span>
-          <span style={{ fontSize: "1.25rem" }}>${order.total.toFixed(2)}</span>
+          <span style={{ fontSize: "1.25rem" }}>${total.toFixed(2)}</span>
         </div>
       </div>
 
       <div className="actions-row">
-        <button
-          className="btn-primary"
-          style={{ width: "100%" }}
-          onClick={() => runAction("backToCatalog", { cart: [] })}
-        >
+        <button onClick={() => navigate("tracking", { data: { order } })}>
+          Track Order
+        </button>
+        <button className="btn-primary" onClick={() => navigate("catalog")}>
           Continue Shopping
         </button>
       </div>
@@ -65,7 +61,7 @@ function ConfirmationScreen({ data, runAction }: TeleforgeScreenComponentProps<C
   );
 }
 
-export default defineScreen<ConfirmationData>({
+export default defineScreen({
   component: ConfirmationScreen,
   id: "confirmation",
   title: "Order Confirmed"

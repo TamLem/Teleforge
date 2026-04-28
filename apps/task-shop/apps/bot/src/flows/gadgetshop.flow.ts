@@ -9,6 +9,7 @@ import {
   type CartItem
 } from "@task-shop/types";
 import { defineFlow } from "teleforge";
+import { createSignedActionContext } from "@teleforgex/core";
 
 export default defineFlow({
   id: "gadgetshop",
@@ -79,7 +80,8 @@ export default defineFlow({
       "/": "catalog",
       "/product/:id": "product-detail",
       "/cart": "cart",
-      "/confirmation": "confirmation"
+      "/confirmation": "confirmation",
+      "/tracking": "tracking"
     },
     defaultRoute: "/",
     title: "GadgetShop"
@@ -122,14 +124,10 @@ export default defineFlow({
 
     viewDetail: {
       handler: async ({ data }) => {
-        const payload = data as { productId: string; cart?: CartItem[] };
+        const payload = data as { productId: string };
         const product = getProduct(payload.productId);
-        if (!product) return { navigate: "catalog", data: { cart: payload.cart, products } };
-
-        return {
-          navigate: "product-detail",
-          data: { product, cart: payload.cart ?? [] }
-        };
+        if (!product) return { data: { error: "Product not found" } };
+        return { data: { product } };
       }
     },
 
@@ -137,33 +135,62 @@ export default defineFlow({
       handler: async ({ data }) => {
         const cart = (data as { cart?: CartItem[] }).cart ?? [];
         return {
-          navigate: "cart",
-          data: {
-            cart,
-            subtotal: getCartSubtotal(cart),
-            itemCount: getCartItemCount(cart)
-          }
+          data: { cart, subtotal: getCartSubtotal(cart), itemCount: getCartItemCount(cart) }
         };
       }
     },
 
     placeOrder: {
-      handler: async ({ data }) => {
+      handler: async ({ ctx, data }) => {
         const cart = (data as { cart?: CartItem[] }).cart ?? [];
-        if (cart.length === 0) return { navigate: "catalog", data: { cart: [], products } };
-
+        if (cart.length === 0) return { data: { error: "Cart is empty" } };
         const order = createOrder(cart);
+        const items = order.items.map((i) => `  ${i.image} ${i.name} ×${i.quantity} — $${(i.price * i.quantity).toFixed(2)}`).join("\n");
+
+        const now = Math.floor(Date.now() / 1000);
+        const trackingToken = createSignedActionContext(
+          {
+            appId: ctx.appId,
+            flowId: ctx.flowId,
+            screenId: "tracking",
+            userId: ctx.userId,
+            subject: { order },
+            allowedActions: ["backToCatalog"],
+            issuedAt: now,
+            expiresAt: now + 86400
+          },
+          process.env.TELEFORGE_FLOW_SECRET ?? "dev-secret"
+        );
+        const miniAppUrl = process.env.MINI_APP_URL ?? "http://localhost:3000";
+        const trackingUrl = `${miniAppUrl}?tgWebAppStartParam=${encodeURIComponent(trackingToken)}`;
 
         return {
-          navigate: "confirmation",
-          data: { order, cart: [] }
+          data: { order },
+          effects: [{
+            type: "chatMessage",
+            text: [
+              "\uD83D\uDED2 Order confirmed!",
+              "",
+              `Order #${order.id}`,
+              "",
+              items,
+              "",
+              `Total: $${order.total.toFixed(2)}`,
+              "",
+              "Thank you for shopping at GadgetShop."
+            ].join("\n"),
+            replyMarkup: {
+              inline_keyboard: [[
+                { text: "\uD83D\uDCCD Track Order", web_app: { url: trackingUrl } }
+              ]]
+            }
+          }]
         };
       }
     },
 
     backToCatalog: {
       handler: async ({ data }) => ({
-        navigate: "catalog",
         data: {
           cart: (data as { cart?: CartItem[] }).cart ?? [],
           products

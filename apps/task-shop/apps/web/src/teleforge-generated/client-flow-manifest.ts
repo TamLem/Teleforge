@@ -11,7 +11,8 @@ export const flowManifest = defineClientFlowManifest(
           "/": "catalog",
           "/product/:id": "product-detail",
           "/cart": "cart",
-          "/confirmation": "confirmation"
+          "/confirmation": "confirmation",
+          "/tracking": "tracking"
         },
         "title": "GadgetShop"
       },
@@ -63,8 +64,24 @@ export const flowManifest = defineClientFlowManifest(
           ],
           "id": "confirmation",
           "route": "/confirmation"
+        },
+        {
+          "actions": [
+            "addToCart",
+            "removeFromCart",
+            "viewDetail",
+            "viewCart",
+            "placeOrder",
+            "backToCatalog"
+          ],
+          "id": "tracking",
+          "route": "/tracking"
         }
       ]
+    },
+    {
+      "id": "gadgetshop-start",
+      "screens": []
     }
   ]
 }

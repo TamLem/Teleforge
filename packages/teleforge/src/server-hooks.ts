@@ -29,7 +29,7 @@ export interface CreateActionServerHooksHandlerOptions {
   basePath?: string;
   cwd: string;
   flowSecret: string;
-  onChatHandoff?: (input: { message: string; context: ActionContextToken }) => MaybePromise<void>;
+  onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   services?: unknown;
   sessionManager?: SessionManager;
   trust?: ActionServerHookTrustOptions;
@@ -120,7 +120,7 @@ interface ExecuteActionServerHookOptions {
   actions: ReadonlyMap<string, ActionFlowActionDefinition>;
   flowSecret: string;
   flows: readonly DiscoveredFlowModule[];
-  onChatHandoff?: (input: { message: string; context: ActionContextToken }) => MaybePromise<void>;
+  onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   payload: ActionServerHookRequest;
   request: Request;
   services?: unknown;
@@ -203,9 +203,11 @@ async function executeActionServerHook(
       if (result.effects && options.onChatHandoff) {
         for (const effect of result.effects) {
           if (effect.type === "chatMessage" && typeof effect.text === "string") {
+            const replyMarkup = effect.replyMarkup as Record<string, unknown> | undefined;
             await options.onChatHandoff({
               context,
-              message: effect.text
+              message: effect.text,
+              ...(replyMarkup ? { replyMarkup } : {})
             });
           }
         }
@@ -236,7 +238,7 @@ export interface StartTeleforgeServerOptions {
   basePath?: string;
   cwd?: string;
   flowSecret?: string;
-  onChatHandoff?: (input: { message: string; context: ActionContextToken }) => MaybePromise<void>;
+  onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   port?: number;
   services?: unknown;
   sessionManager?: SessionManager;

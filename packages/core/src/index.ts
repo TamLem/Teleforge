@@ -165,6 +165,7 @@ export type {
   ActionHandlerContext,
   ActionHandlerDefinition,
   ChatMessageEffect,
+  ClientEffect,
   CustomEffect,
   NavigateEffect,
   OpenMiniAppEffect,

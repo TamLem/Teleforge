@@ -61,7 +61,9 @@ export type {
 } from "./runtime-context.js";
 
 export {
-  TeleforgeMiniApp
+  TeleforgeMiniApp,
+  MiniAppStateProvider,
+  useAppState
 } from "./miniapp-runtime.js";
 
 export {
@@ -118,7 +120,7 @@ export {
 } from "./config.js";
 export type { LoadedTeleforgeApp } from "./config.js";
 
-export { createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
+export { createScreenRegistry, defineScreen, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
 export type {
   DiscoveredScreenModule,
   ResolvedMiniAppScreen,

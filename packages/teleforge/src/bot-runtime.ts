@@ -47,7 +47,7 @@ export interface CreateDiscoveredBotRuntimeOptions {
 
 export interface DiscoveredBotRuntime extends BotRuntime {
   getSessionManager(): SessionManager;
-  handleChatHandoff(input: { message: string; context: ActionContextToken }): Promise<void>;
+  handleChatHandoff(input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }): Promise<void>;
 }
 
 export interface StartTeleforgeBotOptions {
@@ -166,11 +166,13 @@ export async function createDiscoveredBotRuntime(
 
     getSessionManager: () => sessionManager,
 
-    async handleChatHandoff(input: { message: string; context: ActionContextToken }) {
+    async handleChatHandoff(input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) {
       if (!boundBot) {
         throw new Error("Bot instance has not been bound.");
       }
-      await boundBot.sendMessage(input.context.userId, input.message);
+      await boundBot.sendMessage(input.context.userId, input.message, {
+        reply_markup: input.replyMarkup as Parameters<typeof boundBot.sendMessage>[2] extends { reply_markup?: infer R } ? R : undefined
+      } as any);
     }
   };
 }
@@ -515,34 +517,56 @@ function createActionCallbackHandler(
     }
 
     const verified = verifyActionCallback(data, options.secret);
-    if (!verified) {
+    if (verified) {
+      const key = `${verified.context.flowId}:${verified.actionId}`;
+      const action = options.actions.get(key);
+      if (!action) {
+        return;
+      }
+
+      let session = undefined;
+      if (action.requiresSession) {
+        const handle = await options.sessionManager.get(
+          verified.context.userId,
+          verified.context.flowId,
+          verified.context.userId
+        );
+        if (handle) {
+          session = handle;
+        }
+      }
+
+      await action.handler({
+        ctx: verified.context,
+        data: {},
+        services: options.services as never,
+        session
+      });
       return;
     }
 
-    const key = `${verified.context.flowId}:${verified.actionId}`;
-    const action = options.actions.get(key);
-    if (!action) {
-      return;
-    }
-
-    let session = undefined;
-    if (action.requiresSession) {
-      const handle = await options.sessionManager.get(
-        verified.context.userId,
-        verified.context.flowId,
-        verified.context.userId
-      );
-      if (handle) {
-        session = handle;
+    // Plain callback: dispatch to flow onCallback handlers
+    for (const { flow } of options.flows) {
+      if (flow.handlers?.onCallback) {
+        const replyFn = async (text: string, replyOptions?: ReplyOptions) => {
+          await ctx.bot?.sendMessage(ctx.chat?.id ?? 0, text, replyOptions);
+          return {} as TelegramMessage;
+        };
+        const answerFn = async (text?: string) => {
+          await ctx.bot?.answerCallbackQuery?.(ctx.update.callback_query?.id ?? "", text);
+        };
+        await flow.handlers.onCallback({
+          ctx: {
+            ...ctx,
+            data,
+            reply: replyFn,
+            answer: answerFn
+          } as any,
+          services: options.services as never
+        });
+        return;
       }
     }
-
-    await action.handler({
-      ctx: verified.context,
-      data: {},
-      services: options.services as never,
-      session
-    });
   };
 }
 

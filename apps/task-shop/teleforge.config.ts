@@ -28,5 +28,13 @@ export default defineTeleforgeApp({
     launchModes: ["inline", "compact", "fullscreen"],
     defaultMode: "inline",
     capabilities: ["read_access", "write_access", "payments"]
+  },
+  dev: {
+    services: [
+      {
+        name: "bot",
+        command: "pnpm --filter @task-shop/bot dev"
+      }
+    ]
   }
 });

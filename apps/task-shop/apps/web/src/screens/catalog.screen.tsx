@@ -1,22 +1,31 @@
+import { useState } from "react";
 import { defineScreen } from "teleforge/web";
 
-import type { CartItem, Product } from "@task-shop/types";
+import type { Product } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
-
-interface CatalogData {
-  products?: Product[];
-  cart?: CartItem[];
-  itemCount?: number;
-  justAdded?: string;
-}
 
 const CATEGORIES = ["Phones", "Laptops", "Tablets", "Audio", "Accessories"] as const;
 
-function CatalogScreen({ data, runAction, transitioning }: TeleforgeScreenComponentProps<CatalogData>) {
-  const screenData = data as CatalogData;
-  const products = screenData?.products ?? [];
-  const cart = screenData?.cart ?? [];
-  const itemCount = screenData?.itemCount ?? 0;
+function CatalogScreen({ launchData, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
+  const products = (launchData?.products as Product[]) ?? [];
+  const cart = (appState?.value?.cart ?? []) as Array<{ productId: string; quantity: number }>;
+  const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+
+  const handleAddToCart = async (productId: string) => {
+    const result = await runAction("addToCart", { productId, qty: 1, cart });
+    const newCart = result.data?.cart;
+    const name = result.data?.justAdded as string | undefined;
+    if (newCart) {
+      appState?.patch({ cart: newCart });
+      setJustAdded(name ?? null);
+    }
+  };
+
+  const handleViewDetail = async (productId: string) => {
+    const result = await runAction("viewDetail", { productId });
+    navigate("product-detail", { params: { id: productId }, data: { product: result.data?.product } });
+  };
 
   return (
     <main className="shell">
@@ -27,14 +36,14 @@ function CatalogScreen({ data, runAction, transitioning }: TeleforgeScreenCompon
       </header>
 
       <div className="top-bar">
-        <button className={`btn-primary${itemCount === 0 ? " btn-ghost" : ""}`} onClick={() => runAction("viewCart", { cart })}>
+        <button className={`btn-primary${itemCount === 0 ? " btn-ghost" : ""}`} onClick={() => navigate("cart")}>
           Cart ({itemCount})
         </button>
       </div>
 
-      {screenData?.justAdded && (
+      {justAdded && (
         <div className="card card-highlight">
-          <p style={{ margin: 0 }}>Added {screenData.justAdded} to cart</p>
+          <p style={{ margin: 0 }}>Added {justAdded} to cart</p>
         </div>
       )}
 
@@ -59,17 +68,9 @@ function CatalogScreen({ data, runAction, transitioning }: TeleforgeScreenCompon
                       </div>
                     </div>
                     <div className="actions">
-                      <button className="btn-small" onClick={() => runAction("viewDetail", { productId: product.id, cart })}>
-                        Details
-                      </button>
+                      <button className="btn-small" onClick={() => handleViewDetail(product.id)}>Details</button>
                       {product.inStock && (
-                        <button
-                          className="btn-primary btn-small"
-                          disabled={transitioning}
-                          onClick={() => runAction("addToCart", { productId: product.id, qty: 1, cart })}
-                        >
-                          + Add
-                        </button>
+                        <button className="btn-primary btn-small" disabled={transitioning} onClick={() => handleAddToCart(product.id)}>+ Add</button>
                       )}
                     </div>
                   </div>
@@ -83,7 +84,7 @@ function CatalogScreen({ data, runAction, transitioning }: TeleforgeScreenCompon
   );
 }
 
-export default defineScreen<CatalogData>({
+export default defineScreen({
   component: CatalogScreen,
   id: "catalog",
   title: "GadgetShop"

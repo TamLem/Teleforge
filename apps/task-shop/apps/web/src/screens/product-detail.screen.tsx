@@ -1,18 +1,11 @@
 import { useState } from "react";
 import { defineScreen } from "teleforge/web";
 
-import type { CartItem, Product } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-interface DetailData {
-  product?: Product;
-  cart?: CartItem[];
-}
-
-function ProductDetailScreen({ data, runAction, transitioning }: TeleforgeScreenComponentProps<DetailData>) {
-  const screenData = data as DetailData;
-  const product = screenData?.product;
-  const cart = screenData?.cart ?? [];
+function ProductDetailScreen({ launchData, routeData, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
+  const product = (routeData?.product ?? launchData?.product) as Record<string, unknown> | undefined;
+  const cart = (appState?.value?.cart ?? []) as Array<{ productId: string; name: string; price: number; quantity: number; image: string }>;
   const [qty, setQty] = useState(1);
 
   if (!product) {
@@ -23,29 +16,36 @@ function ProductDetailScreen({ data, runAction, transitioning }: TeleforgeScreen
     );
   }
 
-  const inCart = cart.filter((i) => i.productId === product.id).reduce((s, i) => s + i.quantity, 0);
+  const productId = product.id as string;
+  const inCart = cart.filter((i) => i.productId === productId).reduce((s, i) => s + i.quantity, 0);
+  const price = product.price as number;
+
+  const handleAddToCart = async () => {
+    const result = await runAction("addToCart", { productId, qty, cart });
+    if (result.data?.cart) appState?.patch({ cart: result.data.cart });
+  };
 
   return (
     <main className="shell">
       <header className="hero">
-        <p className="eyebrow">{product.category}</p>
-        <h1>{product.name}</h1>
+        <p className="eyebrow">{product.category as string}</p>
+        <h1>{product.name as string}</h1>
       </header>
 
       <div className="text-center" style={{ fontSize: "4rem", padding: "0.5rem" }}>
-        {product.image}
+        {product.image as string}
       </div>
 
       <div className="card">
-        <p className="lede">{product.description}</p>
-        <p className="price-lg">${product.price}</p>
+        <p className="lede">{product.description as string}</p>
+        <p className="price-lg">${price}</p>
         {!product.inStock && <span className="badge" style={{ background: "#ffebee", color: "#c62828" }}>Out of stock</span>}
       </div>
 
       <div className="card">
         <h2>Specifications</h2>
         <div className="specs-grid">
-          {Object.entries(product.specs).map(([key, value]) => (
+          {Object.entries(product.specs as Record<string, string> ?? {}).map(([key, value]) => (
             <div key={key} className="spec-row">
               <span className="label">{key}</span>
               <strong>{value}</strong>
@@ -61,20 +61,16 @@ function ProductDetailScreen({ data, runAction, transitioning }: TeleforgeScreen
             <span>{qty}</span>
             <button onClick={() => setQty(qty + 1)}>+</button>
           </div>
-          <button
-            className="btn-primary"
-            disabled={transitioning}
-            onClick={() => runAction("addToCart", { productId: product.id, qty, cart })}
-          >
-            Add to Cart — ${(product.price * qty).toFixed(2)}
+          <button className="btn-primary" disabled={transitioning} onClick={handleAddToCart}>
+            Add to Cart — ${(price * qty).toFixed(2)}
           </button>
           {inCart > 0 && <span className="muted small">{inCart} already in cart</span>}
         </div>
       )}
 
       <div className="actions-row">
-        <button onClick={() => runAction("backToCatalog", { cart })}>Back to Catalog</button>
-        <button className="btn-primary" onClick={() => runAction("viewCart", { cart })}>
+        <button onClick={() => navigate("catalog")}>Back to Catalog</button>
+        <button className="btn-primary" onClick={() => navigate("cart")}>
           View Cart ({cart.reduce((s, i) => s + i.quantity, 0)})
         </button>
       </div>
@@ -82,7 +78,7 @@ function ProductDetailScreen({ data, runAction, transitioning }: TeleforgeScreen
   );
 }
 
-export default defineScreen<DetailData>({
+export default defineScreen({
   component: ProductDetailScreen,
   id: "product-detail",
   title: "Product Details"

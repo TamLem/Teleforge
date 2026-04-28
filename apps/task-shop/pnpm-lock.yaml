@@ -70,6 +70,9 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@teleforgex/core':
+        specifier: link:../../../../packages/core
+        version: link:../../../../packages/core
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1

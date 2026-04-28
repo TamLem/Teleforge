@@ -1,5 +1,6 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
+import type { MiniAppState } from "./miniapp-state.js";
 import type { ActionResult, LaunchContext, SessionHandle } from "@teleforgex/core";
 import type { ComponentType } from "react";
 
@@ -9,15 +10,25 @@ type AnyDiscoveredScreenModule = DiscoveredScreenModule;
 type MaybePromise<T> = Promise<T> | T;
 
 export interface TeleforgeScreenComponentProps<TData = unknown, TSession = unknown> {
-  launch: LaunchContext;
+  /** Signed context subject data (immutable per session). Prefer launchData. */
   data?: TData;
+  /** @deprecated Use launchData instead. */
+  launch?: LaunchContext;
+  /** Signed context subject data (immutable per session). */
+  launchData?: Record<string, unknown>;
+  /** Data carried from the last navigate() call. */
+  routeData?: Record<string, unknown>;
+  /** Server-loaded screen data. */
+  loaderData?: unknown;
+  /** Mini App-wide client session state. */
+  appState?: MiniAppState;
   session?: TSession;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
-  navigate: (screenIdOrRoute: string, params?: Record<string, unknown>) => void;
+  /** Navigate to a screen by ID, optionally passing params and data. */
+  navigate: (screenIdOrRoute: string, paramsOrOptions?: Record<string, unknown>) => void;
   transitioning: boolean;
   screenId: string;
   routePath: string;
-  loaderData?: unknown;
 }
 
 export type TeleforgeScreenRuntimeContext = TeleforgeScreenComponentProps;
@@ -223,4 +234,19 @@ function routePatternMatches(pattern: string, pathname: string): boolean {
   }
 
   return true;
+}
+
+type RouteFlowLike = { id: string; miniApp?: { routes: Record<string, string> } };
+
+export function findRoutePattern(
+  screenId: string,
+  flows: Iterable<RouteFlowLike>
+): string | null {
+  for (const flow of flows) {
+    if (!flow.miniApp?.routes) continue;
+    for (const [route, id] of Object.entries(flow.miniApp.routes)) {
+      if (id === screenId) return route;
+    }
+  }
+  return null;
 }

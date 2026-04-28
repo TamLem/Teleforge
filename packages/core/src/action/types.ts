@@ -16,11 +16,27 @@ export interface ActionContextToken extends Record<string, unknown> {
 
 export interface ActionResult {
   data?: Record<string, unknown>;
+  /** @deprecated Ignored by the action-first runtime. Use screen-level navigate() instead. */
   navigate?: string;
   closeMiniApp?: boolean;
   showHandoff?: string | boolean;
   effects?: ActionEffect[];
+  handoff?: {
+    message?: string;
+    closeMiniApp?: boolean;
+  };
+  clientEffects?: ClientEffect[];
+  redirect?: {
+    screenId: string;
+    params?: Record<string, string>;
+    data?: Record<string, unknown>;
+    reason?: string;
+  };
 }
+
+export type ClientEffect =
+  | { type: "toast"; message: string }
+  | { type: "closeMiniApp" };
 
 export type ActionEffectType =
   | "chatMessage"
@@ -38,6 +54,9 @@ export interface ChatMessageEffect extends ActionEffect {
   type: "chatMessage";
   text: string;
   chatId?: string;
+  replyMarkup?: {
+    inline_keyboard?: Array<Array<{ text: string; url?: string; web_app?: { url: string }; callback_data?: string }>>;
+  };
 }
 
 export interface OpenMiniAppEffect extends ActionEffect {

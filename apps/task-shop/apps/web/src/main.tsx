@@ -7,6 +7,7 @@ import cartScreen from "./screens/cart.screen.js";
 import catalogScreen from "./screens/catalog.screen.js";
 import confirmationScreen from "./screens/confirmation.screen.js";
 import detailScreen from "./screens/product-detail.screen.js";
+import trackingScreen from "./screens/tracking.screen.js";
 import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
 
 const serverBridge = createFetchMiniAppServerBridge();
@@ -15,7 +16,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <TeleforgeMiniApp
       flowManifest={flowManifest}
-      screens={[catalogScreen, detailScreen, cartScreen, confirmationScreen]}
+      screens={[catalogScreen, detailScreen, cartScreen, confirmationScreen, trackingScreen]}
       serverBridge={serverBridge}
     />
   </React.StrictMode>

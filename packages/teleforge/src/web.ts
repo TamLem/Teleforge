@@ -2,11 +2,10 @@ export * from "@teleforgex/web";
 export { createFetchMiniAppServerBridge } from "./server-bridge.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export {
-  executeMiniAppStepAction,
-  executeMiniAppStepSubmit,
-  loadMiniAppScreenRuntime,
   TeleforgeMiniApp,
-  useTeleforgeMiniAppRuntime
+  useTeleforgeMiniAppRuntime,
+  MiniAppStateProvider,
+  useAppState
 } from "./miniapp-runtime.js";
 export { createRouteRegistry, createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
 export { defineFlow, resolveFlowAction } from "./flow-definition.js";
@@ -20,13 +19,9 @@ export type {
   UnresolvedMiniAppScreen
 } from "./screens.js";
 export type {
-  BlockedMiniAppScreen,
   ChatHandoffMiniAppScreen,
-  PendingMiniAppScreen,
-  ReadyMiniAppScreen,
-  RuntimeErrorMiniAppScreen,
-  TeleforgeMiniAppRuntimeState,
-  UnresolvedMiniAppRuntimeScreen
+  MiniAppState,
+  ReadyMiniAppScreen
 } from "./miniapp-runtime.js";
 export type {
   CreateFetchMiniAppServerBridgeOptions,
