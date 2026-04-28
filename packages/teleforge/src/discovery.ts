@@ -290,27 +290,13 @@ export function createFlowCommands(options: CreateFlowCommandsOptions): BotComma
       description: flow.command.description,
       handler: async (context) => {
         const miniAppUrl = await resolveCommandValue(options.miniAppUrl, context);
-        const sign: SignContextFn = async (params) => {
-          const { createSignedActionContext } = await import("@teleforgex/core");
-          const now = Math.floor(Date.now() / 1000);
-          const ttl = 900;
-          const token = createSignedActionContext(
-            {
-              allowedActions: params.allowedActions,
-              appId: options.appId,
-              expiresAt: now + ttl,
-              flowId: params.flowId ?? flow.id,
-              issuedAt: now,
-              screenId: params.screenId,
-              subject: params.subject,
-              userId: String(context.user.id)
-            },
-            options.secret
-          );
-          const url = new URL(miniAppUrl);
-          url.searchParams.set("tgWebAppStartParam", token);
-          return url.toString();
-        };
+        const sign = createSignForActionContext({
+          appId: options.appId,
+          defaultFlowId: flow.id,
+          flowSecret: options.secret,
+          miniAppUrl,
+          userId: String(context.user.id)
+        });
 
         await flow.command!.handler({
           ctx: context,
@@ -573,6 +559,36 @@ async function resolveCommandValue<T>(
   }
 
   return value;
+}
+
+export function createSignForActionContext(options: {
+  appId: string;
+  defaultFlowId: string;
+  flowSecret: string;
+  miniAppUrl: string;
+  userId: string;
+}): SignContextFn {
+  return async (params) => {
+    const { createSignedActionContext } = await import("@teleforgex/core");
+    const now = Math.floor(Date.now() / 1000);
+    const ttl = params.ttlSeconds ?? 900;
+    const token = createSignedActionContext(
+      {
+        allowedActions: params.allowedActions,
+        appId: options.appId,
+        expiresAt: now + ttl,
+        flowId: params.flowId ?? options.defaultFlowId,
+        issuedAt: now,
+        screenId: params.screenId,
+        subject: params.subject,
+        userId: options.userId
+      },
+      options.flowSecret
+    );
+    const url = new URL(options.miniAppUrl);
+    url.searchParams.set("tgWebAppStartParam", token);
+    return url.toString();
+  };
 }
 
 const LOADER_FILE_SUFFIXES = [".loader.ts", ".loader.mts", ".loader.js", ".loader.mjs"] as const;

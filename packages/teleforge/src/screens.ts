@@ -18,7 +18,9 @@ export interface TeleforgeScreenComponentProps<TData = unknown, TSession = unkno
   launchData?: Record<string, unknown>;
   /** Data carried from the last navigate() call. */
   routeData?: Record<string, unknown>;
-  /** Server-loaded screen data. */
+  /** Server-loaded screen data lifecycle. */
+  loader: { status: "loading" | "ready" | "error" | "idle"; data?: unknown; error?: Error };
+  /** Server-loaded screen data (convenience: loader.data when ready). */
   loaderData?: unknown;
   /** Mini App-wide client session state. */
   appState?: MiniAppState;
@@ -40,13 +42,12 @@ export interface TeleforgeScreenGuardBlock {
 
 export type TeleforgeScreenGuardResult = boolean | TeleforgeScreenGuardBlock;
 
-export interface TeleforgeScreenDefinition<TData = unknown, TLoaderData = unknown> {
+export interface TeleforgeScreenDefinition<TData = unknown> {
   component: ComponentType<TeleforgeScreenComponentProps<TData>>;
   guard?: (
     context: TeleforgeScreenComponentProps<TData>
   ) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
-  loader?: (context: TeleforgeScreenComponentProps<TData>) => MaybePromise<TLoaderData>;
   title?: string;
 }
 
@@ -242,17 +243,48 @@ function routePatternMatches(pattern: string, pathname: string): boolean {
   return true;
 }
 
-type RouteFlowLike = { id: string; miniApp?: { routes: Record<string, string> } };
+export type RouteFlowLike = { id: string; miniApp?: { routes: Record<string, string> } };
 
 export function findRoutePattern(
   screenId: string,
-  flows: Iterable<RouteFlowLike>
+  flows: Iterable<RouteFlowLike>,
+  pathname?: string
 ): string | null {
+  const candidates: string[] = [];
   for (const flow of flows) {
     if (!flow.miniApp?.routes) continue;
     for (const [route, id] of Object.entries(flow.miniApp.routes)) {
-      if (id === screenId) return route;
+      if (id === screenId) {
+        if (pathname && routePatternMatches(route, pathname)) {
+          return route;
+        }
+        candidates.push(route);
+      }
     }
   }
-  return null;
+  return candidates[0] ?? null;
+}
+
+export function extractRouteParams(
+  pattern: string,
+  pathname: string
+): Record<string, string> {
+  const params: Record<string, string> = {};
+  const patternParts = pattern.split("/").filter(Boolean);
+  const pathnameParts = pathname.split("/").filter(Boolean);
+
+  if (patternParts.length !== pathnameParts.length) {
+    return params;
+  }
+
+  for (let i = 0; i < patternParts.length; i++) {
+    if (patternParts[i].startsWith(":")) {
+      const key = patternParts[i].slice(1);
+      params[key] = decodeURIComponent(pathnameParts[i]);
+    } else if (patternParts[i] !== pathnameParts[i]) {
+      return {};
+    }
+  }
+
+  return params;
 }

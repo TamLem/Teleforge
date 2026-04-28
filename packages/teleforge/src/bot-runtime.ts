@@ -15,17 +15,16 @@ import {
   type WebAppDataHandler
 } from "@teleforgex/bot";
 import {
-  createSignedActionContext,
   MemorySessionStorageAdapter,
   SessionManager,
   validateActionContext,
-  type ActionContextToken,
-  type SignContextFn
+  type ActionContextToken
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import {
   createFlowCommands,
+  createSignForActionContext,
   loadActionRegistry,
   loadTeleforgeFlows
 } from "./discovery.js";
@@ -123,6 +122,7 @@ export async function createDiscoveredBotRuntime(
 
   runtime.router.use(
     createPhoneContactMiddleware({
+      appId: app.app.id,
       flows,
       miniAppUrl,
       secret,
@@ -133,6 +133,7 @@ export async function createDiscoveredBotRuntime(
 
   runtime.router.use(
     createLocationMiddleware({
+      appId: app.app.id,
       flows,
       miniAppUrl,
       secret,
@@ -144,7 +145,9 @@ export async function createDiscoveredBotRuntime(
   runtime.router.onCallbackQuery(
     createActionCallbackHandler({
       actions,
+      appId: app.app.id,
       flows,
+      miniAppUrl,
       secret,
       services,
       sessionManager
@@ -154,7 +157,9 @@ export async function createDiscoveredBotRuntime(
   runtime.router.onWebAppData(
     createWebAppDataHandler({
       actions,
+      appId: app.app.id,
       flows,
+      miniAppUrl,
       secret,
       services,
       sessionManager
@@ -276,6 +281,7 @@ export async function startTeleforgeBot(
 // Phone contact middleware
 
 interface PhoneContactMiddlewareOptions {
+  appId: string;
   flows: readonly DiscoveredFlowModule[];
   miniAppUrl: string;
   secret: string;
@@ -334,25 +340,13 @@ function createPhoneContactMiddleware(
       console.error("[bot:contact] failed to dismiss keyboard:", err instanceof Error ? err.message : err);
     }
 
-    const sign = async (params: Parameters<SignContextFn>[0]) => {
-      const now = Math.floor(Date.now() / 1000);
-      const token = createSignedActionContext(
-        {
-          allowedActions: params.allowedActions,
-          appId: flowId,
-          expiresAt: now + 900,
-          flowId: params.flowId ?? "shop",
-          issuedAt: now,
-          screenId: params.screenId,
-          subject: params.subject,
-          userId: String(user.id)
-        },
-        options.secret
-      );
-      const url = new URL(options.miniAppUrl);
-      url.searchParams.set("tgWebAppStartParam", token);
-      return url.toString();
-    };
+    const sign = createSignForActionContext({
+      appId: options.appId,
+      defaultFlowId: flowId,
+      flowSecret: options.secret,
+      miniAppUrl: options.miniAppUrl,
+      userId: String(user.id)
+    });
 
     await handler({
       ctx: {
@@ -390,6 +384,7 @@ function createPhoneContactMiddleware(
 // Location middleware
 
 interface LocationMiddlewareOptions {
+  appId: string;
   flows: readonly DiscoveredFlowModule[];
   miniAppUrl: string;
   secret: string;
@@ -434,25 +429,13 @@ function createLocationMiddleware(
       reply_markup: { remove_keyboard: true }
     });
 
-    const sign = async (params: Parameters<SignContextFn>[0]) => {
-      const now = Math.floor(Date.now() / 1000);
-      const token = createSignedActionContext(
-        {
-          allowedActions: params.allowedActions,
-          appId: "",
-          expiresAt: now + 900,
-          flowId: params.flowId ?? locationFlowId,
-          issuedAt: now,
-          screenId: params.screenId,
-          subject: params.subject,
-          userId: String(user.id)
-        },
-        options.secret
-      );
-      const url = new URL(options.miniAppUrl);
-      url.searchParams.set("tgWebAppStartParam", token);
-      return url.toString();
-    };
+    const sign = createSignForActionContext({
+      appId: options.appId,
+      defaultFlowId: locationFlowId,
+      flowSecret: options.secret,
+      miniAppUrl: options.miniAppUrl,
+      userId: String(user.id)
+    });
 
     await handler({
       ctx: {
@@ -491,7 +474,9 @@ function createLocationMiddleware(
 
 interface CallbackHandlerOptions {
   actions: ReadonlyMap<string, ActionFlowActionDefinition>;
+  appId: string;
   flows: readonly DiscoveredFlowModule[];
+  miniAppUrl: string;
   secret: string;
   services?: unknown;
   sessionManager: SessionManager;
@@ -526,11 +511,20 @@ function createActionCallbackHandler(
         }
       }
 
-      await action.handler({ sign: async () => { throw new Error("sign not available in callback context"); },
+      const sign = createSignForActionContext({
+        appId: options.appId,
+        defaultFlowId: verified.context.flowId,
+        flowSecret: options.secret,
+        miniAppUrl: options.miniAppUrl,
+        userId: verified.context.userId
+      });
+
+      await action.handler({
         ctx: verified.context,
         data: {},
         services: options.services as never,
-        session
+        session,
+        sign
       });
       return;
     }
@@ -564,7 +558,9 @@ function createActionCallbackHandler(
 
 interface WebAppDataHandlerOptions {
   actions: ReadonlyMap<string, ActionFlowActionDefinition>;
+  appId: string;
   flows: readonly DiscoveredFlowModule[];
+  miniAppUrl: string;
   secret: string;
   services?: unknown;
   sessionManager: SessionManager;
@@ -609,11 +605,20 @@ function createWebAppDataHandler(
           }
         }
 
-        await action.handler({ sign: async () => { throw new Error("sign not available in callback context"); },
+        const sign = createSignForActionContext({
+          appId: options.appId,
+          defaultFlowId: context.flowId,
+          flowSecret: options.secret,
+          miniAppUrl: options.miniAppUrl,
+          userId: context.userId
+        });
+
+        await action.handler({
           ctx: context,
           data: parsed.payload ?? {},
           services: options.services as never,
-          session
+          session,
+          sign
         });
       }
     } catch {

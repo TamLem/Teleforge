@@ -8,12 +8,11 @@ import {
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
-import { loadActionRegistry, loadScreenLoaders, loadTeleforgeFlows } from "./discovery.js";
+import { loadActionRegistry, loadScreenLoaders, loadTeleforgeFlows, createSignForActionContext } from "./discovery.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
 import type { LoaderRegistry, TeleforgeScreenDefinition } from "./screens.js";
-import type { SignContextFn } from "@teleforgex/core";
 import type { TeleforgeAppConfig } from "@teleforgex/core";
 
 export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
@@ -70,11 +69,12 @@ export async function createActionServerHooksHandler(
       })
     );
   const flowSecret = options.flowSecret;
-  const miniAppUrl = options.miniAppUrl;
+  const resolvedMiniAppUrl = options.miniAppUrl ?? process.env.MINI_APP_URL ?? "http://localhost:3000";
   const screens = options.screens;
   const loaders = options.loaders ?? await loadScreenLoaders({ app: loadedApp.app, cwd: options.cwd });
   const trust = options.trust ?? {};
   const onChatHandoff = options.onChatHandoff;
+  const appId = loadedApp.app.app.id;
 
   return {
     async handleRequest(request: Request) {
@@ -88,10 +88,11 @@ export async function createActionServerHooksHandler(
         const payload = (await request.json()) as ActionServerHookRequest;
         const response = await executeActionServerHook({
           actions,
+          appId,
           flowSecret,
           flows,
           loaders,
-          miniAppUrl,
+          miniAppUrl: resolvedMiniAppUrl,
           onChatHandoff,
           payload,
           request,
@@ -126,10 +127,11 @@ type ActionServerHookRequest =
 
 interface ExecuteActionServerHookOptions {
   actions: ReadonlyMap<string, ActionFlowActionDefinition>;
+  appId: string;
   flowSecret: string;
   flows: readonly DiscoveredFlowModule[];
   loaders?: LoaderRegistry;
-  miniAppUrl?: string;
+  miniAppUrl: string;
   onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   payload: ActionServerHookRequest;
   request: Request;
@@ -158,6 +160,10 @@ async function executeActionServerHook(
         throw new ActionServerHookRequestError(`Flow "${flowId}" not found.`, 404);
       }
 
+      if (!flow.miniApp?.routes || !Object.values(flow.miniApp.routes).includes(screenId)) {
+        throw new ActionServerHookRequestError(`Screen "${screenId}" is not a member of flow "${flowId}".`, 404);
+      }
+
       await options.trust.validate?.({
         actionId: undefined,
         actorId: flowId ? context.userId : null,
@@ -175,7 +181,8 @@ async function executeActionServerHook(
         }
       }
 
-      let loaderData = undefined;
+      let loaderData: unknown = undefined;
+      let loaderFound = false;
       const loader = options.loaders?.get(screenId);
       if (loader) {
         loaderData = await loader({
@@ -183,9 +190,10 @@ async function executeActionServerHook(
           params: options.payload.input.params ?? {},
           services: options.services
         });
+        loaderFound = true;
       }
 
-      return { data: loaderData ?? context.subject ?? {}, session };
+      return { data: loaderData, loaderFound, session };
     }
 
     case "runAction": {
@@ -213,28 +221,13 @@ async function executeActionServerHook(
         }
       }
 
-      const sign: SignContextFn = async (params) => {
-        const { createSignedActionContext } = await import("@teleforgex/core");
-        const now = Math.floor(Date.now() / 1000);
-        const ttl = params.ttlSeconds ?? 900;
-        const token = createSignedActionContext(
-          {
-            allowedActions: params.allowedActions,
-            appId: context.appId,
-            expiresAt: now + ttl,
-            flowId: params.flowId ?? context.flowId,
-            issuedAt: now,
-            screenId: params.screenId,
-            subject: params.subject,
-            userId: context.userId
-          },
-          options.flowSecret
-        );
-        const baseUrl = options.miniAppUrl ?? process.env.MINI_APP_URL ?? "http://localhost:3000";
-        const url = new URL(baseUrl);
-        url.searchParams.set("tgWebAppStartParam", token);
-        return url.toString();
-      };
+      const sign = createSignForActionContext({
+        appId: options.appId,
+        defaultFlowId: context.flowId,
+        flowSecret: options.flowSecret,
+        miniAppUrl: options.miniAppUrl,
+        userId: context.userId
+      });
 
       const result = await action.handler({
         ctx: context,

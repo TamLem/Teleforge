@@ -7,7 +7,7 @@ export {
   MiniAppStateProvider,
   useAppState
 } from "./miniapp-runtime.js";
-export { createRouteRegistry, createScreenRegistry, defineScreen, resolveMiniAppScreen } from "./screens.js";
+export { createRouteRegistry, createScreenRegistry, defineScreen, extractRouteParams, resolveMiniAppScreen } from "./screens.js";
 export { defineFlow, resolveFlowAction } from "./flow-definition.js";
 export type {
   ResolvedMiniAppScreen,
@@ -20,6 +20,7 @@ export type {
 } from "./screens.js";
 export type {
   ChatHandoffMiniAppScreen,
+  LoaderState,
   MiniAppState,
   ReadyMiniAppScreen
 } from "./miniapp-runtime.js";

@@ -1,8 +1,8 @@
 import { useLaunchCoordination } from "@teleforgex/web";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MiniAppStateProvider, useAppState } from "./miniapp-state.js";
-import { findRoutePattern, resolveMiniAppScreen } from "./screens.js";
+import { extractRouteParams, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
@@ -21,7 +21,7 @@ import type { FlowContext } from "@teleforgex/core/browser";
 import type { ReactNode } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
-type AnyScreenDefinition = TeleforgeScreenDefinition<unknown, unknown>;
+type AnyScreenDefinition = TeleforgeScreenDefinition<unknown>;
 type AnyDiscoveredScreenModule = DiscoveredScreenModule<unknown>;
 
 export type NavigateOptions = {
@@ -34,6 +34,7 @@ export interface ScreenProps {
   launchData?: Record<string, unknown>;
   routeData?: Record<string, unknown>;
   loaderData?: unknown;
+  loader: LoaderState;
   appState: MiniAppState;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenId: string, options?: NavigateOptions) => void;
@@ -41,6 +42,12 @@ export interface ScreenProps {
   screenId: string;
   routePath: string;
 }
+
+export type LoaderState =
+  | { status: "loading" }
+  | { status: "ready"; data: unknown }
+  | { status: "error"; error: Error }
+  | { status: "idle" };
 
 export interface TeleforgeMiniAppProps {
   fallback?: ReactNode;
@@ -65,7 +72,6 @@ export interface UseTeleforgeMiniAppRuntimeOptions extends Omit<
 }
 
 export interface ReadyMiniAppScreen extends ResolvedMiniAppScreen {
-  loaderData?: unknown;
   status: "ready";
 }
 
@@ -121,6 +127,8 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [handoff, setHandoff] = useState<ChatHandoffMiniAppScreen | null>(null);
   const [routeData, setRouteData] = useState<Record<string, unknown> | undefined>(undefined);
+  const [loader, setLoader] = useState<LoaderState>({ status: "idle" });
+  const loaderKeyRef = useRef<string>("");
 
   const resolution = useTeleforgeMiniAppRuntime({
     ...props,
@@ -133,6 +141,52 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
       setHandoff(null);
     }
   }, [props.pathname]);
+
+  useEffect(() => {
+    if (resolution.status !== "ready" || !props.serverBridge) {
+      return;
+    }
+
+    const screen = resolution as ReadyMiniAppScreen;
+    const flowsNormalized = props.flows
+      ? Array.from(props.flows).map((f) => ("flow" in f ? f.flow : f))
+      : manifestToFlows(props.flowManifest);
+    const pattern = findRoutePattern(screen.screenId, flowsNormalized, activePathname);
+    const params = pattern
+      ? extractRouteParams(pattern, activePathname)
+      : {};
+
+    const loaderKey = `${screen.flowId}:${screen.screenId}:${activePathname}`;
+    if (loaderKey === loaderKeyRef.current) {
+      return;
+    }
+
+    loaderKeyRef.current = loaderKey;
+    setLoader({ status: "loading" });
+
+    let cancelled = false;
+    props.serverBridge
+      .loadScreenContext({
+        flowId: screen.flowId,
+        screenId: screen.screenId,
+        signedContext: launchCoordination.rawFlowContext ?? "",
+        params
+      })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.loaderFound) {
+          setLoader({ status: "ready", data: result.data });
+        } else {
+          setLoader({ status: "idle" });
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLoader({ status: "error", error: error instanceof Error ? error : new Error(String(error)) });
+      });
+
+    return () => { cancelled = true; };
+  }, [resolution.status, activePathname, props.serverBridge, launchCoordination.rawFlowContext]);
 
   if (handoff) {
     return <>{props.renderChatHandoff ? props.renderChatHandoff(handoff) : <div>Returning to chat...</div>}</>;
@@ -224,12 +278,15 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
     }
   };
 
+  const loaderData = loader.status === "ready" ? loader.data : undefined;
+
   return (
     <ScreenComponent
       data={screenData}
       launchData={signedData}
       routeData={routeData}
-      loaderData={screen.loaderData}
+      loader={loader}
+      loaderData={loaderData}
       appState={appState}
       runAction={runActionClosure}
       navigate={navigateClient}

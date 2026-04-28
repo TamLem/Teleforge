@@ -100,7 +100,7 @@ export interface ActionHandlerDefinition<TContext = unknown> {
 }
 
 export interface SignActionContextParams {
-  flowId: string;
+  flowId?: string;
   screenId: string;
   subject?: Record<string, unknown>;
   allowedActions?: string[];

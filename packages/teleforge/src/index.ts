@@ -65,6 +65,11 @@ export {
   MiniAppStateProvider,
   useAppState
 } from "./miniapp-runtime.js";
+export type {
+  LoaderState,
+  ReadyMiniAppScreen,
+  ScreenProps
+} from "./miniapp-runtime.js";
 
 export {
   createActionServerHooksHandler,
@@ -87,6 +92,7 @@ export {
   createFlowRoutes,
   createFlowRuntimeSummaries,
   createFlowRuntimeSummary,
+  createSignForActionContext,
   discoverFlowFiles,
   discoverScreenLoaderFiles,
   discoverScreenFiles,
@@ -125,7 +131,7 @@ export {
 } from "./config.js";
 export type { LoadedTeleforgeApp } from "./config.js";
 
-export { createScreenRegistry, defineScreen, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
+export { createScreenRegistry, defineScreen, extractRouteParams, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
 export type {
   DiscoveredScreenModule,
   LoaderRegistry,

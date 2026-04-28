@@ -8,10 +8,12 @@ export interface TeleforgeActionServerLoadInput {
   flowId: string;
   screenId: string;
   signedContext: string;
+  params?: Record<string, string>;
 }
 
 export interface TeleforgeActionServerLoadResult {
   data?: unknown;
+  loaderFound?: boolean;
   session?: unknown;
 }
 
@@ -37,62 +39,6 @@ export interface CreateFetchMiniAppServerBridgeOptions {
   basePath?: string;
   fetch?: typeof fetch;
   headers?: HeadersInit | (() => MaybePromise<HeadersInit | undefined> | undefined);
-}
-
-// Legacy types kept for compat with modules not yet rewritten
-export interface TeleforgeMiniAppServerLoadInput {
-  flowId: string;
-  routePath: string;
-  screenId: string;
-  state: unknown;
-  stateKey?: string;
-  stepId: string;
-}
-
-export interface TeleforgeMiniAppServerSubmitInput {
-  data: unknown;
-  flowId: string;
-  state: unknown;
-  stateKey?: string;
-  stepId: string;
-}
-
-export interface TeleforgeMiniAppServerActionInput {
-  action: string;
-  flowId: string;
-  state: unknown;
-  stateKey?: string;
-  stepId: string;
-}
-
-export interface TeleforgeMiniAppServerChatHandoffInput {
-  flowContext: string;
-  state: unknown;
-  stateKey: string;
-  stepId: string;
-}
-
-export interface TeleforgeMiniAppServerLoadAllowedResult {
-  allow: true;
-  loaderData?: unknown;
-  state?: unknown;
-}
-
-export interface TeleforgeMiniAppServerLoadBlockedResult {
-  allow: false;
-  block: { allow: false; reason?: string };
-  state?: unknown;
-}
-
-export type TeleforgeMiniAppServerLoadResult =
-  | TeleforgeMiniAppServerLoadAllowedResult
-  | TeleforgeMiniAppServerLoadBlockedResult;
-
-export interface TeleforgeMiniAppServerBridge {
-  action(input: TeleforgeMiniAppServerActionInput): Promise<void | unknown>;
-  chatHandoff(input: TeleforgeMiniAppServerChatHandoffInput): Promise<void>;
-  load(input: TeleforgeMiniAppServerLoadInput): Promise<TeleforgeMiniAppServerLoadResult>;
-  submit(input: TeleforgeMiniAppServerSubmitInput): Promise<void | unknown>;
 }
 
 export function createFetchMiniAppServerBridge(
