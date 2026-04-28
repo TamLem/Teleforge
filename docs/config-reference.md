@@ -318,17 +318,29 @@ export default defineScreen({
 
 ```ts
 interface TeleforgeScreenComponentProps {
-  launch: LaunchContext;       // Parsed Telegram launch context
-  screenId: string;           // Current screen identifier
-  routePath: string;          // Current URL pathname
-  data?: unknown;             // Context data from signed token
-  loaderData?: unknown;       // Resolved loader data
-  session?: unknown;          // Session state (only for session flows)
-  transitioning: boolean;     // Action in progress
+  data?: unknown;                         // Merged launchData + routeData (preferred)
+  launchData?: Record<string, unknown>;   // Raw signed context subject
+  routeData?: Record<string, unknown>;    // Raw navigate() data
+  loaderData?: unknown;                   // Server-loaded screen data
+  appState?: MiniAppState;                // Cross-screen client state (React context)
+  session?: unknown;                      // Session state (only for session flows)
+  screenId: string;                       // Current screen identifier
+  routePath: string;                      // Current URL pathname
+  transitioning: boolean;                 // Action in progress
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
-  navigate: (screenIdOrRoute: string, params?: Record<string, unknown>) => void;
+  navigate: (screenIdOrRoute: string, options?: NavigateOptions) => void;
 }
+
+type NavigateOptions = {
+  params?: Record<string, string>;        // Route params (fills :param segments)
+  data?: Record<string, unknown>;         // Data passed to next screen
+  replace?: boolean;                      // Replace history entry instead of push
+};
 ```
+
+Use `data` for all screen data — the runtime merges signed context and
+navigation data automatically. `launchData` and `routeData` are available
+for advanced cases that need the raw sources.
 
 ---
 
@@ -512,4 +524,4 @@ Normalizes an action ID string. Replaces the old `resolveFlowActionKey`.
 | `advanceStep(key, step, state)` | Not needed; actions are stateless by default |
 | Server hooks `flow-hooks/{flowId}/{stepId}.ts` | Actions defined inline in flow or server |
 | `miniApp.stepRoutes` | `miniApp.routes` |
-| Screen props `{ flow, state, stepId, submit }` | Screen props `{ launch, runAction, navigate, session? }` |
+| Screen props `{ flow, state, stepId, submit }` | Screen props `{ launchData, routeData, appState, runAction, navigate }` |

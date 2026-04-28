@@ -223,10 +223,9 @@ export default defineScreen({
 | Layer      | Defines                                                                         |
 | ---------- | ------------------------------------------------------------------------------- |
 | **Flow**   | routes, actions, action handlers, session config                                |
-| **Screen** | UI rendering, local interaction behavior, input collection, action invocation   |
+| **Screen** | UI rendering, local interaction behavior, input collection, action invocation, navigation decisions |
 
-Do not duplicate business logic inside screens. Screens call `runAction(actionId, payload)` and let
-the server resolve the result.
+Screens call `runAction(actionId, payload)` for server-side work and `navigate(screenId, options)` to move between screens. The server returns data and effects — the screen decides what to do next.
 
 **Flow defines routes and actions:**
 
@@ -238,38 +237,49 @@ miniApp: {
   }
 },
 actions: {
-  goToCheckout: {
-    handler: async ({ data }) => ({ navigate: "shop.checkout" })
+  getProduct: {
+    handler: async ({ data }) => ({ data: { product: ... } })
   }
 }
 ```
 
-**Screen implements the UI:**
+**Screen implements UI and owns navigation:**
 
 ```tsx
-function CatalogScreen({ runAction }) {
-  return <button onClick={() => runAction("goToCheckout")}>Checkout</button>;
+function CatalogScreen({ runAction, navigate }) {
+  const handleViewProduct = async (productId: string) => {
+    const result = await runAction("getProduct", { productId });
+    navigate("shop.checkout", { data: { product: result.data.product } });
+  };
+
+  return <button onClick={() => handleViewProduct("p1")}>Checkout</button>;
 }
 ```
 
 ## 10. Screens Must Not Reconstruct Authoritative State
 
-Screens receive context data from the runtime via the `data` prop and signed context.
+Screens receive a unified `data` prop merged by the runtime from signed context
+and navigation data. No manual fallback between `launchData` and `routeData` needed.
 
-Use:
+```tsx
+// Just use data — the runtime handles the merge
+const order = data?.order;
+const product = data?.product;
+const products = data?.products;
+```
 
-- context data (`props.data`)
-- loader data (`props.loaderData`)
-- runtime metadata (`props.screenId`, `props.routePath`)
+Individual data layers remain available for advanced cases:
+- `launchData` for identity scope, resource IDs from the signed context
+- `routeData` for ephemeral handoff data between screens
+- `loaderData` for server-derived screen data
+- `appState` for Mini App-local session state (cart, filters, selections)
 
 Do not:
-
 - parse state from launch payload
 - rebuild state from URL/query data
 - treat frontend-local copies as authoritative
 
-The frontend may hold local UI state (modals, form inputs, filters), but **domain state and action
-results are authoritative**.
+The frontend may hold local UI state (modals, form inputs, filters), but **domain state and action results are authoritative**.
 
 ## 11. Separate State Types Clearly
 
@@ -277,7 +287,8 @@ results are authoritative**.
 | ---------------------- | ---------------------------------------- | ------------------------------------------------------------- |
 | **Domain state**       | Persistent, in database or services      | user profile, product catalog, order history                  |
 | **Local UI state**     | Ephemeral, screen-only                   | open modals, unsaved inputs, temporary filters, loading flags |
-| **Session state**     | Optional, server-side, TTL-bound         | drafts, multi-step wizards, external wait state               |
+| **Session state**      | Optional, server-side, TTL-bound         | drafts, multi-step wizards, external wait state               |
+| **App state**          | Mini App-local, cross-screen, ephemeral  | cart items, selections, filters                               |
 | **Derived view state** | Computed, usually not persisted          | formatted prices, filtered lists, sort order                  |
 
 Do not blur these together into one global client state store.
@@ -287,6 +298,7 @@ Do not blur these together into one global client state store.
 - Domain state → `services` in action handlers
 - Local UI state → `useState` inside the screen component
 - Session state → `session.patch()` in action handlers (only for session flows)
+- App state → `appState.value` / `appState.patch()` in screen components
 - Derived view state → `useMemo` inside the screen component
 
 ## 12. Telegram-Specific Behavior Behind Adapter Layer

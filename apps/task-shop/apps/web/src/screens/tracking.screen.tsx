@@ -1,6 +1,7 @@
 import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
+
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 const STATUS_STEPS = ["confirmed", "processing", "shipped", "delivered"] as const;
@@ -11,8 +12,8 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "Delivered"
 };
 
-function TrackingScreen({ routeData, navigate }: TeleforgeScreenComponentProps) {
-  const order = routeData?.order as Record<string, unknown> | undefined;
+function TrackingScreen({ data, navigate }: TeleforgeScreenComponentProps) {
+  const order = data?.order as Record<string, unknown> | undefined;
 
   if (!order) {
     return (

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
+
 import type { Product } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 const CATEGORIES = ["Phones", "Laptops", "Tablets", "Audio", "Accessories"] as const;
 
-function CatalogScreen({ launchData, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
-  const products = (launchData?.products as Product[]) ?? [];
+function CatalogScreen({ data, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
+  const products = (data?.products as Product[]) ?? [];
   const cart = (appState?.value?.cart ?? []) as Array<{ productId: string; quantity: number }>;
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
   const [justAdded, setJustAdded] = useState<string | null>(null);

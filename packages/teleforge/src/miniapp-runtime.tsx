@@ -158,6 +158,10 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
   const ScreenComponent = screen.screen.component;
   const appState = useAppState();
   const signedData = parseSignedContextSubject(launchCoordination.rawFlowContext);
+  // Merge: routeData (from navigate) takes priority, signedData (from chat link) is baseline
+  const screenData = routeData
+    ? { ...signedData, ...routeData }
+    : signedData;
 
   const navigateClient = (screenId: string, options?: NavigateOptions) => {
     setRouteData(options?.data);
@@ -222,6 +226,7 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
 
   return (
     <ScreenComponent
+      data={screenData}
       launchData={signedData}
       routeData={routeData}
       loaderData={screen.loaderData}

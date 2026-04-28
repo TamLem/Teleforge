@@ -166,9 +166,11 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   flex-shrink: 0;
 }
 .product-image.large {
-  width: min(100%, 360px);
-  aspect-ratio: 1;
+  width: min(100%, 420px);
+  height: clamp(220px, 58vw, 340px);
   margin: 0 auto;
+  background: transparent;
+  border-radius: 0;
 }
 .product-image.line-thumb {
   width: 3rem;
@@ -203,7 +205,16 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   font-size: 1.25rem;
 }
 .product-hero-image {
-  padding: 0.5rem 0;
+  display: grid;
+  place-items: center;
+  min-height: clamp(240px, 62vw, 360px);
+  padding: 1rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,0.95), rgba(247,248,250,0.88) 58%, #eef1f4 100%);
+  border: 1px solid rgba(26,26,46,0.06);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .total-row {

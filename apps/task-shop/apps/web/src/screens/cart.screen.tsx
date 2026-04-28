@@ -1,6 +1,7 @@
 import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
+
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 type CartItem = { productId: string; name: string; price: number; quantity: number; image: string };

@@ -2,10 +2,11 @@ import { useState } from "react";
 import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
+
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-function ProductDetailScreen({ launchData, routeData, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
-  const product = (routeData?.product ?? launchData?.product) as Record<string, unknown> | undefined;
+function ProductDetailScreen({ data, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
+  const product = data?.product as Record<string, unknown> | undefined;
   const cart = (appState?.value?.cart ?? []) as Array<{ productId: string; name: string; price: number; quantity: number; image: string }>;
   const [qty, setQty] = useState(1);
 

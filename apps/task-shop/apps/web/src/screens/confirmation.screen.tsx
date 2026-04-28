@@ -1,6 +1,7 @@
 import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
+
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 function ConfirmationScreen({ routeData, navigate }: TeleforgeScreenComponentProps) {
