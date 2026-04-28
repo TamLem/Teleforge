@@ -1,4 +1,9 @@
 import type {
+  UpdateContext,
+  CallbackQueryContext,
+  WebAppDataContext
+} from "@teleforgex/bot";
+import type {
   ActionContextToken,
   ActionHandlerDefinition,
   ActionResult,
@@ -6,11 +11,6 @@ import type {
   SessionHandle,
   SignContextFn
 } from "@teleforgex/core";
-import type {
-  UpdateContext,
-  CallbackQueryContext,
-  WebAppDataContext
-} from "@teleforgex/bot";
 
 type MaybePromise<T> = Promise<T> | T;
 
@@ -82,6 +82,7 @@ export interface ActionFlowActionHandlerContext<TContext = unknown> {
   data: unknown;
   services: TContext;
   session?: SessionHandle;
+  sign: SignContextFn;
 }
 
 export interface ActionFlowDefinition<TContext = unknown> {

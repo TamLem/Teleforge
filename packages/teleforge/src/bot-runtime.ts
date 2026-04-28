@@ -20,7 +20,7 @@ import {
   SessionManager,
   validateActionContext,
   type ActionContextToken,
-  type ActionResult
+  type SignContextFn
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
@@ -172,7 +172,7 @@ export async function createDiscoveredBotRuntime(
       }
       await boundBot.sendMessage(input.context.userId, input.message, {
         reply_markup: input.replyMarkup as Parameters<typeof boundBot.sendMessage>[2] extends { reply_markup?: infer R } ? R : undefined
-      } as any);
+      });
     }
   };
 }
@@ -334,19 +334,14 @@ function createPhoneContactMiddleware(
       console.error("[bot:contact] failed to dismiss keyboard:", err instanceof Error ? err.message : err);
     }
 
-    const sign = async (params: {
-      flowId: string;
-      screenId: string;
-      subject?: Record<string, unknown>;
-      allowedActions?: string[];
-    }) => {
+    const sign = async (params: Parameters<SignContextFn>[0]) => {
       const now = Math.floor(Date.now() / 1000);
       const token = createSignedActionContext(
         {
           allowedActions: params.allowedActions,
           appId: flowId,
           expiresAt: now + 900,
-          flowId: params.flowId,
+          flowId: params.flowId ?? "shop",
           issuedAt: now,
           screenId: params.screenId,
           subject: params.subject,
@@ -428,7 +423,7 @@ function createLocationMiddleware(
       return next();
     }
 
-    const [, handler] = entry;
+    const [locationFlowId, handler] = entry;
     const user = ctx.user;
     if (!user || !handler) {
       return next();
@@ -439,19 +434,14 @@ function createLocationMiddleware(
       reply_markup: { remove_keyboard: true }
     });
 
-    const sign = async (params: {
-      flowId: string;
-      screenId: string;
-      subject?: Record<string, unknown>;
-      allowedActions?: string[];
-    }) => {
+    const sign = async (params: Parameters<SignContextFn>[0]) => {
       const now = Math.floor(Date.now() / 1000);
       const token = createSignedActionContext(
         {
           allowedActions: params.allowedActions,
           appId: "",
           expiresAt: now + 900,
-          flowId: params.flowId,
+          flowId: params.flowId ?? locationFlowId,
           issuedAt: now,
           screenId: params.screenId,
           subject: params.subject,
@@ -536,7 +526,7 @@ function createActionCallbackHandler(
         }
       }
 
-      await action.handler({
+      await action.handler({ sign: async () => { throw new Error("sign not available in callback context"); },
         ctx: verified.context,
         data: {},
         services: options.services as never,
@@ -561,7 +551,7 @@ function createActionCallbackHandler(
             data,
             reply: replyFn,
             answer: answerFn
-          } as any,
+          },
           services: options.services as never
         });
         return;
@@ -619,7 +609,7 @@ function createWebAppDataHandler(
           }
         }
 
-        await action.handler({
+        await action.handler({ sign: async () => { throw new Error("sign not available in callback context"); },
           ctx: context,
           data: parsed.payload ?? {},
           services: options.services as never,

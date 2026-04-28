@@ -2,7 +2,6 @@ import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { ClientFlowManifest, ClientFlowManifestEntry, ClientScreenManifestEntry } from "@teleforgex/core";
 
-type AnyFlowDefinition = ActionFlowDefinition;
 
 export type TeleforgeClientFlowManifest = ClientFlowManifest;
 

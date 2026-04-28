@@ -1,8 +1,7 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { resolveTeleforgeImportPath, resolveTsxImportPath } from "./manifest.js";
@@ -26,7 +25,6 @@ export async function generateClientManifest(options: GenerateClientManifestOpti
   const jsonOutputPath = path.join(tmpDir, "output.json");
 
   const script = `
-    import { pathToFileURL } from "node:url";
     import { writeFile } from "node:fs/promises";
 
     const teleforgePath = process.env.TELEFORGE_PACKAGE_PATH;
@@ -36,7 +34,6 @@ export async function generateClientManifest(options: GenerateClientManifestOpti
       throw new Error("Required environment variables are missing.");
     }
 
-    const teleforge = await import(pathToFileURL(teleforgePath).href);
     const configPath = await teleforge.resolveTeleforgeConfigPath(cwd);
     if (!configPath) {
       throw new Error("No Teleforge project found. Add a teleforge.config.ts file.");

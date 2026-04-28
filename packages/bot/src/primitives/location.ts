@@ -1,7 +1,7 @@
 import type {
   TelegramKeyboardButton,
   TelegramKeyboardMarkup,
-  TelegramLocation,
+  
   TelegramMessage,
   TelegramUpdate
 } from "../router/types.js";

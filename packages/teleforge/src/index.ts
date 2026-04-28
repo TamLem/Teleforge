@@ -88,12 +88,15 @@ export {
   createFlowRuntimeSummaries,
   createFlowRuntimeSummary,
   discoverFlowFiles,
+  discoverScreenLoaderFiles,
   discoverScreenFiles,
   loadActionRegistry,
   loadRouteRegistry,
+  loadScreenLoaders,
   loadTeleforgeFlows,
   loadTeleforgeScreens,
   resolveFlowServerHooksRoot,
+  resolveScreenLoaderRoot,
   resolveScreenRoot
 } from "./discovery.js";
 
@@ -108,7 +111,9 @@ export type {
   DiscoveredFlowStepServerHookModule,
   DiscoverFlowFilesOptions,
   DiscoverScreenFilesOptions,
+  DiscoverScreenLoaderFilesOptions,
   LoadTeleforgeFlowsOptions,
+  LoadScreenLoadersOptions,
   LoadTeleforgeScreensOptions,
   TeleforgeFlowConventions
 } from "./discovery.js";
@@ -123,7 +128,9 @@ export type { LoadedTeleforgeApp } from "./config.js";
 export { createScreenRegistry, defineScreen, findRoutePattern, resolveMiniAppScreen } from "./screens.js";
 export type {
   DiscoveredScreenModule,
+  LoaderRegistry,
   ResolvedMiniAppScreen,
+  ServerLoaderContext,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
   TeleforgeScreenGuardBlock,

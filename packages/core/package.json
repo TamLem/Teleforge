@@ -39,6 +39,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "build": "tsup --config tsup.config.ts",
     "format": "prettier --check .",
     "lint": "eslint . --ext .ts,.tsx,.mjs",

@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // @ts-ignore — devtools/cli has no types
+  // @ts-expect-error — devtools/cli has no types
   await import("@teleforgex/devtools/cli");
 }
 

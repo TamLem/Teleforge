@@ -1,7 +1,7 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { MiniAppState } from "./miniapp-state.js";
-import type { ActionResult, LaunchContext, SessionHandle } from "@teleforgex/core";
+import type { ActionContextToken, ActionResult, LaunchContext } from "@teleforgex/core";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
@@ -194,9 +194,7 @@ function resolveScreenIdFromPath(
   pathname: string
 ): string | null {
   const routes = flow.miniApp?.routes;
-  if (!routes) {
-    return null;
-  }
+  if (!routes) return null;
 
   if (routes[pathname]) {
     return routes[pathname];
@@ -210,6 +208,14 @@ function resolveScreenIdFromPath(
 
   return null;
 }
+
+export interface ServerLoaderContext {
+  ctx: ActionContextToken;
+  params: Record<string, string>;
+  services: unknown;
+}
+
+export type LoaderRegistry = ReadonlyMap<string, (ctx: ServerLoaderContext) => Promise<unknown>>;
 
 function routePatternMatches(pattern: string, pathname: string): boolean {
   if (!pattern.includes(":")) {

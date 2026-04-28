@@ -265,7 +265,7 @@ function summarizeFlows(
   screenSummaries: readonly DiscoveredTeleforgeScreenSummary[]
 ): DiscoveredTeleforgeFlowSummary[] {
   const runtimeSummariesById = new Map(runtimeSummaries.map((summary) => [summary.id, summary]));
-  const screenSummariesById = new Map(screenSummaries.map((summary) => [summary.id, summary]));
+  const _screenSummariesById = new Map(screenSummaries.map((summary) => [summary.id, summary]));
 
   return flows.map((flow) => {
     const runtimeSummary = runtimeSummariesById.get(flow.id);
@@ -421,7 +421,7 @@ interface RuntimeFlowActionSummary {
   to?: string;
 }
 
-interface RuntimeFlowStepSummary {
+interface _RuntimeFlowStepSummary {
   actionCount: number;
   actions: readonly RuntimeFlowActionSummary[];
   discoveredActionHandlerIds: readonly string[];

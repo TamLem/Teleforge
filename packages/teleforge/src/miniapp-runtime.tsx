@@ -1,8 +1,8 @@
 import { useLaunchCoordination } from "@teleforgex/web";
 import { useEffect, useMemo, useState } from "react";
 
-import { findRoutePattern, resolveMiniAppScreen } from "./screens.js";
 import { MiniAppStateProvider, useAppState } from "./miniapp-state.js";
+import { findRoutePattern, resolveMiniAppScreen } from "./screens.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
@@ -16,13 +16,13 @@ import type {
   UnresolvedMiniAppScreen
 } from "./screens.js";
 import type { TeleforgeActionServerBridge } from "./server-bridge.js";
-import type { ActionResult, ClientEffect, LaunchContext } from "@teleforgex/core";
+import type { ActionResult } from "@teleforgex/core";
 import type { FlowContext } from "@teleforgex/core/browser";
 import type { ReactNode } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
-type AnyScreenDefinition = TeleforgeScreenDefinition<any, any>;
-type AnyDiscoveredScreenModule = DiscoveredScreenModule<any>;
+type AnyScreenDefinition = TeleforgeScreenDefinition<unknown, unknown>;
+type AnyDiscoveredScreenModule = DiscoveredScreenModule<unknown>;
 
 export type NavigateOptions = {
   params?: Record<string, string>;
@@ -35,7 +35,7 @@ export interface ScreenProps {
   routeData?: Record<string, unknown>;
   loaderData?: unknown;
   appState: MiniAppState;
-  runAction: <TResult = unknown>(actionId: string, payload?: unknown) => Promise<ActionResult>;
+  runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenId: string, options?: NavigateOptions) => void;
   transitioning: boolean;
   screenId: string;
@@ -284,7 +284,7 @@ function resolveScreenWithStandaloneFallback(
     return result;
   }
 
-  for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
+  for (const [route, _screenId] of Object.entries(flow.miniApp.routes)) {
     const resolved = resolveMiniAppScreen({ flows: [flow], pathname: route, screens });
     if (!("reason" in resolved)) {
       return resolved;

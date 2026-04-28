@@ -87,6 +87,7 @@ export interface ActionHandlerContext<TContext = unknown> {
   data: unknown;
   services: TContext;
   session?: SessionHandle;
+  sign: SignContextFn;
 }
 
 export type ActionHandler<TContext = unknown> = (

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 
-import { parseResumeParam } from "./parseResumeParam.js";
 import { useLaunch } from "../hooks/useLaunch.js";
 
+import { parseResumeParam } from "./parseResumeParam.js";
 import { getLaunchFlowContext, inferStateKey, parseFlowContext } from "./shared.js";
 
 import type { FlowContext } from "@teleforgex/core/browser";

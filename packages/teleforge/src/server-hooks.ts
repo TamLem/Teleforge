@@ -1,24 +1,23 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import {
-  createSignedActionContext,
   MemorySessionStorageAdapter,
   SessionManager,
   validateActionContext,
-  type ActionContextToken,
-  type ActionResult
+  type ActionContextToken
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
-import { loadActionRegistry, loadTeleforgeFlows } from "./discovery.js";
+import { loadActionRegistry, loadScreenLoaders, loadTeleforgeFlows } from "./discovery.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
+import type { LoaderRegistry, TeleforgeScreenDefinition } from "./screens.js";
+import type { SignContextFn } from "@teleforgex/core";
 import type { TeleforgeAppConfig } from "@teleforgex/core";
 
 export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
 
-type AnyFlowDefinition = ActionFlowDefinition;
 type MaybePromise<T> = Promise<T> | T;
 
 export interface TeleforgeActionServerHooksHandler {
@@ -29,7 +28,10 @@ export interface CreateActionServerHooksHandlerOptions {
   basePath?: string;
   cwd: string;
   flowSecret: string;
+  miniAppUrl?: string;
   onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
+  screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
+  loaders?: LoaderRegistry;
   services?: unknown;
   sessionManager?: SessionManager;
   trust?: ActionServerHookTrustOptions;
@@ -68,6 +70,9 @@ export async function createActionServerHooksHandler(
       })
     );
   const flowSecret = options.flowSecret;
+  const miniAppUrl = options.miniAppUrl;
+  const screens = options.screens;
+  const loaders = options.loaders ?? await loadScreenLoaders({ app: loadedApp.app, cwd: options.cwd });
   const trust = options.trust ?? {};
   const onChatHandoff = options.onChatHandoff;
 
@@ -85,9 +90,12 @@ export async function createActionServerHooksHandler(
           actions,
           flowSecret,
           flows,
+          loaders,
+          miniAppUrl,
           onChatHandoff,
           payload,
           request,
+          screens,
           services,
           sessionManager,
           trust
@@ -112,7 +120,7 @@ export async function createActionServerHooksHandler(
 }
 
 type ActionServerHookRequest =
-  | { kind: "loadScreenContext"; input: { flowId: string; screenId: string; signedContext: string } }
+  | { kind: "loadScreenContext"; input: { flowId: string; screenId: string; signedContext: string; params?: Record<string, string> } }
   | { kind: "runAction"; input: { flowId: string; actionId: string; signedContext: string; payload?: unknown } }
   | { kind: "handoff"; input: { signedContext: string; message: string } };
 
@@ -120,9 +128,12 @@ interface ExecuteActionServerHookOptions {
   actions: ReadonlyMap<string, ActionFlowActionDefinition>;
   flowSecret: string;
   flows: readonly DiscoveredFlowModule[];
+  loaders?: LoaderRegistry;
+  miniAppUrl?: string;
   onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   payload: ActionServerHookRequest;
   request: Request;
+  screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
   services?: unknown;
   sessionManager: SessionManager;
   trust: ActionServerHookTrustOptions;
@@ -135,8 +146,7 @@ async function executeActionServerHook(
     case "loadScreenContext": {
       const { flowId, screenId, signedContext } = options.payload.input;
       const context = validateActionContext(signedContext, options.flowSecret, {
-        flowId,
-        screenId
+        flowId
       });
 
       if (!context) {
@@ -165,7 +175,17 @@ async function executeActionServerHook(
         }
       }
 
-      return { data: context.subject ?? {}, session };
+      let loaderData = undefined;
+      const loader = options.loaders?.get(screenId);
+      if (loader) {
+        loaderData = await loader({
+          ctx: context,
+          params: options.payload.input.params ?? {},
+          services: options.services
+        });
+      }
+
+      return { data: loaderData ?? context.subject ?? {}, session };
     }
 
     case "runAction": {
@@ -193,11 +213,35 @@ async function executeActionServerHook(
         }
       }
 
+      const sign: SignContextFn = async (params) => {
+        const { createSignedActionContext } = await import("@teleforgex/core");
+        const now = Math.floor(Date.now() / 1000);
+        const ttl = params.ttlSeconds ?? 900;
+        const token = createSignedActionContext(
+          {
+            allowedActions: params.allowedActions,
+            appId: context.appId,
+            expiresAt: now + ttl,
+            flowId: params.flowId ?? context.flowId,
+            issuedAt: now,
+            screenId: params.screenId,
+            subject: params.subject,
+            userId: context.userId
+          },
+          options.flowSecret
+        );
+        const baseUrl = options.miniAppUrl ?? process.env.MINI_APP_URL ?? "http://localhost:3000";
+        const url = new URL(baseUrl);
+        url.searchParams.set("tgWebAppStartParam", token);
+        return url.toString();
+      };
+
       const result = await action.handler({
         ctx: context,
         data: payload ?? {},
         services: options.services as never,
-        session
+        session,
+        sign
       });
 
       if (result.effects && options.onChatHandoff) {
@@ -238,8 +282,11 @@ export interface StartTeleforgeServerOptions {
   basePath?: string;
   cwd?: string;
   flowSecret?: string;
+  loaders?: LoaderRegistry;
+  miniAppUrl?: string;
   onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   port?: number;
+  screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
   services?: unknown;
   sessionManager?: SessionManager;
   trust?: ActionServerHookTrustOptions;
@@ -271,7 +318,10 @@ export async function startTeleforgeServer(
     basePath,
     cwd,
     flowSecret,
+    loaders: options.loaders,
+    miniAppUrl: options.miniAppUrl,
     onChatHandoff: options.onChatHandoff,
+    screens: options.screens,
     services: options.services,
     sessionManager: options.sessionManager,
     trust: options.trust

@@ -5,14 +5,13 @@ import { pathToFileURL } from "node:url";
 import type {
   ActionFlowActionDefinition,
   ActionFlowDefinition,
-  ActionFlowDefinitionInput,
   ActionFlowMiniAppDefinition
 } from "./flow-definition.js";
-import type { DiscoveredScreenModule } from "./screens.js";
+import type { DiscoveredScreenModule, LoaderRegistry, ServerLoaderContext } from "./screens.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
-  LaunchEntryPoint,
-  RouteDefinition
+  RouteDefinition,
+  SignContextFn
 } from "@teleforgex/core";
 
 type AnyFlowDefinition = ActionFlowDefinition;
@@ -27,7 +26,7 @@ const SCREEN_FILE_SUFFIXES = [
   ".screen.js",
   ".screen.mjs"
 ] as const;
-const HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
+const _HANDLER_FILE_SUFFIXES = [".ts", ".mts", ".js", ".mjs"] as const;
 const DEFAULT_FLOW_ROOT = "flows";
 
 export interface TeleforgeFlowConventions {
@@ -78,6 +77,16 @@ export interface DiscoverScreenFilesOptions {
 }
 
 export interface LoadTeleforgeScreensOptions extends DiscoverScreenFilesOptions {}
+
+export interface DiscoverScreenLoaderFilesOptions {
+  app?: {
+    flows?: TeleforgeFlowConventions;
+  };
+  cwd: string;
+  root?: string;
+}
+
+export interface LoadScreenLoadersOptions extends DiscoverScreenLoaderFilesOptions {}
 
 export interface DiscoveredFlowModule {
   filePath: string;
@@ -233,7 +242,7 @@ export async function loadTeleforgeFlows(
 }
 
 export async function discoverFlowHandlerFiles(
-  options: DiscoverFlowHandlerFilesOptions
+  _options: DiscoverFlowHandlerFilesOptions
 ): Promise<string[]> {
   return [];
 }
@@ -245,7 +254,7 @@ export async function loadTeleforgeFlowHandlers(
 }
 
 export async function discoverFlowServerHookFiles(
-  options: DiscoverFlowServerHookFilesOptions
+  _options: DiscoverFlowServerHookFilesOptions
 ): Promise<string[]> {
   return [];
 }
@@ -281,12 +290,7 @@ export function createFlowCommands(options: CreateFlowCommandsOptions): BotComma
       description: flow.command.description,
       handler: async (context) => {
         const miniAppUrl = await resolveCommandValue(options.miniAppUrl, context);
-        const sign = async (params: {
-          flowId: string;
-          screenId: string;
-          subject?: Record<string, unknown>;
-          allowedActions?: string[];
-        }) => {
+        const sign: SignContextFn = async (params) => {
           const { createSignedActionContext } = await import("@teleforgex/core");
           const now = Math.floor(Date.now() / 1000);
           const ttl = 900;
@@ -295,7 +299,7 @@ export function createFlowCommands(options: CreateFlowCommandsOptions): BotComma
               allowedActions: params.allowedActions,
               appId: options.appId,
               expiresAt: now + ttl,
-              flowId: params.flowId,
+              flowId: params.flowId ?? flow.id,
               issuedAt: now,
               screenId: params.screenId,
               subject: params.subject,
@@ -466,7 +470,7 @@ function resolveFlowRoot(options: DiscoverFlowFilesOptions): string {
   return DEFAULT_FLOW_ROOT;
 }
 
-function resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): string {
+function _resolveFlowHandlersRoot(options: DiscoverFlowHandlerFilesOptions): string {
   if (options.root) {
     return options.root;
   }
@@ -569,4 +573,62 @@ async function resolveCommandValue<T>(
   }
 
   return value;
+}
+
+const LOADER_FILE_SUFFIXES = [".loader.ts", ".loader.mts", ".loader.js", ".loader.mjs"] as const;
+
+type DiscoveredScreenLoaderFunction = (ctx: ServerLoaderContext) => unknown;
+
+export async function discoverScreenLoaderFiles(
+  options: DiscoverScreenLoaderFilesOptions
+): Promise<string[]> {
+  const root = resolveScreenLoaderRoot(options);
+  const absoluteRoot = path.resolve(options.cwd, root);
+
+  try {
+    return await collectFilesBySuffix(absoluteRoot, LOADER_FILE_SUFFIXES);
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export async function loadScreenLoaders(options: LoadScreenLoadersOptions): Promise<LoaderRegistry> {
+  const files = await discoverScreenLoaderFiles(options);
+  const registry = new Map<string, (ctx: ServerLoaderContext) => Promise<unknown>>();
+
+  for (const filePath of files) {
+    const screenId = stripKnownExtension(path.basename(filePath), LOADER_FILE_SUFFIXES);
+    if (registry.has(screenId)) {
+      throw new Error(`Duplicate screen loader "${screenId}" in "${filePath}".`);
+    }
+
+    const module = await import(pathToFileURL(filePath).href);
+    const loader = (module.default ?? module.loader) as DiscoveredScreenLoaderFunction | undefined;
+    if (typeof loader !== "function") {
+      throw new Error(
+        `Screen loader module "${filePath}" must export a loader function as the default export or named "loader" export.`
+      );
+    }
+
+    registry.set(screenId, async (ctx) => await loader(ctx));
+  }
+
+  return registry;
+}
+
+export function resolveScreenLoaderRoot(options: DiscoverScreenLoaderFilesOptions): string {
+  if (options.root) {
+    return options.root;
+  }
+
+  const configured = options.app?.flows?.serverHooksRoot;
+  if (configured) {
+    return configured;
+  }
+
+  return path.join("apps", "api", "src", "loaders");
 }

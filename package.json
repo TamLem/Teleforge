@@ -21,6 +21,7 @@
     "examples/*"
   ],
   "scripts": {
+    "typecheck": "pnpm -r typecheck",
     "analyze": "pnpm build && pnpm --dir benchmark analyze",
     "bench": "pnpm --dir benchmark bench",
     "bench:ci": "pnpm --dir benchmark bench:ci",
