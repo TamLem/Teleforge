@@ -1,7 +1,7 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { MiniAppState } from "./miniapp-state.js";
-import type { ActionContextToken, ActionResult, LaunchContext } from "@teleforgex/core";
+import type { ActionContextToken, ActionResult } from "@teleforgex/core";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
@@ -9,24 +9,20 @@ type AnyScreenDefinition = TeleforgeScreenDefinition;
 type AnyDiscoveredScreenModule = DiscoveredScreenModule;
 type MaybePromise<T> = Promise<T> | T;
 
-export interface TeleforgeScreenComponentProps<TData = unknown, TSession = unknown> {
-  /** Signed context subject data (immutable per session). Prefer launchData. */
-  data?: TData;
-  /** @deprecated Use launchData instead. */
-  launch?: LaunchContext;
-  /** Signed context subject data (immutable per session). */
-  launchData?: Record<string, unknown>;
-  /** Data carried from the last navigate() call. */
+export type LoaderState =
+  | { status: "loading" }
+  | { status: "ready"; data: unknown }
+  | { status: "error"; error: Error }
+  | { status: "idle" };
+
+export interface TeleforgeScreenComponentProps {
+  scopeData?: Record<string, unknown>;
+  routeParams: Record<string, string>;
   routeData?: Record<string, unknown>;
-  /** Server-loaded screen data lifecycle. */
-  loader: { status: "loading" | "ready" | "error" | "idle"; data?: unknown; error?: Error };
-  /** Server-loaded screen data (convenience: loader.data when ready). */
+  loader: LoaderState;
   loaderData?: unknown;
-  /** Mini App-wide client session state. */
   appState?: MiniAppState;
-  session?: TSession;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
-  /** Navigate to a screen by ID, optionally passing params and data. */
   navigate: (screenIdOrRoute: string, paramsOrOptions?: Record<string, unknown>) => void;
   transitioning: boolean;
   screenId: string;
@@ -42,18 +38,18 @@ export interface TeleforgeScreenGuardBlock {
 
 export type TeleforgeScreenGuardResult = boolean | TeleforgeScreenGuardBlock;
 
-export interface TeleforgeScreenDefinition<TData = unknown> {
-  component: ComponentType<TeleforgeScreenComponentProps<TData>>;
+export interface TeleforgeScreenDefinition {
+  component: ComponentType<TeleforgeScreenComponentProps>;
   guard?: (
-    context: TeleforgeScreenComponentProps<TData>
+    context: TeleforgeScreenComponentProps
   ) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
   title?: string;
 }
 
-export interface DiscoveredScreenModule<TData = unknown> {
+export interface DiscoveredScreenModule {
   filePath: string;
-  screen: TeleforgeScreenDefinition<TData>;
+  screen: TeleforgeScreenDefinition;
 }
 
 export interface ResolveMiniAppScreenOptions {
@@ -68,7 +64,6 @@ export interface ResolvedMiniAppScreen {
   routePath: string;
   screen: AnyScreenDefinition;
   screenId: string;
-  launch?: LaunchContext;
 }
 
 export interface UnresolvedMiniAppScreen {
@@ -79,9 +74,9 @@ export interface UnresolvedMiniAppScreen {
   screenId?: string;
 }
 
-export function defineScreen<TData>(
-  screen: TeleforgeScreenDefinition<TData>
-): Readonly<TeleforgeScreenDefinition<TData>> {
+export function defineScreen(
+  screen: TeleforgeScreenDefinition
+): Readonly<TeleforgeScreenDefinition> {
   if (typeof screen.id !== "string" || screen.id.trim().length === 0) {
     throw new Error("Screen id must be a non-empty string.");
   }

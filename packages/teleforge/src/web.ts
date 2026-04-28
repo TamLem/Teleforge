@@ -10,6 +10,7 @@ export {
 export { createRouteRegistry, createScreenRegistry, defineScreen, extractRouteParams, resolveMiniAppScreen } from "./screens.js";
 export { defineFlow, resolveFlowAction } from "./flow-definition.js";
 export type {
+  LoaderState,
   ResolvedMiniAppScreen,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
@@ -20,7 +21,6 @@ export type {
 } from "./screens.js";
 export type {
   ChatHandoffMiniAppScreen,
-  LoaderState,
   MiniAppState,
   ReadyMiniAppScreen
 } from "./miniapp-runtime.js";

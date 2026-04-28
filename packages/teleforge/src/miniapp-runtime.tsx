@@ -10,6 +10,7 @@ import type { TeleforgeClientFlowManifest } from "./flow-manifest.js";
 import type { MiniAppState } from "./miniapp-state.js";
 import type {
   DiscoveredScreenModule,
+  LoaderState,
   ResolvedMiniAppScreen,
   TeleforgeScreenDefinition,
   TeleforgeScreenGuardBlock,
@@ -21,8 +22,8 @@ import type { FlowContext } from "@teleforgex/core/browser";
 import type { ReactNode } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
-type AnyScreenDefinition = TeleforgeScreenDefinition<unknown>;
-type AnyDiscoveredScreenModule = DiscoveredScreenModule<unknown>;
+type AnyScreenDefinition = TeleforgeScreenDefinition;
+type AnyDiscoveredScreenModule = DiscoveredScreenModule;
 
 export type NavigateOptions = {
   params?: Record<string, string>;
@@ -31,10 +32,11 @@ export type NavigateOptions = {
 };
 
 export interface ScreenProps {
-  launchData?: Record<string, unknown>;
+  scopeData?: Record<string, unknown>;
+  routeParams: Record<string, string>;
   routeData?: Record<string, unknown>;
-  loaderData?: unknown;
   loader: LoaderState;
+  loaderData?: unknown;
   appState: MiniAppState;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenId: string, options?: NavigateOptions) => void;
@@ -43,11 +45,7 @@ export interface ScreenProps {
   routePath: string;
 }
 
-export type LoaderState =
-  | { status: "loading" }
-  | { status: "ready"; data: unknown }
-  | { status: "error"; error: Error }
-  | { status: "idle" };
+export type { LoaderState };
 
 export interface TeleforgeMiniAppProps {
   fallback?: ReactNode;
@@ -135,6 +133,20 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
     pathname: activePathname
   });
 
+  const flowsNormalized = useMemo(
+    () => props.flows
+      ? Array.from(props.flows).map((f) => ("flow" in f ? f.flow : f))
+      : manifestToFlows(props.flowManifest),
+    [props.flows, props.flowManifest]
+  );
+
+  const routeParams: Record<string, string> = useMemo(() => {
+    if (resolution.status !== "ready") return {};
+    const screen = resolution as ReadyMiniAppScreen;
+    const pattern = findRoutePattern(screen.screenId, flowsNormalized, activePathname);
+    return pattern ? extractRouteParams(pattern, activePathname) : {};
+  }, [resolution.status, flowsNormalized, activePathname]);
+
   useEffect(() => {
     if (props.pathname) {
       setActivePathname(props.pathname);
@@ -148,21 +160,16 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
     }
 
     const screen = resolution as ReadyMiniAppScreen;
-    const flowsNormalized = props.flows
-      ? Array.from(props.flows).map((f) => ("flow" in f ? f.flow : f))
-      : manifestToFlows(props.flowManifest);
-    const pattern = findRoutePattern(screen.screenId, flowsNormalized, activePathname);
-    const params = pattern
-      ? extractRouteParams(pattern, activePathname)
-      : {};
-
-    const loaderKey = `${screen.flowId}:${screen.screenId}:${activePathname}`;
+    const loaderKey = `${screen.flowId}:${screen.screenId}:${activePathname}:${launchCoordination.rawFlowContext ?? ""}`;
     if (loaderKey === loaderKeyRef.current) {
       return;
     }
 
     loaderKeyRef.current = loaderKey;
     setLoader({ status: "loading" });
+
+    const pattern = findRoutePattern(screen.screenId, flowsNormalized, activePathname);
+    const params = pattern ? extractRouteParams(pattern, activePathname) : {};
 
     let cancelled = false;
     props.serverBridge
@@ -186,7 +193,7 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
       });
 
     return () => { cancelled = true; };
-  }, [resolution.status, activePathname, props.serverBridge, launchCoordination.rawFlowContext]);
+  }, [resolution.status, activePathname, props.serverBridge, launchCoordination.rawFlowContext, flowsNormalized]);
 
   if (handoff) {
     return <>{props.renderChatHandoff ? props.renderChatHandoff(handoff) : <div>Returning to chat...</div>}</>;
@@ -211,11 +218,7 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
   const screen = resolution as ReadyMiniAppScreen;
   const ScreenComponent = screen.screen.component;
   const appState = useAppState();
-  const signedData = parseSignedContextSubject(launchCoordination.rawFlowContext);
-  // Merge: routeData (from navigate) takes priority, signedData (from chat link) is baseline
-  const screenData = routeData
-    ? { ...signedData, ...routeData }
-    : signedData;
+  const scopeData = parseSignedContextSubject(launchCoordination.rawFlowContext);
 
   const navigateClient = (screenId: string, options?: NavigateOptions) => {
     setRouteData(options?.data);
@@ -282,8 +285,8 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
 
   return (
     <ScreenComponent
-      data={screenData}
-      launchData={signedData}
+      scopeData={scopeData}
+      routeParams={routeParams}
       routeData={routeData}
       loader={loader}
       loaderData={loaderData}

@@ -66,7 +66,6 @@ export {
   useAppState
 } from "./miniapp-runtime.js";
 export type {
-  LoaderState,
   ReadyMiniAppScreen,
   ScreenProps
 } from "./miniapp-runtime.js";
@@ -135,6 +134,7 @@ export { createScreenRegistry, defineScreen, extractRouteParams, findRoutePatter
 export type {
   DiscoveredScreenModule,
   LoaderRegistry,
+  LoaderState,
   ResolvedMiniAppScreen,
   ServerLoaderContext,
   TeleforgeScreenComponentProps,
