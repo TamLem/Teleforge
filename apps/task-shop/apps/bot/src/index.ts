@@ -24,9 +24,9 @@ const { url, stop: stopServer } = await startTeleforgeServer({
   flowSecret: context.flowSecret,
   port: context.app.runtime.server?.port ?? 3100,
   sessionManager: context.sessionManager,
-  onChatHandoff: async ({ context: ctx, message }) => {
+  onChatHandoff: async ({ context: ctx, message, replyMarkup }) => {
     console.log("[bot] sending chat message to", ctx.userId);
-    await runtime.handleChatHandoff({ context: ctx, message });
+    await runtime.handleChatHandoff({ context: ctx, message, replyMarkup });
   }
 });
 

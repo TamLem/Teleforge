@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { defineScreen } from "teleforge/web";
 
+import { ProductImage } from "../components/product-image";
 import type { Product } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
@@ -58,7 +59,7 @@ function CatalogScreen({ launchData, appState, runAction, navigate, transitionin
               {catProducts.map((product) => (
                 <div key={product.id} className="card">
                   <div className="product-row">
-                    <span className="icon">{product.image}</span>
+                    <ProductImage className="thumb" image={product.image} alt={product.name} />
                     <div className="info">
                       <h3>{product.name}</h3>
                       <p>{product.description}</p>

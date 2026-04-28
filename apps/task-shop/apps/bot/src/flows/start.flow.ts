@@ -1,5 +1,5 @@
-import { defineFlow } from "teleforge";
 import { products } from "@task-shop/types";
+import { defineFlow } from "teleforge";
 
 export default defineFlow({
   id: "gadgetshop-start",

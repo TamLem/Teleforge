@@ -8,8 +8,8 @@ import {
   removeFromCart,
   type CartItem
 } from "@task-shop/types";
-import { defineFlow } from "teleforge";
 import { createSignedActionContext } from "@teleforgex/core";
+import { defineFlow } from "teleforge";
 
 export default defineFlow({
   id: "gadgetshop",
@@ -159,7 +159,7 @@ export default defineFlow({
             issuedAt: now,
             expiresAt: now + 86400
           },
-          process.env.TELEFORGE_FLOW_SECRET ?? "dev-secret"
+          process.env.TELEFORGE_FLOW_SECRET ?? "task-shop-preview-secret"
         );
         const miniAppUrl = process.env.MINI_APP_URL ?? "http://localhost:3000";
         const trackingUrl = `${miniAppUrl}?tgWebAppStartParam=${encodeURIComponent(trackingToken)}`;

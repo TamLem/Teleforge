@@ -1,5 +1,6 @@
 import { defineScreen } from "teleforge/web";
 
+import { ProductImage } from "../components/product-image";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 type CartItem = { productId: string; name: string; price: number; quantity: number; image: string };
@@ -38,7 +39,7 @@ function CartScreen({ routeData, appState, runAction, navigate, transitioning }:
           {cart.map((item) => (
             <div key={item.productId} className="card">
               <div className="line-item">
-                <span style={{ fontSize: "2rem" }}>{item.image}</span>
+                <ProductImage className="line-thumb" image={item.image} alt={item.name} />
                 <div className="details">
                   <h3>{item.name}</h3>
                   <p>${item.price} each</p>

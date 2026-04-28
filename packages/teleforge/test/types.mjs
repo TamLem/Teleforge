@@ -31,14 +31,14 @@ test("TeleforgeMiniApp accepts screens with concrete state types", async () => {
     path.join(tmpRoot, "typed-screens.tsx"),
     `import { TeleforgeMiniApp, defineScreen } from ${JSON.stringify(`./${webImportPath}`)};
 
-interface StartFlowState {
-  phone: string;
-}
-
-const homeScreen = defineScreen<StartFlowState>({
+const homeScreen = defineScreen({
   id: "home",
   component(props) {
-    props.state.phone;
+    // New screen props: launchData, routeData, appState
+    const products = props.launchData?.products;
+    const product = props.routeData?.product;
+    const cart = props.appState?.value?.cart;
+    void products; void product; void cart;
     return null;
   }
 });

@@ -1,5 +1,6 @@
 import { defineScreen } from "teleforge/web";
 
+import { ProductImage } from "../components/product-image";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 function ConfirmationScreen({ routeData, navigate }: TeleforgeScreenComponentProps) {
@@ -35,7 +36,7 @@ function ConfirmationScreen({ routeData, navigate }: TeleforgeScreenComponentPro
         <h2>Order Summary</h2>
         {items.map((item) => (
           <div key={item.productId} className="line-item" style={{ borderBottom: "1px solid #f0f2f5", paddingBottom: "0.5rem" }}>
-            <span style={{ fontSize: "1.5rem" }}>{item.image}</span>
+            <ProductImage className="line-thumb" image={item.image} alt={item.name} />
             <div className="details">
               <p><strong>{item.name}</strong></p>
               <p className="muted">Qty: {item.quantity} × ${item.price}</p>

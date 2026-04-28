@@ -1,5 +1,6 @@
 import { defineScreen } from "teleforge/web";
 
+import { ProductImage } from "../components/product-image";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 const STATUS_STEPS = ["confirmed", "processing", "shipped", "delivered"] as const;
@@ -61,8 +62,11 @@ function TrackingScreen({ routeData, navigate }: TeleforgeScreenComponentProps) 
       <div className="card">
         <h2>Order Summary</h2>
         {items.map((item) => (
-          <div key={item.productId} style={{ display: "flex", justifyContent: "space-between", padding: "0.25rem 0" }}>
-            <span>{item.image} {item.name} × {item.quantity}</span>
+          <div key={item.productId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", padding: "0.25rem 0" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+              <ProductImage className="mini-thumb" image={item.image} alt={item.name} />
+              <span>{item.name} × {item.quantity}</span>
+            </span>
             <span>${(item.price * item.quantity).toFixed(2)}</span>
           </div>
         ))}

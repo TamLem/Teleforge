@@ -46,7 +46,7 @@ export const products: Product[] = [
     description: "A17 Pro chip. Titanium design. 48MP camera system. USB-C.",
     price: 999,
     currency: "USD",
-    image: "📱",
+    image: "/products/iphone-15.png",
     category: "Phones",
     inStock: true,
     specs: { "Display": "6.1\" OLED", "Chip": "A17 Pro", "Storage": "256GB", "Camera": "48MP" }
@@ -57,7 +57,7 @@ export const products: Product[] = [
     description: "Galaxy AI. Titanium frame. 200MP camera. Built-in S Pen.",
     price: 1199,
     currency: "USD",
-    image: "📱",
+    image: "/products/samsung-s24.png",
     category: "Phones",
     inStock: true,
     specs: { "Display": "6.8\" AMOLED", "Chip": "Snapdragon 8 Gen 3", "Storage": "512GB", "Camera": "200MP" }
@@ -68,7 +68,7 @@ export const products: Product[] = [
     description: "Google AI. Best-in-class camera. 7 years of updates.",
     price: 899,
     currency: "USD",
-    image: "📱",
+    image: "/products/pixel-8.png",
     category: "Phones",
     inStock: true,
     specs: { "Display": "6.7\" LTPO OLED", "Chip": "Tensor G3", "Storage": "256GB", "Camera": "50MP" }
@@ -79,7 +79,7 @@ export const products: Product[] = [
     description: "Supercharged by M3. 18-hour battery. Fanless design.",
     price: 1099,
     currency: "USD",
-    image: "💻",
+    image: "/products/macbook-air.png",
     category: "Laptops",
     inStock: true,
     specs: { "Display": "13.6\" Liquid Retina", "Chip": "M3", "RAM": "16GB", "Storage": "512GB SSD" }
@@ -90,7 +90,7 @@ export const products: Product[] = [
     description: "Intel Core Ultra. 14\" 2.8K OLED. MIL-STD durability.",
     price: 1649,
     currency: "USD",
-    image: "💻",
+    image: "/products/thinkpad-x1.png",
     category: "Laptops",
     inStock: true,
     specs: { "Display": "14\" 2.8K OLED", "Chip": "Intel Core Ultra 7", "RAM": "32GB", "Storage": "1TB SSD" }
@@ -101,7 +101,7 @@ export const products: Product[] = [
     description: "InfinityEdge display. Intel Core Ultra. Compact powerhouse.",
     price: 1299,
     currency: "USD",
-    image: "💻",
+    image: "/products/dell-xps.png",
     category: "Laptops",
     inStock: false,
     specs: { "Display": "14.5\" OLED", "Chip": "Intel Core Ultra 7", "RAM": "16GB", "Storage": "512GB SSD" }
@@ -112,7 +112,7 @@ export const products: Product[] = [
     description: "Adaptive Audio. USB-C. Active Noise Cancellation. Spatial Audio.",
     price: 249,
     currency: "USD",
-    image: "🎧",
+    image: "/products/airpods-pro.png",
     category: "Audio",
     inStock: true,
     specs: { "Type": "In-ear", "ANC": "Yes", "Battery": "6h + 30h case", "Connectivity": "Bluetooth 5.3" }
@@ -123,7 +123,7 @@ export const products: Product[] = [
     description: "Industry-leading ANC. 30-hour battery. Crystal clear calls.",
     price: 349,
     currency: "USD",
-    image: "🎧",
+    image: "/products/sony-xm5.png",
     category: "Audio",
     inStock: true,
     specs: { "Type": "Over-ear", "ANC": "Yes", "Battery": "30h", "Connectivity": "Bluetooth 5.2" }
@@ -134,7 +134,7 @@ export const products: Product[] = [
     description: "Immersive spatial audio. Premium ANC. All-day comfort.",
     price: 429,
     currency: "USD",
-    image: "🎧",
+    image: "/products/bose-qc.png",
     category: "Audio",
     inStock: true,
     specs: { "Type": "Over-ear", "ANC": "Yes", "Battery": "24h", "Connectivity": "Bluetooth 5.3" }
@@ -145,7 +145,7 @@ export const products: Product[] = [
     description: "M2 chip. 11\" Liquid Retina. Apple Pencil Pro support.",
     price: 599,
     currency: "USD",
-    image: "📋",
+    image: "/products/ipad-air.png",
     category: "Tablets",
     inStock: true,
     specs: { "Display": "11\" Liquid Retina", "Chip": "M2", "Storage": "128GB", "Connectivity": "Wi-Fi 6E" }
@@ -156,7 +156,7 @@ export const products: Product[] = [
     description: "Dynamic AMOLED 2X. S Pen included. IP68 water resistant.",
     price: 799,
     currency: "USD",
-    image: "📋",
+    image: "/products/galaxy-tab.png",
     category: "Tablets",
     inStock: true,
     specs: { "Display": "11\" AMOLED", "Chip": "Snapdragon 8 Gen 2", "Storage": "256GB", "Connectivity": "5G" }
@@ -167,7 +167,7 @@ export const products: Product[] = [
     description: "Snap on. 15W fast wireless charging. Compact travel design.",
     price: 39,
     currency: "USD",
-    image: "🔌",
+    image: "/products/magsafe-charger.png",
     category: "Accessories",
     inStock: true,
     specs: { "Type": "Wireless", "Power": "15W", "Compatibility": "iPhone 12+", "Cable": "1m USB-C" }
@@ -178,7 +178,7 @@ export const products: Product[] = [
     description: "HDMI 4K. 100W PD. SD card reader. Ethernet. USB 3.0.",
     price: 49,
     currency: "USD",
-    image: "🔌",
+    image: "/products/usb-c-hub.png",
     category: "Accessories",
     inStock: true,
     specs: { "Ports": "HDMI, USB-C, USB-A x3, SD, Ethernet", "Power": "100W PD", "Resolution": "4K@60Hz" }
@@ -189,7 +189,7 @@ export const products: Product[] = [
     description: "Wireless mechanical keyboard. Hot-swappable. RGB backlight.",
     price: 99,
     currency: "USD",
-    image: "⌨️",
+    image: "/products/mech-keyboard.png",
     category: "Accessories",
     inStock: true,
     specs: { "Layout": "TKL", "Switches": "Gateron G Pro", "Connectivity": "Bluetooth 5.1 / USB-C", "Battery": "4000mAh" }

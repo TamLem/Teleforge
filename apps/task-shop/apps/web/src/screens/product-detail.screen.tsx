@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { defineScreen } from "teleforge/web";
 
+import { ProductImage } from "../components/product-image";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 function ProductDetailScreen({ launchData, routeData, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
@@ -32,8 +33,8 @@ function ProductDetailScreen({ launchData, routeData, appState, runAction, navig
         <h1>{product.name as string}</h1>
       </header>
 
-      <div className="text-center" style={{ fontSize: "4rem", padding: "0.5rem" }}>
-        {product.image as string}
+      <div className="product-hero-image">
+        <ProductImage className="large" image={product.image as string} alt={product.name as string} />
       </div>
 
       <div className="card">
