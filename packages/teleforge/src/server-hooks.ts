@@ -14,8 +14,8 @@ import { loadActionRegistry, loadScreenLoaders, loadTeleforgeFlows, createSignFo
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
-import type { LoaderRegistry, TeleforgeScreenDefinition } from "./screens.js";
-import type { TeleforgeAppConfig } from "@teleforgex/core";
+import type { LoaderRegistry, ServerLoaderContext, TeleforgeScreenDefinition } from "./screens.js";
+import type { SessionHandle, TeleforgeAppConfig } from "@teleforgex/core";
 
 export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH, TeleforgeActionServerBridgeError } from "./server-bridge.js";
 
@@ -175,12 +175,18 @@ async function executeActionServerHook(
         signedContext: context
       });
 
-      let session = undefined;
+      let sessionState: unknown = undefined;
+      let sessionHandle: SessionHandle | undefined;
       if (flow.session?.enabled) {
         const handle = await options.sessionManager.get(context.userId, flowId, context.userId);
-        if (handle) {
-          session = await handle.get();
+        if (!handle) {
+          throw new ActionServerHookRequestError(
+            `Session not found for flow "${flowId}" and user "${context.userId}".`,
+            400
+          );
         }
+        sessionState = await handle.get();
+        sessionHandle = handle;
       }
 
       let loaderData: unknown = undefined;
@@ -189,30 +195,28 @@ async function executeActionServerHook(
       if (entry) {
         const rawInput = options.payload.input.params ?? {};
 
+        let validatedInput: unknown = rawInput;
         if (entry.input) {
           const parsed = parseTeleforgeInput(entry.input, rawInput);
           if (!parsed.ok) {
             throw validationError("Invalid loader input", parsed.error);
           }
-
-          loaderData = await entry.handler({
-            ctx: context,
-            input: parsed.data,
-            params: options.payload.input.params ?? {},
-            services: options.services
-          });
-        } else {
-          loaderData = await entry.handler({
-            ctx: context,
-            input: rawInput,
-            params: options.payload.input.params ?? {},
-            services: options.services
-          });
+          validatedInput = parsed.data;
         }
+
+        const loaderCtx: ServerLoaderContext = {
+          ctx: context,
+          input: validatedInput,
+          params: options.payload.input.params ?? {},
+          services: options.services,
+          session: sessionHandle
+        };
+
+        loaderData = await entry.handler(loaderCtx);
         loaderFound = true;
       }
 
-      return { data: loaderData, loaderFound, session };
+      return { data: loaderData, loaderFound, session: sessionState };
     }
 
     case "runAction": {
@@ -235,9 +239,13 @@ async function executeActionServerHook(
       let session = undefined;
       if (action.requiresSession) {
         const handle = await options.sessionManager.get(context.userId, flowId, context.userId);
-        if (handle) {
-          session = handle;
+        if (!handle) {
+          throw new ActionServerHookRequestError(
+            `Session required but not found for action "${key}".`,
+            400
+          );
         }
+        session = handle;
       }
 
       let validatedInput: unknown = payload ?? {};

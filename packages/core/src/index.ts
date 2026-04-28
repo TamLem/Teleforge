@@ -143,6 +143,7 @@ export {
 } from "./session/index.js";
 export type {
   SessionHandle,
+  SessionResourceHandle,
   SessionStorageAdapter,
   TeleforgeSession,
   TeleforgeSessionStatus

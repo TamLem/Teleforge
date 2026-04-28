@@ -507,9 +507,11 @@ function createActionCallbackHandler(
           verified.context.flowId,
           verified.context.userId
         );
-        if (handle) {
-          session = handle;
+        if (!handle) {
+          console.error("[teleforge:bot] callback action requires session but none found for", key);
+          return;
         }
+        session = handle;
       }
 
       let validatedInput: unknown = {};
@@ -611,9 +613,11 @@ function createWebAppDataHandler(
             context.flowId,
             context.userId
           );
-          if (handle) {
-            session = handle;
+          if (!handle) {
+            console.error("[teleforge:bot] webapp data action requires session but none found for", key);
+            return;
           }
+          session = handle;
         }
 
         let validatedInput: unknown = parsed.payload ?? {};

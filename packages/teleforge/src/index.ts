@@ -8,7 +8,8 @@ export {
   type TeleforgeMiniAppConfig,
   type TeleforgeSafeSchema,
   type TeleforgeSchema,
-  type TeleforgeValidationErrorBody
+  type TeleforgeValidationErrorBody,
+  type SessionResourceHandle
 } from "@teleforgex/core";
 
 export type {

@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 
-import type { SessionHandle, SessionStorageAdapter, TeleforgeSession } from "./types.js";
+import type { SessionHandle, SessionResourceHandle, SessionStorageAdapter, TeleforgeSession } from "./types.js";
+
+const RESOURCES_KEY = "__resources";
 
 export class SessionManager {
   constructor(private readonly storage: SessionStorageAdapter) {}
@@ -79,39 +81,119 @@ export class SessionManager {
   private createHandle<TState = Record<string, unknown>>(
     key: string
   ): SessionHandle<TState> {
+    const storage = this.storage;
+    const requireSession = this.requireSession.bind(this);
+
+    async function readState(): Promise<TState> {
+      const stored = await requireSession<TState>(key);
+      const state = structuredClone(stored.state) as Record<string, unknown>;
+      delete state[RESOURCES_KEY];
+      return state as TState;
+    }
+
+    async function readRawState(): Promise<TState> {
+      const stored = await requireSession<TState>(key);
+      return structuredClone(stored.state) as TState;
+    }
+
+    async function writeState(nextState: TState): Promise<void> {
+      const stored = await requireSession<TState>(key);
+      const incoming = structuredClone(nextState) as Record<string, unknown>;
+      delete incoming[RESOURCES_KEY];
+      const existingResources = (stored.state as Record<string, unknown>)[RESOURCES_KEY];
+      if (existingResources !== undefined) {
+        incoming[RESOURCES_KEY] = structuredClone(existingResources);
+      }
+      stored.state = incoming as TState;
+      stored.updatedAt = Date.now();
+      stored.revision += 1;
+      stored.expiresAt = Date.now() + storage.defaultTTL * 1000;
+      await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
+    }
+
+    async function writeRawState(nextState: TState): Promise<void> {
+      const stored = await requireSession<TState>(key);
+      stored.state = structuredClone(nextState) as TState;
+      stored.updatedAt = Date.now();
+      stored.revision += 1;
+      stored.expiresAt = Date.now() + storage.defaultTTL * 1000;
+      await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
+    }
+
     return {
       complete: async () => {
-        const stored = await this.requireSession<TState>(key);
+        const stored = await requireSession<TState>(key);
         stored.status = "completed";
         stored.updatedAt = Date.now();
         stored.revision += 1;
-
-        await this.storage.set(key, JSON.stringify(stored), this.storage.defaultTTL);
+        await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
       },
 
-      get: async () => {
-        const stored = await this.requireSession<TState>(key);
-        return structuredClone(stored.state) as TState;
-      },
+      get: readState,
 
       patch: async (partial: Partial<TState>) => {
-        const stored = await this.requireSession<TState>(key);
-        stored.state = { ...stored.state, ...partial } as TState;
+        const stored = await requireSession<TState>(key);
+        const { [RESOURCES_KEY]: _, ...cleanPartial } = partial as Record<string, unknown>;
+        stored.state = { ...stored.state, ...cleanPartial } as TState;
         stored.updatedAt = Date.now();
         stored.revision += 1;
-        stored.expiresAt = Date.now() + this.storage.defaultTTL * 1000;
-
-        await this.storage.set(key, JSON.stringify(stored), this.storage.defaultTTL);
+        stored.expiresAt = Date.now() + storage.defaultTTL * 1000;
+        await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
       },
 
-      set: async (next: TState) => {
-        const stored = await this.requireSession<TState>(key);
-        stored.state = structuredClone(next) as TState;
-        stored.updatedAt = Date.now();
-        stored.revision += 1;
-        stored.expiresAt = Date.now() + this.storage.defaultTTL * 1000;
+      set: writeState,
 
-        await this.storage.set(key, JSON.stringify(stored), this.storage.defaultTTL);
+      resource: <TValue = Record<string, unknown>>(
+        resourceKey: string,
+        options?: { initialValue?: TValue | (() => TValue | Promise<TValue>) }
+      ): SessionResourceHandle<TValue> => {
+        async function resolveInitial(): Promise<TValue> {
+          if (options?.initialValue !== undefined) {
+            return typeof options.initialValue === "function"
+              ? await (options.initialValue as () => TValue | Promise<TValue>)()
+              : options.initialValue as TValue;
+          }
+          return {} as TValue;
+        }
+
+        return {
+          get: async () => {
+            const state = (await readRawState()) as Record<string, unknown>;
+            const resources = (state[RESOURCES_KEY] ?? {}) as Record<string, unknown>;
+            if (resourceKey in resources) {
+              return structuredClone(resources[resourceKey]) as TValue;
+            }
+            return resolveInitial();
+          },
+
+          set: async (value: TValue) => {
+            const state = (await readRawState()) as Record<string, unknown>;
+            const resources = structuredClone((state[RESOURCES_KEY] ?? {}) as Record<string, unknown>);
+            resources[resourceKey] = value;
+            await writeRawState({ ...state, [RESOURCES_KEY]: resources } as unknown as TState);
+          },
+
+          update: async (mutator) => {
+            const state = (await readRawState()) as Record<string, unknown>;
+            const resources = structuredClone((state[RESOURCES_KEY] ?? {}) as Record<string, unknown>);
+            const current = resourceKey in resources
+              ? structuredClone(resources[resourceKey]) as TValue
+              : await resolveInitial();
+            const draft = structuredClone(current) as TValue;
+            const result = await mutator(draft);
+            const next = result !== undefined ? result : draft;
+            resources[resourceKey] = next;
+            await writeRawState({ ...state, [RESOURCES_KEY]: resources } as unknown as TState);
+            return next;
+          },
+
+          clear: async () => {
+            const state = (await readRawState()) as Record<string, unknown>;
+            const resources = structuredClone((state[RESOURCES_KEY] ?? {}) as Record<string, unknown>);
+            delete resources[resourceKey];
+            await writeRawState({ ...state, [RESOURCES_KEY]: resources } as unknown as TState);
+          }
+        };
       }
     };
   }

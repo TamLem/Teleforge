@@ -1,7 +1,7 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { MiniAppState } from "./miniapp-state.js";
-import type { ActionContextToken, ActionResult, TeleforgeInputSchema } from "@teleforgex/core";
+import type { ActionContextToken, ActionResult, SessionHandle, TeleforgeInputSchema } from "@teleforgex/core";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
@@ -220,6 +220,7 @@ export interface ServerLoaderContext<TInput = unknown> {
   input: TInput;
   params: Record<string, string>;
   services: unknown;
+  session?: SessionHandle;
 }
 
 export interface ServerLoaderDefinition<TInput = unknown, TResult = unknown> {
