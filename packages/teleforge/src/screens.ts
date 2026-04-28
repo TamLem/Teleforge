@@ -1,7 +1,7 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { MiniAppState } from "./miniapp-state.js";
-import type { ActionContextToken, ActionResult } from "@teleforgex/core";
+import type { ActionContextToken, ActionResult, TeleforgeInputSchema } from "@teleforgex/core";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
@@ -215,13 +215,34 @@ function resolveScreenIdFromPath(
   return null;
 }
 
-export interface ServerLoaderContext {
+export interface ServerLoaderContext<TInput = unknown> {
   ctx: ActionContextToken;
+  input: TInput;
   params: Record<string, string>;
   services: unknown;
 }
 
-export type LoaderRegistry = ReadonlyMap<string, (ctx: ServerLoaderContext) => Promise<unknown>>;
+export interface ServerLoaderDefinition<TInput = unknown, TResult = unknown> {
+  input?: TeleforgeInputSchema<TInput>;
+  handler: (ctx: ServerLoaderContext<TInput>) => MaybePromise<TResult>;
+}
+
+export function defineLoader<TInput, TResult>(
+  loader: ServerLoaderDefinition<TInput, TResult>
+): Readonly<ServerLoaderDefinition<TInput, TResult>> {
+  if (typeof loader.handler !== "function") {
+    throw new Error("Loader must define a handler function.");
+  }
+
+  return Object.freeze({ ...loader });
+}
+
+export interface LoaderRegistryEntry {
+  handler: (ctx: ServerLoaderContext) => Promise<unknown>;
+  input?: TeleforgeInputSchema;
+}
+
+export type LoaderRegistry = ReadonlyMap<string, LoaderRegistryEntry>;
 
 function routePatternMatches(pattern: string, pathname: string): boolean {
   if (!pattern.includes(":")) {

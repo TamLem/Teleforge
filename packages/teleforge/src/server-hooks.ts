@@ -3,8 +3,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import {
   MemorySessionStorageAdapter,
   SessionManager,
+  parseTeleforgeInput,
   validateActionContext,
-  type ActionContextToken
+  type ActionContextToken,
+  type TeleforgeValidationErrorBody
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
@@ -15,7 +17,7 @@ import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-de
 import type { LoaderRegistry, TeleforgeScreenDefinition } from "./screens.js";
 import type { TeleforgeAppConfig } from "@teleforgex/core";
 
-export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH } from "./server-bridge.js";
+export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH, TeleforgeActionServerBridgeError } from "./server-bridge.js";
 
 type MaybePromise<T> = Promise<T> | T;
 
@@ -183,13 +185,30 @@ async function executeActionServerHook(
 
       let loaderData: unknown = undefined;
       let loaderFound = false;
-      const loader = options.loaders?.get(screenId);
-      if (loader) {
-        loaderData = await loader({
-          ctx: context,
-          params: options.payload.input.params ?? {},
-          services: options.services
-        });
+      const entry = options.loaders?.get(screenId);
+      if (entry) {
+        const rawInput = options.payload.input.params ?? {};
+
+        if (entry.input) {
+          const parsed = parseTeleforgeInput(entry.input, rawInput);
+          if (!parsed.ok) {
+            throw validationError("Invalid loader input", parsed.error);
+          }
+
+          loaderData = await entry.handler({
+            ctx: context,
+            input: parsed.data,
+            params: options.payload.input.params ?? {},
+            services: options.services
+          });
+        } else {
+          loaderData = await entry.handler({
+            ctx: context,
+            input: rawInput,
+            params: options.payload.input.params ?? {},
+            services: options.services
+          });
+        }
         loaderFound = true;
       }
 
@@ -221,6 +240,15 @@ async function executeActionServerHook(
         }
       }
 
+      let validatedInput: unknown = payload ?? {};
+      if (action.input) {
+        const parsed = parseTeleforgeInput(action.input, payload ?? {});
+        if (!parsed.ok) {
+          throw validationError("Invalid action input", parsed.error);
+        }
+        validatedInput = parsed.data;
+      }
+
       const sign = createSignForActionContext({
         appId: options.appId,
         defaultFlowId: context.flowId,
@@ -231,7 +259,7 @@ async function executeActionServerHook(
 
       const result = await action.handler({
         ctx: context,
-        data: payload ?? {},
+        input: validatedInput,
         services: options.services as never,
         session,
         sign
@@ -397,6 +425,17 @@ export async function startTeleforgeServer(
     },
     url: `http://localhost:${resolvedPort}`
   };
+}
+
+function validationError(message: string, details: unknown): ActionServerHookRequestError {
+  const body: TeleforgeValidationErrorBody = {
+    error: {
+      code: "VALIDATION_FAILED",
+      message,
+      details
+    }
+  };
+  return new ActionServerHookRequestError(JSON.stringify(body), 400);
 }
 
 function findFlowById(

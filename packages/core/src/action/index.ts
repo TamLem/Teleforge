@@ -13,7 +13,14 @@ export type {
   OpenMiniAppEffect,
   SignActionContextParams,
   SignContextFn,
+  TeleforgeInputSchema,
+  TeleforgeSafeSchema,
+  TeleforgeSchema,
+  TeleforgeValidationErrorBody,
   WebhookEffect
+} from "./types.js";
+export {
+  parseTeleforgeInput
 } from "./types.js";
 export {
   SIGNED_ACTION_CONTEXT_PREFIX,

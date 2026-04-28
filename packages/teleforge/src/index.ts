@@ -1,9 +1,14 @@
 export {
   defineTeleforgeApp,
+  parseTeleforgeInput,
   teleforgeAppToManifest,
   type TeleforgeAppConfig,
   type TeleforgeAppIdentity,
-  type TeleforgeMiniAppConfig
+  type TeleforgeInputSchema,
+  type TeleforgeMiniAppConfig,
+  type TeleforgeSafeSchema,
+  type TeleforgeSchema,
+  type TeleforgeValidationErrorBody
 } from "@teleforgex/core";
 
 export type {
@@ -130,15 +135,17 @@ export {
 } from "./config.js";
 export type { LoadedTeleforgeApp } from "./config.js";
 
-export { createScreenRegistry, defineScreen, extractRequiredRouteParams, extractRouteParams, findRoutePattern, resolveMiniAppScreen, toHelperName, validateRouteParams } from "./screens.js";
+export { createScreenRegistry, defineLoader, defineScreen, extractRequiredRouteParams, extractRouteParams, findRoutePattern, resolveMiniAppScreen, toHelperName, validateRouteParams } from "./screens.js";
 export type {
   ActionHelpers,
   DiscoveredScreenModule,
   LoaderRegistry,
+  LoaderRegistryEntry,
   LoaderState,
   NavigationHelpers,
   ResolvedMiniAppScreen,
   ServerLoaderContext,
+  ServerLoaderDefinition,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
   TeleforgeScreenGuardBlock,
@@ -150,6 +157,7 @@ export type {
 export type {
   CreateFetchMiniAppServerBridgeOptions,
   TeleforgeActionServerBridge,
+  TeleforgeActionServerBridgeError,
   TeleforgeActionServerHandoffInput,
   TeleforgeActionServerLoadInput,
   TeleforgeActionServerLoadResult,

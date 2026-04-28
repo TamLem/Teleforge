@@ -9,7 +9,8 @@ import type {
   ActionResult,
   LaunchMode,
   SessionHandle,
-  SignContextFn
+  SignContextFn,
+  TeleforgeInputSchema
 } from "@teleforgex/core";
 
 type MaybePromise<T> = Promise<T> | T;
@@ -72,14 +73,15 @@ export interface ActionFlowSessionDefinition {
   initialState?: Record<string, unknown>;
 }
 
-export interface ActionFlowActionDefinition<TContext = unknown>
-  extends ActionHandlerDefinition<TContext> {
-  handler: (ctx: ActionFlowActionHandlerContext<TContext>) => MaybePromise<ActionResult>;
+export interface ActionFlowActionDefinition<TContext = unknown, TInput = unknown>
+  extends ActionHandlerDefinition<TContext, TInput> {
+  handler: (ctx: ActionFlowActionHandlerContext<TContext, TInput>) => MaybePromise<ActionResult>;
+  input?: TeleforgeInputSchema<TInput>;
 }
 
-export interface ActionFlowActionHandlerContext<TContext = unknown> {
+export interface ActionFlowActionHandlerContext<TContext = unknown, TInput = unknown> {
   ctx: ActionContextToken;
-  data: unknown;
+  input: TInput;
   services: TContext;
   session?: SessionHandle;
   sign: SignContextFn;

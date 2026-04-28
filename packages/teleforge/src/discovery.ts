@@ -7,7 +7,7 @@ import type {
   ActionFlowDefinition,
   ActionFlowMiniAppDefinition
 } from "./flow-definition.js";
-import type { DiscoveredScreenModule, LoaderRegistry, ServerLoaderContext } from "./screens.js";
+import type { DiscoveredScreenModule, LoaderRegistry, LoaderRegistryEntry, ServerLoaderContext, ServerLoaderDefinition } from "./screens.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
   RouteDefinition,
@@ -593,8 +593,6 @@ export function createSignForActionContext(options: {
 
 const LOADER_FILE_SUFFIXES = [".loader.ts", ".loader.mts", ".loader.js", ".loader.mjs"] as const;
 
-type DiscoveredScreenLoaderFunction = (ctx: ServerLoaderContext) => unknown;
-
 export async function discoverScreenLoaderFiles(
   options: DiscoverScreenLoaderFilesOptions
 ): Promise<string[]> {
@@ -614,7 +612,7 @@ export async function discoverScreenLoaderFiles(
 
 export async function loadScreenLoaders(options: LoadScreenLoadersOptions): Promise<LoaderRegistry> {
   const files = await discoverScreenLoaderFiles(options);
-  const registry = new Map<string, (ctx: ServerLoaderContext) => Promise<unknown>>();
+  const registry = new Map<string, LoaderRegistryEntry>();
 
   for (const filePath of files) {
     const screenId = stripKnownExtension(path.basename(filePath), LOADER_FILE_SUFFIXES);
@@ -623,17 +621,34 @@ export async function loadScreenLoaders(options: LoadScreenLoadersOptions): Prom
     }
 
     const module = await import(pathToFileURL(filePath).href);
-    const loader = (module.default ?? module.loader) as DiscoveredScreenLoaderFunction | undefined;
-    if (typeof loader !== "function") {
+    const exported = module.default ?? module.loader;
+
+    if (isLoaderDefinition(exported)) {
+      registry.set(screenId, {
+        handler: async (ctx: ServerLoaderContext) => exported.handler(ctx as ServerLoaderContext<unknown>),
+        input: exported.input
+      });
+    } else if (typeof exported === "function") {
+      registry.set(screenId, {
+        handler: async (ctx) => await exported(ctx)
+      });
+    } else {
       throw new Error(
-        `Screen loader module "${filePath}" must export a loader function as the default export or named "loader" export.`
+        `Screen loader module "${filePath}" must export a loader function (default or named "loader") or a defineLoader({ input, handler }) result.`
       );
     }
-
-    registry.set(screenId, async (ctx) => await loader(ctx));
   }
 
   return registry;
+}
+
+function isLoaderDefinition(value: unknown): value is ServerLoaderDefinition {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "handler" in value &&
+    typeof (value as ServerLoaderDefinition).handler === "function"
+  );
 }
 
 export function resolveScreenLoaderRoot(options: DiscoverScreenLoaderFilesOptions): string {

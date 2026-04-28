@@ -7,13 +7,16 @@ export {
   MiniAppStateProvider,
   useAppState
 } from "./miniapp-runtime.js";
-export { createRouteRegistry, createScreenRegistry, defineScreen, extractRequiredRouteParams, extractRouteParams, resolveMiniAppScreen, toHelperName, validateRouteParams } from "./screens.js";
+export { createRouteRegistry, createScreenRegistry, defineLoader, defineScreen, extractRequiredRouteParams, extractRouteParams, resolveMiniAppScreen, toHelperName, validateRouteParams } from "./screens.js";
 export { defineFlow, resolveFlowAction } from "./flow-definition.js";
 export type {
   ActionHelpers,
+  LoaderRegistryEntry,
   LoaderState,
   NavigationHelpers,
   ResolvedMiniAppScreen,
+  ServerLoaderContext,
+  ServerLoaderDefinition,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
   TeleforgeScreenGuardBlock,
@@ -29,6 +32,7 @@ export type {
 export type {
   CreateFetchMiniAppServerBridgeOptions,
   TeleforgeActionServerBridge,
+  TeleforgeActionServerBridgeError,
   TeleforgeActionServerHandoffInput,
   TeleforgeActionServerLoadInput,
   TeleforgeActionServerLoadResult,

@@ -2,6 +2,22 @@ import type { ActionResult } from "@teleforgex/core";
 
 type MaybePromise<T> = Promise<T> | T;
 
+export class TeleforgeActionServerBridgeError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+  readonly code?: string;
+  readonly details?: unknown;
+
+  constructor(message: string, status: number, body?: unknown, code?: string, details?: unknown) {
+    super(message);
+    this.name = "TeleforgeActionServerBridgeError";
+    this.status = status;
+    this.body = body;
+    this.code = code;
+    this.details = details;
+  }
+}
+
 export const DEFAULT_SERVER_HOOKS_PATH = "/api/teleforge/actions";
 
 export interface TeleforgeActionServerLoadInput {
@@ -86,12 +102,30 @@ async function postBridge(
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(
-      message.trim().length > 0
-        ? message
-        : `Teleforge server bridge request failed with ${response.status}.`
-    );
+    const text = await response.text();
+    let body: unknown = text;
+    let code: string | undefined;
+    let details: unknown;
+    let errorMessage: string | undefined;
+    try {
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      body = parsed;
+      if (parsed && typeof parsed === "object" && "error" in parsed) {
+        const err = parsed.error as Record<string, unknown> | undefined;
+        code = typeof err?.code === "string" ? err.code : undefined;
+        details = err?.details;
+        errorMessage = typeof err?.message === "string" ? err.message : undefined;
+      }
+    } catch {
+      // not JSON, use raw text
+    }
+    const message = errorMessage
+      ?? (typeof body === "object" && body !== null && "message" in body
+        ? String((body as Record<string, unknown>).message)
+        : typeof body === "string" && body.length > 0
+          ? body
+          : `Teleforge server bridge request failed with ${response.status}.`);
+    throw new TeleforgeActionServerBridgeError(message, response.status, body, code, details);
   }
 
   return response.json();

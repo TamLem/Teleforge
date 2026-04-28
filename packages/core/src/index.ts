@@ -148,6 +148,7 @@ export type {
   TeleforgeSessionStatus
 } from "./session/index.js";
 export {
+  parseTeleforgeInput,
   SIGNED_ACTION_CONTEXT_PREFIX,
   createSignedActionContext,
   decodeActionBase64Url,
@@ -171,6 +172,10 @@ export type {
   OpenMiniAppEffect,
   SignActionContextParams,
   SignContextFn,
+  TeleforgeInputSchema,
+  TeleforgeSafeSchema,
+  TeleforgeSchema,
+  TeleforgeValidationErrorBody,
   WebhookEffect
 } from "./action/index.js";
 export type {

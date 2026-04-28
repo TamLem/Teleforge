@@ -17,6 +17,7 @@ import {
 import {
   MemorySessionStorageAdapter,
   SessionManager,
+  parseTeleforgeInput,
   validateActionContext,
   type ActionContextToken
 } from "@teleforgex/core";
@@ -511,6 +512,16 @@ function createActionCallbackHandler(
         }
       }
 
+      let validatedInput: unknown = {};
+      if (action.input) {
+        const parsed = parseTeleforgeInput(action.input, {});
+        if (!parsed.ok) {
+          console.error("[teleforge:bot] callback action validation failed:", parsed.error);
+          return;
+        }
+        validatedInput = parsed.data;
+      }
+
       const sign = createSignForActionContext({
         appId: options.appId,
         defaultFlowId: verified.context.flowId,
@@ -521,7 +532,7 @@ function createActionCallbackHandler(
 
       await action.handler({
         ctx: verified.context,
-        data: {},
+        input: validatedInput,
         services: options.services as never,
         session,
         sign
@@ -605,6 +616,16 @@ function createWebAppDataHandler(
           }
         }
 
+        let validatedInput: unknown = parsed.payload ?? {};
+        if (action.input) {
+          const inputResult = parseTeleforgeInput(action.input, parsed.payload ?? {});
+          if (!inputResult.ok) {
+            console.error("[teleforge:bot] webapp data action validation failed:", inputResult.error);
+            return;
+          }
+          validatedInput = inputResult.data;
+        }
+
         const sign = createSignForActionContext({
           appId: options.appId,
           defaultFlowId: context.flowId,
@@ -615,7 +636,7 @@ function createWebAppDataHandler(
 
         await action.handler({
           ctx: context,
-          data: parsed.payload ?? {},
+          input: validatedInput,
           services: options.services as never,
           session,
           sign
