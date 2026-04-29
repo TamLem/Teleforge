@@ -126,6 +126,17 @@ export default defineFlow({
 
 Mini App screens live under the configured screen root, normally `apps/web/src/screens`.
 
+Define `loaderData` types in `apps/web/src/teleforge-contract-overrides.ts` so the generated
+`CatalogScreenProps` narrows `loaderData` automatically:
+
+```ts
+export interface TeleforgeLoaderDataOverrides {
+  checkout: {
+    catalog: { items: Array<{ id: string; name: string }> };
+  };
+}
+```
+
 Import generated per-screen prop aliases for typed `nav`, `actions`, and `loaderData`:
 
 ```tsx
@@ -136,7 +147,7 @@ function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: Cata
   if (loader.status === "loading") return <div>Loading...</div>;
   if (loader.status === "error") return <div>Error loading catalog</div>;
 
-  const items = loaderData ?? [];
+  const items = loaderData?.items ?? [];
 
   return (
     <div>
