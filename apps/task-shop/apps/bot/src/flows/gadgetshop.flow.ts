@@ -1,7 +1,16 @@
 import { createTypedSignForActionContext, defineFlow } from "teleforge";
 
 import type { CartItem } from "@task-shop/types";
-import type { TeleforgeInputSchema, TypedSignHelpers, TypedSignOptions } from "teleforge";
+import type { TeleforgeInputSchema, TypedSignHelpers } from "teleforge";
+
+// Shared route map used by both miniApp.routes and typed sign helpers.
+const gadgetshopRoutes = {
+  "/": "catalog",
+  "/product/:id": "product-detail",
+  "/cart": "cart",
+  "/confirmation": "confirmation",
+  "/tracking": "tracking"
+} as const;
 
 // Local type alias matching the generated GadgetshopSign so the bot
 // package does not need to import from the web app source tree.
@@ -55,13 +64,7 @@ export default defineFlow({
     handler: async ({ ctx, sign }) => {
       const typedSign = createTypedSignForActionContext({
         sign,
-        routes: {
-          "/": "catalog",
-          "/product/:id": "product-detail",
-          "/cart": "cart",
-          "/confirmation": "confirmation",
-          "/tracking": "tracking"
-        }
+        routes: gadgetshopRoutes
       }) as unknown as GadgetshopSign;
 
       const catalogLaunch = await typedSign.catalog({
@@ -118,13 +121,7 @@ export default defineFlow({
   },
 
   miniApp: {
-    routes: {
-      "/": "catalog",
-      "/product/:id": "product-detail",
-      "/cart": "cart",
-      "/confirmation": "confirmation",
-      "/tracking": "tracking"
-    },
+    routes: gadgetshopRoutes,
     defaultRoute: "/",
     title: "GadgetShop"
   },
@@ -221,13 +218,7 @@ export default defineFlow({
 
         const typedSign = createTypedSignForActionContext({
           sign,
-          routes: {
-            "/": "catalog",
-            "/product/:id": "product-detail",
-            "/cart": "cart",
-            "/confirmation": "confirmation",
-            "/tracking": "tracking"
-          }
+          routes: gadgetshopRoutes
         }) as unknown as GadgetshopSign;
 
         const trackingUrl = await typedSign.tracking({

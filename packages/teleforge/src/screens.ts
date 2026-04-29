@@ -138,7 +138,7 @@ export type TypedSignHelpers<
   TRoutes extends Record<string, Record<string, string> | undefined>
 > = Readonly<{
   [THelper in keyof TRoutes & string]: TRoutes[THelper] extends undefined
-    ? (options?: TypedSignOptions) => Promise<string>
+    ? (options?: TypedSignOptions & { params?: never }) => Promise<string>
     : (options: TypedSignOptions & { params: TRoutes[THelper] }) => Promise<string>;
 }>;
 

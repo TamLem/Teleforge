@@ -595,9 +595,17 @@ export function createTypedSignForActionContext(options: {
   }
 
   const helpers: Record<string, (options?: Record<string, unknown>) => Promise<string>> = {};
+  const seenHelpers = new Map<string, string>(); // helperName -> screenId
 
   for (const [screenId, pattern] of screenToPattern.entries()) {
     const helperName = toHelperName(screenId);
+    const existingScreenId = seenHelpers.get(helperName);
+    if (existingScreenId && existingScreenId !== screenId) {
+      throw new Error(
+        `Sign helper name "${helperName}" collides between screen IDs "${existingScreenId}" and "${screenId}".`
+      );
+    }
+    seenHelpers.set(helperName, screenId);
     const requiredParams = extractRequiredRouteParams(pattern);
 
     helpers[helperName] = async (opts = {}) => {
