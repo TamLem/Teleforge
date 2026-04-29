@@ -58,11 +58,6 @@ function ProductDetailScreen({
 
   return (
     <main className="shell">
-      <header className="hero">
-        <p className="eyebrow">{product.category}</p>
-        <h1>{product.name}</h1>
-      </header>
-
       <div className="product-hero-image">
         <ProductImage
           className="large"
@@ -70,6 +65,11 @@ function ProductDetailScreen({
           alt={product.name}
         />
       </div>
+
+      <header className="hero">
+        <p className="eyebrow">{product.category}</p>
+        <h1>{product.name}</h1>
+      </header>
 
       <div className="card">
         <p className="lede">{product.description}</p>
