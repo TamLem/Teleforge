@@ -104,7 +104,7 @@ function ProductDetailScreen({
             <button onClick={() => setQty(qty + 1)}>+</button>
           </div>
           <button className="btn-primary" disabled={transitioning} onClick={handleAddToCart}>
-            Add to Cart — ${((product.price as number) * qty).toFixed(2)}
+            Add to Cart — ${(product.price * qty).toFixed(2)}
           </button>
         </div>
       )}
