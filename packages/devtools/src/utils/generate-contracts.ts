@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 // Inlined helpers must stay in lock-step with `packages/teleforge/src/screens.ts`
@@ -73,13 +73,38 @@ export interface GenerateContractsOptions {
  * The file does not import server-only flow modules.
  */
 export async function generateContracts(options: GenerateContractsOptions): Promise<string> {
-  const fileContent = formatContracts(options.manifest);
+  const overrideFilePath = path.join(
+    path.dirname(path.dirname(options.outputPath)),
+    "teleforge-contract-overrides.ts"
+  );
+
+  let overrideExists = false;
+  try {
+    await stat(overrideFilePath);
+    overrideExists = true;
+  } catch {
+    // override file does not exist yet
+  }
+
+  if (!overrideExists) {
+    await mkdir(path.dirname(overrideFilePath), { recursive: true });
+    await writeFile(
+      overrideFilePath,
+      "export interface TeleforgeActionPayloadOverrides {}\n",
+      "utf8"
+    );
+  }
+
+  const fileContent = formatContracts(options.manifest, options.outputPath);
   await mkdir(path.dirname(options.outputPath), { recursive: true });
   await writeFile(options.outputPath, fileContent, "utf8");
   return options.outputPath;
 }
 
-export function formatContracts(manifest: ClientFlowManifestLike): string {
+export function formatContracts(
+  manifest: ClientFlowManifestLike,
+  outputPath?: string
+): string {
   const eligibleFlows = manifest.flows.filter(
     (flow) => flow.miniApp && flow.screens.length > 0
   );
@@ -106,12 +131,39 @@ export function formatContracts(manifest: ClientFlowManifestLike): string {
     ].join("\n")
   );
 
-  sections.push(
+  const useOverrides = outputPath !== undefined;
+
+  const imports: string[] = [];
+
+  if (useOverrides) {
+    const overrideFilePath = path.join(
+      path.dirname(path.dirname(outputPath)),
+      "teleforge-contract-overrides.ts"
+    );
+    const overrideImportPath = path
+      .relative(path.dirname(outputPath), overrideFilePath)
+      .replace(/\.ts$/, "")
+      .replace(/\\/g, "/");
+
+    imports.push(
+      `import type { TeleforgeActionPayloadOverrides } from "${overrideImportPath}";`
+    );
+  }
+
+  imports.push(
     `import type {\n  TeleforgeScreenComponentProps,\n  TypedActionHelpers,\n  TypedNavigationHelpers\n} from "teleforge/web";`
   );
 
+  sections.push(imports.join("\n"));
+
+  if (useOverrides) {
+    sections.push(
+      `type FlowActionPayloadOverrides<TFlowId extends string> =\n  TFlowId extends keyof TeleforgeActionPayloadOverrides\n    ? TeleforgeActionPayloadOverrides[TFlowId] extends object\n      ? TeleforgeActionPayloadOverrides[TFlowId]\n      : {}\n    : {};\n\ntype ApplyActionPayloadOverrides<\n  TDefaults extends Record<string, unknown>,\n  TOverrides extends object\n> = {\n  [TActionId in keyof TDefaults]: TActionId extends keyof TOverrides\n    ? TOverrides[TActionId]\n    : TDefaults[TActionId];\n};`
+    );
+  }
+
   for (const flow of eligibleFlows) {
-    sections.push(formatFlow(flow, screenAliasUsage));
+    sections.push(formatFlow(flow, screenAliasUsage, useOverrides));
   }
 
   return `${sections.join("\n\n")}\n`;
@@ -119,7 +171,8 @@ export function formatContracts(manifest: ClientFlowManifestLike): string {
 
 function formatFlow(
   flow: ClientFlowManifestLike["flows"][number],
-  screenAliasUsage: Map<string, number>
+  screenAliasUsage: Map<string, number>,
+  useOverrides: boolean
 ): string {
   const flowPascal = toPascalCase(flow.id);
   const screens = flow.screens;
@@ -179,21 +232,32 @@ function formatFlow(
     lines.push(`export type ${flowPascal}ActionId = never;`);
   }
 
-  // Action payload map. First-pass payloads are `unknown` (key safety
-  // only). Authors can layer explicit payload typing in a later phase
-  // through a generator-supported extension mechanism (TBD); see plan
-  // for "Phase 3 step 2".
+  // Action payload map. Default payloads are `unknown` (key safety
+  // only). When overrides are enabled, merge explicit app-authored payload
+  // types via ApplyActionPayloadOverrides so known actions are narrowed
+  // and omitted actions fall back to unknown.
   //
   // Action IDs come from arbitrary user-defined `flow.actions` keys
   // (e.g. `"add-to-cart"`), so emit them as quoted property names.
   // Quoted keys still allow dot access for valid identifiers, so
   // `actions.addToCart(...)` keeps working.
   if (actionIds.length > 0) {
-    lines.push(
-      `export type ${flowPascal}ActionPayloads = {\n${actionIds
-        .map((id) => `  ${JSON.stringify(id)}: unknown;`)
-        .join("\n")}\n};`
-    );
+    if (useOverrides) {
+      lines.push(
+        `type ${flowPascal}DefaultActionPayloads = {\n${actionIds
+          .map((id) => `  ${JSON.stringify(id)}: unknown;`)
+          .join("\n")}\n};`
+      );
+      lines.push(
+        `export type ${flowPascal}ActionPayloads = ApplyActionPayloadOverrides<\n  ${flowPascal}DefaultActionPayloads,\n  FlowActionPayloadOverrides<"${flow.id}">\n>;`
+      );
+    } else {
+      lines.push(
+        `export type ${flowPascal}ActionPayloads = {\n${actionIds
+          .map((id) => `  ${JSON.stringify(id)}: unknown;`)
+          .join("\n")}\n};`
+      );
+    }
     lines.push(
       `export type ${flowPascal}Actions = TypedActionHelpers<${flowPascal}ActionPayloads>;`
     );

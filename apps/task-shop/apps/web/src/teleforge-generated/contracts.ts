@@ -5,11 +5,28 @@
 // These contracts make `nav.*` helpers, screen IDs, action IDs, and
 // per-screen props compile-time safe.
 
+import type { TeleforgeActionPayloadOverrides } from "../teleforge-contract-overrides";
 import type {
   TeleforgeScreenComponentProps,
   TypedActionHelpers,
   TypedNavigationHelpers
 } from "teleforge/web";
+
+type FlowActionPayloadOverrides<TFlowId extends string> =
+  TFlowId extends keyof TeleforgeActionPayloadOverrides
+    ? TeleforgeActionPayloadOverrides[TFlowId] extends object
+      ? TeleforgeActionPayloadOverrides[TFlowId]
+      : {}
+    : {};
+
+type ApplyActionPayloadOverrides<
+  TDefaults extends Record<string, unknown>,
+  TOverrides extends object
+> = {
+  [TActionId in keyof TDefaults]: TActionId extends keyof TOverrides
+    ? TOverrides[TActionId]
+    : TDefaults[TActionId];
+};
 
 // =====================================================================
 // Flow: gadgetshop
@@ -27,11 +44,16 @@ export type GadgetshopActionId =
   | "removeFromCart"
   | "placeOrder";
 
-export type GadgetshopActionPayloads = {
+type GadgetshopDefaultActionPayloads = {
   "addToCart": unknown;
   "removeFromCart": unknown;
   "placeOrder": unknown;
 };
+
+export type GadgetshopActionPayloads = ApplyActionPayloadOverrides<
+  GadgetshopDefaultActionPayloads,
+  FlowActionPayloadOverrides<"gadgetshop">
+>;
 
 export type GadgetshopActions = TypedActionHelpers<GadgetshopActionPayloads>;
 

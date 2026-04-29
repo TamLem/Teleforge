@@ -81,16 +81,42 @@ function runStandaloneNavTypeTests(): void {
 
 function runScreenPropsActionsTypeTests(): void {
   // -------------------------------------------------------------------
-  // Phase 3 (action key safety): generated screen props must narrow
-  // `actions` so unknown action helpers fail at compile time. Payload
-  // typing is `unknown` in this phase, so any payload value is allowed
-  // for known actions until explicit payload maps are layered in.
+  // Phase 3 step 2 (typed action payloads): generated screen props must
+  // narrow `actions` so unknown helpers fail and known helpers require
+  // the exact override payload shape.
   // -------------------------------------------------------------------
 
-  // Valid: known action with permissive payload.
+  // Valid: known action with correct payload.
   void catalogProps.actions.addToCart({ productId: "iphone-15", qty: 1 });
-  void catalogProps.actions.addToCart(undefined);
-  void catalogProps.actions.removeFromCart({ productId: "x" });
+
+  // Valid: known action with correct payload through ProductDetailScreenProps.
+  void productProps.actions.addToCart({ productId: "x", qty: 1 });
+
+  // Valid: removeFromCart with correct payload.
+  void catalogProps.actions.removeFromCart({ productId: "iphone-15" });
+
+  // Valid: placeOrder with no payload (override uses undefined).
+  void catalogProps.actions.placeOrder();
+  void catalogProps.actions.placeOrder(undefined);
+
+  // Invalid: missing required payload property.
+  // @ts-expect-error qty is required.
+  void catalogProps.actions.addToCart({ productId: "iphone-15" });
+
+  // Invalid: wrong payload property type.
+  // @ts-expect-error qty must be a number.
+  void catalogProps.actions.addToCart({ productId: "iphone-15", qty: "1" });
+
+  // Invalid: wrong payload property name.
+  // @ts-expect-error productId is required, id is not accepted.
+  void catalogProps.actions.addToCart({ id: "iphone-15", qty: 1 });
+
+  // Invalid: wrong payload property name for removeFromCart.
+  // @ts-expect-error productId is required, id is not accepted.
+  void catalogProps.actions.removeFromCart({ id: "iphone-15" });
+
+  // Invalid: placeOrder does not accept an object payload.
+  // @ts-expect-error placeOrder takes no payload (undefined override).
   void catalogProps.actions.placeOrder({});
 
   // Invalid: unknown action helper must fail through screen props.
@@ -103,8 +129,6 @@ function runScreenPropsActionsTypeTests(): void {
   // -------------------------------------------------------------------
   // Same checks must hold through ProductDetailScreenProps.
   // -------------------------------------------------------------------
-  void productProps.actions.addToCart({ productId: "x", qty: 1 });
-
   // @ts-expect-error unknown action through ProductDetailScreenProps.
   void productProps.actions.notAnAction();
 }

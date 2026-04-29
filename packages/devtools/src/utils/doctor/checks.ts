@@ -954,7 +954,7 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
 
   const flows = manifestState.discoveredFlows ?? [];
   const details: string[] = [];
-  const errorCount = 0;
+  let errorCount = 0;
   let warnCount = 0;
 
   for (const flow of flows) {

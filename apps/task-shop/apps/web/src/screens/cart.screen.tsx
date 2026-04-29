@@ -17,7 +17,7 @@ function CartScreen({ loader, loaderData, actions, nav, transitioning }: CartScr
   };
 
   const handlePlaceOrder = async () => {
-    const result = await actions.placeOrder({});
+    const result = await actions.placeOrder();
     if (result.data?.placed) {
       nav.confirmation();
     }
