@@ -40,6 +40,8 @@ For a generated app, the normal lifecycle is:
 The same flow definition owns both chat and Mini App surfaces. Do not split one journey into separate
 "bot flow" and "Mini App flow" files.
 
+For the full runtime chain — how `sign()` builds the token, how the manifest resolves routes, how loaders receive params, and how `actions.*` delegates to the server — see [Runtime Wiring](./runtime-wiring.md).
+
 ## Flow Definition
 
 ```ts
@@ -209,6 +211,8 @@ Bot, Mini App, and action server communicate through framework contracts rather 
 In local development these pieces can run in one process. In production they can run as split processes
 as long as both sides share the same signing secret.
 
+For how each request shape travels through the runtime, see [Runtime Wiring](./runtime-wiring.md).
+
 ## Chat Handoff
 
 When an action returns `handoff: { message, closeMiniApp }`, the Mini App runtime shows a handoff message
@@ -284,6 +288,7 @@ Treat these as escape hatches. The default app path is `teleforge.config.ts`, fl
 
 ## Read Alongside
 
+- [Runtime Wiring](./runtime-wiring.md): the complete runtime chain
 - [Framework Model](./framework-model.md)
 - [Action Server](./server-hooks.md)
 - [Flow State Architecture](./flow-state-design.md)

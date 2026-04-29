@@ -285,6 +285,8 @@ The current generated path is intentionally framework-shaped:
 
 That means you normally start by editing a flow and a screen, not by wiring separate bot/web/backend runtimes manually. The lower-level `createDiscoveredBotRuntime()` remains available as an escape hatch for advanced deployments.
 
+For how these pieces wire together at runtime — from `sign()` through the manifest to screen props, loaders, and actions — see [Runtime Wiring](./runtime-wiring.md).
+
 ## 6. Verify the First Run
 
 After the first successful run, verify these checkpoints:
@@ -321,6 +323,7 @@ Generated contracts are the recommended screen authoring path. See [Generated Mi
 
 ## Next Reading
 
+- [Runtime Wiring](./runtime-wiring.md): the complete runtime chain from sign() to screen props
 - [Telegram Mini App Basics](./telegram-basics.md)
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)

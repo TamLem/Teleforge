@@ -460,6 +460,9 @@ interface ActionContextToken {
 The server validates the token on every action request: signature, expiry, and
 that the requested action is in `allowedActions`.
 
+For what `sign()` creates, what should go in `subject`, and how the token travels through the
+runtime, see [Runtime Wiring](./runtime-wiring.md).
+
 ### `sign()` context function
 
 Available in command and handler contexts:
@@ -472,9 +475,6 @@ type SignContextFn = (params: {
   ttlSeconds?: number;
 }) => Promise<string>;  // Returns signed Mini App URL
 ```
-
-The signed subject should carry IDs and scope only (e.g., `{ resource: { type: "product", id } }`),
-never full domain payloads.
 
 ---
 
@@ -510,6 +510,9 @@ const { url, port, stop } = await startTeleforgeServer({
 // handoff
 { kind: "handoff", input: { signedContext, message } }
 ```
+
+For how these request shapes travel through the runtime — from `actions.addToCart()` on the
+client to handler execution on the server — see [Runtime Wiring](./runtime-wiring.md).
 
 ---
 
@@ -596,3 +599,6 @@ teleforge generate client-manifest
 ```
 
 Do not import flow files from the web entry — they may contain server-only handlers.
+
+For how the manifest is used at runtime to resolve routes and construct `actions.*` and `nav.*`,
+see [Runtime Wiring](./runtime-wiring.md).

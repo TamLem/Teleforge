@@ -122,9 +122,9 @@ A flow can:
 - return to chat via handoff effects
 - optionally use session state for drafts or resumability
 
-When a command handler signs a launch URL, the framework produces a `web_app` button with an
-HMAC-signed action context token. The Mini App receives this token, the server validates it
-on every action call. See [Flow Coordination](./flow-coordination.md) for details.
+The runtime chain is: bot handler calls `sign()` -> signed Mini App URL opens -> client manifest resolves route to screen -> Mini App runtime injects screen props -> runtime calls server loader -> screen renders loaderData -> screen calls `actions.*` / `nav.*`.
+
+For the full chain, see [Runtime Wiring](./runtime-wiring.md).
 
 ## Public Imports
 
@@ -152,51 +152,19 @@ These packages are useful for framework maintainers. App documentation should no
 
 ## Runtime Surfaces
 
+Teleforge has three main runtime surfaces. For how they wire together, see [Runtime Wiring](./runtime-wiring.md).
+
 ### Bot Runtime
 
-The bot runtime is responsible for:
-
-- loading `teleforge.config.ts`
-- discovering flow modules
-- registering bot commands from flow definitions
-- handling contact and location shares via flow handlers
-- sending Mini App launch buttons with signed action context
-- accepting `web_app_data` and callback queries with action context validation
-- dispatching action handlers from verified signed context
-
-Apps normally enter this through `startTeleforgeBot()` from `teleforge`, which loads config, resolves secrets,
-and starts polling or webhook delivery automatically.
+Loads config, discovers flows, registers bot commands, and sends Mini App launch buttons with signed action context. Apps normally enter this through `startTeleforgeBot()` from `teleforge`.
 
 ### Mini App Runtime
 
-The Mini App runtime is a screen runtime.
-
-It is responsible for:
-
-- bootstrapping Telegram WebApp context
-- parsing the signed action context from the launch URL
-- matching the current URL path to a screen via route registry
-- calling server loaders for display data
-- invoking server-side actions via `actions.*` helpers
-- navigating between screens via `nav.*` helpers
-- showing handoff UI and closing the Mini App when actions request it
-
-Screens are registered with `defineScreen()` from `teleforge/web`. The app shell is `TeleforgeMiniApp`.
+Bootstraps the Telegram WebView, parses the signed action context, matches URL paths to screens, calls server loaders, and provides `actions.*` and `nav.*` helpers to screens. The app shell is `TeleforgeMiniApp` from `teleforge/web`.
 
 ### Action Server
 
-The action server is the trusted backend execution hub for flow actions.
-
-Use it when the browser cannot be the authority for:
-
-- identity trust
-- permission decisions
-- durable writes
-- downstream service calls with server-only credentials
-- session state operations
-
-The public model is flow-first: actions are defined in the flow and executed by the server.
-Each action request carries a signed action context token validated by the server.
+Validates signed context tokens and executes flow action handlers. This is the trust boundary: the browser renders and collects input, but the server validates and commits.
 
 ## Screen Data Boundaries
 
@@ -208,6 +176,8 @@ Each action request carries a signed action context token validated by the serve
 | `loader` | `loadScreenContext` result lifecycle (`loading \| ready \| error \| idle`) | Server |
 | `loaderData` | Convenience: `loader.data` when `ready` | Server |
 | `appState` | Mini App-wide client session | Client |
+
+For the full explanation of why screen props are injected and how each prop travels through the runtime, see [Runtime Wiring](./runtime-wiring.md).
 
 ## Local Tooling
 
@@ -246,7 +216,8 @@ Teleforge is not:
 
 ## Read Next
 
-- [Config Reference](./config-reference.md)
-- [Mini App Architecture](./miniapp-architecture.md)
-- [Flow Coordination](./flow-coordination.md)
-- [Flow State Architecture](./flow-state-design.md)
+- [Runtime Wiring](./runtime-wiring.md): the complete chain from sign() to screen props
+- [Config Reference](./config-reference.md): exact API shapes
+- [Mini App Architecture](./miniapp-architecture.md): frontend rules for screens
+- [Flow Coordination](./flow-coordination.md): chat to Mini App lifecycle tutorial
+- [Flow State Architecture](./flow-state-design.md): storage model and security properties

@@ -38,6 +38,9 @@ The framework resolves screens by matching the current URL path to a route in th
 map. Routes exist to deliver screens, not to define a navigation tree. Generated contracts turn that
 route map into compile-time safe `nav.*` helpers, `actions.*` payloads, and per-screen `loaderData` types.
 
+For how the runtime constructs `actions.*` and `nav.*` from the manifest, and how loaders receive route
+params, see [Runtime Wiring](../runtime-wiring.md).
+
 ## 3. Hybrid Rendering
 
 The frontend should support:
@@ -106,6 +109,8 @@ Routing should be based on:
 
 The primary navigation path is always:
 **signed context → route match → screen → loader → actions.* / nav.***
+
+For the full chain, see [Runtime Wiring](../runtime-wiring.md).
 
 ## 7. Client-Safe Flow Manifest
 
@@ -200,6 +205,8 @@ Screens receive explicit props that make the trust boundary clear:
 | `loader` | `loadScreenContext` result lifecycle | Server |
 | `loaderData` | `loader.data` when ready | Server |
 | `appState` | Mini App-wide client session | Client |
+
+For why these props are injected and how they travel through the runtime, see [Runtime Wiring](../runtime-wiring.md).
 
 Generated contracts narrow `routeParams`, `loader`, and `loaderData` to concrete types declared
 in `teleforge-contract-overrides.ts`. Use the generated per-screen prop alias to get compile-time
@@ -296,6 +303,9 @@ Frontend integration uses explicit contracts:
 The base `TeleforgeScreenComponentProps` is the runtime contract. The generated aliases are the
 DX layer that narrows `nav`, `actions`, `loader`, and `loaderData` to types safe for the current
 flow and screen.
+
+For how the runtime constructs these helpers from the manifest, see [Runtime Wiring](../runtime-wiring.md).
+For the generated authoring model, see [Generated Mini App Contracts](../generated-miniapp-contracts.md).
 
 ## 19. Design for Deployment Flexibility
 

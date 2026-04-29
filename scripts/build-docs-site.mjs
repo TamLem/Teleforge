@@ -13,91 +13,91 @@ const pages = [
     source: "docs/README.md",
     output: "index.html",
     navLabel: "Docs Home",
-    section: "App Author Path"
+    section: "Learn"
   },
   {
     id: "telegram-basics",
     source: "docs/telegram-basics.md",
     output: "telegram-basics.html",
     navLabel: "Telegram Basics",
-    section: "App Author Path"
-  },
-  {
-    id: "getting-started",
-    source: "docs/getting-started.md",
-    output: "getting-started.html",
-    navLabel: "Getting Started",
-    section: "App Author Path"
-  },
-  {
-    id: "developer-guide",
-    source: "docs/developer-guide.md",
-    output: "developer-guide.html",
-    navLabel: "Developer Guide",
-    section: "App Author Path"
-  },
-  {
-    id: "first-feature",
-    source: "docs/first-feature.md",
-    output: "first-feature.html",
-    navLabel: "First Feature",
-    section: "Build Guides"
-  },
-  {
-    id: "flow-coordination",
-    source: "docs/flow-coordination.md",
-    output: "flow-coordination.html",
-    navLabel: "Flow Coordination",
-    section: "Build Guides"
-  },
-  {
-    id: "server-hooks",
-    source: "docs/server-hooks.md",
-    output: "server-hooks.html",
-    navLabel: "Server Hooks",
-    section: "Build Guides"
-  },
-  {
-    id: "shared-phone-auth",
-    source: "docs/shared-phone-auth.md",
-    output: "shared-phone-auth.html",
-    navLabel: "Shared Phone Auth",
-    section: "Build Guides"
-  },
-  {
-    id: "testing",
-    source: "docs/testing.md",
-    output: "testing.html",
-    navLabel: "Testing",
-    section: "Build Guides"
-  },
-  {
-    id: "deployment",
-    source: "docs/deployment.md",
-    output: "deployment.html",
-    navLabel: "Deployment",
-    section: "Operations"
-  },
-  {
-    id: "environment-variables",
-    source: "docs/environment-variables.md",
-    output: "environment-variables.html",
-    navLabel: "Environment Variables",
-    section: "Operations"
-  },
-  {
-    id: "troubleshooting",
-    source: "docs/troubleshooting.md",
-    output: "troubleshooting.html",
-    navLabel: "Troubleshooting",
-    section: "Operations"
+    section: "Learn"
   },
   {
     id: "framework-model",
     source: "docs/framework-model.md",
     output: "framework-model.html",
     navLabel: "Framework Model",
-    section: "Reference"
+    section: "Learn"
+  },
+  {
+    id: "runtime-wiring",
+    source: "docs/runtime-wiring.md",
+    output: "runtime-wiring.html",
+    navLabel: "Runtime Wiring",
+    section: "Learn"
+  },
+  {
+    id: "flow-state-design",
+    source: "docs/flow-state-design.md",
+    output: "flow-state-design.html",
+    navLabel: "Flow State",
+    section: "Learn"
+  },
+  {
+    id: "getting-started",
+    source: "docs/getting-started.md",
+    output: "getting-started.html",
+    navLabel: "Getting Started",
+    section: "Build"
+  },
+  {
+    id: "developer-guide",
+    source: "docs/developer-guide.md",
+    output: "developer-guide.html",
+    navLabel: "Developer Guide",
+    section: "Build"
+  },
+  {
+    id: "first-feature",
+    source: "docs/first-feature.md",
+    output: "first-feature.html",
+    navLabel: "First Feature",
+    section: "Build"
+  },
+  {
+    id: "flow-coordination",
+    source: "docs/flow-coordination.md",
+    output: "flow-coordination.html",
+    navLabel: "Flow Coordination",
+    section: "Build"
+  },
+  {
+    id: "generated-miniapp-contracts",
+    source: "docs/generated-miniapp-contracts.md",
+    output: "generated-miniapp-contracts.html",
+    navLabel: "Generated Contracts",
+    section: "Build"
+  },
+  {
+    id: "server-hooks",
+    source: "docs/server-hooks.md",
+    output: "server-hooks.html",
+    navLabel: "Server Hooks",
+    section: "Build"
+  },
+  {
+    id: "shared-phone-auth",
+    source: "docs/shared-phone-auth.md",
+    output: "shared-phone-auth.html",
+    navLabel: "Shared Phone Auth",
+    section: "Build"
+  },
+  {
+    id: "miniapp-architecture",
+    source: "docs/miniapp-architecture.md",
+    output: "miniapp-architecture.html",
+    navLabel: "Mini App Architecture",
+    section: "Build"
   },
   {
     id: "config-reference",
@@ -107,18 +107,32 @@ const pages = [
     section: "Reference"
   },
   {
-    id: "miniapp-architecture",
-    source: "docs/miniapp-architecture.md",
-    output: "miniapp-architecture.html",
-    navLabel: "Mini App Architecture",
-    section: "Reference"
+    id: "testing",
+    source: "docs/testing.md",
+    output: "testing.html",
+    navLabel: "Testing",
+    section: "Operate"
   },
   {
-    id: "flow-state-design",
-    source: "docs/flow-state-design.md",
-    output: "flow-state-design.html",
-    navLabel: "Flow State",
-    section: "Reference"
+    id: "deployment",
+    source: "docs/deployment.md",
+    output: "deployment.html",
+    navLabel: "Deployment",
+    section: "Operate"
+  },
+  {
+    id: "environment-variables",
+    source: "docs/environment-variables.md",
+    output: "environment-variables.html",
+    navLabel: "Environment Variables",
+    section: "Operate"
+  },
+  {
+    id: "troubleshooting",
+    source: "docs/troubleshooting.md",
+    output: "troubleshooting.html",
+    navLabel: "Troubleshooting",
+    section: "Operate"
   },
   {
     id: "starter-app",
@@ -137,10 +151,10 @@ const pages = [
 ];
 
 const sectionOrder = [
-  "App Author Path",
-  "Build Guides",
-  "Operations",
+  "Learn",
+  "Build",
   "Reference",
+  "Operate",
   "Examples"
 ];
 const sourceToPage = new Map();
