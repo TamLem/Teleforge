@@ -21,7 +21,7 @@ Read these before you touch APIs.
 1. [Telegram Mini App Basics](./telegram-basics.md): plain-language primer on Mini Apps, `initData`, launch modes, `web_app_data`, and BotFather
 2. [Framework Model](./framework-model.md): what Teleforge is, core concepts, and the flow-first authoring model
 3. **[Runtime Wiring](./runtime-wiring.md)**: the complete chain from `sign()` through route resolution, screen props, loaders, actions, and generated artifacts
-4. [Flow State Architecture](./flow-state-design.md): storage model, session resources, state boundaries, and security properties
+4. [State Boundaries](./state-boundaries.md): trust model, state categories, session resources, storage architecture, and security properties
 
 > **Why read Runtime Wiring third?** Because it answers the questions that stop new developers: what does `sign()` create, why are screen props injected, which data is server-trusted, and what files are generated vs. authored.
 

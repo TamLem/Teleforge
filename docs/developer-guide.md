@@ -13,7 +13,7 @@ It focuses on the implemented workflow in this repository:
 Use this guide as the hub. The step-by-step companions are:
 
 - [Telegram Mini App Basics](./telegram-basics.md)
-- [Flow State Design](./flow-state-design.md) — Storage model and execution architecture
+- [State Boundaries](./state-boundaries.md) — Trust model, state categories, session resources, and storage architecture
 - [Mini App Architecture](./miniapp-architecture.md) — 18 frontend guidelines
 - [Flow Coordination](./flow-coordination.md) — Chat → Mini App → Chat lifecycle
 - [Framework Model](./framework-model.md) — flow-first authoring model and public imports

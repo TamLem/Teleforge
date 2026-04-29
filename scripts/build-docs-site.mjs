@@ -37,10 +37,10 @@ const pages = [
     section: "Learn"
   },
   {
-    id: "flow-state-design",
-    source: "docs/flow-state-design.md",
-    output: "flow-state-design.html",
-    navLabel: "Flow State",
+    id: "state-boundaries",
+    source: "docs/state-boundaries.md",
+    output: "state-boundaries.html",
+    navLabel: "State Boundaries",
     section: "Learn"
   },
   {

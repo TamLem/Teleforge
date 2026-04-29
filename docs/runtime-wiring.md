@@ -325,4 +325,4 @@ Then restart the dev server if needed.
 - [Flow Coordination](./flow-coordination.md): chat -> Mini App -> chat lifecycle details
 - [Generated Mini App Contracts](./generated-miniapp-contracts.md): typed nav, actions, and loader data authoring
 - [Config Reference](./config-reference.md): exact API shapes for `defineFlow()`, `defineLoader()`, `defineScreen()`
-- [State Boundaries](./flow-state-design.md): storage model, session resources, and security properties
+- [State Boundaries](./state-boundaries.md): trust model, state categories, session resources, and storage architecture

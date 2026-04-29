@@ -62,29 +62,10 @@ actions: {
 }
 ```
 
-### Action handler context
-
-```ts
-interface ActionFlowActionHandlerContext {
-  ctx: ActionContextToken;      // Verified signed context
-  input: TInput;                // Validated payload (from input schema, or raw payload)
-  services: unknown;            // App services container
-  session?: SessionHandle;      // Only for session flows or requiresSession
-  sign: SignContextFn;          // Create signed URLs for chat Mini App links
-}
-```
-
-### Action result
-
-```ts
-interface ActionResult {
-  data?: Record<string, unknown>;    // Returned to screen
-  handoff?: { message?: string; closeMiniApp?: boolean };
-  effects?: ActionEffect[];          // Side effects
-  redirect?: { screenId: string; params?: Record<string, string>; data?: Record<string, unknown>; replace?: boolean };
-  clientEffects?: ClientEffect[];
-}
-```
+Action handlers receive a context with the validated signed context, input, services,
+session handle (when enabled), and `sign` for creating follow-up launch URLs. They return
+an `ActionResult` with optional data, handoff, effects, and redirect. See
+[Config Reference](./config-reference.md) for exact type shapes.
 
 ## Suggested Structure
 
@@ -187,14 +168,9 @@ The frontend can render UI and collect input. It is not authoritative for:
 The action server validates the signed action context (signature, expiry, allowed actions)
 before running any handler.
 
-## Runtime Wiring
-
-In the default runtime path, the action server listens at
-`/api/teleforge/actions`. The server also hosts the Telegram webhook endpoint when
-`runtime.bot.delivery` is `"webhook"`.
-
-For local development, `teleforge dev` runs the simulator and companion services.
-Use `teleforge doctor` if an action is not resolving correctly.
+For how actions and loaders are called through the runtime chain, see
+[Runtime Wiring](./runtime-wiring.md). For exact request shapes and endpoint details, see
+[Config Reference](./config-reference.md).
 
 ## Screen Loaders
 
@@ -247,62 +223,17 @@ export default defineLoader({
 });
 ```
 
-### Loader context
+Loaders receive the signed action context, route params, services, and optional session.
+See [Config Reference](./config-reference.md) for the exact `ServerLoaderContext` type shape.
 
-```ts
-interface ServerLoaderContext<TInput = unknown> {
-  ctx: ActionContextToken;      // Signed action context
-  input: TInput;                 // Validated input (from schema or raw route params)
-  params: Record<string, string>; // Raw route params
-  services: unknown;
-  session?: SessionHandle;
-}
-```
+Phone auth uses the `onContact` flow handler. See [Shared Phone Auth](./shared-phone-auth.md)
+for the complete end-to-end flow.
 
-## Shared Phone Auth
-
-Phone auth uses the `onContact` flow handler:
-
-1. the flow declares an `onContact` handler
-2. the framework validates the self-shared contact
-3. the handler signs an action context with the phone as subject
-4. the Mini App receives it and can call actions
-
-```ts
-handlers: {
-  onContact: async ({ ctx, shared, sign, services }) => {
-    const launch = await sign({
-      screenId: "profile",
-      subject: { resource: { type: "phone", value: shared.normalizedPhone } },
-      allowedActions: ["finishLogin"]
-    });
-
-    await ctx.reply("Continue in the Mini App.", {
-      reply_markup: {
-        inline_keyboard: [[{ text: "Open App", web_app: { url: launch } }]]
-      }
-    });
-  }
-}
-```
-
-See [Shared Phone Auth](./shared-phone-auth.md) for the end-to-end flow.
-
-## Loader Data Typing
-
-Loader return types are not inferred from server loader files. The server loader is a runtime
-function that may call services, databases, or external APIs.
-
-Browser-side typing comes from app-authored `TeleforgeLoaderDataOverrides` in
-`apps/web/src/teleforge-contract-overrides.ts`. The generated `contracts.ts` merges these
-overrides into per-screen prop aliases so `loaderData` is typed without local casts.
-
-Keep override imports browser-safe:
-
-- import only type-only exports from app packages (`@my-app/types`)
-- do not import server loaders, flow modules, services, or schema libraries
-
-See [Generated Mini App Contracts](./generated-miniapp-contracts.md) for the full authoring model.
+Loader return types are not inferred from server files. Browser-side typing comes from
+app-authored `TeleforgeLoaderDataOverrides` in `teleforge-contract-overrides.ts`. The
+generator merges these into per-screen prop aliases so `loaderData` is typed without
+casts. See [Generated Mini App Contracts](./generated-miniapp-contracts.md) for the
+authoring model.
 
 ## Read Next
 

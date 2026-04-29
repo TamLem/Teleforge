@@ -302,5 +302,5 @@ Treat these as escape hatches. The default app path is `teleforge.config.ts`, fl
 - [Runtime Wiring](./runtime-wiring.md): the complete runtime chain
 - [Framework Model](./framework-model.md)
 - [Action Server](./server-hooks.md)
-- [Flow State Architecture](./flow-state-design.md)
+- [State Boundaries](./state-boundaries.md)
 - [Deployment](./deployment.md)

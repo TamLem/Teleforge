@@ -168,16 +168,17 @@ Validates signed context tokens and executes flow action handlers. This is the t
 
 ## Screen Data Boundaries
 
+Screens receive framework-injected props that make the trust boundary explicit. Each prop has a clear source and owner:
+
 | Prop | Source | Trust |
 |---|---|---|
 | `scopeData` | Signed context `subject` — server-issued IDs/capabilities | Server |
-| `routeParams` | Extracted from matched route pattern (e.g. `{ id: "42" }` from `/product/:id`) | Framework |
+| `routeParams` | Extracted from matched route pattern | Framework |
 | `routeData` | `navigate({ data })` — ephemeral handoff | Client |
-| `loader` | `loadScreenContext` result lifecycle (`loading \| ready \| error \| idle`) | Server |
-| `loaderData` | Convenience: `loader.data` when `ready` | Server |
-| `appState` | Mini App-wide client session | Client |
+| `loader` / `loaderData` | Server loader result | Server |
+| `appState` | React context | Client |
 
-For the full explanation of why screen props are injected and how each prop travels through the runtime, see [Runtime Wiring](./runtime-wiring.md).
+For the full trust model, the five state-type categories, session resources, and storage architecture, see [State Boundaries](./state-boundaries.md). For how props travel through the runtime chain, see [Runtime Wiring](./runtime-wiring.md).
 
 ## Local Tooling
 
@@ -220,4 +221,4 @@ Teleforge is not:
 - [Config Reference](./config-reference.md): exact API shapes
 - [Mini App Architecture](./miniapp-architecture.md): frontend rules for screens
 - [Flow Coordination](./flow-coordination.md): chat to Mini App lifecycle tutorial
-- [Flow State Architecture](./flow-state-design.md): storage model and security properties
+- [State Boundaries](./state-boundaries.md): trust model, state categories, session resources, and storage architecture

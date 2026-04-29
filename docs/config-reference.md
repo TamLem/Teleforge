@@ -329,6 +329,18 @@ export default defineLoader({
 });
 ```
 
+### Loader context
+
+```ts
+interface ServerLoaderContext<TInput = unknown> {
+  ctx: ActionContextToken;      // Signed action context
+  input: TInput;                 // Validated input (from schema or raw route params)
+  params: Record<string, string>; // Raw route params
+  services: unknown;
+  session?: SessionHandle;
+}
+```
+
 ---
 
 ## `defineScreen()`

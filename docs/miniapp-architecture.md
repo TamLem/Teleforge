@@ -3,7 +3,7 @@
 This document defines the frontend architecture rules for Teleforge Mini Apps. Every screen, hook, and
 client-side integration in a Teleforge project should conform to these principles.
 
-For the runtime model, see [Flow State Architecture](./flow-state-design.md).
+For the runtime model and state boundaries, see [State Boundaries](./state-boundaries.md).
 For the overall authoring model, see [Framework Model](./framework-model.md).
 
 ## 1. Not a Classic Monolithic SPA
@@ -195,39 +195,15 @@ function CatalogScreen({ actions, nav, loader, loaderData }: CatalogScreenProps)
 
 ## 10. Screen Data Boundaries
 
-Screens receive explicit props that make the trust boundary clear:
+Screens receive framework-injected props that make the trust boundary explicit.
+`scopeData` and `loaderData` are server-trusted. `routeParams` is framework-derived.
+`routeData` and `appState` are client-owned. Do not parse state from the launch URL,
+pass domain payloads through `navigate({ data })`, or use `loaderData as ...` casts —
+declare types in `teleforge-contract-overrides.ts` instead.
 
-| Prop | Source | Trust |
-|---|---|---|
-| `scopeData` | Signed context `subject` — server-issued IDs/capabilities | Server |
-| `routeParams` | Extracted from matched route pattern | Framework |
-| `routeData` | `navigate({ data })` — ephemeral handoff | Client |
-| `loader` | `loadScreenContext` result lifecycle | Server |
-| `loaderData` | `loader.data` when ready | Server |
-| `appState` | Mini App-wide client session | Client |
-
-For why these props are injected and how they travel through the runtime, see [Runtime Wiring](./runtime-wiring.md).
-
-Generated contracts narrow `routeParams`, `loader`, and `loaderData` to concrete types declared
-in `teleforge-contract-overrides.ts`. Use the generated per-screen prop alias to get compile-time
-safety for these fields.
-
-Do not:
-
-- parse state from the launch URL
-- treat frontend-local copies as authoritative
-- pass domain payloads through `navigate({ data })`
-- use `loaderData as ...` casts in normal screen code — declare the type in overrides instead
-
-## 11. Separate State Types Clearly
-
-| Type                   | Scope                                    | Examples                                                      |
-| ---------------------- | ---------------------------------------- | ------------------------------------------------------------- |
-| **Domain state**       | Persistent, in database or services      | user profile, product catalog, order history                  |
-| **Local UI state**     | Ephemeral, screen-only                   | open modals, unsaved inputs, temporary filters, loading flags |
-| **Session state**      | Optional, server-side, `session.resource` | cart items, drafts, external wait state                       |
-| **App state**          | Mini App-local, cross-screen, ephemeral  | selections, filters, UI preferences                           |
-| **Derived view state** | Computed, usually not persisted          | formatted prices, filtered lists, sort order                  |
+For the full trust model, the five state-type categories, and session resources, see
+[State Boundaries](./state-boundaries.md). For how props travel through the runtime, see
+[Runtime Wiring](./runtime-wiring.md).
 
 ## 12. Telegram-Specific Behavior Behind Adapter Layer
 
