@@ -500,8 +500,21 @@ function createActionCallbackHandler(
         return;
       }
 
+      const actionFlowId = verified.context.flowId;
+      const flow = options.flows.find((f) => ("flow" in f ? f.flow : f).id === actionFlowId)?.flow;
+
       let session = undefined;
-      if (action.requiresSession) {
+      if (flow?.session?.enabled) {
+        session = await options.sessionManager.ensure(
+          verified.context.userId,
+          actionFlowId,
+          verified.context.userId,
+          {
+            initialState: flow.session.initialState as Record<string, unknown> | undefined,
+            ttlSeconds: flow.session.ttlSeconds
+          }
+        );
+      } else if (action.requiresSession) {
         const handle = await options.sessionManager.get(
           verified.context.userId,
           verified.context.flowId,
@@ -606,8 +619,21 @@ function createWebAppDataHandler(
           return;
         }
 
+        const actionFlowId = context.flowId;
+        const flow = options.flows.find((f) => ("flow" in f ? f.flow : f).id === actionFlowId)?.flow;
+
         let session = undefined;
-        if (action.requiresSession) {
+        if (flow?.session?.enabled) {
+          session = await options.sessionManager.ensure(
+            context.userId,
+            actionFlowId,
+            context.userId,
+            {
+              initialState: flow.session.initialState as Record<string, unknown> | undefined,
+              ttlSeconds: flow.session.ttlSeconds
+            }
+          );
+        } else if (action.requiresSession) {
           const handle = await options.sessionManager.get(
             context.userId,
             context.flowId,

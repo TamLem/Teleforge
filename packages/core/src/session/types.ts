@@ -10,6 +10,7 @@ export interface TeleforgeSession<TState = Record<string, unknown>> {
   updatedAt: number;
   expiresAt: number;
   revision: number;
+  ttlSeconds: number;
 }
 
 export interface SessionResourceHandle<TValue = Record<string, unknown>> {

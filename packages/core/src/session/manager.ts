@@ -25,6 +25,7 @@ export class SessionManager {
       sessionId,
       state: structuredClone(initialState) as TState,
       status: "active",
+      ttlSeconds: ttl,
       updatedAt: now,
       userId
     };
@@ -71,11 +72,59 @@ export class SessionManager {
     session.updatedAt = Date.now();
     session.revision += 1;
 
-    await this.storage.set(key, JSON.stringify(session), this.storage.defaultTTL);
+    await this.storage.set(key, JSON.stringify(session), session.ttlSeconds);
   }
 
   createSessionKey(userId: string, flowId: string, sessionId: string): string {
     return `session:${userId}:${flowId}:${sessionId}`;
+  }
+
+  async ensure<TState = Record<string, unknown>>(
+    userId: string,
+    flowId: string,
+    sessionId: string,
+    options?: {
+      initialState?: TState;
+      ttlSeconds?: number;
+    }
+  ): Promise<SessionHandle<TState>> {
+    const key = this.createSessionKey(userId, flowId, sessionId);
+    const stored = await this.storage.get(key);
+    const now = Date.now();
+
+    if (stored) {
+      const parsed = JSON.parse(stored) as TeleforgeSession<TState>;
+
+      if (parsed.status === "active" && parsed.expiresAt > now) {
+        const resumeTtl = options?.ttlSeconds ?? parsed.ttlSeconds;
+        parsed.expiresAt = now + resumeTtl * 1000;
+        parsed.ttlSeconds = resumeTtl;
+        parsed.updatedAt = now;
+        parsed.revision += 1;
+        await this.storage.set(key, JSON.stringify(parsed), resumeTtl);
+        return this.createHandle<TState>(key);
+      }
+    }
+
+    const ttl = options?.ttlSeconds ?? this.storage.defaultTTL;
+    const session: TeleforgeSession<TState> = {
+      createdAt: now,
+      expiresAt: now + ttl * 1000,
+      flowId,
+      revision: 1,
+      sessionId,
+      state: (options?.initialState !== undefined
+        ? structuredClone(options.initialState)
+        : {}) as TState,
+      status: "active",
+      ttlSeconds: ttl,
+      updatedAt: now,
+      userId
+    };
+
+    await this.storage.set(key, JSON.stringify(session), ttl);
+
+    return this.createHandle<TState>(key);
   }
 
   private createHandle<TState = Record<string, unknown>>(
@@ -107,8 +156,8 @@ export class SessionManager {
       stored.state = incoming as TState;
       stored.updatedAt = Date.now();
       stored.revision += 1;
-      stored.expiresAt = Date.now() + storage.defaultTTL * 1000;
-      await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
+      stored.expiresAt = Date.now() + stored.ttlSeconds * 1000;
+      await storage.set(key, JSON.stringify(stored), stored.ttlSeconds);
     }
 
     async function writeRawState(nextState: TState): Promise<void> {
@@ -116,8 +165,8 @@ export class SessionManager {
       stored.state = structuredClone(nextState) as TState;
       stored.updatedAt = Date.now();
       stored.revision += 1;
-      stored.expiresAt = Date.now() + storage.defaultTTL * 1000;
-      await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
+      stored.expiresAt = Date.now() + stored.ttlSeconds * 1000;
+      await storage.set(key, JSON.stringify(stored), stored.ttlSeconds);
     }
 
     return {
@@ -126,7 +175,7 @@ export class SessionManager {
         stored.status = "completed";
         stored.updatedAt = Date.now();
         stored.revision += 1;
-        await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
+        await storage.set(key, JSON.stringify(stored), stored.ttlSeconds);
       },
 
       get: readState,
@@ -137,8 +186,8 @@ export class SessionManager {
         stored.state = { ...stored.state, ...cleanPartial } as TState;
         stored.updatedAt = Date.now();
         stored.revision += 1;
-        stored.expiresAt = Date.now() + storage.defaultTTL * 1000;
-        await storage.set(key, JSON.stringify(stored), storage.defaultTTL);
+        stored.expiresAt = Date.now() + stored.ttlSeconds * 1000;
+        await storage.set(key, JSON.stringify(stored), stored.ttlSeconds);
       },
 
       set: writeState,

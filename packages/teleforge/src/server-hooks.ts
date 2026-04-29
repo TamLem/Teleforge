@@ -184,13 +184,10 @@ async function executeActionServerHook(
       let sessionState: unknown = undefined;
       let sessionHandle: SessionHandle | undefined;
       if (flow.session?.enabled) {
-        const handle = await options.sessionManager.get(context.userId, flowId, context.userId);
-        if (!handle) {
-          throw new ActionServerHookRequestError(
-            `Session not found for flow "${flowId}" and user "${context.userId}".`,
-            400
-          );
-        }
+        const handle = await options.sessionManager.ensure(context.userId, flowId, context.userId, {
+          initialState: flow.session.initialState as Record<string, unknown> | undefined,
+          ttlSeconds: flow.session.ttlSeconds
+        });
         sessionState = await handle.get();
         sessionHandle = handle;
       }
@@ -242,17 +239,16 @@ async function executeActionServerHook(
         throw new ActionServerHookRequestError(`Action "${key}" not found.`, 404);
       }
 
-      let session = undefined;
-      if (action.requiresSession) {
-        const handle = await options.sessionManager.get(context.userId, flowId, context.userId);
-        if (!handle) {
-          throw new ActionServerHookRequestError(
-            `Session required but not found for action "${key}".`,
-            400
-          );
-        }
-        session = handle;
-      }
+      const flow = findFlowById(options.flows, flowId);
+
+      const session = await resolveSession(
+        options.sessionManager,
+        context,
+        flowId,
+        flow,
+        action,
+        key
+      );
 
       let validatedInput: unknown = payload ?? {};
       if (action.input) {
@@ -457,6 +453,35 @@ function findFlowById(
   flowId: string
 ): ActionFlowDefinition | undefined {
   return flows.find(({ flow }) => flow.id === flowId)?.flow;
+}
+
+async function resolveSession(
+  sessionManager: SessionManager,
+  context: ActionContextToken,
+  flowId: string,
+  flow: ActionFlowDefinition | undefined,
+  action: ActionFlowActionDefinition,
+  key: string
+): Promise<SessionHandle | undefined> {
+  if (flow?.session?.enabled) {
+    return sessionManager.ensure(context.userId, flowId, context.userId, {
+      initialState: flow.session.initialState as Record<string, unknown> | undefined,
+      ttlSeconds: flow.session.ttlSeconds
+    });
+  }
+
+  if (action.requiresSession) {
+    const handle = await sessionManager.get(context.userId, flowId, context.userId);
+    if (!handle) {
+      throw new ActionServerHookRequestError(
+        `Session required but not found for action "${key}".`,
+        400
+      );
+    }
+    return handle;
+  }
+
+  return undefined;
 }
 
 function readIncomingMessageBody(req: IncomingMessage): Promise<string> {
