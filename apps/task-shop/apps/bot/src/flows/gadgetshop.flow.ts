@@ -210,6 +210,9 @@ export default defineFlow({
         });
         await orderRes.set({ order });
 
+        // Clear the cart after a successful order.
+        await cartRes.set({ items: [] });
+
         const itemLines = order.items
           .map(
             (i) => `  ${i.image} ${i.name} ×${i.quantity} — $${(i.price * i.quantity).toFixed(2)}`
