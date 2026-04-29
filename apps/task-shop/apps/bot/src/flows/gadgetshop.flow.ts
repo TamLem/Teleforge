@@ -1,73 +1,99 @@
-import {
-  addToCart,
-  createOrder,
-  getCartItemCount,
-  getCartSubtotal,
-  getProduct,
-  products,
-  removeFromCart,
-  type CartItem
-} from "@task-shop/types";
-import { createSignedActionContext } from "@teleforgex/core";
 import { defineFlow } from "teleforge";
+
+import type { CartItem } from "@task-shop/types";
+import type { TeleforgeInputSchema } from "teleforge";
+
+function createSchema<T>(schema: TeleforgeInputSchema<T>): TeleforgeInputSchema<T> {
+  return schema;
+}
+
+const addToCartSchema = createSchema<{ productId: string; qty: number }>({
+  safeParse(input: unknown) {
+    if (typeof input !== "object" || input === null)
+      return { success: false, error: "Input must be an object" };
+    const obj = input as Record<string, unknown>;
+    if (typeof obj.productId !== "string" || obj.productId.length === 0)
+      return { success: false, error: "productId is required" };
+    const qty = obj.qty ?? 1;
+    if (typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0)
+      return { success: false, error: "qty must be a positive integer" };
+    return { success: true, data: { productId: obj.productId, qty } };
+  }
+});
+
+const removeFromCartSchema = createSchema<{ productId: string }>({
+  safeParse(input: unknown) {
+    if (typeof input !== "object" || input === null)
+      return { success: false, error: "Input must be an object" };
+    const obj = input as Record<string, unknown>;
+    if (typeof obj.productId !== "string" || obj.productId.length === 0)
+      return { success: false, error: "productId is required" };
+    return { success: true, data: { productId: obj.productId } };
+  }
+});
 
 export default defineFlow({
   id: "gadgetshop",
+
+  session: {
+    enabled: true
+  },
 
   command: {
     command: "shop",
     description: "Browse and shop electronics",
     handler: async ({ ctx, sign }) => {
       const catalogLaunch = await sign({
-        flowId: "gadgetshop",
         screenId: "catalog",
-        subject: { products },
-        allowedActions: [
-          "addToCart", "removeFromCart", "viewDetail",
-          "viewCart", "placeOrder", "backToCatalog"
-        ]
+        subject: {},
+        allowedActions: ["addToCart", "removeFromCart", "placeOrder"]
       });
 
       const itemsPerMessage = 6;
+      const { products } = await import("@task-shop/types");
 
       await ctx.reply(
         "**GadgetShop** \u2014 the latest smartphones, laptops, audio, and accessories.",
         { parse_mode: "Markdown" }
       );
 
-      // Send first batch of products, one per message
       const batch = products.slice(0, itemsPerMessage);
       for (const product of batch) {
         const url = await sign({
-          flowId: "gadgetshop",
           screenId: "product-detail",
-          subject: { product, cart: [] },
-          allowedActions: ["addToCart", "removeFromCart", "viewDetail", "viewCart", "placeOrder", "backToCatalog"]
+          subject: { resource: { type: "product", id: product.id } },
+          allowedActions: ["addToCart", "removeFromCart", "placeOrder"]
         });
+
+        // Set concrete route path so loader receives the real param
+        const resolved = new URL(url);
+        resolved.pathname = `/product/${encodeURIComponent(product.id)}`;
 
         await ctx.reply(
           `${product.image} **${product.name}** \u2014 $${product.price}\n_${product.description}_`,
           {
             parse_mode: "Markdown",
             reply_markup: {
-              inline_keyboard: [[
-                { text: "View Details \u2192", web_app: { url } }
-              ]]
+              inline_keyboard: [[{ text: "View Details \u2192", web_app: { url: resolved.toString() } }]]
             }
           }
         );
       }
 
-      // Pagination / full store
       const remaining = products.length - itemsPerMessage;
       if (remaining > 0) {
         await ctx.reply(
           `${remaining} more products available. Open the full store to browse all categories.`,
           {
             reply_markup: {
-              inline_keyboard: [[
-                { text: `\uD83D\uDED2 Open Full Store (${products.length} items)`, web_app: { url: catalogLaunch } }
-              ]]
+              inline_keyboard: [
+                [
+                  {
+                    text: `\uD83D\uDED2 Open Full Store (${products.length} items)`,
+                    web_app: { url: catalogLaunch }
+                  }
+                ]
+              ]
             }
           }
         );
@@ -89,18 +115,29 @@ export default defineFlow({
 
   actions: {
     addToCart: {
-      handler: async ({ data }) => {
-        const payload = data as { productId: string; qty?: number; cart?: CartItem[] };
-        const product = getProduct(payload.productId);
+      input: addToCartSchema,
+      handler: async ({ input, session, services: _services }) => {
+        const {
+          getProduct,
+          addToCart: addItem,
+          getCartItemCount
+        } = await import("@task-shop/types");
+        const product = getProduct(input.productId);
         if (!product) return { data: { error: "Product not found" } };
 
-        const currentCart = payload.cart ?? [];
-        const newCart = addToCart(currentCart, product, payload.qty ?? 1);
+        if (!session) return { data: { error: "Session required" } };
+
+        const cartRes = session.resource<{ items: CartItem[] }>("cart", {
+          initialValue: { items: [] }
+        });
+        const { items } = await cartRes.get();
+        const newItems = addItem(items, product, input.qty);
+        await cartRes.set({ items: newItems });
 
         return {
           data: {
-            cart: newCart,
-            itemCount: getCartItemCount(newCart),
+            items: newItems,
+            itemCount: getCartItemCount(newItems),
             justAdded: product.name
           }
         };
@@ -108,94 +145,96 @@ export default defineFlow({
     },
 
     removeFromCart: {
-      handler: async ({ data }) => {
-        const payload = data as { productId: string; cart?: CartItem[] };
-        const newCart = removeFromCart(payload.cart ?? [], payload.productId);
+      input: removeFromCartSchema,
+      handler: async ({ input, session, services: _services }) => {
+        const {
+          removeFromCart: removeItem,
+          getCartItemCount,
+          getCartSubtotal
+        } = await import("@task-shop/types");
+
+        if (!session) return { data: { error: "Session required" } };
+
+        const cartRes = session.resource<{ items: CartItem[] }>("cart", {
+          initialValue: { items: [] }
+        });
+        const { items } = await cartRes.get();
+        const newItems = removeItem(items, input.productId);
+        await cartRes.set({ items: newItems });
 
         return {
           data: {
-            cart: newCart,
-            itemCount: getCartItemCount(newCart),
-            subtotal: getCartSubtotal(newCart)
+            items: newItems,
+            itemCount: getCartItemCount(newItems),
+            subtotal: getCartSubtotal(newItems)
+          },
+          redirect: {
+            screenId: "cart",
+            replace: true,
+            reason: "reload"
           }
         };
       }
     },
 
-    viewDetail: {
-      handler: async ({ data }) => {
-        const payload = data as { productId: string };
-        const product = getProduct(payload.productId);
-        if (!product) return { data: { error: "Product not found" } };
-        return { data: { product } };
-      }
-    },
-
-    viewCart: {
-      handler: async ({ data }) => {
-        const cart = (data as { cart?: CartItem[] }).cart ?? [];
-        return {
-          data: { cart, subtotal: getCartSubtotal(cart), itemCount: getCartItemCount(cart) }
-        };
-      }
-    },
-
     placeOrder: {
-      handler: async ({ ctx, data }) => {
-        const cart = (data as { cart?: CartItem[] }).cart ?? [];
-        if (cart.length === 0) return { data: { error: "Cart is empty" } };
-        const order = createOrder(cart);
-        const items = order.items.map((i) => `  ${i.image} ${i.name} ×${i.quantity} — $${(i.price * i.quantity).toFixed(2)}`).join("\n");
+      handler: async ({ ctx: _ctx, session, sign }) => {
+        if (!session) return { data: { error: "Session required" } };
 
-        const now = Math.floor(Date.now() / 1000);
-        const trackingToken = createSignedActionContext(
-          {
-            appId: ctx.appId,
-            flowId: ctx.flowId,
-            screenId: "tracking",
-            userId: ctx.userId,
-            subject: { order },
-            allowedActions: ["backToCatalog"],
-            issuedAt: now,
-            expiresAt: now + 86400
-          },
-          process.env.TELEFORGE_FLOW_SECRET ?? "task-shop-preview-secret"
-        );
-        const miniAppUrl = process.env.MINI_APP_URL ?? "http://localhost:3000";
-        const trackingUrl = `${miniAppUrl}?tgWebAppStartParam=${encodeURIComponent(trackingToken)}`;
+        const { createOrder } = await import("@task-shop/types");
+
+        const cartRes = session.resource<{ items: CartItem[] }>("cart", {
+          initialValue: { items: [] }
+        });
+        const { items } = await cartRes.get();
+
+        if (items.length === 0) return { data: { error: "Cart is empty" } };
+
+        const order = createOrder(items);
+
+        const orderRes = session.resource<{ order: unknown }>("lastOrder", {
+          initialValue: { order: null }
+        });
+        await orderRes.set({ order });
+
+        const itemLines = order.items
+          .map(
+            (i) => `  ${i.image} ${i.name} ×${i.quantity} — $${(i.price * i.quantity).toFixed(2)}`
+          )
+          .join("\n");
+
+        // Use action-handler sign helper with ID-only subject — no full order payload
+        const trackingUrl = await sign({
+          screenId: "tracking",
+          subject: { resource: { type: "order", id: order.id } },
+          allowedActions: []
+        });
 
         return {
-          data: { order },
-          effects: [{
-            type: "chatMessage",
-            text: [
-              "\uD83D\uDED2 Order confirmed!",
-              "",
-              `Order #${order.id}`,
-              "",
-              items,
-              "",
-              `Total: $${order.total.toFixed(2)}`,
-              "",
-              "Thank you for shopping at GadgetShop."
-            ].join("\n"),
-            replyMarkup: {
-              inline_keyboard: [[
-                { text: "\uD83D\uDCCD Track Order", web_app: { url: trackingUrl } }
-              ]]
+          data: { placed: true, orderId: order.id },
+          effects: [
+            {
+              type: "chatMessage",
+              text: [
+                "\uD83D\uDED2 Order confirmed!",
+                "",
+                `Order #${order.id}`,
+                "",
+                itemLines,
+                "",
+                `Total: $${order.total.toFixed(2)}`,
+                "",
+                "Thank you for shopping at GadgetShop."
+              ].join("\n"),
+              replyMarkup: {
+                inline_keyboard: [
+                  [{ text: "\uD83D\uDCCD Track Order", web_app: { url: trackingUrl } }]
+                ]
+              }
             }
-          }]
+          ]
         };
       }
-    },
-
-    backToCatalog: {
-      handler: async ({ data }) => ({
-        data: {
-          cart: (data as { cart?: CartItem[] }).cart ?? [],
-          products
-        }
-      })
     }
   }
 });

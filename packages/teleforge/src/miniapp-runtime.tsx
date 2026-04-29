@@ -124,13 +124,14 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
   const launchCoordination = useLaunchCoordination();
   const defaultRoute = parseEntryRoute(launchCoordination, props.flowManifest);
   const [activePathname, setActivePathname] = useState(
-    () => props.pathname ?? defaultRoute ?? resolveWindowPathname()
+    () => props.pathname ?? resolveWindowPathname() ?? defaultRoute ?? "/"
   );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [handoff, setHandoff] = useState<ChatHandoffMiniAppScreen | null>(null);
   const [routeData, setRouteData] = useState<Record<string, unknown> | undefined>(undefined);
   const [loader, setLoader] = useState<LoaderState>({ status: "idle" });
   const loaderKeyRef = useRef<string>("");
+  const [loaderReload, setLoaderReload] = useState(0);
 
   const resolution = useTeleforgeMiniAppRuntime({
     ...props,
@@ -164,7 +165,7 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
     }
 
     const screen = resolution as ReadyMiniAppScreen;
-    const loaderKey = `${screen.flowId}:${screen.screenId}:${activePathname}:${launchCoordination.rawFlowContext ?? ""}`;
+    const loaderKey = `${screen.flowId}:${screen.screenId}:${activePathname}:${launchCoordination.rawFlowContext ?? ""}:${loaderReload}`;
     if (loaderKey === loaderKeyRef.current) {
       return;
     }
@@ -175,12 +176,22 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
     const pattern = findRoutePattern(screen.screenId, flowsNormalized, activePathname);
     const params = pattern ? extractRouteParams(pattern, activePathname) : {};
 
+    const rawContext = launchCoordination.rawFlowContext;
+    console.log("[teleforge] loader context:", {
+      flowId: screen.flowId,
+      screenId: screen.screenId,
+      pathname: activePathname,
+      hasContext: Boolean(rawContext),
+      contextPrefix: rawContext?.slice(0, 30),
+      params
+    });
+
     let cancelled = false;
     props.serverBridge
       .loadScreenContext({
         flowId: screen.flowId,
         screenId: screen.screenId,
-        signedContext: launchCoordination.rawFlowContext ?? "",
+        signedContext: rawContext ?? "",
         params
       })
       .then((result) => {
@@ -196,8 +207,11 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
         setLoader({ status: "error", error: error instanceof Error ? error : new Error(String(error)) });
       });
 
-    return () => { cancelled = true; };
-  }, [resolution.status, activePathname, props.serverBridge, launchCoordination.rawFlowContext, flowsNormalized]);
+    return () => {
+      cancelled = true;
+      loaderKeyRef.current = "";
+    };
+  }, [resolution.status, activePathname, props.serverBridge, launchCoordination.rawFlowContext, flowsNormalized, loaderReload]);
 
   if (handoff) {
     return <>{props.renderChatHandoff ? props.renderChatHandoff(handoff) : <div>Returning to chat...</div>}</>;
@@ -256,18 +270,10 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
             }
           }
 
-          // Legacy compat: old showHandoff/closeMiniApp top-level fields
-          if (result.showHandoff && !result.handoff) {
-            setHandoff({
-              message: typeof result.showHandoff === "string" ? result.showHandoff : "Returning to chat...",
-              status: "chat_handoff"
-            });
-            if (result.closeMiniApp) {
-              scheduleClose(props.onReturnToChat);
-            }
-          }
-
           if (result.redirect) {
+            if (result.redirect.reason === "reload") {
+              setLoaderReload((n) => n + 1);
+            }
             navigateClient(result.redirect.screenId, {
               params: result.redirect.params,
               data: result.redirect.data,
@@ -346,7 +352,7 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
 
 export function useTeleforgeMiniAppRuntime(options: UseTeleforgeMiniAppRuntimeOptions): TeleforgeMiniAppRuntimeState {
   const launchCoordination = useLaunchCoordination();
-  const pathname = options.pathname ?? resolveWindowPathname();
+  const pathname = options.pathname ?? resolveWindowPathname() ?? "/";
 
   const resolution = useMemo(
     () => {
@@ -504,23 +510,10 @@ function scheduleClose(onReturnToChat?: () => void | Promise<void>) {
   }, 1500);
 }
 
-function resolveWindowPathname(): string {
+function resolveWindowPathname(): string | null {
   if (typeof window !== "undefined") {
-    return window.location.pathname;
+    const path = window.location.pathname;
+    if (path !== "/") return path;
   }
-  return "/";
-}
-
-// --- Deprecated shims ---
-
-export function loadMiniAppScreenRuntime() {
-  throw new Error("loadMiniAppScreenRuntime is deprecated. Use useTeleforgeMiniAppRuntime instead.");
-}
-
-export async function executeMiniAppStepSubmit() {
-  throw new Error("executeMiniAppStepSubmit is deprecated. Use runAction instead.");
-}
-
-export async function executeMiniAppStepAction() {
-  throw new Error("executeMiniAppStepAction is deprecated. Use runAction instead.");
+  return null;
 }

@@ -92,8 +92,19 @@ async function postBridge(
   resolveHeaders: CreateFetchMiniAppServerBridgeOptions["headers"]
 ): Promise<unknown> {
   const headers = await resolveBridgeHeaders(resolveHeaders);
+  const body = JSON.stringify(payload);
+  const parsed = payload as Record<string, unknown>;
+  const input = parsed?.input as Record<string, unknown> | undefined;
+  const signedContext = input?.signedContext;
+  console.log("[teleforge:bridge] POST", basePath, {
+    kind: parsed?.kind,
+    hasSignedContext: Boolean(signedContext),
+    contextPrefix: typeof signedContext === "string" ? signedContext.slice(0, 30) : undefined,
+    actionId: input?.actionId,
+    screenId: input?.screenId
+  });
   const response = await fetchImpl(basePath, {
-    body: JSON.stringify(payload),
+    body,
     headers: {
       "content-type": "application/json",
       ...headers

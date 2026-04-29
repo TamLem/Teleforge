@@ -3,30 +3,29 @@ import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
 
-import type { Product } from "@task-shop/types";
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
 const CATEGORIES = ["Phones", "Laptops", "Tablets", "Audio", "Accessories"] as const;
 
-function CatalogScreen({ data, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
-  const products = (data?.products as Product[]) ?? [];
-  const cart = (appState?.value?.cart ?? []) as Array<{ productId: string; quantity: number }>;
-  const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
+function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: TeleforgeScreenComponentProps) {
+  if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
+  if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load products</h2></div></main>;
+  if (loader.status !== "ready") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
+
+  const products = (loaderData as { products: Array<{ id: string; name: string; description: string; price: number; image: string; category: string; inStock: boolean }> })?.products ?? [];
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   const handleAddToCart = async (productId: string) => {
-    const result = await runAction("addToCart", { productId, qty: 1, cart });
-    const newCart = result.data?.cart;
-    const name = result.data?.justAdded as string | undefined;
-    if (newCart) {
-      appState?.patch({ cart: newCart });
-      setJustAdded(name ?? null);
+    setAddingId(productId);
+    try {
+      const result = await actions.addToCart({ productId, qty: 1 });
+      const name = (result.data?.justAdded as string | undefined);
+      if (name) setJustAdded(name);
+      setAddingId(null);
+    } catch {
+      setAddingId(null);
     }
-  };
-
-  const handleViewDetail = async (productId: string) => {
-    const result = await runAction("viewDetail", { productId });
-    navigate("product-detail", { params: { id: productId }, data: { product: result.data?.product } });
   };
 
   return (
@@ -38,8 +37,8 @@ function CatalogScreen({ data, appState, runAction, navigate, transitioning }: T
       </header>
 
       <div className="top-bar">
-        <button className={`btn-primary${itemCount === 0 ? " btn-ghost" : ""}`} onClick={() => navigate("cart")}>
-          Cart ({itemCount})
+        <button className="btn-primary" onClick={() => nav.cart()}>
+          View Cart
         </button>
       </div>
 
@@ -70,9 +69,11 @@ function CatalogScreen({ data, appState, runAction, navigate, transitioning }: T
                       </div>
                     </div>
                     <div className="actions">
-                      <button className="btn-small" onClick={() => handleViewDetail(product.id)}>Details</button>
+                      <button className="btn-small" onClick={() => nav.productDetail({ id: product.id })}>Details</button>
                       {product.inStock && (
-                        <button className="btn-primary btn-small" disabled={transitioning} onClick={() => handleAddToCart(product.id)}>+ Add</button>
+                        <button className="btn-primary btn-small" disabled={transitioning || addingId === product.id} onClick={() => handleAddToCart(product.id)}>
+                          {addingId === product.id ? "..." : "+ Add"}
+                        </button>
                       )}
                     </div>
                   </div>

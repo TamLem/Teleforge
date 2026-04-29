@@ -92,7 +92,8 @@ export interface ActionFlowDefinition<TContext = unknown> {
   command?: ActionFlowCommandDefinition<TContext>;
   handlers?: ActionFlowHandlers<TContext>;
   miniApp?: ActionFlowMiniAppDefinition;
-  actions?: Record<string, ActionFlowActionDefinition<TContext>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actions?: Record<string, ActionFlowActionDefinition<TContext, any>>;
   session?: ActionFlowSessionDefinition;
 }
 
@@ -101,7 +102,8 @@ export interface ActionFlowDefinitionInput<TContext = unknown> {
   command?: ActionFlowCommandDefinition<TContext>;
   handlers?: ActionFlowHandlers<TContext>;
   miniApp?: ActionFlowMiniAppDefinition;
-  actions?: Record<string, ActionFlowActionDefinition<TContext>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actions?: Record<string, ActionFlowActionDefinition<TContext, any>>;
   session?: ActionFlowSessionDefinition;
 }
 

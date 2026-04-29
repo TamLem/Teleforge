@@ -64,16 +64,22 @@ definition via `export default defineFlow({...})`.
 ```ts
 import { defineFlow } from "teleforge";
 
+function schema<T>(s: { safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown } }) {
+  return s;
+}
+
 export default defineFlow({
   id: "my-flow",
+
+  session: { enabled: true },
 
   command: {
     command: "start",
     description: "Start the flow",
-    handler: async ({ ctx, sign, services }) => {
+    handler: async ({ ctx, sign }) => {
       const launch = await sign({
-        flowId: "my-flow",
         screenId: "home",
+        subject: {},
         allowedActions: ["submitForm", "cancel"]
       });
 
@@ -88,11 +94,10 @@ export default defineFlow({
   },
 
   handlers: {
-    onContact: async ({ ctx, shared, sign, services }) => {
+    onContact: async ({ ctx, shared, sign }) => {
       const launch = await sign({
-        flowId: "my-flow",
         screenId: "profile",
-        subject: { phone: shared.normalizedPhone },
+        subject: { resource: { type: "phone", value: shared.normalizedPhone } },
         allowedActions: ["editProfile"]
       });
 
@@ -105,11 +110,10 @@ export default defineFlow({
       });
     },
 
-    onLocation: async ({ ctx, location, sign, services }) => {
+    onLocation: async ({ ctx, location, sign }) => {
       const launch = await sign({
-        flowId: "my-flow",
         screenId: "nearby",
-        subject: { lat: location.latitude, lng: location.longitude },
+        subject: { resource: { type: "location", lat: location.latitude, lng: location.longitude } },
         allowedActions: ["viewResult"]
       });
 
@@ -131,20 +135,23 @@ export default defineFlow({
 
   actions: {
     submitForm: {
-      handler: async ({ ctx, data, services }) => {
-        await services.database.save(data);
-        return {
-          navigate: "confirm",
-          data: { saved: true }
-        };
+      input: schema<{ formData: string }>({
+        safeParse(input) {
+          if (typeof input !== "object" || input === null) return { success: false, error: "invalid" };
+          return { success: true, data: input as { formData: string } };
+        }
+      }),
+      handler: async ({ input, session, services }) => {
+        const saved = await services.database.save(input.formData);
+        return { data: { saved: true, id: saved.id } };
       }
     },
 
     cancel: {
       handler: async () => {
         return {
-          showHandoff: "Returning to chat...",
-          closeMiniApp: true,
+          data: { cancelled: true },
+          handoff: { message: "Returning to chat...", closeMiniApp: true },
           effects: [{ type: "chatMessage", text: "Action cancelled." }]
         };
       }
@@ -168,16 +175,16 @@ export default defineFlow({
 
 ```ts
 interface ActionFlowCommandDefinition {
-  command: string;        // Slash command, e.g. "start"
-  description: string;    // Shown in bot command menu
+  command: string;
+  description: string;
   handler: (ctx: ActionFlowCommandHandlerContext) => Promise<void>;
 }
 
 interface ActionFlowCommandHandlerContext {
-  ctx: UpdateContext;           // Bot update context (bot, chat, user, reply)
-  sign: SignContextFn;          // Create signed action context tokens
-  services: unknown;            // App services container
-  session?: SessionHandle;      // Only when session.enabled
+  ctx: UpdateContext;
+  sign: SignContextFn;
+  services: unknown;
+  session?: SessionHandle;
 }
 ```
 
@@ -192,23 +199,15 @@ interface ActionFlowHandlers {
 }
 
 interface ActionFlowContactHandlerContext {
-  ctx: UpdateContext;           // Bot update context
-  shared: {                     // Validated phone contact
-    normalizedPhone: string;
-    phoneNumber: string;
-    telegramUserId: number;
-  };
+  ctx: UpdateContext;
+  shared: { normalizedPhone: string; phoneNumber: string; telegramUserId: number };
   sign: SignContextFn;
   services: unknown;
 }
 
 interface ActionFlowLocationHandlerContext {
-  ctx: UpdateContext;           // Bot update context
-  location: {                   // Shared location
-    latitude: number;
-    longitude: number;
-    horizontalAccuracy?: number;
-  };
+  ctx: UpdateContext;
+  location: { latitude: number; longitude: number; horizontalAccuracy?: number };
   sign: SignContextFn;
   services: unknown;
 }
@@ -223,21 +222,20 @@ interface ActionFlowLocationHandlerContext {
 
 ```ts
 interface ActionFlowMiniAppDefinition {
-  routes: Record<string, string>;   // URL path → screenId
-  defaultRoute?: string;            // Fallback route
-  title?: string;                   // Mini App header title
-  launchModes?: LaunchMode[];       // Allowed launch modes
-  requestWriteAccess?: boolean;     // Request tg write access
+  routes: Record<string, string>;
+  defaultRoute?: string;
+  title?: string;
+  launchModes?: LaunchMode[];
+  requestWriteAccess?: boolean;
 }
 ```
 
-The `routes` map binds URL paths to screen IDs. The first matching route (by
-pathname) determines which screen renders. Routes may include path parameters:
+The `routes` map binds URL paths to screen IDs:
 
 ```ts
 routes: {
   "/": "catalog",
-  "/product/:productId": "product.detail",
+  "/product/:productId": "productDetail",
   "/cart": "cart"
 }
 ```
@@ -245,16 +243,18 @@ routes: {
 ### `actions`
 
 ```ts
-interface ActionFlowActionDefinition {
-  handler: (ctx: ActionFlowActionHandlerContext) => Promise<ActionResult>;
-  requiresSession?: boolean;   // Load session before handler
+interface ActionFlowActionDefinition<TContext = unknown, TInput = unknown> {
+  handler: (ctx: ActionFlowActionHandlerContext<TContext, TInput>) => Promise<ActionResult>;
+  input?: TeleforgeInputSchema<TInput>;
+  requiresSession?: boolean;
 }
 
-interface ActionFlowActionHandlerContext {
-  ctx: ActionContextToken;     // Verified signed context
-  data: unknown;               // Payload from Mini App
+interface ActionFlowActionHandlerContext<TContext = unknown, TInput = unknown> {
+  ctx: ActionContextToken;
+  input: TInput;
   services: unknown;
-  session?: SessionHandle;     // Only when requiresSession or session.enabled
+  session?: SessionHandle;
+  sign: SignContextFn;
 }
 ```
 
@@ -262,15 +262,15 @@ Action handlers return an `ActionResult`:
 
 ```ts
 interface ActionResult {
-  data?: Record<string, unknown>;    // Data returned to Mini App
-  navigate?: string;                 // Navigate to screenId or route
-  closeMiniApp?: boolean;            // Close the Mini App
-  showHandoff?: string | boolean;    // Show handoff message, close after delay
-  effects?: ActionEffect[];          // Side effects
+  data?: Record<string, unknown>;
+  handoff?: { message?: string; closeMiniApp?: boolean };
+  effects?: ActionEffect[];
+  redirect?: { screenId: string; params?: Record<string, string>; data?: Record<string, unknown>; replace?: boolean; reason?: string };
+  clientEffects?: ClientEffect[];
 }
 
 type ActionEffect =
-  | { type: "chatMessage"; text: string; chatId?: string }
+  | { type: "chatMessage"; text: string; chatId?: string; replyMarkup?: { inline_keyboard?: Array<Array<{ text: string; url?: string; web_app?: { url: string }; callback_data?: string }>> } }
   | { type: "openMiniApp"; launchUrl: string }
   | { type: "navigate"; screenId: string; params?: Record<string, unknown> }
   | { type: "webhook"; url: string; payload: unknown }
@@ -281,21 +281,60 @@ type ActionEffect =
 
 ```ts
 interface ActionFlowSessionDefinition {
-  enabled: true;                         // Must be explicitly true
-  ttlSeconds?: number;                   // Session expiry (default 900s)
-  initialState?: Record<string, unknown>; // Initial session state
+  enabled: true;
+  ttlSeconds?: number;
+  initialState?: Record<string, unknown>;
 }
 ```
 
 Sessions are opt-in. Only flows that declare `session.enabled = true` create
-server-side session state. Session state is small, scoped, and TTL-bound.
+server-side session state.
+
+---
+
+## `defineLoader()`
+
+Loader files live in the configured loader root (default `apps/api/src/loaders/`).
+
+```ts
+import { defineLoader } from "teleforge";
+
+export default defineLoader({
+  handler: async ({ ctx, params, services, session }) => {
+    return { products: await services.catalog.list() };
+  }
+});
+```
+
+With optional schema validation:
+
+```ts
+import { defineLoader } from "teleforge";
+import type { TeleforgeInputSchema } from "teleforge";
+
+const input: TeleforgeInputSchema<{ id: string }> = {
+  safeParse(input) {
+    if (typeof input !== "object" || input === null) return { success: false, error: { message: "invalid" } };
+    const obj = input as Record<string, unknown>;
+    if (typeof obj.id !== "string") return { success: false, error: { message: "id required" } };
+    return { success: true, data: { id: obj.id } };
+  }
+};
+
+export default defineLoader({
+  input,
+  handler: async ({ input, ctx, services }) => {
+    return { product: await services.catalog.get(input.id, ctx.userId) };
+  }
+});
+```
 
 ---
 
 ## `defineScreen()`
 
 ```ts
-import { defineScreen } from "teleforge";
+import { defineScreen } from "teleforge/web";
 
 export default defineScreen({
   id: "home",
@@ -308,39 +347,39 @@ export default defineScreen({
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | `string` | Yes | Unique screen identifier (matches route map) |
+| `id` | `string` | Yes | Unique screen identifier |
 | `component` | `ComponentType<TeleforgeScreenComponentProps>` | Yes | React component |
 | `title` | `string` | No | Screen title |
-| `guard` | `(ctx) => Promise<boolean \| { allow: false; reason?: string }>` | No | Client-side access guard |
-| `loader` | `(ctx) => Promise<TLoaderData>` | No | Client-side data loader |
+| `guard` | `(ctx) => MaybePromise<boolean \| { allow: false; reason?: string }>` | No | Client-side access guard |
 
 ### Screen component props
 
 ```ts
 interface TeleforgeScreenComponentProps {
-  data?: unknown;                         // Merged launchData + routeData (preferred)
-  launchData?: Record<string, unknown>;   // Raw signed context subject
-  routeData?: Record<string, unknown>;    // Raw navigate() data
-  loaderData?: unknown;                   // Server-loaded screen data
-  appState?: MiniAppState;                // Cross-screen client state (React context)
-  session?: unknown;                      // Session state (only for session flows)
-  screenId: string;                       // Current screen identifier
-  routePath: string;                      // Current URL pathname
-  transitioning: boolean;                 // Action in progress
+  scopeData?: Record<string, unknown>;         // Signed context subject (server-issued scope)
+  routeParams: Record<string, string>;          // Route params from matched pattern
+  routeData?: Record<string, unknown>;          // Ephemeral data from navigate()
+  loader: { status: "loading" | "ready" | "error" | "idle"; data?: unknown; error?: Error };
+  loaderData?: unknown;                         // loader.data when ready
+  appState?: MiniAppState;                      // Client-session state (React context)
+  actions: Record<string, (payload?: unknown) => Promise<ActionResult>>;
+  nav: Record<string, (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => void>;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenIdOrRoute: string, options?: NavigateOptions) => void;
+  transitioning: boolean;
+  screenId: string;
+  routePath: string;
 }
 
 type NavigateOptions = {
-  params?: Record<string, string>;        // Route params (fills :param segments)
-  data?: Record<string, unknown>;         // Data passed to next screen
-  replace?: boolean;                      // Replace history entry instead of push
+  params?: Record<string, string>;
+  data?: Record<string, unknown>;
+  replace?: boolean;
 };
 ```
 
-Use `data` for all screen data — the runtime merges signed context and
-navigation data automatically. `launchData` and `routeData` are available
-for advanced cases that need the raw sources.
+Use `actions.*` and `nav.*` as the happy path. `runAction` and `navigate` are available
+as escape hatches for programmatic access.
 
 ---
 
@@ -388,12 +427,15 @@ Available in command and handler contexts:
 
 ```ts
 type SignContextFn = (params: {
-  flowId: string;
   screenId: string;
   subject?: Record<string, unknown>;
   allowedActions?: string[];
-}) => Promise<string>;  // Returns signed token string ready for tgWebAppStartParam
+  ttlSeconds?: number;
+}) => Promise<string>;  // Returns signed Mini App URL
 ```
+
+The signed subject should carry IDs and scope only (e.g., `{ resource: { type: "product", id } }`),
+never full domain payloads.
 
 ---
 
@@ -405,8 +447,8 @@ import { startTeleforgeServer } from "teleforge";
 const { url, port, stop } = await startTeleforgeServer({
   flowSecret: process.env.TELEFORGE_FLOW_SECRET,
   port: 3100,
-  onChatHandoff: async ({ message, context }) => {
-    await bot.sendMessage(context.userId, message);
+  onChatHandoff: async ({ message, context, replyMarkup }) => {
+    await bot.sendMessage(context.userId, message, { reply_markup: replyMarkup });
   }
 });
 ```
@@ -424,7 +466,7 @@ const { url, port, stop } = await startTeleforgeServer({
 { kind: "runAction", input: { flowId, actionId, signedContext, payload? } }
 
 // loadScreenContext
-{ kind: "loadScreenContext", input: { flowId, screenId, signedContext } }
+{ kind: "loadScreenContext", input: { flowId, screenId, signedContext, params? } }
 
 // handoff
 { kind: "handoff", input: { signedContext, message } }
@@ -444,84 +486,74 @@ const { runtime, stop } = await startTeleforgeBot({
 });
 ```
 
-### Runtime lifecycle
+---
 
-1. Flows are discovered from `apps/bot/src/flows/*.flow.ts`
-2. Commands, contact handlers, location handlers, callbacks, and web_app_data handlers are registered from flow definitions
-3. Action registry is built (`flowId:actionId` → handler)
-4. Route registry is built (URL path → `{ flowId, screenId }`)
+## Schema Helpers (`TeleforgeInputSchema`)
+
+Schemas are library-agnostic. Any object with `parse` or `safeParse` works:
+
+```ts
+interface TeleforgeSchema<T> {
+  parse(input: unknown): T;
+}
+
+interface TeleforgeSafeSchema<T> {
+  safeParse(input: unknown):
+    | { success: true; data: T }
+    | { success: false; error: unknown };
+}
+```
+
+Zod schemas satisfy this interface directly. You can also write inline validators:
+
+```ts
+const mySchema: TeleforgeInputSchema<{ id: string }> = {
+  safeParse(input) {
+    if (typeof input !== "object" || input === null) return { success: false, error: { message: "invalid" } };
+    const obj = input as Record<string, unknown>;
+    if (typeof obj.id !== "string") return { success: false, error: { message: "id required" } };
+    return { success: true, data: { id: obj.id } };
+  }
+};
+```
 
 ---
 
-## Discovery Conventions
+## Session Resources
 
-| Artifact | Pattern | Loader |
-|---|---|---|
-| Flows | `{root}/*.flow.{ts,mjs,js}` | `loadTeleforgeFlows` |
-| Screens | `{screensRoot}/*.screen.{tsx,ts,jsx,js}` | `loadTeleforgeScreens` |
-| App config | `teleforge.config.{ts,mts,js,mjs}` | `loadTeleforgeApp` |
+When `session.enabled` is true, handlers and loaders receive a `SessionHandle`:
 
-The `flows.root` default is `"flows"`, resolved relative to the project root as
-`apps/bot/src/flows`. Configure via `flows.root` in `teleforge.config.ts`.
+```ts
+interface SessionHandle<TState = Record<string, unknown>> {
+  get(): Promise<TState>;
+  patch(partial: Partial<TState>): Promise<void>;
+  set(next: TState): Promise<void>;
+  complete(): Promise<void>;
+  resource<TValue = Record<string, unknown>>(
+    key: string,
+    options?: { initialValue?: TValue | (() => TValue | Promise<TValue>) }
+  ): SessionResourceHandle<TValue>;
+}
+
+interface SessionResourceHandle<TValue> {
+  get(): Promise<TValue>;
+  set(value: TValue): Promise<void>;
+  update(mutator: (draft: TValue) => void | TValue | Promise<void | TValue>): Promise<TValue>;
+  clear(): Promise<void>;
+}
+```
+
+Resources are isolated by user and flow. Use for cart state, draft data, and order references.
 
 ---
 
 ## Client Manifest
 
-A stripped, client-safe manifest is generated for the Mini App bundle.
+The generated client manifest (`apps/web/src/teleforge-generated/client-flow-manifest.ts`)
+is the browser-safe boundary. Regenerate after flow changes:
 
-```ts
-interface ClientFlowManifest {
-  flows: readonly Array<{
-    id: string;
-    miniApp?: {
-      routes: Record<string, string>;
-      defaultRoute?: string;
-      title?: string;
-    };
-    screens: readonly Array<{
-      id: string;
-      route?: string;
-      title?: string;
-      actions?: readonly string[];
-      requiresSession?: boolean;
-    }>;
-  }>;
-}
+```bash
+teleforge generate client-manifest
 ```
 
-Generate via:
-
-```ts
-import { createClientFlowManifest } from "teleforge";
-
-const manifest = createClientFlowManifest(flows, screens);
-```
-
----
-
-## Flow Authoring Helpers
-
-### `resolveFlowAction(actionId: string): string`
-
-Normalizes an action ID string. Replaces the old `resolveFlowActionKey`.
-
----
-
-## Migration from step-machine flows
-
-| Old API | New API |
-|---|---|
-| `defineFlow({ steps, initialStep, finalStep, state })` | `defineFlow({ id, command?, handlers?, miniApp?, actions?, session? })` |
-| `chatStep(message, actions)` | Define in `command.handler` or `handlers.onContact` |
-| `miniAppStep(screen, { onSubmit })` | Define in `miniApp.routes` + `actions` |
-| `openMiniAppAction(label, to)` | `ctx.reply(...)` with `web_app` button + signed URL |
-| `requestPhoneAction(label, to)` | `ctx.reply(...)` with `requestContact` button + `onContact` handler |
-| `requestLocationAction(label, to)` | `ctx.reply(...)` with `requestLocation` button + `onLocation` handler |
-| `returnToChatAction(label, to)` | `return { showHandoff: true, closeMiniApp: true }` in action handler |
-| `FlowTransitionResult { state, to }` | `ActionResult { data, navigate, effects }` |
-| `UserFlowStateManager` | `SessionManager` (session flows only) |
-| `advanceStep(key, step, state)` | Not needed; actions are stateless by default |
-| Server hooks `flow-hooks/{flowId}/{stepId}.ts` | Actions defined inline in flow or server |
-| `miniApp.stepRoutes` | `miniApp.routes` |
-| Screen props `{ flow, state, stepId, submit }` | Screen props `{ launchData, routeData, appState, runAction, navigate }` |
+Do not import flow files from the web entry — they may contain server-only handlers.

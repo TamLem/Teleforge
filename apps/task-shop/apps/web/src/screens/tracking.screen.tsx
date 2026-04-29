@@ -12,8 +12,11 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "Delivered"
 };
 
-function TrackingScreen({ data, navigate }: TeleforgeScreenComponentProps) {
-  const order = data?.order as Record<string, unknown> | undefined;
+function TrackingScreen({ loader, loaderData, nav }: TeleforgeScreenComponentProps) {
+  if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
+  if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load order</h2></div></main>;
+
+  const order = (loaderData as { order?: Record<string, unknown> })?.order;
 
   if (!order) {
     return (
@@ -78,7 +81,7 @@ function TrackingScreen({ data, navigate }: TeleforgeScreenComponentProps) {
       </div>
 
       <div className="actions-row">
-        <button className="btn-primary" onClick={() => navigate("catalog")}>
+        <button className="btn-primary" onClick={() => nav.catalog()}>
           Continue Shopping
         </button>
       </div>

@@ -7,46 +7,45 @@ The bot and action server are **transport adapters** that invoke the same runtim
 Neither owns state — they validate signed action context and run handlers.
 
 ```text
-┌─────────────────────────────────────────────────┐
-│              Teleforge Action Runtime           │
-│                                                 │
-│  ┌──────────┐    ┌──────────┐    ┌───────────┐ │
-│  │  Bot     │    │ Action   │    │  Future   │ │
-│  │ Adapter  │    │ Server   │    │  Workers  │ │
-│  └────┬─────┘    └────┬─────┘    └─────┬─────┘ │
-│       │               │               │         │
-│       └───────────────┼───────────────┘         │
-│                       │                         │
-│              ┌────────▼────────┐                │
-│              │ Action          │                │
-│              │ Registry        │                │
-│              └────────┬────────┘                │
-│                       │                         │
-│        ┌──────────────▼──────────────┐          │
-│        │ Signed Context Validation   │          │
-│        │ (HMAC verification)         │          │
-│        └──────────────┬──────────────┘          │
-│                       │                         │
-│              ┌────────▼────────┐                │
-│              │ SessionManager   │                │
-│              │ (opt-in only)    │                │
-│              └─────────────────┘                │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│              Teleforge Action Runtime                │
+│                                                      │
+│  ┌──────────┐    ┌──────────┐    ┌───────────────┐  │
+│  │  Bot     │    │ Action   │    │  Screen       │  │
+│  │ Adapter  │    │ Server   │    │  Loaders      │  │
+│  └────┬─────┘    └────┬─────┘    └──────┬────────┘  │
+│       │               │                 │           │
+│       └───────────────┼─────────────────┘           │
+│                       │                              │
+│              ┌────────▼────────┐                     │
+│              │ Action          │                     │
+│              │ Registry        │                     │
+│              └────────┬────────┘                     │
+│                       │                              │
+│        ┌──────────────▼──────────────┐               │
+│        │ Signed Context Validation   │               │
+│        │ (HMAC verification)         │               │
+│        └──────────────┬──────────────┘               │
+│                       │                              │
+│              ┌────────▼────────┐                     │
+│              │ Handler         │                     │
+│              │ Execution       │                     │
+│              └────────┬────────┘                     │
+│                       │                              │
+│        ┌──────────────▼──────────────┐               │
+│        │ Optional Session Storage   │               │
+│        │ (per user+flow)             │               │
+│        └─────────────────────────────┘               │
+└──────────────────────────────────────────────────────┘
 ```
 
-The `SessionManager` is an optional persistence layer for flows that need server-side drafts or
-resumable state. For most flows, no persistence is needed — signed context and domain services
-are sufficient.
+## State Model
 
-Same-process hosting is one deployment mode. Split processes, horizontal API scaling, webhook mode,
-and edge workers are equally valid because the runtime contract is process-agnostic.
+Teleforge distinguishes three state categories, each with a different trust model:
 
----
+### 1. Signed Context (authority)
 
-## Signed Action Context
-
-Every Mini App action carries a signed context token (`tfp2` prefix). The server validates
-signature, expiry, and action authorization before trusted work.
+The signed action context (`tfp2` token) is the trust anchor for every request. It carries:
 
 ```ts
 interface ActionContextToken {
@@ -54,263 +53,115 @@ interface ActionContextToken {
   flowId: string;
   screenId?: string;
   userId: string;
-  subject?: Record<string, unknown>;
+  subject?: Record<string, unknown>;  // IDs and scope only
   allowedActions?: string[];
   issuedAt: number;
   expiresAt: number;
-  nonce?: string;
 }
 ```
 
-### Token lifecycle
+The token is HMAC-signed and verified server-side on every action and loader request.
+`subject` should contain IDs and scope, never full domain payloads.
 
-```text
-Bot command handler
-  → calls sign({ flowId, screenId, subject, allowedActions })
-  → receives HMAC-signed token
-  → embeds token in Mini App launch URL
+### 2. Session Resources (server-owned state)
 
-Mini App opens
-  → parses token from tgWebAppStartParam
-  → screen renders
-
-Screen calls runAction(actionId, payload)
-  → POST to action server with token + actionId + payload
-  → server validates token (signature, expiry, allowedActions)
-  → server runs action handler
-  → returns ActionResult
-```
-
-**Key property:** The token is stateless. No server-side flow instance needs to exist for the
-token to be valid. The server only verifies the cryptographic signature and expiry.
-
----
-
-## Default Model: No Persisted State
-
-For most flows, the runtime does not persist any state. Each interaction is self-contained:
-
-```text
-signed context + action + payload
-  → validate context
-  → validate payload
-  → load domain data if needed
-  → run handler
-  → return result/effects
-```
-
-The framework knows:
-
-- flow id, screen id, action id
-- launch context (from signed token)
-- allowed actions (from signed token)
-- handler mapping (from flow definition)
-
-It does not need to persist:
-
-- current step
-- flow state
-- transition revision
-
----
-
-## Optional: Session State
-
-A flow can declare `session: { enabled: true }` to opt into lightweight server-side session state.
+When a flow has `session: { enabled: true }`, handlers and loaders receive a `SessionHandle`
+with resource access:
 
 ```ts
-defineFlow({
-  id: "builder-project",
-
-  session: {
-    enabled: true,
-    ttlSeconds: 86400,
-    initialState: {
-      projectSpec: null,
-      draftScreens: []
-    }
-  },
-
-  // ... command, routes, actions
+const cart = session.resource<{ items: CartItem[] }>("cart", {
+  initialValue: { items: [] }
 });
-```
 
-### Session model
+// Read
+const { items } = await cart.get();
 
-```ts
-interface TeleforgeSession<TState> {
-  sessionId: string;
-  flowId: string;
-  userId: string;
-  state: TState;
-  status: "active" | "completed" | "expired" | "cancelled";
-  createdAt: number;
-  updatedAt: number;
-  expiresAt: number;
-  revision: number;
-}
-```
-
-### Session API
-
-```ts
-interface SessionHandle<TState> {
-  get(): Promise<TState>;
-  set(next: TState): Promise<void>;
-  patch(partial: Partial<TState>): Promise<void>;
-  clear(): Promise<void>;
-  complete(): Promise<void>;
-}
-```
-
-Session state should be small, scoped, and TTL-bound.
-It should not become a replacement for the application database.
-
-### Use session state for
-
-- AI builder project drafts
-- unsaved multi-screen form drafts
-- resumable onboarding
-- payment or approval waits
-- external webhook waits
-- temporary server-side data before domain commit
-
-### Do not use session state for
-
-- orders that already exist in the orders table
-- deliveries from the logistics backend
-- products fetched from catalog service
-- user profiles stored in the app database
-- simple one-shot form submissions
-
----
-
-## Action Result Contract
-
-Every action returns a normalized result.
-
-```ts
-interface ActionResult {
-  data?: Record<string, unknown>;
-  navigate?: string;
-  closeMiniApp?: boolean;
-  showHandoff?: string | boolean;
-  effects?: ActionEffect[];
-}
-```
-
-### Effects
-
-The runtime emits effects as part of the action result.
-
-| Effect          | Description                                           | Realized By                 |
-| --------------- | ----------------------------------------------------- | --------------------------- |
-| `chatMessage`   | Send a chat message                                   | Bot adapter                 |
-| `openMiniApp`   | Launch Mini App with signed payload                   | Bot adapter                 |
-| `navigate`      | Change active Mini App screen                         | Mini App client runtime     |
-| `webhook`        | POST to external endpoint                             | Worker or integration layer |
-| `custom`        | Application-specific effect                           | Custom handler              |
-
-### Handoff
-
-```ts
-return {
-  showHandoff: "Rescheduled successfully.",
-  closeMiniApp: true,
-  effects: [{ type: "chatMessage", text: "Rescheduled." }]
-};
-```
-
-The Mini App runtime shows the handoff message and closes. The bot runtime sends chat messages.
-
-### Navigation
-
-```ts
-return {
-  navigate: "shop.cart",
-  data: { itemCount: 3 }
-};
-```
-
-The Mini App runtime navigates to the new screen without a full page reload.
-
----
-
-## Screen Contract
-
-Screens receive context from the runtime and invoke actions.
-
-```tsx
-interface TeleforgeScreenComponentProps {
-  launch: LaunchContext;
-  screenId: string;
-  routePath: string;
-  data?: unknown;
-  loaderData?: unknown;
-  session?: unknown;
-  transitioning: boolean;
-  runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
-  navigate: (screenIdOrRoute: string, params?: Record<string, unknown>) => void;
-}
-```
-
-Screens call `runAction()` to invoke server-side action handlers. They should not call services
-directly from the browser.
-
-```tsx
-export default defineScreen({
-  id: "shop.catalog",
-  component({ runAction, transitioning }) {
-    return (
-      <button
-        onClick={() => runAction("addToCart", { productId: "p1" })}
-        disabled={transitioning}
-      >
-        Add to cart
-      </button>
-    );
-  }
+// Mutate
+await cart.update((draft) => {
+  draft.items.push(newItem);
 });
+
+// Replace
+await cart.set({ items: newItems });
+
+// Remove
+await cart.clear();
 ```
 
----
+Resources are isolated by user and flow. They persist through the session storage adapter
+and are TTL-bound. Use for:
 
-## Deployment Modes
+- cart contents
+- draft form data
+- order references
+- multi-step wizard progress
 
-The same runtime contract supports multiple hosting models:
+### 3. Screen State (client-owned)
 
-| Mode                | How                                                                      | When                            |
-| ------------------- | ------------------------------------------------------------------------ | ------------------------------- |
-| **Same-process**    | Bot starts action server, shares runtime object                          | Local dev, small apps           |
-| **Split processes** | Bot and server are separate processes, share signing secret              | Production, horizontal scaling  |
-| **Webhook mode**    | Single HTTP process handles both Telegram webhooks and action requests  | Serverless or cloud deployment  |
-| **Edge workers**    | Action server runs at edge, bot runs centrally                           | Global latency, edge-first apps |
+Client-side state is structured into three layers:
 
-The framework does not care which mode is used. The signed context + action handler contract
-stays the same.
+| Layer | Scope | Mechanism |
+|---|---|---|
+| `scopeData` | Immutable per entry | Signed context subject |
+| `routeParams` | Current screen | Route pattern match |
+| `routeData` | Per navigation | `navigate({ data })` |
+| `loader`/`loaderData` | Server-provided | Server loaders |
+| `appState` | Cross-screen | React context (`useAppState`) |
 
----
+## Execution Flow
 
-## Why This Model
+### Action Request
 
-### Why not persist step state?
+1. Mini App calls `actions.addToCart({ productId, qty })`
+2. Server bridge POSTs `{ kind: "runAction", input: { actionId, flowId, signedContext, payload } }`
+3. Action server validates the signed context (signature, expiry, allowedActions)
+4. If schema provided, validates `input` via `parseTeleforgeInput`
+5. Runs the handler
+6. Returns `ActionResult` to the Mini App
+7. Mini App applies effects, handoff, or redirect
 
-- Telegram surfaces do not behave like one continuous workflow transport
-- Mini Apps can be opened from old signed links
-- users can reopen, duplicate, or deep-link screens
-- most application data already belongs in domain services
+### Loader Request
 
-### Why signed context instead of step tracking?
+1. Screen resolves → framework computes `activePathname` and extracts `routeParams`
+2. Server bridge POSTs `{ kind: "loadScreenContext", input: { flowId, screenId, signedContext, params } }`
+3. Action server validates the signed context and finds the flow
+4. Validates that `screenId` is a route in the flow's `miniApp.routes`
+5. If loader file exists for `screenId`, validates input (if schema provided) and runs handler
+6. Returns `{ data, loaderFound, session }`
+7. Client sets `loader.status` to `ready`, `idle`, or `error` based on response
 
-The better question is not "what step is this user on?" but "is this action valid for this
-signed context and current domain data?"
+## Storage Architecture
 
-### Why optional sessions?
+Session storage uses a pluggable `SessionStorageAdapter`:
 
-Most flows don't need server-side persistence. Sessions exist for the minority that do
-(AI builders, drafts, external waits) and stay TTL-bound and scoped.
+```ts
+interface SessionStorageAdapter {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, ttl?: number): Promise<void>;
+  delete(key: string): Promise<void>;
+  touch(key: string, ttl: number): Promise<void>;
+}
+```
 
-### Why effects instead of step transitions?
+The default adapter is `MemorySessionStorageAdapter`. Production apps should provide their own
+persistent adapter (Redis, database, etc.).
 
-Because an action produces deterministic results. The runtime executes effects from
-the action result, not from a persistent step graph traversal.
+Session keys follow the pattern `session:{userId}:{flowId}:{sessionId}`.
+
+## Security Properties
+
+| Property | Mechanism |
+|---|---|
+| Request authenticity | HMAC-signed `tfp2` token |
+| Expiry | Token `expiresAt` checked on every request |
+| Action authorization | `allowedActions` enforced server-side |
+| Screen authorization | `screenId` validated against flow routes |
+| Input validation | Optional `input` schema before handler runs |
+| Resource isolation | Resources keyed by user + flow within session |
+
+## Read Next
+
+- [Framework Model](./framework-model.md)
+- [Server Actions](./server-hooks.md)
+- [Config Reference](./config-reference.md)
+- [Deployment](./deployment.md)

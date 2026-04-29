@@ -5,12 +5,15 @@ import { ProductImage } from "../components/product-image";
 
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-function ProductDetailScreen({ data, appState, runAction, navigate, transitioning }: TeleforgeScreenComponentProps) {
-  const product = data?.product as Record<string, unknown> | undefined;
-  const cart = (appState?.value?.cart ?? []) as Array<{ productId: string; name: string; price: number; quantity: number; image: string }>;
-  const [qty, setQty] = useState(1);
+function ProductDetailScreen({ loader, loaderData, actions, nav, transitioning }: TeleforgeScreenComponentProps) {
+  if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
+  if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load product</h2></div></main>;
+  if (loader.status !== "ready") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
 
-  if (!product) {
+  const data = loaderData as { product?: Record<string, unknown>; notFound?: boolean } | undefined;
+  const product = data?.product;
+
+  if (!product || data?.notFound) {
     return (
       <main className="shell">
         <div className="card"><h2>Product not found</h2></div>
@@ -19,12 +22,10 @@ function ProductDetailScreen({ data, appState, runAction, navigate, transitionin
   }
 
   const productId = product.id as string;
-  const inCart = cart.filter((i) => i.productId === productId).reduce((s, i) => s + i.quantity, 0);
-  const price = product.price as number;
+  const [qty, setQty] = useState(1);
 
   const handleAddToCart = async () => {
-    const result = await runAction("addToCart", { productId, qty, cart });
-    if (result.data?.cart) appState?.patch({ cart: result.data.cart });
+    await actions.addToCart({ productId, qty });
   };
 
   return (
@@ -40,7 +41,7 @@ function ProductDetailScreen({ data, appState, runAction, navigate, transitionin
 
       <div className="card">
         <p className="lede">{product.description as string}</p>
-        <p className="price-lg">${price}</p>
+        <p className="price-lg">${product.price as number}</p>
         {!product.inStock && <span className="badge" style={{ background: "#ffebee", color: "#c62828" }}>Out of stock</span>}
       </div>
 
@@ -56,7 +57,7 @@ function ProductDetailScreen({ data, appState, runAction, navigate, transitionin
         </div>
       </div>
 
-      {product.inStock && (
+      {Boolean(product.inStock) && (
         <div className="card" style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
           <div className="qty-picker">
             <button onClick={() => setQty(Math.max(1, qty - 1))}>-</button>
@@ -64,16 +65,15 @@ function ProductDetailScreen({ data, appState, runAction, navigate, transitionin
             <button onClick={() => setQty(qty + 1)}>+</button>
           </div>
           <button className="btn-primary" disabled={transitioning} onClick={handleAddToCart}>
-            Add to Cart — ${(price * qty).toFixed(2)}
+            Add to Cart — ${((product.price as number) * qty).toFixed(2)}
           </button>
-          {inCart > 0 && <span className="muted small">{inCart} already in cart</span>}
         </div>
       )}
 
       <div className="actions-row">
-        <button onClick={() => navigate("catalog")}>Back to Catalog</button>
-        <button className="btn-primary" onClick={() => navigate("cart")}>
-          View Cart ({cart.reduce((s, i) => s + i.quantity, 0)})
+        <button onClick={() => nav.catalog()}>Back to Catalog</button>
+        <button className="btn-primary" onClick={() => nav.cart()}>
+          View Cart
         </button>
       </div>
     </main>

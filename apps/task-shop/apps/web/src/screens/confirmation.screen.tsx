@@ -4,8 +4,11 @@ import { ProductImage } from "../components/product-image";
 
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-function ConfirmationScreen({ routeData, navigate }: TeleforgeScreenComponentProps) {
-  const order = routeData?.order as Record<string, unknown> | undefined;
+function ConfirmationScreen({ loader, loaderData, nav }: TeleforgeScreenComponentProps) {
+  if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
+  if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load order</h2></div></main>;
+
+  const order = (loaderData as { order?: Record<string, unknown> })?.order;
 
   if (!order) {
     return (
@@ -52,10 +55,10 @@ function ConfirmationScreen({ routeData, navigate }: TeleforgeScreenComponentPro
       </div>
 
       <div className="actions-row">
-        <button onClick={() => navigate("tracking", { data: { order } })}>
+        <button onClick={() => nav.tracking()}>
           Track Order
         </button>
-        <button className="btn-primary" onClick={() => navigate("catalog")}>
+        <button className="btn-primary" onClick={() => nav.catalog()}>
           Continue Shopping
         </button>
       </div>

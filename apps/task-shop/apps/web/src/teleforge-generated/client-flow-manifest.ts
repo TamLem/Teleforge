@@ -21,10 +21,7 @@ export const flowManifest = defineClientFlowManifest(
           "actions": [
             "addToCart",
             "removeFromCart",
-            "viewDetail",
-            "viewCart",
-            "placeOrder",
-            "backToCatalog"
+            "placeOrder"
           ],
           "id": "catalog",
           "route": "/"
@@ -33,10 +30,7 @@ export const flowManifest = defineClientFlowManifest(
           "actions": [
             "addToCart",
             "removeFromCart",
-            "viewDetail",
-            "viewCart",
-            "placeOrder",
-            "backToCatalog"
+            "placeOrder"
           ],
           "id": "product-detail",
           "route": "/product/:id"
@@ -45,10 +39,7 @@ export const flowManifest = defineClientFlowManifest(
           "actions": [
             "addToCart",
             "removeFromCart",
-            "viewDetail",
-            "viewCart",
-            "placeOrder",
-            "backToCatalog"
+            "placeOrder"
           ],
           "id": "cart",
           "route": "/cart"
@@ -57,10 +48,7 @@ export const flowManifest = defineClientFlowManifest(
           "actions": [
             "addToCart",
             "removeFromCart",
-            "viewDetail",
-            "viewCart",
-            "placeOrder",
-            "backToCatalog"
+            "placeOrder"
           ],
           "id": "confirmation",
           "route": "/confirmation"
@@ -69,10 +57,7 @@ export const flowManifest = defineClientFlowManifest(
           "actions": [
             "addToCart",
             "removeFromCart",
-            "viewDetail",
-            "viewCart",
-            "placeOrder",
-            "backToCatalog"
+            "placeOrder"
           ],
           "id": "tracking",
           "route": "/tracking"

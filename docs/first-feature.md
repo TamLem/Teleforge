@@ -9,8 +9,8 @@ Teleforge discover the runtime wiring.
 Add:
 
 - an `/orders` bot command
-- an `orders` screen
-- a `selectOrder` action that navigates to a confirmation screen
+- an `orders` screen with loader
+- a `selectOrder` action with schema-validated input
 - a `done` screen with return-to-chat
 
 ## 1. Add The Flow
@@ -28,12 +28,12 @@ export default defineFlow({
     description: "Open recent orders",
     handler: async ({ ctx, sign }) => {
       const launch = await sign({
-        flowId: "orders",
         screenId: "orders",
+        subject: {},
         allowedActions: ["selectOrder"]
       });
 
-      await ctx.reply("Open the Mini App to review recent orders.", {
+      await ctx.reply("Open recent orders.", {
         reply_markup: {
           inline_keyboard: [[
             { text: "Open Orders", web_app: { url: launch } }
@@ -44,34 +44,16 @@ export default defineFlow({
   },
 
   miniApp: {
-    routes: {
-      "/": "orders",
-      "/done": "done"
-    },
+    routes: { "/": "orders", "/done": "done" },
     defaultRoute: "/",
     title: "Orders"
   },
 
   actions: {
     selectOrder: {
-      handler: async ({ ctx, data }) => {
-        const payload = data as { selectedOrderId: string };
+      handler: async ({ input, session }) => {
         return {
-          navigate: "done",
-          data: { selectedOrderId: payload.selectedOrderId }
-        };
-      }
-    },
-
-    returnToChat: {
-      handler: async () => {
-        return {
-          showHandoff: "Returning to chat...",
-          closeMiniApp: true,
-          effects: [{
-            type: "chatMessage",
-            text: "Order review complete."
-          }]
+          data: { selected: true }
         };
       }
     }
@@ -79,27 +61,30 @@ export default defineFlow({
 });
 ```
 
-`teleforge dev` discovers `.flow.ts` files from the `flows.root` configured in `teleforge.config.ts`.
+## 2. Add The Screens
 
-## 2. Add The Screen
-
-Create `apps/web/src/screens/orders.screen.tsx`:
+`apps/web/src/screens/orders.screen.tsx`:
 
 ```tsx
 import { defineScreen } from "teleforge/web";
+import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-function OrdersScreen({ runAction, transitioning }) {
+function OrdersScreen({ loader, loaderData, actions, nav }: TeleforgeScreenComponentProps) {
+  if (loader.status === "loading") return <div>Loading...</div>;
+  if (loader.status === "error") return <div>Failed to load orders</div>;
+
+  const orders = (loaderData as { orders: Array<{ id: string; total: number }> }).orders;
+
   return (
-    <main className="stack">
-      <p className="badge">Screen: orders</p>
+    <div>
       <h2>Recent Orders</h2>
-      <button
-        onClick={() => runAction("selectOrder", { selectedOrderId: "order_1001" })}
-        disabled={transitioning}
-      >
-        Select order_1001
-      </button>
-    </main>
+      {orders.map((o) => (
+        <div key={o.id}>
+          <span>Order #{o.id} — ${o.total}</span>
+          <button onClick={() => nav.done()}>View Details</button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -110,31 +95,18 @@ export default defineScreen({
 });
 ```
 
-Screen modules are discovered from `miniApp.screensRoot` when set, or the default screen root
-used by the scaffold.
-
-## 3. Add The Done Screen
-
-Create `apps/web/src/screens/done.screen.tsx`:
+`apps/web/src/screens/done.screen.tsx`:
 
 ```tsx
 import { defineScreen } from "teleforge/web";
+import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-function DoneScreen({ data, runAction, transitioning }) {
-  const orderId = (data as Record<string, string>)?.selectedOrderId ?? "unknown";
-
+function DoneScreen({ nav }: TeleforgeScreenComponentProps) {
   return (
-    <main className="stack">
-      <p className="badge">Screen: done</p>
-      <h2>Order Selected</h2>
-      <p>You selected: {orderId}</p>
-      <button
-        onClick={() => runAction("returnToChat")}
-        disabled={transitioning}
-      >
-        Return to chat
-      </button>
-    </main>
+    <div>
+      <h2>Done</h2>
+      <button onClick={() => nav.orders()}>Back to Orders</button>
+    </div>
   );
 }
 
@@ -145,31 +117,54 @@ export default defineScreen({
 });
 ```
 
-## 4. Run It
+## 3. Add The Loader
 
-```bash
-pnpm run dev
+`apps/api/src/loaders/orders.loader.ts`:
+
+```ts
+import { defineLoader } from "teleforge";
+
+export default defineLoader({
+  handler: async ({ ctx, services }) => {
+    const orders = await services.orders.listByUser(ctx.userId);
+    return { orders };
+  }
+});
 ```
 
-Then:
+## 4. Register The Screens
 
-1. Send `/orders` in the simulator chat.
-2. Open the Mini App from the bot message.
-3. Click "Select order_1001".
-4. See the confirmation screen with the order ID.
-5. Click "Return to chat" to close the Mini App.
+Update `apps/web/src/main.tsx`:
 
-## 5. Add Tests
+```tsx
+import ordersScreen from "./screens/orders.screen.js";
+import doneScreen from "./screens/done.screen.js";
 
-Use the generated tests as the pattern:
+<TeleforgeMiniApp
+  flowManifest={flowManifest}
+  screens={[catalogScreen, ordersScreen, doneScreen]}
+  serverBridge={serverBridge}
+/>
+```
 
-- flow tests assert command metadata and action registration
-- screen tests render the screen component
-- runtime tests exercise the discovered bot runtime or Mini App screen runtime
+## 5. Regenerate The Manifest
 
-For the larger reference pattern, inspect `apps/task-shop`.
+```bash
+npx teleforge generate client-manifest
+```
 
-## Next Step
+Teleforge will discover the new flow and add it to the client-safe manifest.
 
-Read [Flow Coordination](./flow-coordination.md) for cross-surface continuity and
-[Action Server and Backend](./server-hooks.md) for trusted server-side work.
+## 6. Run It
+
+```bash
+pnpm dev
+```
+
+The `/orders` command should be registered and the Mini App should load the screen.
+
+## Read Next
+
+- [Flow Coordination](./flow-coordination.md)
+- [Config Reference](./config-reference.md)
+- [Server Actions](./server-hooks.md)

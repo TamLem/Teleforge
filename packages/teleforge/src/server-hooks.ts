@@ -149,6 +149,12 @@ async function executeActionServerHook(
   switch (options.payload.kind) {
     case "loadScreenContext": {
       const { flowId, screenId, signedContext } = options.payload.input;
+      console.log("[teleforge:server] loadScreenContext:", {
+        flowId,
+        screenId,
+        hasContext: Boolean(signedContext),
+        contextPrefix: signedContext?.slice(0, 30)
+      });
       const context = validateActionContext(signedContext, options.flowSecret, {
         flowId
       });

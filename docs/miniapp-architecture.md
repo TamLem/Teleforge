@@ -1,4 +1,4 @@
-# Mini App Architecture Guidelines
+# Mini App Architecture
 
 This document defines the frontend architecture rules for Teleforge Mini Apps. Every screen, hook, and
 client-side integration in a Teleforge project should conform to these principles.
@@ -8,34 +8,22 @@ For the overall authoring model, see [Framework Model](./framework-model.md).
 
 ## 1. Not a Classic Monolithic SPA
 
-Do not structure the Mini App frontend as:
-
-- one large client bundle
-- app-wide eager hydration
-- a route tree designed like a normal website
-- "load the whole app, then navigate inside it"
+Do not structure the Mini App frontend as one large client bundle or a route tree designed like a normal website.
 
 **Reason:** Telegram Mini Apps run inside a WebView with constrained resources. Large client-first
-bundles hurt first render time and make the runtime heavier than necessary.
+bundles hurt first render time.
 
 **Do instead:** treat each screen as an independent unit that can be loaded, rendered, and discarded
 on its own lifecycle.
 
-## 2. Standalone Frontend, Screen Runtime Model
+## 2. Screen Runtime Model
 
 The Mini App is a real frontend application, but its primary unit is the **screen**, not the website page.
 
 Use:
 
 - screen registry (`defineScreen`, `createScreenRegistry`)
-- screen-level rendering
-- screen-level loading states
-- screen-level code splitting
-
-Do not use:
-
-- generic website-first page architecture
-- arbitrary deep navigation as the primary abstraction
+- screen-level rendering, loading states, and code splitting
 
 **Core mental model:**
 
@@ -55,16 +43,8 @@ The frontend should support:
 - selective hydration for interactive parts
 - lazy loading of later screens
 
-Do not force:
-
-- full client-only rendering for first entry
-- full page-reload SSR for every interaction
-
-**Goal:** small initial render cost, smooth later interactions.
-
-> **Note:** Examples use Vite and React, but that is delivery machinery, not the product model.
-> The public architecture is flow → action → screen → effects. Keep the shell small and use
-> screen-level splitting as the main optimization lever.
+> Examples use Vite and React, but that is delivery machinery, not the product model.
+> Keep the shell small and use screen-level splitting as the main optimization lever.
 
 ## 4. Keep the Initial Shell Thin
 
@@ -74,7 +54,8 @@ The persistent Mini App shell (`TeleforgeMiniApp`) should contain only:
 - theme and viewport handling
 - route/screen resolution
 - signed action context parsing
-- minimal runtime services
+- server bridge for actions and loaders
+- `nav.*` and `actions.*` helper construction
 
 Do not include all screens or large feature code in the shell.
 
@@ -90,16 +71,9 @@ Required:
 - keep route/screen chunks small
 - preload likely next screens only after the current screen is active
 
-Do not ship catalog, checkout, settings, profile, history, etc. in one entry bundle.
-
-> **Note:** The framework's screen registry registers `defineScreen()` objects eagerly at boot.
-> The screen definition file is always imported, but the component inside can be lazy-loaded
-> by splitting it into a separate file.
-
-**Practical pattern — lazy component inside eager definition:**
+**Lazy component pattern:**
 
 ```tsx
-// screens/checkout.screen.tsx — eagerly imported, but component is lazy
 import { lazy } from "react";
 import { defineScreen } from "teleforge/web";
 
@@ -112,21 +86,6 @@ export default defineScreen({
 });
 ```
 
-```tsx
-// screens/checkout.component.tsx — lazy-loaded chunk
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
-
-export default function CheckoutComponent({
-  runAction,
-  navigate,
-  transitioning
-}: TeleforgeScreenComponentProps) {
-  return (
-    // ... actual UI
-  );
-}
-```
-
 This keeps the screen definition registered at boot while deferring the component code until the
 screen is actually rendered.
 
@@ -137,48 +96,26 @@ the product model.
 
 Routing should be based on:
 
-- flow's route map (`{ "/cart": "shop.cart", "/checkout": "shop.checkout" }`)
+- flow's route map (`{ "/cart": "cart", "/checkout": "checkout" }`)
 - signed action context from the launch URL
 - screen identity
 
-Do not design the Mini App like a normal website with broad independent navigation trees as the primary
-structure.
-
-Deep routing is allowed, but it is secondary. The primary navigation path is always:
-**signed context → route match → screen**.
+The primary navigation path is always:
+**signed context → route match → screen → loader → actions.* / nav.***
 
 ## 7. Client-Safe Flow Manifest
 
 The Mini App must not import bot flow source files directly.
 
-Bot flow modules are allowed to grow server-only concerns:
-
-- action handlers
-- environment access
-- logistics or payment clients
-- Node-only dependencies
-
-The browser only needs client-safe flow metadata:
-
-- flow id
-- Mini App route-to-screen mapping
-- screen ids, titles, available actions
-- session requirements
-
 Use `flowManifest` when booting the Mini App shell:
 
 ```tsx
 import { TeleforgeMiniApp } from "teleforge/web";
-
 import { flowManifest } from "./teleforge-generated/client-flow-manifest.js";
-import homeScreen from "./screens/home.screen.js";
+import catalogScreen from "./screens/catalog.screen.js";
 
-<TeleforgeMiniApp flowManifest={flowManifest} screens={[homeScreen]} />;
+<TeleforgeMiniApp flowManifest={flowManifest} screens={[catalogScreen]} />;
 ```
-
-Generated apps include `apps/web/src/teleforge-generated/client-flow-manifest.ts` as the client
-boundary. Run `teleforge generate client-manifest` to regenerate it after flow changes. The generated
-file is browser-safe and excludes server-only fields such as action handlers.
 
 Do not do this in web code:
 
@@ -190,30 +127,12 @@ That couples browser builds to server flow implementation details and can accide
 
 ## 8. Screen Registry, Not Template Engine
 
-Screens are implemented as real React components and registered by screen ID.
-
-Use:
-
-```
-shop.catalog
-shop.cart
-shop.checkout
-shop.success
-```
-
-Do not make the framework depend on:
-
-- server-side page templates
-- rigid UI DSL as the primary rendering model
-
-Templates may exist for simple internal cases, but must not be the main frontend architecture.
-
-**Screen definition:**
+Screens are implemented as React components and registered by screen ID.
 
 ```tsx
 export default defineScreen({
-  id: "shop.catalog",
-  title: "Browse Tasks",
+  id: "catalog",
+  title: "Browse Products",
   component: CatalogScreen
 });
 ```
@@ -225,61 +144,62 @@ export default defineScreen({
 | **Flow**   | routes, actions, action handlers, session config                                |
 | **Screen** | UI rendering, local interaction behavior, input collection, action invocation, navigation decisions |
 
-Screens call `runAction(actionId, payload)` for server-side work and `navigate(screenId, options)` to move between screens. The server returns data and effects — the screen decides what to do next.
+Screens use `actions.*` for server-side work and `nav.*` to move between screens.
 
 **Flow defines routes and actions:**
 
 ```ts
-miniApp: {
-  routes: {
-    "/catalog": "shop.catalog",
-    "/checkout": "shop.checkout"
-  }
-},
 actions: {
-  getProduct: {
-    handler: async ({ data }) => ({ data: { product: ... } })
+  addToCart: {
+    input: addToCartSchema,
+    handler: async ({ input, session }) => {
+      const cart = session.resource<{ items: CartItem[] }>("cart", { initialValue: { items: [] } });
+      await cart.update((draft) => { draft.items.push(input); });
+      return { data: { added: true } };
+    }
   }
 }
 ```
 
-**Screen implements UI and owns navigation:**
+**Screen implements UI and owns navigation via helpers:**
 
 ```tsx
-function CatalogScreen({ runAction, navigate }) {
-  const handleViewProduct = async (productId: string) => {
-    const result = await runAction("getProduct", { productId });
-    navigate("shop.checkout", { data: { product: result.data.product } });
-  };
+function CatalogScreen({ actions, nav, loader, loaderData }: TeleforgeScreenComponentProps) {
+  if (loader.status !== "ready") return <div>Loading...</div>;
+  const products = (loaderData as { products: Product[] }).products;
 
-  return <button onClick={() => handleViewProduct("p1")}>Checkout</button>;
+  return (
+    <div>
+      {products.map((p) => (
+        <div key={p.id}>
+          <span>{p.name}</span>
+          <button onClick={() => actions.addToCart({ productId: p.id, qty: 1 })}>Add</button>
+          <button onClick={() => nav.productDetail({ id: p.id })}>Details</button>
+        </div>
+      ))}
+    </div>
+  );
 }
 ```
 
-## 10. Screens Must Not Reconstruct Authoritative State
+## 10. Screen Data Boundaries
 
-Screens receive a unified `data` prop merged by the runtime from signed context
-and navigation data. No manual fallback between `launchData` and `routeData` needed.
+Screens receive explicit props that make the trust boundary clear:
 
-```tsx
-// Just use data — the runtime handles the merge
-const order = data?.order;
-const product = data?.product;
-const products = data?.products;
-```
-
-Individual data layers remain available for advanced cases:
-- `launchData` for identity scope, resource IDs from the signed context
-- `routeData` for ephemeral handoff data between screens
-- `loaderData` for server-derived screen data
-- `appState` for Mini App-local session state (cart, filters, selections)
+| Prop | Source | Trust |
+|---|---|---|
+| `scopeData` | Signed context `subject` — server-issued IDs/capabilities | Server |
+| `routeParams` | Extracted from matched route pattern | Framework |
+| `routeData` | `navigate({ data })` — ephemeral handoff | Client |
+| `loader` | `loadScreenContext` result lifecycle | Server |
+| `loaderData` | `loader.data` when ready | Server |
+| `appState` | Mini App-wide client session | Client |
 
 Do not:
-- parse state from launch payload
-- rebuild state from URL/query data
-- treat frontend-local copies as authoritative
 
-The frontend may hold local UI state (modals, form inputs, filters), but **domain state and action results are authoritative**.
+- parse state from the launch URL
+- treat frontend-local copies as authoritative
+- pass domain payloads through `navigate({ data })`
 
 ## 11. Separate State Types Clearly
 
@@ -287,23 +207,13 @@ The frontend may hold local UI state (modals, form inputs, filters), but **domai
 | ---------------------- | ---------------------------------------- | ------------------------------------------------------------- |
 | **Domain state**       | Persistent, in database or services      | user profile, product catalog, order history                  |
 | **Local UI state**     | Ephemeral, screen-only                   | open modals, unsaved inputs, temporary filters, loading flags |
-| **Session state**      | Optional, server-side, TTL-bound         | drafts, multi-step wizards, external wait state               |
-| **App state**          | Mini App-local, cross-screen, ephemeral  | cart items, selections, filters                               |
+| **Session state**      | Optional, server-side, `session.resource` | cart items, drafts, external wait state                       |
+| **App state**          | Mini App-local, cross-screen, ephemeral  | selections, filters, UI preferences                           |
 | **Derived view state** | Computed, usually not persisted          | formatted prices, filtered lists, sort order                  |
-
-Do not blur these together into one global client state store.
-
-**In practice:**
-
-- Domain state → `services` in action handlers
-- Local UI state → `useState` inside the screen component
-- Session state → `session.patch()` in action handlers (only for session flows)
-- App state → `appState.value` / `appState.patch()` in screen components
-- Derived view state → `useMemo` inside the screen component
 
 ## 12. Telegram-Specific Behavior Behind Adapter Layer
 
-Wrap Telegram Mini App capabilities behind framework hooks and services.
+Wrap Telegram Mini App capabilities behind framework hooks.
 
 | Capability     | Framework Hook                                  |
 | -------------- | ----------------------------------------------- |
@@ -312,8 +222,6 @@ Wrap Telegram Mini App capabilities behind framework hooks and services.
 | Theme          | `useTheme()`                                    |
 | Launch context | `useLaunch()`                                   |
 | Raw WebApp     | `useTelegram()`                                 |
-
-Do not scatter raw `window.Telegram.WebApp` calls across screens.
 
 ## 13. Optimize for First Useful Paint
 
@@ -324,22 +232,15 @@ Every frontend choice should favor:
 - fast screen visibility
 - minimal blocking requests
 
-This takes priority over convenience patterns that grow the boot bundle.
-
 ## 14. Client Transitions After Boot
 
-Once the initial screen is active, transitions between Mini App screens should usually be client-driven.
+Once the initial screen is active, transitions between Mini App screens should be client-driven.
 
-**Rule:** server-helped entry, client-driven continuation.
-
-The `TeleforgeMiniApp` runtime invokes `runAction()` on the server and handles navigation results
-(`navigate` in `ActionResult`) without full page reloads.
+Server-helped entry, client-driven continuation.
 
 ## 15. Framework Transport ≠ Product Abstraction
 
 The frontend delivery/runtime layer is implementation machinery.
-
-It should not become the primary product abstraction.
 
 **Primary abstraction remains:**
 
@@ -347,19 +248,14 @@ It should not become the primary product abstraction.
 flow → action → screen → effects
 ```
 
-Do not let route files define business flow structure directly. Route files deliver screens;
-flow definitions define behavior.
-
 ## 16. API Adapter Is Not the UI Owner
-
-Mini App navigation and UI behavior are realized by the Mini App client runtime.
 
 | Server/API responsibilities | Client responsibilities |
 | --------------------------- | ----------------------- |
 | validate signed context     | render                  |
 | run action handlers         | navigate screens        |
 | produce effects             | show handoff UI         |
-| manage session state        | manage local UI state   |
+| manage session resources    | manage local UI state   |
 
 ## 17. Treat the Frontend as Untrusted
 
@@ -376,20 +272,14 @@ The frontend must **not** be the authority for:
 - committed data
 - lifecycle ownership
 
-All authoritative decisions stay in server-side action handlers. The server validates every action
-request via the signed action context token.
-
 ## 18. Explicit Runtime Contracts
 
-Frontend integration uses explicit contracts for:
+Frontend integration uses explicit contracts:
 
 - screen context (`TeleforgeScreenComponentProps`)
 - action result (`ActionResult`)
-- action invocation (`runAction(actionId, payload)`)
-- navigation instruction (`navigate` in `ActionResult`)
-- handoff instruction (`showHandoff`, `closeMiniApp` in `ActionResult`)
-
-Do not rely on loose implicit coupling between frontend screens and backend handlers.
+- action invocation (`actions.*` or `runAction`)
+- navigation (`nav.*` or `navigate`)
 
 ## 19. Design for Deployment Flexibility
 
@@ -400,30 +290,28 @@ The frontend architecture must work whether the system is deployed as:
 - webhook mode
 - edge-assisted delivery
 
-Do not tie frontend assumptions to one process topology. The screen registry and action server are
-all transport-agnostic.
-
 ---
 
 ## Quick Reference
 
-| Principle                   | One-liner                                        |
-| --------------------------- | ------------------------------------------------ |
-| 1. Not a monolithic SPA     | Small bundles, no eager whole-app hydration      |
-| 2. Screen runtime           | Screen is the primary unit, not the page         |
-| 3. Hybrid rendering         | Server entry + client transitions + lazy screens |
-| 4. Thin shell               | Shell bootstraps only; screens load on demand    |
-| 5. Split by screen          | Each screen independently loadable               |
-| 6. Route-aware routing      | Routes deliver screens; flows define behavior    |
-| 7. Screen registry          | Real components, registered by ID                |
-| 8. Behavior vs presentation | Flow = behavior, screen = UI                     |
-| 9. Authoritative context    | Server owns decisions; screens invoke actions    |
-| 10. State boundaries        | Domain, local, session, derived — keep separate  |
-| 11. Telegram adapter        | SDK calls behind hooks, not scattered            |
-| 12. First useful paint      | Small entry, low parse cost, fast visibility     |
-| 13. Client after boot       | Server entry, client continuation                |
-| 14. Transport ≠ abstraction | Build tool delivers; flow defines behavior       |
-| 15. API ≠ UI owner          | Server validates; client renders                 |
-| 16. Untrusted frontend      | Server is authority for operations               |
-| 17. Explicit contracts      | No implicit coupling                             |
-| 18. Deployment flexible     | Works in any topology                            |
+| Principle                   | One-liner                                          |
+| --------------------------- | --------------------------------------------------- |
+| 1. Not a monolithic SPA     | Small bundles, no eager whole-app hydration         |
+| 2. Screen runtime           | Screen is the primary unit, not the page            |
+| 3. Hybrid rendering         | Server entry + client transitions + lazy screens    |
+| 4. Thin shell               | Shell bootstraps only; screens load on demand       |
+| 5. Split by screen          | Each screen independently loadable                  |
+| 6. Route-aware routing      | Routes deliver screens; flows define behavior       |
+| 7. Client manifest          | Generated, browser-safe, no server imports          |
+| 8. Screen registry          | Real components, registered by ID                   |
+| 9. Behavior vs presentation | Flow = behavior, screen = UI                        |
+| 10. Data boundaries         | scopeData/routeParams/routeData/loader/appState     |
+| 11. State boundaries        | Domain, local, session, derived — keep separate     |
+| 12. Telegram adapter        | SDK calls behind hooks, not scattered                |
+| 13. First useful paint      | Small entry, low parse cost, fast visibility        |
+| 14. Client after boot       | Server entry, client continuation                   |
+| 15. Transport ≠ abstraction | Build tool delivers; flow defines behavior          |
+| 16. API ≠ UI owner          | Server validates; client renders                    |
+| 17. Untrusted frontend      | Server is authority for operations                  |
+| 18. Explicit contracts      | No implicit coupling                                |
+| 19. Deployment flexible     | Works in any topology                               |

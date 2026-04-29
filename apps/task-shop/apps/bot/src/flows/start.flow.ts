@@ -1,4 +1,3 @@
-import { products } from "@task-shop/types";
 import { defineFlow } from "teleforge";
 
 export default defineFlow({
@@ -11,11 +10,8 @@ export default defineFlow({
       const catalogLaunch = await sign({
         flowId: "gadgetshop",
         screenId: "catalog",
-        subject: { products },
-        allowedActions: [
-          "addToCart", "removeFromCart", "viewDetail",
-          "viewCart", "placeOrder", "backToCatalog"
-        ]
+        subject: {},
+        allowedActions: ["addToCart", "removeFromCart", "placeOrder"]
       });
 
       await ctx.reply(
