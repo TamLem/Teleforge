@@ -24,15 +24,19 @@ Use:
 
 - screen registry (`defineScreen`, `createScreenRegistry`)
 - screen-level rendering, loading states, and code splitting
+- generated per-screen prop aliases for typed `nav`, `actions`, `loader`, and `loaderData`
 
 **Core mental model:**
 
 ```
-flow → action → screen → effects
+flow definitions → client manifest → generated contracts → typed screen props
+                         ↓
+                    flow → action → screen → effects
 ```
 
 The framework resolves screens by matching the current URL path to a route in the flow's `miniApp.routes`
-map. Routes exist to deliver screens, not to define a navigation tree.
+map. Routes exist to deliver screens, not to define a navigation tree. Generated contracts turn that
+route map into compile-time safe `nav.*` helpers, `actions.*` payloads, and per-screen `loaderData` types.
 
 ## 3. Hybrid Rendering
 
@@ -164,9 +168,11 @@ actions: {
 **Screen implements UI and owns navigation via helpers:**
 
 ```tsx
-function CatalogScreen({ actions, nav, loader, loaderData }: TeleforgeScreenComponentProps) {
+import type { CatalogScreenProps } from "./teleforge-generated/contracts";
+
+function CatalogScreen({ actions, nav, loader, loaderData }: CatalogScreenProps) {
   if (loader.status !== "ready") return <div>Loading...</div>;
-  const products = (loaderData as { products: Product[] }).products;
+  const products = loaderData?.products ?? [];
 
   return (
     <div>
@@ -195,11 +201,16 @@ Screens receive explicit props that make the trust boundary clear:
 | `loaderData` | `loader.data` when ready | Server |
 | `appState` | Mini App-wide client session | Client |
 
+Generated contracts narrow `routeParams`, `loader`, and `loaderData` to concrete types declared
+in `teleforge-contract-overrides.ts`. Use the generated per-screen prop alias to get compile-time
+safety for these fields.
+
 Do not:
 
 - parse state from the launch URL
 - treat frontend-local copies as authoritative
 - pass domain payloads through `navigate({ data })`
+- use `loaderData as ...` casts in normal screen code — declare the type in overrides instead
 
 ## 11. Separate State Types Clearly
 
@@ -276,10 +287,15 @@ The frontend must **not** be the authority for:
 
 Frontend integration uses explicit contracts:
 
-- screen context (`TeleforgeScreenComponentProps`)
+- generated per-screen prop aliases (`CatalogScreenProps`, `ProductDetailScreenProps`, ...)
 - action result (`ActionResult`)
 - action invocation (`actions.*` or `runAction`)
 - navigation (`nav.*` or `navigate`)
+- typed loader lifecycle (`TypedLoaderState<TData>`)
+
+The base `TeleforgeScreenComponentProps` is the runtime contract. The generated aliases are the
+DX layer that narrows `nav`, `actions`, `loader`, and `loaderData` to types safe for the current
+flow and screen.
 
 ## 19. Design for Deployment Flexibility
 

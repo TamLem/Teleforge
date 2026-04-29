@@ -352,7 +352,35 @@ export default defineScreen({
 | `title` | `string` | No | Screen title |
 | `guard` | `(ctx) => MaybePromise<boolean \| { allow: false; reason?: string }>` | No | Client-side access guard |
 
-### Screen component props
+### Screen component props (recommended path)
+
+Import generated per-screen prop aliases instead of the broad base type:
+
+```ts
+import type { CatalogScreenProps } from "./teleforge-generated/contracts";
+
+function CatalogScreen({ loader, loaderData, actions, nav }: CatalogScreenProps) {
+  if (loader.status === "loading") return <div>Loading...</div>;
+  const products = loaderData?.products ?? [];
+  return (
+    <div>
+      {products.map((p) => (
+        <div key={p.id}>
+          <span>{p.name}</span>
+          <button onClick={() => actions.addToCart({ productId: p.id, qty: 1 })}>Add</button>
+          <button onClick={() => nav.productDetail({ id: p.id })}>Details</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+The generated alias narrows `screenId`, `routeParams`, `nav`, `actions`, `loader`, and `loaderData`
+to the types declared in `teleforge-contract-overrides.ts`. See [Generated Mini App Contracts](./generated-miniapp-contracts.md)
+for the full authoring model.
+
+### Base prop type (runtime reference)
 
 ```ts
 interface TeleforgeScreenComponentProps {
@@ -380,6 +408,17 @@ type NavigateOptions = {
 
 Use `actions.*` and `nav.*` as the happy path. `runAction` and `navigate` are available
 as escape hatches for programmatic access.
+
+### Typed helpers
+
+These generic types power generated contracts:
+
+- `TypedNavigationHelpers<TRoutes>` — nav helpers requiring exact route params
+- `TypedActionHelpers<TPayloads>` — action helpers with typed payloads
+- `TypedLoaderState<TData>` — discriminated loader lifecycle that narrows `data` when `status === "ready"`
+- `TypedSignHelpers<TRoutes>` — sign helpers requiring the same route params as nav
+
+They are exported from `teleforge/web` and consumed by the generated `contracts.ts`.
 
 ---
 

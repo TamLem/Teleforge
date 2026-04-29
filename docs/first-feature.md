@@ -61,19 +61,37 @@ export default defineFlow({
 });
 ```
 
-## 2. Add The Screens
+## 2. Add The Override Types
+
+Create `apps/web/src/teleforge-contract-overrides.ts` to type the new screen's loader data
+and any action payloads:
+
+```ts
+export interface TeleforgeActionPayloadOverrides {}
+
+export interface TeleforgeLoaderDataOverrides {
+  orders: {
+    orders: Array<{ id: string; total: number }>;
+  };
+}
+```
+
+The generator creates the file stub once if missing. Add concrete shapes here instead of
+casting `loaderData` inside screens.
+
+## 3. Add The Screens
 
 `apps/web/src/screens/orders.screen.tsx`:
 
 ```tsx
 import { defineScreen } from "teleforge/web";
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { OrdersScreenProps } from "./teleforge-generated/contracts";
 
-function OrdersScreen({ loader, loaderData, actions, nav }: TeleforgeScreenComponentProps) {
+function OrdersScreen({ loader, loaderData, actions, nav }: OrdersScreenProps) {
   if (loader.status === "loading") return <div>Loading...</div>;
   if (loader.status === "error") return <div>Failed to load orders</div>;
 
-  const orders = (loaderData as { orders: Array<{ id: string; total: number }> }).orders;
+  const orders = loaderData?.orders ?? [];
 
   return (
     <div>
@@ -99,9 +117,9 @@ export default defineScreen({
 
 ```tsx
 import { defineScreen } from "teleforge/web";
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { DoneScreenProps } from "./teleforge-generated/contracts";
 
-function DoneScreen({ nav }: TeleforgeScreenComponentProps) {
+function DoneScreen({ nav }: DoneScreenProps) {
   return (
     <div>
       <h2>Done</h2>
@@ -117,7 +135,7 @@ export default defineScreen({
 });
 ```
 
-## 3. Add The Loader
+## 4. Add The Loader
 
 `apps/api/src/loaders/orders.loader.ts`:
 
@@ -132,7 +150,7 @@ export default defineLoader({
 });
 ```
 
-## 4. Register The Screens
+## 5. Register The Screens
 
 Update `apps/web/src/main.tsx`:
 
@@ -147,15 +165,16 @@ import doneScreen from "./screens/done.screen.js";
 />
 ```
 
-## 5. Regenerate The Manifest
+## 6. Regenerate The Manifest
 
 ```bash
 npx teleforge generate client-manifest
 ```
 
-Teleforge will discover the new flow and add it to the client-safe manifest.
+Teleforge will discover the new flow, add it to the client-safe manifest, and regenerate
+`contracts.ts` with the new screen prop aliases and nav helpers.
 
-## 6. Run It
+## 7. Run It
 
 ```bash
 pnpm dev
@@ -166,5 +185,6 @@ The `/orders` command should be registered and the Mini App should load the scre
 ## Read Next
 
 - [Flow Coordination](./flow-coordination.md)
+- [Generated Mini App Contracts](./generated-miniapp-contracts.md)
 - [Config Reference](./config-reference.md)
 - [Server Actions](./server-hooks.md)

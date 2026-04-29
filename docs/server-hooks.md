@@ -288,9 +288,26 @@ handlers: {
 
 See [Shared Phone Auth](./shared-phone-auth.md) for the end-to-end flow.
 
+## Loader Data Typing
+
+Loader return types are not inferred from server loader files. The server loader is a runtime
+function that may call services, databases, or external APIs.
+
+Browser-side typing comes from app-authored `TeleforgeLoaderDataOverrides` in
+`apps/web/src/teleforge-contract-overrides.ts`. The generated `contracts.ts` merges these
+overrides into per-screen prop aliases so `loaderData` is typed without local casts.
+
+Keep override imports browser-safe:
+
+- import only type-only exports from app packages (`@my-app/types`)
+- do not import server loaders, flow modules, services, or schema libraries
+
+See [Generated Mini App Contracts](./generated-miniapp-contracts.md) for the full authoring model.
+
 ## Read Next
 
 - [Framework Model](./framework-model.md)
 - [Developer Guide](./developer-guide.md)
 - [Flow Coordination](./flow-coordination.md)
+- [Generated Mini App Contracts](./generated-miniapp-contracts.md)
 - [Deployment](./deployment.md)

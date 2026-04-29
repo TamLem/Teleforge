@@ -124,16 +124,17 @@ export default defineFlow({
 
 Mini App screens live under the configured screen root, normally `apps/web/src/screens`.
 
+Import generated per-screen prop aliases for typed `nav`, `actions`, and `loaderData`:
+
 ```tsx
 import { defineScreen } from "teleforge/web";
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { CatalogScreenProps } from "./teleforge-generated/contracts";
 
-function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: TeleforgeScreenComponentProps) {
+function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: CatalogScreenProps) {
   if (loader.status === "loading") return <div>Loading...</div>;
   if (loader.status === "error") return <div>Error loading catalog</div>;
 
-  const items = loaderData as Array<{ id: string; name: string }> | undefined;
-  if (!items) return null;
+  const items = loaderData ?? [];
 
   return (
     <div>
@@ -156,6 +157,10 @@ export default defineScreen({
   title: "Catalog"
 });
 ```
+
+Define `loaderData` types in `apps/web/src/teleforge-contract-overrides.ts` so the generated
+`CatalogScreenProps` narrows `loaderData` automatically. See [Generated Mini App Contracts](./generated-miniapp-contracts.md)
+for the override authoring model.
 
 `apps/web/src/main.tsx` is the framework-owned Mini App shell:
 

@@ -14,6 +14,7 @@ Use the app-author path first if you are building a product. Use reference docs 
 
 - [Build Your First Feature](./first-feature.md): guided command and screen tutorial for scaffolded apps
 - [Flow Coordination](./flow-coordination.md): current chat to Mini App to chat lifecycle and default runtime wiring
+- [Generated Mini App Contracts](./generated-miniapp-contracts.md): typed `nav.*`, `actions.*`, `loaderData`, and app-authored overrides
 - [Server Hooks](./server-hooks.md): trusted server-backed flow hooks and the default Mini App server bridge
 - [Shared Phone Auth](./shared-phone-auth.md): phone-number auth using bot contact sharing, Mini App launch tokens, and trusted server exchange
 - [Testing](./testing.md): how Teleforge apps are tested and how to add your own bot/web/integration tests

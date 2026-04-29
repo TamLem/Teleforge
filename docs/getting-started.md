@@ -146,6 +146,8 @@ You should see:
 - baseline bot and web smoke tests behind `pnpm test`
 - `apps/bot/src/flows/start.flow.ts` as the first flow entry
 - `apps/web/src/teleforge-generated/client-flow-manifest.ts` as the framework-generated client-safe Mini App flow metadata
+- `apps/web/src/teleforge-generated/contracts.ts` as the generated type-only authoring contracts
+- `apps/web/src/teleforge-contract-overrides.ts` as the app-owned companion file for action payload and loader data types
 - `apps/web/src/main.tsx` booting `TeleforgeMiniApp`
 - `apps/web/src/screens/home.screen.tsx` as the first screen module
 
@@ -315,11 +317,14 @@ The public framework surface is the `teleforge` unified package. Most app code i
 - `teleforge`: action server hooks (`createActionServerHooksHandler`) for trusted server-side action execution
 - CLI commands such as `teleforge dev`, `teleforge doctor`, and `teleforge mock` from the unified package
 
+Generated contracts are the recommended screen authoring path. See [Generated Mini App Contracts](./generated-miniapp-contracts.md) for how `nav.*`, `actions.*`, and `loaderData` are typed.
+
 ## Next Reading
 
 - [Telegram Mini App Basics](./telegram-basics.md)
 - [Build Your First Feature](./first-feature.md)
 - [Flow Coordination](./flow-coordination.md)
+- [Generated Mini App Contracts](./generated-miniapp-contracts.md)
 - [Testing](./testing.md)
 - [Deployment](./deployment.md)
 - [Environment Variables](./environment-variables.md)

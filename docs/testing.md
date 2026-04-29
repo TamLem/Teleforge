@@ -67,6 +67,49 @@ pnpm check
 pnpm docs:build
 ```
 
+## Type-Level Contract Testing
+
+The generated `contracts.ts` should be verified at compile time. Add a type-test file
+next to the generated contracts:
+
+```ts
+// apps/web/src/teleforge-generated/contracts.type-tests.ts
+import type { CatalogScreenProps, GadgetshopNav } from "./contracts";
+
+declare const nav: GadgetshopNav;
+declare const catalogProps: CatalogScreenProps;
+
+// Valid: static route helpers take no params
+nav.catalog();
+nav.cart();
+
+// Valid: dynamic route helpers require exact params
+nav.productDetail({ id: "iphone-15" });
+
+// Invalid: missing required param — fails typecheck
+// @ts-expect-error productDetail requires { id: string }
+nav.productDetail();
+
+// Invalid: wrong param name — fails typecheck
+// @ts-expect-error productDetail expects "id", not "productId"
+nav.productDetail({ productId: "iphone-15" });
+
+// Valid: action with typed payload
+void catalogProps.actions.addToCart({ productId: "iphone-15", qty: 1 });
+
+// Invalid: missing payload field — fails typecheck
+// @ts-expect-error qty is required
+void catalogProps.actions.addToCart({ productId: "iphone-15" });
+
+// Invalid: unknown action — fails typecheck
+// @ts-expect-error notAnAction does not exist
+void catalogProps.actions.notAnAction();
+```
+
+Type tests do not run at runtime. They are checked by `tsc --noEmit`. If a regression
+makes a bad call compile, the `@ts-expect-error` directive becomes unused and the
+typecheck fails.
+
 ## Framework Test Helpers
 
 `teleforge/test` exports utilities for common framework testing:
