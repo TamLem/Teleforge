@@ -155,7 +155,7 @@ export function formatContracts(
   }
 
   imports.push(
-    `import type {\n  TeleforgeScreenComponentProps,\n  TypedActionHelpers,\n  TypedLoaderState,\n  TypedNavigationHelpers\n} from "teleforge/web";`
+    `import type {\n  TeleforgeScreenComponentProps,\n  TypedActionHelpers,\n  TypedLoaderState,\n  TypedNavigationHelpers,\n  TypedSignHelpers\n} from "teleforge/web";`
   );
 
   sections.push(imports.join("\n"));
@@ -297,10 +297,16 @@ function formatFlow(
     lines.push(
       `export type ${flowPascal}Nav = TypedNavigationHelpers<${flowPascal}RouteParams>;`
     );
+    lines.push(
+      `export type ${flowPascal}Sign = TypedSignHelpers<${flowPascal}RouteParams>;`
+    );
   } else {
     lines.push(`export type ${flowPascal}RouteParams = Record<string, never>;`);
     lines.push(
       `export type ${flowPascal}Nav = TypedNavigationHelpers<${flowPascal}RouteParams>;`
+    );
+    lines.push(
+      `export type ${flowPascal}Sign = TypedSignHelpers<${flowPascal}RouteParams>;`
     );
   }
 

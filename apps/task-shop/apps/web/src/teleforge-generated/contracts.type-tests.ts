@@ -17,10 +17,12 @@ import type {
   CatalogScreenProps,
   CartScreenProps,
   GadgetshopNav,
+  GadgetshopSign,
   ProductDetailScreenProps
 } from "./contracts";
 
 declare const nav: GadgetshopNav;
+declare const typedSign: GadgetshopSign;
 declare const productProps: ProductDetailScreenProps;
 declare const catalogProps: CatalogScreenProps;
 declare const cartProps: CartScreenProps;
@@ -227,6 +229,45 @@ function runScreenPropsLoaderDataTypeTests(): void {
   void cartProps.loaderData?.products;
 }
 
+function runTypedSignTypeTests(): void {
+  // -------------------------------------------------------------------
+  // Phase 5 (typed sign): generated sign helpers must require the same
+  // route params as nav helpers and construct concrete paths.
+  // -------------------------------------------------------------------
+
+  // Valid: static route sign takes no params.
+  void typedSign.catalog();
+  void typedSign.catalog({ subject: {}, allowedActions: ["addToCart"] });
+
+  // Valid: dynamic route sign requires matching params.
+  void typedSign.productDetail({
+    params: { id: "iphone-15" },
+    subject: { resource: { type: "product", id: "iphone-15" } },
+    allowedActions: ["addToCart"]
+  });
+
+  // Valid: other static routes.
+  void typedSign.cart();
+  void typedSign.confirmation();
+  void typedSign.tracking();
+
+  // Invalid: missing required params for dynamic route.
+  // @ts-expect-error productDetail requires params { id: string }.
+  void typedSign.productDetail();
+
+  // Invalid: wrong param key.
+  // @ts-expect-error productDetail expects "id", not "productId".
+  void typedSign.productDetail({ params: { productId: "iphone-15" } });
+
+  // Invalid: passing params to a static route.
+  // @ts-expect-error catalog takes no params.
+  void typedSign.catalog({ params: { id: "x" } });
+
+  // Invalid: unknown screen helper.
+  // @ts-expect-error notAScreen does not exist on GadgetshopSign.
+  void typedSign.notAScreen();
+}
+
 // Reference all runners so they are not pruned as unused, but never
 // invoke them.
 export const __contractsTypeTestsReference: ReadonlyArray<() => void> = [
@@ -234,5 +275,6 @@ export const __contractsTypeTestsReference: ReadonlyArray<() => void> = [
   runScreenPropsTypeTests,
   runScreenPropsActionsTypeTests,
   runScreenPropsLoaderDataTypeTests,
+  runTypedSignTypeTests,
   runDefineScreenConstraintTypeTests
 ];

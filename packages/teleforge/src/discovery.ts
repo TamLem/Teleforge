@@ -8,8 +8,10 @@ import type {
   ActionFlowMiniAppDefinition
 } from "./flow-definition.js";
 import type { DiscoveredScreenModule, LoaderRegistry, LoaderRegistryEntry, ServerLoaderContext, ServerLoaderDefinition } from "./screens.js";
+import { extractRequiredRouteParams, toHelperName } from "./screens.js";
 import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
+  ActionContextToken,
   RouteDefinition,
   SignContextFn
 } from "@teleforgex/core";
@@ -559,6 +561,79 @@ async function resolveCommandValue<T>(
   }
 
   return value;
+}
+
+export function substituteRouteParams(
+  pattern: string,
+  params: Record<string, string>
+): string {
+  return pattern
+    .split("/")
+    .map((part) => {
+      if (!part.startsWith(":")) return part;
+      const name = part.slice(1);
+      const value = params[name];
+      if (value === undefined) {
+        throw new Error(
+          `Missing required route param "${name}" for pattern "${pattern}".`
+        );
+      }
+      return encodeURIComponent(value);
+    })
+    .join("/");
+}
+
+export function createTypedSignForActionContext(options: {
+  sign: SignContextFn;
+  routes: Record<string, string>;
+}): Record<string, (options?: Record<string, unknown>) => Promise<string>> {
+  const screenToPattern = new Map<string, string>();
+  for (const [pattern, screenId] of Object.entries(options.routes)) {
+    if (!screenToPattern.has(screenId)) {
+      screenToPattern.set(screenId, pattern);
+    }
+  }
+
+  const helpers: Record<string, (options?: Record<string, unknown>) => Promise<string>> = {};
+
+  for (const [screenId, pattern] of screenToPattern.entries()) {
+    const helperName = toHelperName(screenId);
+    const requiredParams = extractRequiredRouteParams(pattern);
+
+    helpers[helperName] = async (opts = {}) => {
+      const params = (opts as Record<string, unknown>).params as Record<string, string> | undefined;
+
+      if (requiredParams.length > 0) {
+        const missing = requiredParams.filter(
+          (name) => !params || !(name in params)
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            `Sign helper "${helperName}" requires params [${missing.join(", ")}] for route "${pattern}".`
+          );
+        }
+      }
+
+      const route =
+        requiredParams.length > 0 && params
+          ? substituteRouteParams(pattern, params)
+          : pattern;
+
+      const url = await options.sign({
+        screenId,
+        flowId: opts.flowId as string | undefined,
+        subject: opts.subject as Record<string, unknown> | undefined,
+        allowedActions: opts.allowedActions as string[] | undefined,
+        ttlSeconds: opts.ttlSeconds as number | undefined
+      });
+
+      const resolved = new URL(url);
+      resolved.pathname = route;
+      return resolved.toString();
+    };
+  }
+
+  return helpers;
 }
 
 export function createSignForActionContext(options: {

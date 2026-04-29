@@ -97,6 +97,59 @@ export type TypedNavigationHelpers<
     : (params: TRoutes[THelper], options?: TeleforgeNavigateOptions) => void;
 }>;
 
+/**
+ * Options accepted by typed sign helpers. `screenId` and `route` are filled
+ * in automatically by the helper; callers provide the remaining fields.
+ */
+export interface TypedSignOptions {
+  flowId?: string;
+  subject?: Record<string, unknown>;
+  allowedActions?: string[];
+  ttlSeconds?: number;
+}
+
+/**
+ * Strongly-typed sign helper map keyed by helper name.
+ *
+ * Reuses the same route-param contracts as `TypedNavigationHelpers` so
+ * signing a screen requires the same params as navigating to it.
+ *
+ * - Static routes take no `params`.
+ * - Dynamic routes require `params` matching the route pattern.
+ *
+ * Example:
+ *
+ * ```ts
+ * type RouteParams = {
+ *   catalog: undefined;
+ *   productDetail: { id: string };
+ * };
+ *
+ * const typedSign: TypedSignHelpers<RouteParams> = ...;
+ * const catalogUrl = await typedSign.catalog();
+ * const detailUrl = await typedSign.productDetail({
+ *   params: { id: "iphone-15" },
+ *   subject: { resource: { type: "product", id: "iphone-15" } },
+ *   allowedActions: ["addToCart"]
+ * });
+ * ```
+ */
+export type TypedSignHelpers<
+  TRoutes extends Record<string, Record<string, string> | undefined>
+> = Readonly<{
+  [THelper in keyof TRoutes & string]: TRoutes[THelper] extends undefined
+    ? (options?: TypedSignOptions) => Promise<string>
+    : (options: TypedSignOptions & { params: TRoutes[THelper] }) => Promise<string>;
+}>;
+
+/**
+ * Broad runtime-compatible bound for typed sign helpers. Generated per-flow
+ * types such as `GadgetshopSign` are runtime-compatible with this shape.
+ */
+export type AnyTypedSignHelpers = Readonly<
+  Record<string, (options?: Record<string, unknown>) => Promise<string>>
+>;
+
 export interface TeleforgeScreenComponentProps {
   scopeData?: Record<string, unknown>;
   routeParams: Record<string, string>;

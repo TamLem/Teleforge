@@ -10,7 +10,8 @@ import type {
   TeleforgeScreenComponentProps,
   TypedActionHelpers,
   TypedLoaderState,
-  TypedNavigationHelpers
+  TypedNavigationHelpers,
+  TypedSignHelpers
 } from "teleforge/web";
 
 type FlowActionPayloadOverrides<TFlowId extends string> =
@@ -79,6 +80,8 @@ export type GadgetshopRouteParams = {
 };
 
 export type GadgetshopNav = TypedNavigationHelpers<GadgetshopRouteParams>;
+
+export type GadgetshopSign = TypedSignHelpers<GadgetshopRouteParams>;
 
 export type CatalogScreenProps = Omit<
   TeleforgeScreenComponentProps,

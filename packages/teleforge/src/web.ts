@@ -11,6 +11,7 @@ export { createRouteRegistry, createScreenRegistry, defineLoader, defineScreen, 
 export { defineFlow, resolveFlowAction } from "./flow-definition.js";
 export type {
   ActionHelpers,
+  AnyTypedSignHelpers,
   LoaderRegistryEntry,
   LoaderState,
   NavigationHelpers,
@@ -27,6 +28,8 @@ export type {
   TypedActionHelpers,
   TypedLoaderState,
   TypedNavigationHelpers,
+  TypedSignHelpers,
+  TypedSignOptions,
   UnresolvedMiniAppScreen
 } from "./screens.js";
 export type {

@@ -1,7 +1,17 @@
-import { defineFlow } from "teleforge";
+import { createTypedSignForActionContext, defineFlow } from "teleforge";
 
 import type { CartItem } from "@task-shop/types";
-import type { TeleforgeInputSchema } from "teleforge";
+import type { TeleforgeInputSchema, TypedSignHelpers, TypedSignOptions } from "teleforge";
+
+// Local type alias matching the generated GadgetshopSign so the bot
+// package does not need to import from the web app source tree.
+type GadgetshopSign = TypedSignHelpers<{
+  catalog: undefined;
+  productDetail: { id: string };
+  cart: undefined;
+  confirmation: undefined;
+  tracking: undefined;
+}>;
 
 function createSchema<T>(schema: TeleforgeInputSchema<T>): TeleforgeInputSchema<T> {
   return schema;
@@ -43,8 +53,18 @@ export default defineFlow({
     command: "shop",
     description: "Browse and shop electronics",
     handler: async ({ ctx, sign }) => {
-      const catalogLaunch = await sign({
-        screenId: "catalog",
+      const typedSign = createTypedSignForActionContext({
+        sign,
+        routes: {
+          "/": "catalog",
+          "/product/:id": "product-detail",
+          "/cart": "cart",
+          "/confirmation": "confirmation",
+          "/tracking": "tracking"
+        }
+      }) as unknown as GadgetshopSign;
+
+      const catalogLaunch = await typedSign.catalog({
         subject: {},
         allowedActions: ["addToCart", "removeFromCart", "placeOrder"]
       });
@@ -59,22 +79,18 @@ export default defineFlow({
 
       const batch = products.slice(0, itemsPerMessage);
       for (const product of batch) {
-        const url = await sign({
-          screenId: "product-detail",
+        const url = await typedSign.productDetail({
+          params: { id: product.id },
           subject: { resource: { type: "product", id: product.id } },
           allowedActions: ["addToCart", "removeFromCart", "placeOrder"]
         });
-
-        // Set concrete route path so loader receives the real param
-        const resolved = new URL(url);
-        resolved.pathname = `/product/${encodeURIComponent(product.id)}`;
 
         await ctx.reply(
           `${product.image} **${product.name}** \u2014 $${product.price}\n_${product.description}_`,
           {
             parse_mode: "Markdown",
             reply_markup: {
-              inline_keyboard: [[{ text: "View Details \u2192", web_app: { url: resolved.toString() } }]]
+              inline_keyboard: [[{ text: "View Details \u2192", web_app: { url } }]]
             }
           }
         );
@@ -203,9 +219,18 @@ export default defineFlow({
           )
           .join("\n");
 
-        // Use action-handler sign helper with ID-only subject — no full order payload
-        const trackingUrl = await sign({
-          screenId: "tracking",
+        const typedSign = createTypedSignForActionContext({
+          sign,
+          routes: {
+            "/": "catalog",
+            "/product/:id": "product-detail",
+            "/cart": "cart",
+            "/confirmation": "confirmation",
+            "/tracking": "tracking"
+          }
+        }) as unknown as GadgetshopSign;
+
+        const trackingUrl = await typedSign.tracking({
           subject: { resource: { type: "order", id: order.id } },
           allowedActions: []
         });

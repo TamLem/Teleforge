@@ -235,17 +235,17 @@ teleforge tsup build including DTS: pass
 regeneration preserves override file contents: confirmed
 ```
 
-## Next Implementor Brief: Phase 4
+## Completed: Phase 4
 
-Implement explicit loader data typing for generated screen props.
+Explicit loader data typing for generated screen props is implemented.
 
-The goal is to remove local `loaderData as ...` casts from GadgetShop screens
+The goal was to remove local `loaderData as ...` casts from GadgetShop screens
 without importing server-only loader modules into the browser bundle and without
 attempting complex inference from loader implementations.
 
-Recommended design:
+Implemented design:
 
-1. Extend the app-owned override file with loader data overrides:
+1. The app-owned override file includes loader data overrides:
 
 ```ts
 export interface TeleforgeLoaderDataOverrides {
@@ -264,10 +264,10 @@ export interface TeleforgeLoaderDataOverrides {
    browser-safe app types file. Do not import API services, loaders, flow
    modules, or server-only schemas.
 
-3. Generated `contracts.ts` should import `TeleforgeLoaderDataOverrides`
-   type-only and merge per-flow/per-screen overrides with `unknown` fallback.
+3. Generated `contracts.ts` imports `TeleforgeLoaderDataOverrides` type-only and
+   merges per-flow/per-screen overrides with `unknown` fallback.
 
-4. Generated screen prop aliases should override `loader` and `loaderData`
+4. Generated screen prop aliases override `loader` and `loaderData`
    together so the discriminated lifecycle stays coherent:
 
 ```ts
@@ -287,10 +287,10 @@ loader: TypedLoaderState<LoaderDataFor<"gadgetshop", "catalog">>;
 loaderData?: LoaderDataFor<"gadgetshop", "catalog">;
 ```
 
-5. Keep the runtime `LoaderState` broad. The generated prop aliases are the DX
+5. The runtime `LoaderState` stays broad. The generated prop aliases are the DX
    layer; runtime behavior should not change.
 
-Acceptance criteria:
+Acceptance criteria met:
 
 - GadgetShop screens no longer need local `loaderData as ...` casts.
 - `loader.status === "ready"` narrows `loader.data` to the screen's typed loader
@@ -300,14 +300,62 @@ Acceptance criteria:
 - Generated contracts remain browser-safe and type-only.
 - Existing typed nav and action tests continue to pass.
 
-Required compile-time evidence:
+Compile-time evidence:
 
-- Add type tests that prove each screen prop alias has the expected loader data
+- Type tests prove each screen prop alias has the expected loader data
   shape.
-- Add `@ts-expect-error` cases for wrong loader fields, such as reading
+- `@ts-expect-error` cases cover wrong loader fields, such as reading
   `product` from `CatalogScreenProps["loaderData"]`.
-- Use at least one screen implementation change to prove casts were actually
-  removed from app code.
+- GadgetShop screen changes prove casts were removed from app code.
+
+## Next Implementor Brief: Phase 5
+
+Implement route-aware typed `sign()`.
+
+The goal is to use the same generated route contracts for signed Mini App entry
+URLs that the Mini App already uses for `nav.*`. App authors should not have to
+manually mutate signed URL paths for detail screens.
+
+Recommended design:
+
+1. Add a typed sign helper surface that can use generated screen and route
+   param contracts:
+
+```ts
+typedSign.productDetail({
+  params: { id: product.id },
+  subject: { resource: { type: "product", id: product.id } },
+  allowedActions: ["addToCart"]
+});
+```
+
+or a generic typed helper:
+
+```ts
+signTyped("product-detail", {
+  params: { id: product.id },
+  subject: { resource: { type: "product", id: product.id } },
+  allowedActions: ["addToCart"]
+});
+```
+
+2. Reuse the generated route param map and first-route-per-screen behavior. Do
+   not introduce a second route-selection algorithm.
+
+3. Keep raw `sign()` available. The typed helper should be the DX layer, not a
+   runtime replacement.
+
+4. Preserve cross-flow safety. If signing a screen owned by another flow, either
+   resolve the owning flow from generated contracts or require explicit `flowId`.
+
+Acceptance criteria:
+
+- Missing required params fail at compile time.
+- Wrong param names fail at compile time.
+- Static route screens do not accept route params.
+- Signed URLs resolve to concrete paths such as `/product/iphone-15`.
+- Runtime still validates missing params with a clear error.
+- Existing action/nav/loader generated contracts continue to work.
 
 ## Concrete Task Definition
 
@@ -781,7 +829,7 @@ Acceptance criteria:
   `CartScreenProps`, `ConfirmationScreenProps`, and `TrackingScreenProps`
 - `routeParams` are narrowed per screen
 - `nav` is narrowed per flow
-- `loaderData` is still broad and remains Phase 4 work
+- `actions` are narrowed per flow
 
 ### Phase 3: Typed action payload contracts
 

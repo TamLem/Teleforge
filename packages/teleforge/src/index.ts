@@ -98,6 +98,7 @@ export {
   createFlowRuntimeSummaries,
   createFlowRuntimeSummary,
   createSignForActionContext,
+  createTypedSignForActionContext,
   discoverFlowFiles,
   discoverScreenLoaderFiles,
   discoverScreenFiles,
@@ -108,7 +109,8 @@ export {
   loadTeleforgeScreens,
   resolveFlowServerHooksRoot,
   resolveScreenLoaderRoot,
-  resolveScreenRoot
+  resolveScreenRoot,
+  substituteRouteParams
 } from "./discovery.js";
 
 export type {
@@ -141,6 +143,7 @@ export type {
   ActionHelpers,
   DiscoveredScreenModule,
   LoaderRegistry,
+  AnyTypedSignHelpers,
   LoaderRegistryEntry,
   LoaderState,
   NavigationHelpers,
@@ -157,6 +160,8 @@ export type {
   TypedActionHelpers,
   TypedLoaderState,
   TypedNavigationHelpers,
+  TypedSignHelpers,
+  TypedSignOptions,
   UnresolvedMiniAppScreen
 } from "./screens.js";
 
