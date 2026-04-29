@@ -205,7 +205,7 @@ For the full trust model, the five state-type categories, and session resources,
 [State Boundaries](./state-boundaries.md). For how props travel through the runtime, see
 [Runtime Wiring](./runtime-wiring.md).
 
-## 12. Telegram-Specific Behavior Behind Adapter Layer
+## 11. Telegram-Specific Behavior Behind Adapter Layer
 
 Wrap Telegram Mini App capabilities behind framework hooks.
 
@@ -217,7 +217,7 @@ Wrap Telegram Mini App capabilities behind framework hooks.
 | Launch context | `useLaunch()`                                   |
 | Raw WebApp     | `useTelegram()`                                 |
 
-## 13. Optimize for First Useful Paint
+## 12. Optimize for First Useful Paint
 
 Every frontend choice should favor:
 
@@ -226,13 +226,13 @@ Every frontend choice should favor:
 - fast screen visibility
 - minimal blocking requests
 
-## 14. Client Transitions After Boot
+## 13. Client Transitions After Boot
 
 Once the initial screen is active, transitions between Mini App screens should be client-driven.
 
 Server-helped entry, client-driven continuation.
 
-## 15. Framework Transport ≠ Product Abstraction
+## 14. Framework Transport ≠ Product Abstraction
 
 The frontend delivery/runtime layer is implementation machinery.
 
@@ -242,7 +242,7 @@ The frontend delivery/runtime layer is implementation machinery.
 flow → action → screen → effects
 ```
 
-## 16. API Adapter Is Not the UI Owner
+## 15. API Adapter Is Not the UI Owner
 
 | Server/API responsibilities | Client responsibilities |
 | --------------------------- | ----------------------- |
@@ -251,7 +251,7 @@ flow → action → screen → effects
 | produce effects             | show handoff UI         |
 | manage session resources    | manage local UI state   |
 
-## 17. Treat the Frontend as Untrusted
+## 16. Treat the Frontend as Untrusted
 
 The frontend may:
 
@@ -266,7 +266,7 @@ The frontend must **not** be the authority for:
 - committed data
 - lifecycle ownership
 
-## 18. Explicit Runtime Contracts
+## 17. Explicit Runtime Contracts
 
 Frontend integration uses explicit contracts:
 
@@ -283,7 +283,7 @@ flow and screen.
 For how the runtime constructs these helpers from the manifest, see [Runtime Wiring](./runtime-wiring.md).
 For the generated authoring model, see [Generated Mini App Contracts](./generated-miniapp-contracts.md).
 
-## 19. Design for Deployment Flexibility
+## 18. Design for Deployment Flexibility
 
 The frontend architecture must work whether the system is deployed as:
 
@@ -308,12 +308,11 @@ The frontend architecture must work whether the system is deployed as:
 | 8. Screen registry          | Real components, registered by ID                   |
 | 9. Behavior vs presentation | Flow = behavior, screen = UI                        |
 | 10. Data boundaries         | scopeData/routeParams/routeData/loader/appState     |
-| 11. State boundaries        | Domain, local, session, derived — keep separate     |
-| 12. Telegram adapter        | SDK calls behind hooks, not scattered                |
-| 13. First useful paint      | Small entry, low parse cost, fast visibility        |
-| 14. Client after boot       | Server entry, client continuation                   |
-| 15. Transport ≠ abstraction | Build tool delivers; flow defines behavior          |
-| 16. API ≠ UI owner          | Server validates; client renders                    |
-| 17. Untrusted frontend      | Server is authority for operations                  |
-| 18. Explicit contracts      | No implicit coupling                                |
-| 19. Deployment flexible     | Works in any topology                               |
+| 11. Telegram adapter        | SDK calls behind hooks, not scattered                |
+| 12. First useful paint      | Small entry, low parse cost, fast visibility        |
+| 13. Client after boot       | Server entry, client continuation                   |
+| 14. Transport ≠ abstraction | Build tool delivers; flow defines behavior          |
+| 15. API ≠ UI owner          | Server validates; client renders                    |
+| 16. Untrusted frontend      | Server is authority for operations                  |
+| 17. Explicit contracts      | No implicit coupling                                |
+| 18. Deployment flexible     | Works in any topology                               |

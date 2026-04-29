@@ -68,7 +68,7 @@ and are TTL-bound. Use for:
 - order references
 - multi-step wizard progress
 
-### 3. Screen State (client-owned, framework-injected)
+### 3. Screen Runtime Props (mixed trust, framework-injected)
 
 Screens receive explicit props that make the trust boundary clear. The Mini App runtime
 injects these — they are not passed by parent components or parsed from the URL by hand.
