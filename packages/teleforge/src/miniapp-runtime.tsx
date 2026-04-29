@@ -291,12 +291,16 @@ function TeleforgeMiniAppInner(props: TeleforgeMiniAppProps) {
   }, [screen.flowId, props.serverBridge, launchCoordination.rawFlowContext, props.onReturnToChat, navigateClient]);
 
   const actions: ActionHelpers = useMemo(() => {
-    const entries = Object.keys(screen.flow.actions ?? {}).map((actionId) => [
+    // When booted from a flow manifest, screen.flow does not include action
+    // handlers (they are server-only). Derive action IDs from the union of
+    // per-screen action lists so the typed happy-path helpers exist at runtime.
+    const actionIds = getFlowActionIds(screen.flow);
+    const entries = actionIds.map((actionId) => [
       actionId,
       (payload?: unknown) => runActionClosure(actionId, payload)
     ]);
     return Object.freeze(Object.fromEntries(entries));
-  }, [screen.flow.actions, runActionClosure]);
+  }, [screen.flow, runActionClosure]);
 
   const nav: NavigationHelpers = useMemo(() => {
     const routes = screen.flow.miniApp?.routes ?? {};
@@ -481,14 +485,30 @@ function parseTfp2Payload(rawContext: string): Record<string, unknown> | null {
 
 function manifestToFlows(
   manifest?: TeleforgeClientFlowManifest
-): Array<{ id: string; miniApp?: { routes: Record<string, string>; defaultRoute?: string; title?: string } }> {
+): Array<{ id: string; miniApp?: { routes: Record<string, string>; defaultRoute?: string; title?: string }; screens?: Array<{ id: string; actions?: string[] }> }> {
   if (!manifest?.flows) return [];
   return manifest.flows.map((f) => ({
     id: f.id,
     miniApp: f.miniApp
       ? { routes: f.miniApp.routes as Record<string, string>, defaultRoute: f.miniApp.defaultRoute, title: f.miniApp.title }
-      : undefined
+      : undefined,
+    screens: f.screens.map((s) => ({
+      id: s.id,
+      actions: s.actions ? [...s.actions] : undefined
+    }))
   }));
+}
+
+type FlowWithManifestScreens = ActionFlowDefinition & {
+  screens?: ReadonlyArray<{ actions?: ReadonlyArray<string> }>;
+};
+
+function getFlowActionIds(flow: ActionFlowDefinition): string[] {
+  if (flow.actions) {
+    return Object.keys(flow.actions);
+  }
+  const screens = (flow as FlowWithManifestScreens).screens ?? [];
+  return [...new Set(screens.flatMap((screen) => screen.actions ?? []))];
 }
 
 function applyClientEffects(effects?: Array<{ type: string; message?: string }>) {
