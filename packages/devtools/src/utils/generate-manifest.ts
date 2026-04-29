@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { generateContracts } from "./generate-contracts.js";
 import { resolveTeleforgeImportPath, resolveTsxImportPath } from "./manifest.js";
 
 const execFileAsync = promisify(execFile);
@@ -11,12 +12,15 @@ const execFileAsync = promisify(execFile);
 export interface GenerateClientManifestOptions {
   cwd: string;
   outputPath?: string;
+  contractsOutputPath?: string;
 }
 
 export async function generateClientManifest(options: GenerateClientManifestOptions): Promise<string> {
   const cwd = options.cwd;
   const outputPath =
     options.outputPath ?? path.join(cwd, "apps", "web", "src", "teleforge-generated", "client-flow-manifest.ts");
+  const contractsOutputPath =
+    options.contractsOutputPath ?? path.join(path.dirname(outputPath), "contracts.ts");
 
   const teleforgeImportPath = resolveTeleforgeImportPath(cwd);
   const tsxImportPath = resolveTsxImportPath(cwd);
@@ -26,6 +30,7 @@ export async function generateClientManifest(options: GenerateClientManifestOpti
 
   const script = `
     import { writeFile } from "node:fs/promises";
+    import { pathToFileURL } from "node:url";
 
     const teleforgePath = process.env.TELEFORGE_PACKAGE_PATH;
     const cwd = process.env.TELEFORGE_CWD;
@@ -34,6 +39,7 @@ export async function generateClientManifest(options: GenerateClientManifestOpti
       throw new Error("Required environment variables are missing.");
     }
 
+    const teleforge = await import(pathToFileURL(teleforgePath).href);
     const configPath = await teleforge.resolveTeleforgeConfigPath(cwd);
     if (!configPath) {
       throw new Error("No Teleforge project found. Add a teleforge.config.ts file.");
@@ -59,18 +65,36 @@ export async function generateClientManifest(options: GenerateClientManifestOpti
       }
     );
 
-    const manifest = JSON.parse(await readFile(jsonOutputPath, "utf8")) as unknown[];
-    const fileContent = formatGeneratedManifest(manifest);
+    const manifestPayload = JSON.parse(await readFile(jsonOutputPath, "utf8")) as {
+      flows: Array<{
+        id: string;
+        miniApp?: { defaultRoute?: string; routes: Record<string, string>; title?: string };
+        screens: Array<{
+          id: string;
+          route?: string;
+          actions?: string[];
+          title?: string;
+          requiresSession?: boolean;
+        }>;
+      }>;
+    };
+    const fileContent = formatGeneratedManifest(manifestPayload);
 
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, fileContent, "utf8");
+
+    await generateContracts({
+      manifest: manifestPayload,
+      outputPath: contractsOutputPath
+    });
+
     return outputPath;
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-function formatGeneratedManifest(manifest: unknown[]): string {
+function formatGeneratedManifest(manifest: unknown): string {
   return `import { defineClientFlowManifest } from "teleforge/web";
 
 export const flowManifest = defineClientFlowManifest(

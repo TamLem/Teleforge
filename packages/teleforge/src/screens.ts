@@ -19,9 +19,70 @@ export type ActionHelpers<TActionId extends string = string> = Readonly<
   Record<TActionId, (payload?: unknown) => Promise<ActionResult>>
 >;
 
+/**
+ * Strongly-typed action helper map keyed by action ID.
+ *
+ * Each value of `TPayloads[ActionId]` describes the payload accepted
+ * by that action. Use `unknown` for permissive payloads or a concrete
+ * shape for typed payloads. Use `undefined` for actions that take no
+ * payload at all.
+ *
+ * Example:
+ *
+ * ```ts
+ * type Payloads = {
+ *   addToCart: { productId: string; qty: number };
+ *   placeOrder: undefined;
+ *   refresh: unknown;
+ * };
+ *
+ * const actions: TypedActionHelpers<Payloads> = ...;
+ * actions.addToCart({ productId: "x", qty: 1 });
+ * actions.placeOrder();
+ * actions.refresh(anything);
+ * ```
+ */
+export type TypedActionHelpers<TPayloads extends Record<string, unknown>> = Readonly<{
+  [TActionId in keyof TPayloads & string]: undefined extends TPayloads[TActionId]
+    ? (payload?: TPayloads[TActionId]) => Promise<ActionResult>
+    : (payload: TPayloads[TActionId]) => Promise<ActionResult>;
+}>;
+
+export interface TeleforgeNavigateOptions {
+  data?: Record<string, unknown>;
+}
+
 export type NavigationHelpers<TScreenId extends string = string> = Readonly<
-  Record<TScreenId, (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => void>
+  Record<TScreenId, (params?: Record<string, string>, options?: TeleforgeNavigateOptions) => void>
 >;
+
+/**
+ * Strongly-typed navigation helper map keyed by helper name.
+ *
+ * - Keys are camelCase helper names derived from screen IDs via `toHelperName()`.
+ * - For each helper, `TRoutes[Helper]` describes the required route params.
+ *   `undefined` means the route is static (no params required).
+ *
+ * Example:
+ *
+ * ```ts
+ * type RouteParams = {
+ *   catalog: undefined;
+ *   productDetail: { id: string };
+ * };
+ *
+ * const nav: TypedNavigationHelpers<RouteParams> = ...;
+ * nav.catalog();
+ * nav.productDetail({ id: "iphone-15" });
+ * ```
+ */
+export type TypedNavigationHelpers<
+  TRoutes extends Record<string, Record<string, string> | undefined>
+> = Readonly<{
+  [THelper in keyof TRoutes & string]: TRoutes[THelper] extends undefined
+    ? (params?: undefined, options?: TeleforgeNavigateOptions) => void
+    : (params: TRoutes[THelper], options?: TeleforgeNavigateOptions) => void;
+}>;
 
 export interface TeleforgeScreenComponentProps {
   scopeData?: Record<string, unknown>;
@@ -84,8 +145,49 @@ export interface UnresolvedMiniAppScreen {
   screenId?: string;
 }
 
-export function defineScreen(
-  screen: TeleforgeScreenDefinition
+/**
+ * Looser, runtime-compatible bound for screen component prop types.
+ *
+ * Generated per-screen prop aliases narrow `screenId`, `routeParams`,
+ * `nav`, and (in later phases) `actions` — for example
+ * `screenId: "catalog"`, `nav: GadgetshopNav`,
+ * `routeParams: Readonly<Record<never, never>>`,
+ * `actions: GadgetshopActions`. Those narrowed types cannot satisfy
+ * `TProps extends TeleforgeScreenComponentProps` because
+ * `NavigationHelpers`' / `ActionHelpers`' string index signature is
+ * incompatible with the typed maps.
+ *
+ * Use this shape as the constraint instead so:
+ * - generated aliases that override the four narrowable fields are
+ *   still accepted, and
+ * - components that ask for fields the runtime never provides (e.g.
+ *   `{ foo: string }`) are still rejected at compile time.
+ */
+export type RuntimeCompatibleScreenProps = Omit<
+  TeleforgeScreenComponentProps,
+  "screenId" | "routeParams" | "nav" | "actions"
+> & {
+  screenId: string;
+  routeParams: object;
+  nav: object;
+  actions: object;
+};
+
+export interface TeleforgeScreenDefinitionInput<
+  TProps extends RuntimeCompatibleScreenProps = TeleforgeScreenComponentProps
+> {
+  component: ComponentType<TProps>;
+  guard?: (
+    context: TeleforgeScreenComponentProps
+  ) => MaybePromise<TeleforgeScreenGuardResult>;
+  id: string;
+  title?: string;
+}
+
+export function defineScreen<
+  TProps extends RuntimeCompatibleScreenProps = TeleforgeScreenComponentProps
+>(
+  screen: TeleforgeScreenDefinitionInput<TProps>
 ): Readonly<TeleforgeScreenDefinition> {
   if (typeof screen.id !== "string" || screen.id.trim().length === 0) {
     throw new Error("Screen id must be a non-empty string.");
@@ -96,7 +198,8 @@ export function defineScreen(
   }
 
   return Object.freeze({
-    ...screen
+    ...screen,
+    component: screen.component as ComponentType<TeleforgeScreenComponentProps>
   });
 }
 

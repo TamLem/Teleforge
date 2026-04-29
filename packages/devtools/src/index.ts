@@ -9,3 +9,4 @@ export { runGenerateCommand, type GenerateCommandFlags } from "./commands/genera
 export { runMockCommand, type MockCommandFlags } from "./commands/mock.js";
 export { loadManifest, type TeleforgeManifest } from "./utils/manifest.js";
 export { generateClientManifest, type GenerateClientManifestOptions } from "./utils/generate-manifest.js";
+export { generateContracts, formatContracts, type GenerateContractsOptions } from "./utils/generate-contracts.js";

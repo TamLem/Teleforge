@@ -3,11 +3,11 @@ import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
 
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { CatalogScreenProps } from "../teleforge-generated/contracts";
 
 const CATEGORIES = ["Phones", "Laptops", "Tablets", "Audio", "Accessories"] as const;
 
-function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: TeleforgeScreenComponentProps) {
+function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: CatalogScreenProps) {
   if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load products</h2></div></main>;
   if (loader.status !== "ready") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;

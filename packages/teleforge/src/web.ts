@@ -15,13 +15,17 @@ export type {
   LoaderState,
   NavigationHelpers,
   ResolvedMiniAppScreen,
+  RuntimeCompatibleScreenProps,
   ServerLoaderContext,
   ServerLoaderDefinition,
+  TeleforgeNavigateOptions,
   TeleforgeScreenComponentProps,
   TeleforgeScreenDefinition,
   TeleforgeScreenGuardBlock,
   TeleforgeScreenGuardResult,
   TeleforgeScreenRuntimeContext,
+  TypedActionHelpers,
+  TypedNavigationHelpers,
   UnresolvedMiniAppScreen
 } from "./screens.js";
 export type {

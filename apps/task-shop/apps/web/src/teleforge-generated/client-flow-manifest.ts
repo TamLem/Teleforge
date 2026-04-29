@@ -24,6 +24,7 @@ export const flowManifest = defineClientFlowManifest(
             "placeOrder"
           ],
           "id": "catalog",
+          "requiresSession": true,
           "route": "/"
         },
         {
@@ -33,6 +34,7 @@ export const flowManifest = defineClientFlowManifest(
             "placeOrder"
           ],
           "id": "product-detail",
+          "requiresSession": true,
           "route": "/product/:id"
         },
         {
@@ -42,6 +44,7 @@ export const flowManifest = defineClientFlowManifest(
             "placeOrder"
           ],
           "id": "cart",
+          "requiresSession": true,
           "route": "/cart"
         },
         {
@@ -51,6 +54,7 @@ export const flowManifest = defineClientFlowManifest(
             "placeOrder"
           ],
           "id": "confirmation",
+          "requiresSession": true,
           "route": "/confirmation"
         },
         {
@@ -60,6 +64,7 @@ export const flowManifest = defineClientFlowManifest(
             "placeOrder"
           ],
           "id": "tracking",
+          "requiresSession": true,
           "route": "/tracking"
         }
       ]

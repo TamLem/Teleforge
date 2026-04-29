@@ -2,9 +2,9 @@ import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
 
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { CartScreenProps } from "../teleforge-generated/contracts";
 
-function CartScreen({ loader, loaderData, actions, nav, transitioning }: TeleforgeScreenComponentProps) {
+function CartScreen({ loader, loaderData, actions, nav, transitioning }: CartScreenProps) {
   if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load cart</h2></div></main>;
 

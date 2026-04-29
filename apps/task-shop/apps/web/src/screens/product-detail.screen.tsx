@@ -3,7 +3,7 @@ import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
 
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { ProductDetailScreenProps } from "../teleforge-generated/contracts";
 
 function ProductDetailScreen({
   loader,
@@ -11,7 +11,7 @@ function ProductDetailScreen({
   actions,
   nav,
   transitioning
-}: TeleforgeScreenComponentProps) {
+}: ProductDetailScreenProps) {
   if (loader.status === "loading")
     return (
       <main className="shell">

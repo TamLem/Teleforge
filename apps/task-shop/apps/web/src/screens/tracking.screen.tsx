@@ -2,7 +2,7 @@ import { defineScreen } from "teleforge/web";
 
 import { ProductImage } from "../components/product-image";
 
-import type { TeleforgeScreenComponentProps } from "teleforge/web";
+import type { TrackingScreenProps } from "../teleforge-generated/contracts";
 
 const STATUS_STEPS = ["confirmed", "processing", "shipped", "delivered"] as const;
 const STATUS_LABELS: Record<string, string> = {
@@ -12,7 +12,7 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "Delivered"
 };
 
-function TrackingScreen({ loader, loaderData, nav }: TeleforgeScreenComponentProps) {
+function TrackingScreen({ loader, loaderData, nav }: TrackingScreenProps) {
   if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load order</h2></div></main>;
 
