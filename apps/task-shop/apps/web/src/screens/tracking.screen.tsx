@@ -16,7 +16,7 @@ function TrackingScreen({ loader, loaderData, nav }: TrackingScreenProps) {
   if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load order</h2></div></main>;
 
-  const order = (loaderData as { order?: Record<string, unknown> })?.order;
+  const order = loaderData?.order;
 
   if (!order) {
     return (
@@ -26,17 +26,17 @@ function TrackingScreen({ loader, loaderData, nav }: TrackingScreenProps) {
     );
   }
 
-  const items = order.items as Array<{ productId: string; name: string; price: number; quantity: number; image: string }>;
-  const total = order.total as number;
-  const status = order.status as string;
-  const currentIdx = STATUS_STEPS.indexOf(status as typeof STATUS_STEPS[number]);
-  const createdAt = order.createdAt as string;
+  const items = order.items;
+  const total = order.total;
+  const status = order.status;
+  const currentIdx = STATUS_STEPS.indexOf(status);
+  const createdAt = order.createdAt;
 
   return (
     <main className="shell">
       <header className="hero">
         <p className="eyebrow">Order Tracking</p>
-        <h1>Order #{order.id as string}</h1>
+        <h1>Order #{order.id}</h1>
         <p className="lede">
           {new Date(createdAt).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>

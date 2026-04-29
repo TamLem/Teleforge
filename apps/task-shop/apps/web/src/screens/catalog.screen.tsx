@@ -12,7 +12,7 @@ function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: Cata
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load products</h2></div></main>;
   if (loader.status !== "ready") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
 
-  const products = (loaderData as { products: Array<{ id: string; name: string; description: string; price: number; image: string; category: string; inStock: boolean }> })?.products ?? [];
+  const products = loaderData?.products ?? [];
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
 

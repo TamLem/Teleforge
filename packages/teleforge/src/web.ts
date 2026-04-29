@@ -25,6 +25,7 @@ export type {
   TeleforgeScreenGuardResult,
   TeleforgeScreenRuntimeContext,
   TypedActionHelpers,
+  TypedLoaderState,
   TypedNavigationHelpers,
   UnresolvedMiniAppScreen
 } from "./screens.js";

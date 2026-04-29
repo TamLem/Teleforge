@@ -8,7 +8,7 @@ function ConfirmationScreen({ loader, loaderData, nav }: ConfirmationScreenProps
   if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load order</h2></div></main>;
 
-  const order = (loaderData as { order?: Record<string, unknown> })?.order;
+  const order = loaderData?.order;
 
   if (!order) {
     return (
@@ -18,8 +18,8 @@ function ConfirmationScreen({ loader, loaderData, nav }: ConfirmationScreenProps
     );
   }
 
-  const items = order.items as Array<{ productId: string; name: string; price: number; quantity: number; image: string }>;
-  const total = order.total as number;
+  const items = order.items;
+  const total = order.total;
 
   return (
     <main className="shell">
@@ -30,9 +30,9 @@ function ConfirmationScreen({ loader, loaderData, nav }: ConfirmationScreenProps
       </header>
 
       <div className="order-section">
-        <h2 style={{ margin: "0 0 0.5rem" }}>Order #{order.id as string}</h2>
+        <h2 style={{ margin: "0 0 0.5rem" }}>Order #{order.id}</h2>
         <p className="muted" style={{ margin: 0 }}>
-          {new Date(order.createdAt as string).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          {new Date(order.createdAt).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>
 

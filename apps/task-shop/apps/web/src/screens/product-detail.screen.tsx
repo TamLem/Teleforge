@@ -37,10 +37,9 @@ function ProductDetailScreen({
       </main>
     );
 
-  const data = loaderData as { product?: Record<string, unknown>; notFound?: boolean } | undefined;
-  const product = data?.product;
+  const product = loaderData?.product;
 
-  if (!product || data?.notFound) {
+  if (!product || loaderData?.notFound) {
     return (
       <main className="shell">
         <div className="card">
@@ -50,7 +49,7 @@ function ProductDetailScreen({
     );
   }
 
-  const productId = product.id as string;
+  const productId = product.id;
   const [qty, setQty] = useState(1);
 
   const handleAddToCart = async () => {
@@ -60,21 +59,21 @@ function ProductDetailScreen({
   return (
     <main className="shell">
       <header className="hero">
-        <p className="eyebrow">{product.category as string}</p>
-        <h1>{product.name as string}</h1>
+        <p className="eyebrow">{product.category}</p>
+        <h1>{product.name}</h1>
       </header>
 
       <div className="product-hero-image">
         <ProductImage
           className="large"
-          image={product.image as string}
-          alt={product.name as string}
+          image={product.image}
+          alt={product.name}
         />
       </div>
 
       <div className="card">
-        <p className="lede">{product.description as string}</p>
-        <p className="price-lg">${product.price as number}</p>
+        <p className="lede">{product.description}</p>
+        <p className="price-lg">${product.price}</p>
         {!product.inStock && (
           <span className="badge" style={{ background: "#ffebee", color: "#c62828" }}>
             Out of stock
@@ -85,7 +84,7 @@ function ProductDetailScreen({
       <div className="card">
         <h2>Specifications</h2>
         <div className="specs-grid">
-          {Object.entries((product.specs as Record<string, string>) ?? {}).map(([key, value]) => (
+          {Object.entries(product.specs ?? {}).map(([key, value]) => (
             <div key={key} className="spec-row">
               <span className="label">{key}</span>
               <strong>{value}</strong>

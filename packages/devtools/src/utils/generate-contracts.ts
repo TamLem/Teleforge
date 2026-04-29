@@ -90,7 +90,11 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
     await mkdir(path.dirname(overrideFilePath), { recursive: true });
     await writeFile(
       overrideFilePath,
-      "export interface TeleforgeActionPayloadOverrides {}\n",
+      [
+        "export interface TeleforgeActionPayloadOverrides {}",
+        "export interface TeleforgeLoaderDataOverrides {}",
+        ""
+      ].join("\n"),
       "utf8"
     );
   }
@@ -146,19 +150,19 @@ export function formatContracts(
       .replace(/\\/g, "/");
 
     imports.push(
-      `import type { TeleforgeActionPayloadOverrides } from "${overrideImportPath}";`
+      `import type { TeleforgeActionPayloadOverrides, TeleforgeLoaderDataOverrides } from "${overrideImportPath}";`
     );
   }
 
   imports.push(
-    `import type {\n  TeleforgeScreenComponentProps,\n  TypedActionHelpers,\n  TypedNavigationHelpers\n} from "teleforge/web";`
+    `import type {\n  TeleforgeScreenComponentProps,\n  TypedActionHelpers,\n  TypedLoaderState,\n  TypedNavigationHelpers\n} from "teleforge/web";`
   );
 
   sections.push(imports.join("\n"));
 
   if (useOverrides) {
     sections.push(
-      `type FlowActionPayloadOverrides<TFlowId extends string> =\n  TFlowId extends keyof TeleforgeActionPayloadOverrides\n    ? TeleforgeActionPayloadOverrides[TFlowId] extends object\n      ? TeleforgeActionPayloadOverrides[TFlowId]\n      : {}\n    : {};\n\ntype ApplyActionPayloadOverrides<\n  TDefaults extends Record<string, unknown>,\n  TOverrides extends object\n> = {\n  [TActionId in keyof TDefaults]: TActionId extends keyof TOverrides\n    ? TOverrides[TActionId]\n    : TDefaults[TActionId];\n};`
+      `type FlowActionPayloadOverrides<TFlowId extends string> =\n  TFlowId extends keyof TeleforgeActionPayloadOverrides\n    ? TeleforgeActionPayloadOverrides[TFlowId] extends object\n      ? TeleforgeActionPayloadOverrides[TFlowId]\n      : {}\n    : {};\n\ntype ApplyActionPayloadOverrides<\n  TDefaults extends Record<string, unknown>,\n  TOverrides extends object\n> = {\n  [TActionId in keyof TDefaults]: TActionId extends keyof TOverrides\n    ? TOverrides[TActionId]\n    : TDefaults[TActionId];\n};\n\ntype FlowLoaderDataOverrides<TFlowId extends string> =\n  TFlowId extends keyof TeleforgeLoaderDataOverrides\n    ? TeleforgeLoaderDataOverrides[TFlowId] extends object\n      ? TeleforgeLoaderDataOverrides[TFlowId]\n      : {}\n    : {};\n\ntype LoaderDataFor<TFlowId extends string, TScreenId extends string> =\n  TScreenId extends keyof FlowLoaderDataOverrides<TFlowId>\n    ? FlowLoaderDataOverrides<TFlowId>[TScreenId]\n    : unknown;`
     );
   }
 
@@ -314,15 +318,21 @@ function formatFlow(
         ? "Readonly<Record<never, never>>"
         : `{ ${entry.params.map((name) => `${name}: string`).join("; ")} }`;
 
+    const loaderDataType = useOverrides
+      ? `LoaderDataFor<"${flow.id}", "${screen.id}">`
+      : "unknown";
+
     lines.push(
       `export type ${alias} = Omit<
   TeleforgeScreenComponentProps,
-  "screenId" | "routeParams" | "nav" | "actions"
+  "screenId" | "routeParams" | "nav" | "actions" | "loader" | "loaderData"
 > & {
   screenId: "${screen.id}";
   routeParams: ${routeParamsType};
   nav: ${flowPascal}Nav;
   actions: ${flowPascal}Actions;
+  loader: TypedLoaderState<${loaderDataType}>;
+  loaderData?: ${loaderDataType};
 };`
     );
   }

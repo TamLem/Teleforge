@@ -15,6 +15,7 @@ import { defineScreen } from "teleforge/web";
 
 import type {
   CatalogScreenProps,
+  CartScreenProps,
   GadgetshopNav,
   ProductDetailScreenProps
 } from "./contracts";
@@ -22,6 +23,7 @@ import type {
 declare const nav: GadgetshopNav;
 declare const productProps: ProductDetailScreenProps;
 declare const catalogProps: CatalogScreenProps;
+declare const cartProps: CartScreenProps;
 
 function runDefineScreenConstraintTypeTests(): void {
   // Valid: a screen built against a generated narrowed prop alias is
@@ -182,11 +184,55 @@ function runScreenPropsTypeTests(): void {
   catalogProps.nav.notAScreen();
 }
 
+function runScreenPropsLoaderDataTypeTests(): void {
+  // -------------------------------------------------------------------
+  // Phase 4 (typed loader data): generated screen props must narrow
+  // `loader` and `loaderData` so screens no longer need local casts.
+  // -------------------------------------------------------------------
+
+  // Valid: CatalogScreenProps loaderData is CatalogData.
+  const catalogProducts = catalogProps.loaderData?.products;
+  void catalogProducts;
+
+  // Valid: ProductDetailScreenProps loaderData has product and notFound.
+  const product = productProps.loaderData?.product;
+  const notFound = productProps.loaderData?.notFound;
+  void product;
+  void notFound;
+
+  // Valid: CartScreenProps loaderData is CartData.
+  const cartItems = cartProps.loaderData?.items;
+  const cartSubtotal = cartProps.loaderData?.subtotal;
+  const cartItemCount = cartProps.loaderData?.itemCount;
+  void cartItems;
+  void cartSubtotal;
+  void cartItemCount;
+
+  // Valid: loader.status === "ready" narrows loader.data.
+  if (catalogProps.loader.status === "ready") {
+    const products = catalogProps.loader.data.products;
+    void products;
+  }
+
+  // Invalid: catalog loaderData does not have product.
+  // @ts-expect-error product does not exist on CatalogData.
+  void catalogProps.loaderData?.product;
+
+  // Invalid: product-detail loaderData does not have products.
+  // @ts-expect-error products does not exist on product-detail loader data.
+  void productProps.loaderData?.products;
+
+  // Invalid: cart loaderData does not have products.
+  // @ts-expect-error products does not exist on CartData.
+  void cartProps.loaderData?.products;
+}
+
 // Reference all runners so they are not pruned as unused, but never
 // invoke them.
 export const __contractsTypeTestsReference: ReadonlyArray<() => void> = [
   runStandaloneNavTypeTests,
   runScreenPropsTypeTests,
   runScreenPropsActionsTypeTests,
+  runScreenPropsLoaderDataTypeTests,
   runDefineScreenConstraintTypeTests
 ];

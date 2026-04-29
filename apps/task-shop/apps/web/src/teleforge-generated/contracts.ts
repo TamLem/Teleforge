@@ -5,10 +5,11 @@
 // These contracts make `nav.*` helpers, screen IDs, action IDs, and
 // per-screen props compile-time safe.
 
-import type { TeleforgeActionPayloadOverrides } from "../teleforge-contract-overrides";
+import type { TeleforgeActionPayloadOverrides, TeleforgeLoaderDataOverrides } from "../teleforge-contract-overrides";
 import type {
   TeleforgeScreenComponentProps,
   TypedActionHelpers,
+  TypedLoaderState,
   TypedNavigationHelpers
 } from "teleforge/web";
 
@@ -27,6 +28,18 @@ type ApplyActionPayloadOverrides<
     ? TOverrides[TActionId]
     : TDefaults[TActionId];
 };
+
+type FlowLoaderDataOverrides<TFlowId extends string> =
+  TFlowId extends keyof TeleforgeLoaderDataOverrides
+    ? TeleforgeLoaderDataOverrides[TFlowId] extends object
+      ? TeleforgeLoaderDataOverrides[TFlowId]
+      : {}
+    : {};
+
+type LoaderDataFor<TFlowId extends string, TScreenId extends string> =
+  TScreenId extends keyof FlowLoaderDataOverrides<TFlowId>
+    ? FlowLoaderDataOverrides<TFlowId>[TScreenId]
+    : unknown;
 
 // =====================================================================
 // Flow: gadgetshop
@@ -69,50 +82,60 @@ export type GadgetshopNav = TypedNavigationHelpers<GadgetshopRouteParams>;
 
 export type CatalogScreenProps = Omit<
   TeleforgeScreenComponentProps,
-  "screenId" | "routeParams" | "nav" | "actions"
+  "screenId" | "routeParams" | "nav" | "actions" | "loader" | "loaderData"
 > & {
   screenId: "catalog";
   routeParams: Readonly<Record<never, never>>;
   nav: GadgetshopNav;
   actions: GadgetshopActions;
+  loader: TypedLoaderState<LoaderDataFor<"gadgetshop", "catalog">>;
+  loaderData?: LoaderDataFor<"gadgetshop", "catalog">;
 };
 
 export type ProductDetailScreenProps = Omit<
   TeleforgeScreenComponentProps,
-  "screenId" | "routeParams" | "nav" | "actions"
+  "screenId" | "routeParams" | "nav" | "actions" | "loader" | "loaderData"
 > & {
   screenId: "product-detail";
   routeParams: { id: string };
   nav: GadgetshopNav;
   actions: GadgetshopActions;
+  loader: TypedLoaderState<LoaderDataFor<"gadgetshop", "product-detail">>;
+  loaderData?: LoaderDataFor<"gadgetshop", "product-detail">;
 };
 
 export type CartScreenProps = Omit<
   TeleforgeScreenComponentProps,
-  "screenId" | "routeParams" | "nav" | "actions"
+  "screenId" | "routeParams" | "nav" | "actions" | "loader" | "loaderData"
 > & {
   screenId: "cart";
   routeParams: Readonly<Record<never, never>>;
   nav: GadgetshopNav;
   actions: GadgetshopActions;
+  loader: TypedLoaderState<LoaderDataFor<"gadgetshop", "cart">>;
+  loaderData?: LoaderDataFor<"gadgetshop", "cart">;
 };
 
 export type ConfirmationScreenProps = Omit<
   TeleforgeScreenComponentProps,
-  "screenId" | "routeParams" | "nav" | "actions"
+  "screenId" | "routeParams" | "nav" | "actions" | "loader" | "loaderData"
 > & {
   screenId: "confirmation";
   routeParams: Readonly<Record<never, never>>;
   nav: GadgetshopNav;
   actions: GadgetshopActions;
+  loader: TypedLoaderState<LoaderDataFor<"gadgetshop", "confirmation">>;
+  loaderData?: LoaderDataFor<"gadgetshop", "confirmation">;
 };
 
 export type TrackingScreenProps = Omit<
   TeleforgeScreenComponentProps,
-  "screenId" | "routeParams" | "nav" | "actions"
+  "screenId" | "routeParams" | "nav" | "actions" | "loader" | "loaderData"
 > & {
   screenId: "tracking";
   routeParams: Readonly<Record<never, never>>;
   nav: GadgetshopNav;
   actions: GadgetshopActions;
+  loader: TypedLoaderState<LoaderDataFor<"gadgetshop", "tracking">>;
+  loaderData?: LoaderDataFor<"gadgetshop", "tracking">;
 };

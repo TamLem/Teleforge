@@ -8,9 +8,9 @@ function CartScreen({ loader, loaderData, actions, nav, transitioning }: CartScr
   if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
   if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load cart</h2></div></main>;
 
-  const items = (loaderData as { items?: Array<{ productId: string; name: string; price: number; quantity: number; image: string }>; subtotal?: number; itemCount?: number } | undefined)?.items ?? [];
-  const subtotal = (loaderData as { subtotal?: number })?.subtotal ?? 0;
-  const itemCount = (loaderData as { itemCount?: number })?.itemCount ?? 0;
+  const items = loaderData?.items ?? [];
+  const subtotal = loaderData?.subtotal ?? 0;
+  const itemCount = loaderData?.itemCount ?? 0;
 
   const handleRemove = async (productId: string) => {
     await actions.removeFromCart({ productId });

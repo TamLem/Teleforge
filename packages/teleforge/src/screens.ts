@@ -15,6 +15,19 @@ export type LoaderState =
   | { status: "error"; error: Error }
   | { status: "idle" };
 
+/**
+ * Discriminated loader lifecycle with typed `data` in the ready state.
+ *
+ * Use this as the DX layer in generated per-screen prop aliases so
+ * `loader.status === "ready"` narrows `loader.data` to the screen's
+ * loader data type.
+ */
+export type TypedLoaderState<TData = unknown> =
+  | { status: "loading" }
+  | { status: "ready"; data: TData }
+  | { status: "error"; error: Error }
+  | { status: "idle" };
+
 export type ActionHelpers<TActionId extends string = string> = Readonly<
   Record<TActionId, (payload?: unknown) => Promise<ActionResult>>
 >;
