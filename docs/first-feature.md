@@ -21,7 +21,7 @@ Create `apps/bot/src/flows/orders.flow.ts`:
 import { defineFlow } from "teleforge";
 
 export default defineFlow({
-  id: "orders",
+  id: "orderflow",
 
   command: {
     command: "orders",
@@ -70,8 +70,8 @@ and any action payloads:
 export interface TeleforgeActionPayloadOverrides {}
 
 export interface TeleforgeLoaderDataOverrides {
-  orders: {
-    orders: Array<{ id: string; total: number }>;
+  orderflow: {
+    orders: { orders: Array<{ id: string; total: number }> };
   };
 }
 ```

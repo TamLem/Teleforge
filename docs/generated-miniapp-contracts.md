@@ -214,6 +214,7 @@ Bot and action handler code can use the same route contracts when creating signe
 
 ```ts
 import { createTypedSignForActionContext } from "teleforge";
+import type { GadgetshopSign } from "./teleforge-generated/contracts";
 
 const typedSign = createTypedSignForActionContext({
   sign,
