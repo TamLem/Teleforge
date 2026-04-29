@@ -82,7 +82,7 @@ To generate the smallest client-only scaffold instead, run:
 node packages/create-teleforge-app/dist/cli.js my-app --without-api
 ```
 
-If you want the smallest working example instead of a fresh scaffold, start with [`examples/starter-app`](../examples/starter-app/README.md). If you want the full reference flow, use [`apps/task-shop`](../apps/task-shop/README.md).
+For the full reference flow, use [`apps/task-shop`](../apps/task-shop/README.md).
 
 ## Local Development Workflow
 
@@ -438,6 +438,5 @@ pnpm --dir apps/task-shop test
 ## Where to Go Next
 
 - Read [Framework Model](./framework-model.md) for the framework layout and runtime boundaries.
-- Read [`examples/starter-app/README.md`](../examples/starter-app/README.md) for the smallest working example.
 - Read [`apps/task-shop/README.md`](../apps/task-shop/README.md) for the end-to-end reference implementation.
 - Use the generated API reference in `dist/docs-site/api/index.html` once you know which package surface you need.

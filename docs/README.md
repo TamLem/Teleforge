@@ -64,7 +64,6 @@ Use these when you are running, testing, or deploying.
 
 ## Examples
 
-- [Starter App](../examples/starter-app/README.md): smallest runnable example
 - [Task Shop](../apps/task-shop/README.md): full reference app with chat/Mini App coordination
 
 ---

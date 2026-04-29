@@ -135,13 +135,6 @@ const pages = [
     section: "Operate"
   },
   {
-    id: "starter-app",
-    source: "examples/starter-app/README.md",
-    output: "starter-app.html",
-    navLabel: "Starter App",
-    section: "Examples"
-  },
-  {
     id: "task-shop",
     source: "apps/task-shop/README.md",
     output: "task-shop.html",

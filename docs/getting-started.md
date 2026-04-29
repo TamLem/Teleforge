@@ -39,12 +39,12 @@ Optional but useful:
 
 ## Fastest Path
 
-If you want the shortest route to something working, use the starter example:
+If you want the shortest route to something working, use the reference app:
 
 ```bash
 pnpm install
 pnpm build
-cd examples/starter-app
+cd apps/task-shop
 pnpm install
 cp .env.example .env
 pnpm dev
@@ -54,7 +54,7 @@ You should see:
 
 - a local web dev server start
 - a bot process start in preview mode if `BOT_TOKEN` is still unset
-- a browser window or local URL showing the Starter App
+- a browser window or local URL showing the Task Shop
 - theme/user/platform cards rendered even outside Telegram
 
 If that works, skip ahead to [Open in Telegram](#open-in-telegram).
@@ -79,31 +79,11 @@ If this fails, start with [Troubleshooting](./troubleshooting.md).
 
 ## 2. Pick a Starting Point
 
-You have three practical entry points in this repo.
+You have two practical entry points in this repo.
 
-### Option A: Minimal Example
+### Option A: Reference App
 
-Use this when you want the fastest working setup:
-
-```bash
-cd examples/starter-app
-pnpm install
-cp .env.example .env
-pnpm dev
-```
-
-This gives you:
-
-- one Mini App page
-- one `/start` bot command
-- local mock-friendly development
-
-See [`examples/starter-app/README.md`](../examples/starter-app/README.md) for the example-specific details.
-When it is running, use the README's walkthrough section to map the working app back to real files.
-
-### Option B: Full Reference App
-
-Use this when you want to see the complete flow-first reference app:
+Use this when you want the fastest working setup with the full framework surface:
 
 ```bash
 cd apps/task-shop
@@ -115,14 +95,18 @@ pnpm dev
 This shows:
 
 - bot commands
+- Mini App screens with typed contracts
 - `web_app_data` handling
 - launch-mode-aware checkout
 - resumable flow state
 - Mini App return-to-chat coordination
 
-See [`apps/task-shop/README.md`](../apps/task-shop/README.md) for the sample details.
+See [`apps/task-shop/README.md`](../apps/task-shop/README.md) for the app-specific details.
+When it is running, use the README's walkthrough section to map the working app back to real files.
 
-### Option C: Generate a New App
+### Option B: Generate a New App
+
+Use this when you want a fresh scaffolded project instead of the existing reference app:
 
 Build the local scaffold:
 
