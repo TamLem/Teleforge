@@ -5,10 +5,37 @@ import { ProductImage } from "../components/product-image";
 
 import type { TeleforgeScreenComponentProps } from "teleforge/web";
 
-function ProductDetailScreen({ loader, loaderData, actions, nav, transitioning }: TeleforgeScreenComponentProps) {
-  if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
-  if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load product</h2></div></main>;
-  if (loader.status !== "ready") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
+function ProductDetailScreen({
+  loader,
+  loaderData,
+  actions,
+  nav,
+  transitioning
+}: TeleforgeScreenComponentProps) {
+  if (loader.status === "loading")
+    return (
+      <main className="shell">
+        <div className="card">
+          <h2>Loading...</h2>
+        </div>
+      </main>
+    );
+  if (loader.status === "error")
+    return (
+      <main className="shell">
+        <div className="card">
+          <h2>Failed to load product</h2>
+        </div>
+      </main>
+    );
+  if (loader.status !== "ready")
+    return (
+      <main className="shell">
+        <div className="card">
+          <h2>Loading...</h2>
+        </div>
+      </main>
+    );
 
   const data = loaderData as { product?: Record<string, unknown>; notFound?: boolean } | undefined;
   const product = data?.product;
@@ -16,7 +43,9 @@ function ProductDetailScreen({ loader, loaderData, actions, nav, transitioning }
   if (!product || data?.notFound) {
     return (
       <main className="shell">
-        <div className="card"><h2>Product not found</h2></div>
+        <div className="card">
+          <h2>Product not found</h2>
+        </div>
       </main>
     );
   }
@@ -36,19 +65,27 @@ function ProductDetailScreen({ loader, loaderData, actions, nav, transitioning }
       </header>
 
       <div className="product-hero-image">
-        <ProductImage className="large" image={product.image as string} alt={product.name as string} />
+        <ProductImage
+          className="large"
+          image={product.image as string}
+          alt={product.name as string}
+        />
       </div>
 
       <div className="card">
         <p className="lede">{product.description as string}</p>
         <p className="price-lg">${product.price as number}</p>
-        {!product.inStock && <span className="badge" style={{ background: "#ffebee", color: "#c62828" }}>Out of stock</span>}
+        {!product.inStock && (
+          <span className="badge" style={{ background: "#ffebee", color: "#c62828" }}>
+            Out of stock
+          </span>
+        )}
       </div>
 
       <div className="card">
         <h2>Specifications</h2>
         <div className="specs-grid">
-          {Object.entries(product.specs as Record<string, string> ?? {}).map(([key, value]) => (
+          {Object.entries((product.specs as Record<string, string>) ?? {}).map(([key, value]) => (
             <div key={key} className="spec-row">
               <span className="label">{key}</span>
               <strong>{value}</strong>
@@ -58,7 +95,10 @@ function ProductDetailScreen({ loader, loaderData, actions, nav, transitioning }
       </div>
 
       {Boolean(product.inStock) && (
-        <div className="card" style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+        <div
+          className="card"
+          style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}
+        >
           <div className="qty-picker">
             <button onClick={() => setQty(Math.max(1, qty - 1))}>-</button>
             <span>{qty}</span>
