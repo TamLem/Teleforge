@@ -69,6 +69,27 @@ test("doctor accepts polling projects without webhook configuration", async () =
   assert.equal(result.status, "pass");
 });
 
+test("doctor accepts TELEFORGE_PUBLIC_URL when MINI_APP_URL is blank", async () => {
+  const projectDir = await createDoctorFixture({
+    blankMiniAppUrl: true,
+    webhook: false
+  });
+  const result = await runDoctorChecks({
+    cwd: projectDir,
+    fetchImpl: async () => {
+      throw new Error("Webhook should not be checked for polling projects.");
+    },
+    fix: false,
+    nodeVersion: "v20.11.0",
+    userAgent: "pnpm/10.15.0 npm/? node/v20.11.0 linux x64"
+  });
+
+  const names = new Map(result.checks.map((check) => [check.name, check]));
+  assert.equal(names.get("mini_app_url")?.status, "pass");
+  assert.equal(names.get("runtime_secrets")?.status, "pass");
+  assert.equal(result.status, "pass");
+});
+
 test("doctor treats webhook placeholders as inactive for polling delivery", async () => {
   const projectDir = await createDoctorFixture({
     webhookEnv: false
@@ -422,9 +443,10 @@ async function createDoctorFixture(options = {}) {
 
   if (envFile) {
     const webhookEnv = includeWebhookEnv ? "WEBHOOK_SECRET=real-secret\n" : "";
+    const miniAppUrlEnv = options.blankMiniAppUrl ? "MINI_APP_URL=\n" : "";
     await writeFile(
       path.join(tempRoot, ".env"),
-      `BOT_TOKEN=123:real-token\n${webhookEnv}TELEFORGE_FLOW_SECRET=real-flow-secret\nPHONE_AUTH_SECRET=real-phone-secret\nTELEFORGE_PUBLIC_URL=https://public.example.test\nTELEFORGE_DEV_HTTPS=false\n`,
+      `BOT_TOKEN=123:real-token\n${webhookEnv}TELEFORGE_FLOW_SECRET=real-flow-secret\nPHONE_AUTH_SECRET=real-phone-secret\n${miniAppUrlEnv}TELEFORGE_PUBLIC_URL=https://public.example.test\nTELEFORGE_DEV_HTTPS=false\n`,
       "utf8"
     );
   }

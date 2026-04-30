@@ -385,13 +385,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 export async function createDevBotRuntime(options?: { miniAppUrl?: string }): Promise<BotRuntime> {
   const { runtime } = await startTeleforgeBot({
     cwd: projectRoot,
-    miniAppUrl: options?.miniAppUrl,
-    previewStart: false,
-    bot: {
-      async sendMessage() {
-        return { chat: { id: 0 }, message_id: 0, text: "" };
-      }
-    }
+    miniAppUrl: options?.miniAppUrl
   });
   return runtime;
 }
@@ -590,7 +584,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 }
 
 function homeScreenTsx(): string {
-  return `import { defineScreen } from "teleforge/web";
+  return `import React from "react";
+import { defineScreen } from "teleforge/web";
 import type { HomeScreenProps } from "../teleforge-generated/contracts";
 
 export function HomeScreen({ loader, loaderData, actions }: HomeScreenProps) {
@@ -652,7 +647,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { HomeScreen } from "../src/screens/home.screen";
-import type { HomeScreenProps } from "../teleforge-generated/contracts";
+import type { HomeScreenProps } from "../src/teleforge-generated/contracts";
 
 test("home screen renders the welcome screen", () => {
   const mockLoaderData = { greeting: "Test greeting" };

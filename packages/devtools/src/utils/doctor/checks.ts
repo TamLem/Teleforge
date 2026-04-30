@@ -1035,8 +1035,8 @@ async function checkRuntimeSecrets(
       issues.push("TELEFORGE_FLOW_SECRET is required in live mode (when BOT_TOKEN is set).");
     }
 
-    const miniAppUrl = env.MINI_APP_URL ?? env.TELEFORGE_PUBLIC_URL;
-    if (!miniAppUrl || miniAppUrl.trim().length === 0) {
+    const miniAppUrl = trimToUndefined(env.MINI_APP_URL) ?? trimToUndefined(env.TELEFORGE_PUBLIC_URL);
+    if (!miniAppUrl) {
       issues.push("MINI_APP_URL or TELEFORGE_PUBLIC_URL is required in live mode.");
     }
   }
