@@ -1,6 +1,6 @@
 {
   "name": "create-teleforge-app",
-  "version": "0.1.1",
+  "version": "0.5.0",
   "description": "Scaffold runnable Teleforge TypeScript projects.",
   "type": "module",
   "bin": {

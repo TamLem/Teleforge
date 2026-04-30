@@ -15,7 +15,7 @@ interface PackageNames {
 
 function teleforgeDependency(linkPath?: string): Record<string, string> {
   return {
-    teleforge: !linkPath ? "^0.2.0" : `link:${linkPath}/packages/teleforge`
+    teleforge: !linkPath ? "^0.5.0" : `link:${linkPath}/packages/teleforge`
   };
 }
 

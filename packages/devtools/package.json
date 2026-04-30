@@ -1,6 +1,6 @@
 {
   "name": "@teleforgex/devtools",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "description": "Teleforge development CLI.",
   "homepage": "https://tamlem.github.io/Teleforge/",
   "type": "module",
@@ -37,7 +37,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@teleforgex/core": "workspace:0.2.0",
+    "@teleforgex/core": "workspace:0.5.0",
     "http-proxy": "^1.18.1",
     "localtunnel": "^2.0.2",
     "qrcode-terminal": "^0.12.0",
