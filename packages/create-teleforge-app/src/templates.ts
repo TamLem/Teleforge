@@ -85,7 +85,7 @@ ${generate}
 ${run}
 \`\`\`
 
-For a Telegram-openable URL:
+For a Telegram-openable URL with public HTTPS:
 
 \`\`\`bash
 ${runPublic}
@@ -199,11 +199,7 @@ export default defineTeleforgeApp({
   },
   bot: {
     username: ${JSON.stringify(options.botUsername)},
-    tokenEnv: "BOT_TOKEN",
-    webhook: {
-      path: "/api/webhook",
-      secretEnv: "WEBHOOK_SECRET"
-    }
+    tokenEnv: "BOT_TOKEN"
   },
   miniApp: {
     entry: "apps/web/src/main.tsx",
@@ -241,7 +237,6 @@ dist
 function envExample(): string {
   return `# Bot Configuration
 BOT_TOKEN=your_bot_token_here
-WEBHOOK_SECRET=your_webhook_secret_here
 
 # Mini App Configuration
 TELEGRAM_BOT_USERNAME=your_bot_username
@@ -250,7 +245,6 @@ TELEFORGE_FLOW_SECRET=
 
 # Optional: Development
 TELEFORGE_DEV_PORT=3000
-TELEFORGE_DEV_HTTPS=true
 `;
 }
 
@@ -658,15 +652,28 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { HomeScreen } from "../src/screens/home.screen";
+import type { HomeScreenProps } from "../teleforge-generated/contracts";
 
 test("home screen renders the welcome screen", () => {
-  const mockLoader = { status: "ready" as const };
   const mockLoaderData = { greeting: "Test greeting" };
-  const mockActions = { acknowledge: async () => ({ data: { acknowledged: true } }) };
 
-  const html = renderToStaticMarkup(
-    <HomeScreen loader={mockLoader} loaderData={mockLoaderData} actions={mockActions} />
-  );
+  const props = {
+    screenId: "home" as const,
+    routePath: "/",
+    routeParams: {},
+    scopeData: undefined,
+    routeData: undefined,
+    appState: undefined,
+    loader: { status: "ready" as const, data: mockLoaderData },
+    loaderData: mockLoaderData,
+    actions: { acknowledge: async () => ({ data: { acknowledged: true } }) },
+    nav: {},
+    runAction: async () => ({ data: {} }),
+    navigate: () => {},
+    transitioning: false
+  } satisfies HomeScreenProps;
+
+  const html = renderToStaticMarkup(<HomeScreen {...props} />);
 
   assert.match(html, /Test greeting/);
   assert.match(html, /Screen: home/);
