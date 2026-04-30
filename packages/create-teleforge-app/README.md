@@ -11,39 +11,53 @@ node dist/cli.js my-app
 ```
 
 Pass `--yes` to skip prompts.
-Pass `--with-api` when you want optional server-hook and webhook placeholder files.
 
-## Supported Output
+## Generated Output
 
-- `apps/web` with the Teleforge Mini App shell, first screen module, and Vite delivery runtime
-- `apps/bot` starter runtime and `start` flow
-- `teleforge.config.ts`
-- `.env.example`
-- root workspace scripts for `teleforge dev`, `teleforge dev --public --live`, and `teleforge doctor`
+The scaffold generates a complete 0.2 Teleforge app:
 
-With `--with-api`, the scaffold also includes `apps/api` server-hook and webhook placeholders.
+- `apps/web` with Mini App shell, screens, and Vite delivery
+- `apps/bot` with discovered flows and bot runtime
+- `apps/api` with server loaders
+- `packages/types` for shared types
+- `teleforge.config.ts` for app configuration
+
+### Key Files
+
+- `apps/bot/src/flows/start.flow.ts` - First flow with `sign()` command and actions
+- `apps/api/src/loaders/home.loader.ts` - Server loader example
+- `apps/web/src/screens/home.screen.tsx` - Screen with generated contracts
+- `apps/web/src/teleforge-contract-overrides.ts` - Typed payload and loader data
+
+## CLI Options
+
+```bash
+create-teleforge-app <project-name>  # Generate scaffold
+create-teleforge-app <name> --yes     # Skip prompts
+create-teleforge-app <name> --link <path>  # Link to local teleforge monorepo
+create-teleforge-app <name> --overwrite    # Replace existing directory
+```
 
 ## Generated Workflow
 
-The scaffold is polling-first by default:
+After generation:
 
-- `pnpm run dev`: local simulator with chat, embedded Mini App, fixtures, replay controls, debug panel, and the companion bot process
-- `pnpm run dev:public`: public HTTPS tunnel for real Telegram testing
-- `pnpm test`: baseline bot and screen smoke tests
-- `pnpm run doctor`: manifest and environment diagnostics
+```bash
+cd my-app
+pnpm install
+pnpm run generate  # Creates manifest + contracts
+pnpm run dev        # Local simulator
+pnpm run doctor     # Validate setup
+pnpm test           # Run tests
+pnpm run build      # Production build
+```
 
-Generated apps also export `apps/bot/src/runtime.ts`, so `teleforge dev` can execute `/start`, `web_app_data`, and callback flows directly inside the simulator chat without Telegram.
+## Recommended Reading
 
-The default scaffold does not include `apps/api` or `WEBHOOK_SECRET`. Generate with `--with-api` when the app needs trusted server hooks or a webhook placeholder. Those files do not make webhook mode active by themselves; webhook mode only makes sense once `runtime.bot.delivery` is `"webhook"` and the deployed `teleforge start` server exposes the configured webhook path over public HTTPS.
-
-## Recommended Reading After Generation
-
-Inside this repo, the best follow-on docs are:
-
-- `docs/telegram-basics.md`
-- `docs/first-feature.md`
-- `docs/testing.md`
-- `docs/deployment.md`
+- [Runtime Wiring](https://teleforge.dev/docs/runtime-wiring)
+- [State Boundaries](https://teleforge.dev/docs/state-boundaries)  
+- [Generated Mini App Contracts](https://teleforge.dev/docs/generated-miniapp-contracts)
+- [Server Loaders](https://teleforge.dev/docs/server-hooks)
 
 ## Verification
 

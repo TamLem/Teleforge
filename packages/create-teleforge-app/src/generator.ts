@@ -6,7 +6,6 @@ import { buildProjectFiles } from "./templates.js";
 interface GenerateProjectOptions {
   cwd: string;
   targetDir: string;
-  includeApi?: boolean;
   overwrite: boolean;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
@@ -59,7 +58,6 @@ export async function generateProject(
     appId,
     appName,
     botUsername,
-    includeApi: options.includeApi,
     linkPath: options.linkPath
   });
 

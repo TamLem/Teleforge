@@ -6,7 +6,6 @@ import { generateProject } from "./generator.js";
 
 interface CliOptions {
   targetDir?: string;
-  includeApi: boolean;
   /** When set, use `link:` protocol pointing to this local teleforge monorepo path. */
   linkPath?: string;
   overwrite: boolean;
@@ -16,7 +15,6 @@ interface CliOptions {
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
-    includeApi: true,
     overwrite: false,
     yes: false,
     help: false
@@ -46,16 +44,6 @@ function parseArgs(argv: string[]): CliOptions {
 
     if (arg === "--overwrite") {
       options.overwrite = true;
-      continue;
-    }
-
-    if (arg === "--with-api") {
-      options.includeApi = true;
-      continue;
-    }
-
-    if (arg === "--without-api" || arg === "--minimal") {
-      options.includeApi = false;
       continue;
     }
 
@@ -91,8 +79,6 @@ function printHelp(): void {
   output.write(
     `  --overwrite                   Remove an existing target directory before generating\n`
   );
-  output.write(`  --without-api, --minimal      Generate a client-only scaffold without apps/api\n`);
-  output.write(`  --with-api                    Include apps/api (default)\n`);
   output.write(`  --link <path>                 Link packages to a local teleforge monorepo\n`);
   output.write(`  -y, --yes                     Accept defaults without prompts\n`);
   output.write(`  -h, --help                    Show help\n`);
@@ -132,7 +118,6 @@ async function run(): Promise<void> {
   const result = await generateProject({
     cwd: process.cwd(),
     targetDir: resolved.targetDir,
-    includeApi: options.includeApi,
     overwrite: options.overwrite,
     linkPath: options.linkPath
   });
@@ -142,6 +127,7 @@ async function run(): Promise<void> {
   output.write(`Next steps:\n`);
   output.write(`  cd ${result.relativeTargetDir}\n`);
   output.write(`  pnpm install\n`);
+  output.write(`  pnpm run generate\n`);
   output.write(`  pnpm run dev\n`);
   output.write(`  pnpm run doctor\n`);
 }
