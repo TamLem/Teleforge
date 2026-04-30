@@ -46,7 +46,7 @@
     }
   },
   "bin": {
-    "teleforge": "./dist/cli.js"
+    "teleforge": "./dist/cli.cjs"
   },
   "files": [
     "dist",
