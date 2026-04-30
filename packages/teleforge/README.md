@@ -23,7 +23,7 @@ automatically.
 Create a new app:
 
 ```bash
-npm create teleforge-app@latest my-app
+pnpm dlx teleforge@latest create my-app
 cd my-app
 pnpm install
 pnpm run generate
@@ -68,7 +68,7 @@ export default defineFlow({
       const launch = await sign({
         flowId: "start",
         screenId: "home",
-        allowedActions: ["navigate"]
+        allowedActions: ["acknowledge"]
       });
 
       await ctx.reply("Welcome! Open the Mini App to get started.", {
@@ -88,8 +88,8 @@ export default defineFlow({
   },
 
   actions: {
-    navigate: {
-      handler: async ({ data }) => ({ navigate: (data as { screenId: string }).screenId })
+    acknowledge: {
+      handler: async ({ input }) => ({ data: { acknowledged: true, input } })
     }
   }
 });
@@ -109,6 +109,7 @@ export default defineScreen({
 ## CLI commands
 
 ```bash
+teleforge create my-app    # Scaffold a new Teleforge app
 teleforge dev              # Local simulator with chat, Mini App, companion services, and manifest preflight
 teleforge start            # Production bootstrap: polling or webhook bot + action server
 teleforge doctor           # Environment, manifest drift, and wiring diagnostics

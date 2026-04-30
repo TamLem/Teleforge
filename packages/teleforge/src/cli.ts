@@ -1,11 +1,141 @@
 import process from "node:process";
 
+import { generateProject } from "../../create-teleforge-app/src/generator.js";
 import {
   createTeleforgeRuntimeContext,
   createTeleforgeWebhookHandler,
   startTeleforgeBot,
   startTeleforgeServer
 } from "./index.js";
+
+interface CreateCommandOptions {
+  linkPath?: string;
+  overwrite: boolean;
+  targetDir?: string;
+  yes: boolean;
+}
+
+function parseCreateCommandArgs(argv: string[]): CreateCommandOptions {
+  const options: CreateCommandOptions = {
+    overwrite: false,
+    yes: false
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (!arg.startsWith("-") && !options.targetDir) {
+      options.targetDir = arg;
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      printCreateCommandHelp();
+      process.exit(0);
+    }
+
+    if (arg === "--yes" || arg === "-y") {
+      options.yes = true;
+      continue;
+    }
+
+    if (arg === "--overwrite") {
+      options.overwrite = true;
+      continue;
+    }
+
+    if (arg === "--link") {
+      const value = argv[index + 1];
+      if (!value || value.startsWith("-")) {
+        throw new Error("Expected a path after --link.");
+      }
+      options.linkPath = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--link=")) {
+      options.linkPath = arg.split("=")[1] || "";
+      if (!options.linkPath) {
+        throw new Error("Expected a path after --link=.");
+      }
+      continue;
+    }
+
+    throw new Error(`Unknown argument for teleforge create: ${arg}`);
+  }
+
+  return options;
+}
+
+function printCreateCommandHelp(): void {
+  console.log(`teleforge create
+
+Usage:
+  teleforge create <project-name> [options]
+
+Options:
+  --overwrite                   Remove an existing target directory before generating
+  --link <path>                 Link packages to a local teleforge monorepo
+  -y, --yes                     Accept defaults without prompts
+  -h, --help                    Show help`);
+}
+
+function printHelp(): void {
+  console.log(`teleforge
+
+Usage:
+  teleforge create <project-name> [options]
+  teleforge dev [options]
+  teleforge start
+  teleforge generate <subcommand> [options]
+  teleforge mock [options]
+  teleforge doctor [options]
+
+Commands:
+  create        Scaffold a new Teleforge app
+  dev           Run the local simulator
+  start         Run the production bot/action server bootstrap
+  generate      Generate client manifest and typed contracts
+  mock          Run the mock Telegram environment
+  doctor        Diagnose configuration, manifest drift, and environment issues
+
+Run \`teleforge create --help\` for scaffold options.
+Run \`teleforge <command> --help\` for command-specific help.`);
+}
+
+async function runCreateCommand(argv: string[]): Promise<void> {
+  const options = parseCreateCommandArgs(argv);
+
+  if (!options.targetDir) {
+    if (options.yes) {
+      throw new Error("Project name is required when using --yes.");
+    }
+    throw new Error("Project name is required.");
+  }
+
+  const result = await generateProject({
+    cwd: process.cwd(),
+    linkPath: options.linkPath,
+    overwrite: options.overwrite,
+    targetDir: options.targetDir.trim()
+  });
+
+  console.log(`
+Created Teleforge project in ${result.targetDir}
+Files written: ${result.fileCount}
+
+Next steps:
+  cd ${result.relativeTargetDir}
+  pnpm install
+  pnpm run generate
+  pnpm run dev
+  pnpm run doctor`);
+}
 
 async function runStartCommand(): Promise<void> {
   const cwd = process.cwd();
@@ -85,6 +215,16 @@ async function runStartCommand(): Promise<void> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
+
+  if (!command || command === "--help" || command === "-h") {
+    printHelp();
+    return;
+  }
+
+  if (command === "create") {
+    await runCreateCommand(args.slice(1));
+    return;
+  }
 
   if (command === "start") {
     await runStartCommand();

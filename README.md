@@ -8,7 +8,7 @@ action handlers, local simulation, and optional server-side session state.
 Create a new Teleforge app:
 
 ```bash
-npm create teleforge-app@latest my-app
+pnpm dlx teleforge@latest create my-app
 cd my-app
 pnpm install
 pnpm run generate
@@ -80,6 +80,7 @@ A Teleforge app normally has:
 
 ```bash
 teleforge dev
+teleforge create my-app
 teleforge dev --public --live
 teleforge start
 teleforge doctor
@@ -94,14 +95,13 @@ teleforge generate client-manifest
 - `packages/web`: internal Mini App hooks and Telegram WebApp integration
 - `packages/ui`: internal UI primitives
 - `packages/devtools`: internal CLI implementation for `teleforge dev`, `teleforge doctor`
-- `packages/create-teleforge-app`: scaffold generator
+- `packages/create-teleforge-app`: internal scaffold generator used by `teleforge create`
 
 ## Release
 
-Versioning uses Changesets. Publishing is driven by `scripts/release-publish.mjs`.
+Publishing is driven by `scripts/release-publish.mjs`. The public release artifact is `teleforge`.
 
 ```bash
-pnpm run version
 pnpm run publish:dry-run
 NPM_TOKEN=your_npm_token pnpm run publish
 ```

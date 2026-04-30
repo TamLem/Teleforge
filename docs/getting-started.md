@@ -108,16 +108,16 @@ When it is running, use the README's walkthrough section to map the working app 
 
 Use this when you want a fresh scaffolded project instead of the existing reference app:
 
-Build the local scaffold:
+Build the local Teleforge CLI:
 
 ```bash
-pnpm --filter create-teleforge-app build
+pnpm --filter teleforge build
 ```
 
 Generate a project:
 
 ```bash
-node packages/create-teleforge-app/dist/cli.js my-app
+node packages/teleforge/dist/cli.cjs create my-app --link "$PWD"
 ```
 
 You should see:
@@ -140,6 +140,7 @@ You should see:
 Teleforge's main local-dev commands are:
 
 ```bash
+teleforge create my-app
 teleforge dev
 teleforge dev --public --live
 teleforge mock

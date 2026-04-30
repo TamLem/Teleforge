@@ -51,20 +51,18 @@ Generated apps use:
 - `apps/api` for the default Mini App server bridge and trusted server hooks
 - `teleforge.config.ts` as the source-of-truth app definition
 
-Use `--without-api` only when you intentionally want a client-only Mini App experiment without coordinated bot-owned state.
-
 ## Create a Project
 
-Build the local scaffold once:
+Build the local Teleforge CLI once:
 
 ```bash
-pnpm --filter create-teleforge-app build
+pnpm --filter teleforge build
 ```
 
 Generate a new app:
 
 ```bash
-node packages/create-teleforge-app/dist/cli.js my-app
+node packages/teleforge/dist/cli.cjs create my-app --link "$PWD"
 ```
 
 The generated workspace includes:
@@ -75,12 +73,6 @@ The generated workspace includes:
 - `teleforge.config.ts`
 - `.env.example`
 - root scripts for Teleforge development, diagnostics, and baseline tests
-
-To generate the smallest client-only scaffold instead, run:
-
-```bash
-node packages/create-teleforge-app/dist/cli.js my-app --without-api
-```
 
 For the full reference flow, use [`apps/task-shop`](../apps/task-shop/README.md).
 
@@ -431,7 +423,6 @@ Targeted package verification:
 
 ```bash
 pnpm --filter teleforge test
-pnpm --filter create-teleforge-app test
 pnpm --dir apps/task-shop test
 ```
 

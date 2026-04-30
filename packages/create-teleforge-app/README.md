@@ -1,13 +1,20 @@
 # create-teleforge-app
 
-Greenfield Teleforge project generator for new apps and examples.
+Internal greenfield Teleforge project generator used by `teleforge create`.
+
+This workspace package is not a public release artifact. Public users should scaffold through the `teleforge` CLI:
+
+```bash
+pnpm dlx teleforge@latest create my-app
+```
 
 ## Usage
 
+For local framework development, build `teleforge` and call the bundled create command:
+
 ```bash
-pnpm install
-pnpm run build
-node dist/cli.js my-app
+pnpm --filter teleforge build
+node packages/teleforge/dist/cli.cjs create my-app --link "$PWD"
 ```
 
 Pass `--yes` to skip prompts.
@@ -32,10 +39,10 @@ The scaffold generates a complete 0.5 Teleforge app:
 ## CLI Options
 
 ```bash
-create-teleforge-app <project-name>  # Generate scaffold
-create-teleforge-app <name> --yes     # Skip prompts
-create-teleforge-app <name> --link <path>  # Link to local teleforge monorepo
-create-teleforge-app <name> --overwrite    # Replace existing directory
+teleforge create <project-name>  # Generate scaffold
+teleforge create <name> --yes     # Skip prompts
+teleforge create <name> --link <path>  # Link to local teleforge monorepo
+teleforge create <name> --overwrite    # Replace existing directory
 ```
 
 ## Generated Workflow

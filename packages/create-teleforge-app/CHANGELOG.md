@@ -2,9 +2,9 @@
 
 ## 0.5.0
 
-### Major Changes
+### Internal Changes
 
-First public release of the Teleforge scaffold generator.
+Teleforge 0.5 exposes scaffolding through `teleforge create`. This package remains an internal workspace implementation detail and is not published as a separate public artifact.
 
 #### Generated app structure
 
@@ -18,10 +18,10 @@ First public release of the Teleforge scaffold generator.
 #### CLI options
 
 ```bash
-create-teleforge-app <project-name>
-create-teleforge-app <name> --yes
-create-teleforge-app <name> --link <path>
-create-teleforge-app <name> --overwrite
+teleforge create <project-name>
+teleforge create <name> --yes
+teleforge create <name> --link <path>
+teleforge create <name> --overwrite
 ```
 
 #### Generated workflow
@@ -43,7 +43,3 @@ pnpm run build      # Production build
 - Default polling mode (no webhook config)
 - Clean `.env.example` without HTTPS noise
 - No legacy step-machine concepts
-
-## 0.1.1
-
-Initial scaffold implementation (pre-release).
