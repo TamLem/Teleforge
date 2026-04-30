@@ -107,7 +107,7 @@ router.use(async (context, next) => {
   if (!shared) { await next(); return; }
 
   // For direct bot use, construct the signed URL manually
-  const { createSignedActionContext } = await import("@teleforgex/core");
+  const { createSignedActionContext } = await import("teleforge");
   const now = Math.floor(Date.now() / 1000);
   const token = createSignedActionContext(
     {

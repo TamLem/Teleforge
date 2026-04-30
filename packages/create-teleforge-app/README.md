@@ -14,7 +14,7 @@ Pass `--yes` to skip prompts.
 
 ## Generated Output
 
-The scaffold generates a complete 0.2 Teleforge app:
+The scaffold generates a complete 0.5 Teleforge app:
 
 - `apps/web` with Mini App shell, screens, and Vite delivery
 - `apps/bot` with discovered flows and bot runtime

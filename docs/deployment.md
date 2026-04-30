@@ -94,7 +94,7 @@ The recommended production topology is split processes with shared storage:
 Both processes create their own runtime context, but pass a storage manager backed by the same Redis instance:
 
 ```ts
-import { RedisStorageAdapter, UserFlowStateManager } from "@teleforgex/core";
+import { RedisStorageAdapter, UserFlowStateManager } from "teleforge";
 import { createTeleforgeRuntimeContext } from "teleforge";
 
 const storage = new UserFlowStateManager(

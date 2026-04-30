@@ -3,7 +3,25 @@
 Teleforge is a TypeScript framework for Telegram-native products that combine bot chat, Mini Apps,
 action handlers, local simulation, and optional server-side session state.
 
-This repository README is the top-level navigation page.
+## Quick Start
+
+Create a new Teleforge app:
+
+```bash
+npm create teleforge-app@latest my-app
+cd my-app
+pnpm install
+pnpm run generate
+pnpm run dev
+```
+
+Or add Teleforge to an existing project:
+
+```bash
+pnpm add teleforge
+```
+
+This README is the top-level navigation page for the framework.
 
 ## Start Here
 

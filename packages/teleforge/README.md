@@ -20,13 +20,17 @@ automatically.
 
 ## Installation
 
+Create a new app:
+
 ```bash
 npm create teleforge-app@latest my-app
 cd my-app
 pnpm install
+pnpm run generate
+pnpm run dev
 ```
 
-Or in an existing workspace:
+Or add to an existing project:
 
 ```bash
 pnpm add teleforge
