@@ -46,6 +46,10 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
+    "@teleforgex/bot": "workspace:0.5.0",
+    "@teleforgex/core": "workspace:0.5.0",
+    "@teleforgex/devtools": "workspace:0.5.0",
+    "@teleforgex/web": "workspace:0.5.0",
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
     "eslint": "^8.57.1",
