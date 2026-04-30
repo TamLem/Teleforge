@@ -602,6 +602,7 @@ function summarizeFlowRuntimeState(flowRuntime: SimulatorBotRuntimeState | null)
     }
 
     if (typeof session?.miniApp?.resumedStepId === "string" && session.miniApp.resumedStepId) {
+      // resumedStepId actually refers to a route/screen ID in 0.2
       resumedFlowSessionCount += 1;
     }
   }
@@ -1314,9 +1315,8 @@ function createSimulatorUiHtml(options: {
         return flowRuntime.sessions.map((session) => {
           const parts = [
             "flow: " + session.flowId,
-            "step: " + session.currentStepId + " [" + session.currentStepType + "]",
-            "screen: " + (session.currentScreenId || "none"),
             "route: " + (session.currentRoute || "none"),
+            "screen: " + (session.currentScreenId || "none"),
             "stateKey: " + session.stateKey,
             "user: " + session.userId,
             "chat: " + (session.chatId || "none"),
@@ -1338,7 +1338,7 @@ function createSimulatorUiHtml(options: {
             parts.push("handoff: pending");
           }
           if (miniApp.resumedStepId) {
-            parts.push("resumed: " + miniApp.resumedStepId);
+            parts.push("resumed route: " + miniApp.resumedStepId);
           }
           if (miniApp.lastLaunchAt) {
             parts.push("lastLaunch: " + miniApp.lastLaunchAt);
@@ -1410,28 +1410,22 @@ function createSimulatorUiHtml(options: {
           const primary = document.createElement("div");
           primary.className = "flow-meta";
           primary.textContent =
-            "route: " +
-            (flow.route || "none") +
-            "\\ncommand: " +
+            "command: " +
             (flow.command || "none") +
-            "\\nsteps: " +
-            String(flow.stepCount || 0) +
-            "\\nstep status: wired=" +
-            String(flow.wiredStepCount || 0) +
-            ", warnings=" +
-            String(flow.warningStepCount || 0) +
-            ", passive=" +
-            String(flow.passiveStepCount || 0);
+            "\\nroutes: " +
+            String(flow.routeCount || flow.routes?.length || 0) +
+            "\\nactions: " +
+            String(flow.actionCount || flow.actions?.length || 0) +
+            "\\nsession enabled: " +
+            (flow.hasSession ? "yes" : "no");
           primary.style.whiteSpace = "pre-wrap";
           card.appendChild(primary);
 
           const secondary = document.createElement("div");
           secondary.className = "flow-meta";
           secondary.textContent =
-            "initial: " +
-            (flow.initialStep || "unknown") +
-            "\\nfinal: " +
-            (flow.finalStep || flow.initialStep || "unknown") +
+            "default route: " +
+            (flow.route || flow.miniApp?.defaultRoute || "none") +
             "\\nhandler wiring: " +
             (flow.hasRuntimeHandlers ? "present" : "none") +
             "\\nwiring gaps: " +
@@ -1441,12 +1435,12 @@ function createSimulatorUiHtml(options: {
           card.appendChild(secondary);
 
           if (Array.isArray(flow.routes) && flow.routes.length > 0) {
-            const stepList = document.createElement("div");
-            stepList.className = "flow-meta";
-            stepList.style.whiteSpace = "pre-wrap";
-            stepList.textContent = flow.routes
+            const routeList = document.createElement("div");
+            routeList.className = "flow-meta";
+            routeList.style.whiteSpace = "pre-wrap";
+            routeList.textContent = flow.routes
               .map((route: string) => {
-                const parts = ["route=" + route, "wired"];
+                const parts = ["route=" + route];
 
                 const matchingActions = flow.actions ?? ([] as any[]);
                 parts.push("actions=" + matchingActions.length);
@@ -1454,7 +1448,7 @@ function createSimulatorUiHtml(options: {
                 return parts.join(", ");
               })
               .join("\\n");
-            card.appendChild(stepList);
+            card.appendChild(routeList);
           }
 
           ids.debugFlows.appendChild(card);

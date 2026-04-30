@@ -3,8 +3,7 @@ import type { DoctorCheck, DoctorRunResult } from "./checks.js";
 const categoryOrder: DoctorCheck["category"][] = [
   "Environment",
   "Configuration",
-  "Connectivity",
-  "BotFather"
+  "Connectivity"
 ];
 
 export function formatDoctorReport(result: DoctorRunResult, options: { verbose: boolean }): string {

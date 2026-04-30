@@ -16,10 +16,6 @@ test("doctor checks report pass/warn/error data for a configured project", async
   const projectDir = await createDoctorFixture();
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -33,7 +29,6 @@ test("doctor checks report pass/warn/error data for a configured project", async
   const names = new Map(result.checks.map((check) => [check.name, check]));
   assert.equal(names.get("node_version")?.status, "pass");
   assert.equal(names.get("package_manager")?.status, "pass");
-  assert.equal(names.get("git_available")?.status, "pass");
   assert.equal(names.get("teleforge_dependencies")?.status, "pass");
   const manifestCheck = names.get("manifest_consistency");
   assert.equal(
@@ -44,9 +39,9 @@ test("doctor checks report pass/warn/error data for a configured project", async
   assert.equal(names.get("bot_token")?.status, "pass");
   assert.equal(names.get("webhook_secret")?.status, "pass");
   assert.equal(names.get("mini_app_url")?.status, "pass");
-  assert.equal(names.get("https_availability")?.status, "pass");
+  // HTTPS certs only checked when TELEFORGE_DEV_HTTPS is set
+  assert.equal(names.get("https_availability")?.status, undefined);
   assert.equal(names.get("webhook_reachable")?.status, "pass");
-  assert.equal(names.get("botfather")?.status, "pass");
   assert.equal(names.get("runtime_secrets")?.status, "pass");
   assert.equal(names.get("webhook_mode")?.status, "pass");
   assert.equal(result.status, "pass");
@@ -58,10 +53,6 @@ test("doctor accepts polling projects without webhook configuration", async () =
   });
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => {
       throw new Error("Webhook should not be checked for polling projects.");
     },
@@ -84,10 +75,6 @@ test("doctor treats webhook placeholders as inactive for polling delivery", asyn
   });
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => {
       throw new Error("Webhook should not be checked for polling projects.");
     },
@@ -112,10 +99,6 @@ test("doctor validates webhook placeholders only when webhook delivery is enable
   });
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => {
       throw new Error("connect ECONNREFUSED");
     },
@@ -145,7 +128,7 @@ test.skip("doctor cli --json emits machine-readable diagnostics", async () => {
   assert.ok(payload.checks.some((check) => check.name === "bot_token"));
 });
 
-test("doctor --fix creates .env and normalizes teleforge.config.ts", async () => {
+test("doctor --fix creates .env from .env.example", async () => {
   const projectDir = await createDoctorFixture({
     configFile: true,
     envFile: false,
@@ -154,10 +137,6 @@ test("doctor --fix creates .env and normalizes teleforge.config.ts", async () =>
 
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => {
       throw new Error("connect ECONNREFUSED");
     },
@@ -167,12 +146,9 @@ test("doctor --fix creates .env and normalizes teleforge.config.ts", async () =>
   });
 
   const env = await readFile(path.join(projectDir, ".env"), "utf8");
-  const config = await readFile(path.join(projectDir, "teleforge.config.ts"), "utf8");
 
   assert.match(env, /BOT_TOKEN=your_bot_token_here/);
-  assert.match(config, /\n$/);
   assert.ok(result.fixes.some((fix) => fix.name === "create_env_file" && fix.applied));
-  assert.ok(result.fixes.some((fix) => fix.name === "format_manifest" && fix.applied));
 });
 
 test("runDoctorChecks returns machine-readable diagnostics for errors", async () => {
@@ -182,10 +158,6 @@ test("runDoctorChecks returns machine-readable diagnostics for errors", async ()
 
   const payload = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -209,10 +181,6 @@ test("doctor reports conflicting Teleforge dependency majors", async () => {
 
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -232,10 +200,6 @@ test("doctor fails the node-version check below Node 18", async () => {
 
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -255,10 +219,6 @@ test("doctor warns when client manifest is missing but flows are discovered", as
 
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -282,10 +242,6 @@ test("doctor passes when client manifest is in sync with discovered flows", asyn
 
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -310,10 +266,6 @@ test("doctor warns when client manifest is out of sync with discovered flows", a
 
   const result = await runDoctorChecks({
     cwd: projectDir,
-    execFileImpl: async () => ({
-      stderr: "",
-      stdout: "git version 2.43.0\n"
-    }),
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -368,12 +320,18 @@ async function createDoctorFixture(options = {}) {
       launchModes: ["inline"],
       defaultMode: "inline"
     },
-    routes: [
-      {
-        path: "/",
-        component: "pages/Home"
-      }
-    ]
+    // Only include explicit routes when NOT using flows
+    // When flows are enabled, routes are derived from flow miniApp.routes
+    ...(options.flowsDir || options.extraFlow
+      ? {}
+      : {
+          routes: [
+            {
+              path: "/",
+              component: "pages/Home"
+            }
+          ]
+        })
   };
   const certificates = selfsigned.generate([{ name: "commonName", value: "localhost" }], {
     algorithm: "sha256",
@@ -437,7 +395,10 @@ async function createDoctorFixture(options = {}) {
           ...manifest.miniApp,
           entry: manifest.miniApp.entryPoint
         },
-        routes: manifest.routes
+        // Only include explicit routes when NOT using flows
+        ...(options.flowsDir || options.extraFlow
+          ? {}
+          : { routes: manifest.routes })
       },
       null,
       minifiedManifest ? undefined : 2
@@ -470,42 +431,141 @@ async function createDoctorFixture(options = {}) {
 
   if (options.flowsDir) {
     await mkdir(path.join(tempRoot, "apps", "bot", "src", "flows"), { recursive: true });
+    
+    // Create 0.2-style flow with miniApp routes and actions
     await writeFile(
       path.join(tempRoot, "apps", "bot", "src", "flows", "start.flow.mjs"),
       `export default {
-        id: "start",
-        initialStep: "welcome",
-        state: {},
-        bot: { command: { command: "start", text: "Welcome!" } },
-        steps: {
-          welcome: { type: "chat", message: "Welcome!" }
-        }
-      };\n`,
+  id: "start",
+  command: { command: "start", description: "Start the bot" },
+  miniApp: {
+    routes: {
+      "/": "welcome"
+    },
+    defaultRoute: "/",
+    title: "Start Flow"
+  },
+  actions: {
+    "open-app": {
+      label: "Open App"
+    }
+  }
+};\n`,
       "utf8"
     );
   }
 
   if (options.extraFlow) {
+    await mkdir(path.join(tempRoot, "apps", "api", "src", "loaders"), { recursive: true });
+    
+    // Create loader file
+    await writeFile(
+      path.join(tempRoot, "apps", "api", "src", "loaders", "extra.loader.ts"),
+      `export async function loader() { return { data: "test" }; }\n`,
+      "utf8"
+    );
+    
+    // Create extra flow with route params
     await writeFile(
       path.join(tempRoot, "apps", "bot", "src", "flows", "extra.flow.mjs"),
       `export default {
-        id: "extra",
-        initialStep: "step1",
-        state: {},
-        steps: {
-          step1: { type: "chat", message: "Extra flow" }
-        }
-      };\n`,
+  id: "extra",
+  miniApp: {
+    routes: {
+      "/extra": "extra",
+      "/extra/:id": "extra-detail"
+    },
+    defaultRoute: "/extra"
+  },
+  actions: {
+    "process-extra": {
+      label: "Process"
+    }
+  }
+};\n`,
       "utf8"
     );
   }
 
   if (options.clientManifest) {
     await mkdir(path.join(tempRoot, "apps", "web", "src", "teleforge-generated"), { recursive: true });
-    const flowIds = options.staleManifest ? ["start"] : ["start", ...(options.extraFlow ? ["extra"] : [])];
+    
+    // Generate 0.2-style manifest with flows object shape
+    const flows = options.staleManifest 
+      ? [
+          {
+            id: "start",
+            miniApp: {
+              routes: { "/": "welcome" },
+              defaultRoute: "/",
+              title: "Start Flow"
+            },
+            screens: [
+              {
+                id: "welcome",
+                route: "/",
+                actions: ["open-app"],
+                title: "Welcome",
+                requiresSession: false
+              }
+            ]
+          }
+        ]
+      : [
+          {
+            id: "start",
+            miniApp: {
+              routes: { "/": "welcome" },
+              defaultRoute: "/",
+              title: "Start Flow"
+            },
+            screens: [
+              {
+                id: "welcome",
+                route: "/",
+                actions: ["open-app"],
+                title: "Welcome",
+                requiresSession: false
+              }
+            ]
+          },
+          ...(options.extraFlow 
+            ? [{
+                id: "extra",
+                miniApp: {
+                  routes: { "/extra": "extra", "/extra/:id": "extra-detail" },
+                  defaultRoute: "/extra"
+                },
+                screens: [
+                  {
+                    id: "extra",
+                    route: "/extra",
+                    actions: ["process-extra"],
+                    title: "Extra",
+                    requiresSession: false
+                  },
+                  {
+                    id: "extra-detail",
+                    route: "/extra/:id",
+                    actions: [],
+                    title: "Extra Detail",
+                    requiresSession: true
+                  }
+                ]
+              }]
+            : [])
+        ];
+    
     await writeFile(
       path.join(tempRoot, "apps", "web", "src", "teleforge-generated", "client-flow-manifest.ts"),
-      `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n${JSON.stringify(flowIds.map((id) => ({ id })), null, 2)}\n);\n`,
+      `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n${JSON.stringify({ flows }, null, 2)}\n);\n`,
+      "utf8"
+    );
+    
+    // Also create contracts.ts file
+    await writeFile(
+      path.join(tempRoot, "apps", "web", "src", "teleforge-generated", "contracts.ts"),
+      `// Auto-generated contracts\nexport type StartScreenId = "welcome";\n`,
       "utf8"
     );
   }
