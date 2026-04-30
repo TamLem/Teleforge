@@ -34,11 +34,13 @@ test("TeleforgeMiniApp accepts screens with concrete state types", async () => {
 const homeScreen = defineScreen({
   id: "home",
   component(props) {
-    // New screen props: launchData, routeData, appState
-    const products = props.launchData?.products;
+    // Current screen props: loaderData, routeData, appState, actions, nav
+    const data = props.loaderData;
     const product = props.routeData?.product;
     const cart = props.appState?.value?.cart;
-    void products; void product; void cart;
+    const screenId = props.screenId;
+    const routePath = props.routePath;
+    void data; void product; void cart; void screenId; void routePath;
     return null;
   }
 });
