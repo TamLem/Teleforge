@@ -56,7 +56,7 @@ Symptoms:
 
 - the Mini App shell opens but shows a missing screen or blocked screen
 - a Mini App step exists but no component renders
-- simulator diagnostics show unresolved screen metadata
+- local development logs show unresolved screen metadata
 
 Checks:
 
@@ -113,12 +113,12 @@ Fixes:
 - switch tunnel providers if the default provider is unavailable
 - confirm the URL sent to Telegram matches the latest tunnel URL
 
-## Simulator Shows A Mini App 500
+## Mini App Route Returns 500 In Dev
 
 Symptoms:
 
-- simulator chrome loads
-- the embedded Mini App route fails
+- `teleforge dev` starts
+- the Mini App route fails
 - terminal logs show upstream `5xx` responses
 
 Checks:
@@ -137,28 +137,15 @@ Fixes:
 
 Symptoms:
 
-- simulator chat does not respond to a command
 - a live Telegram bot ignores the command
 
 Checks:
 
 - the flow has `bot.command.command`
-- `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`, the thin simulator bridge for `teleforge dev`
 - `BOT_TOKEN` is present for live polling
 - the companion bot process started in `teleforge dev`
 
 Fixes:
 
-- run `/start` first in the simulator to confirm the runtime is active
 - inspect `teleforge dev` output for companion service startup
 - run the bot package tests or the app's bot tests
-
-## Known Test Caveat
-
-The full devtools suite has a known flaky timeout in:
-
-```text
-dev logs upstream app 500 responses for simulator app requests
-```
-
-When validating unrelated work, run the focused devtools subset documented in the cleanup task and keep this timeout as a separate follow-up.

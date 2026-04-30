@@ -307,7 +307,7 @@ function renderDocument({ page, title, toc, contentHtml, previousPage, nextPage 
     <title>${escapeHtml(pageTitle)}</title>
     <meta
       name="description"
-      content="Teleforge documentation for Telegram-native bots, Mini Apps, coordination flows, and local simulator-first development."
+      content="Teleforge documentation for Telegram-native bots, Mini Apps, coordination flows, and local development."
     />
     <link rel="stylesheet" href="${toRelativeHref(page.output, "site.css")}" />
     <script defer src="${toRelativeHref(page.output, "site.js")}"></script>

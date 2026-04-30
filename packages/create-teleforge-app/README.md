@@ -53,7 +53,7 @@ After generation:
 cd my-app
 pnpm install
 pnpm run generate  # Creates manifest + contracts
-pnpm run dev        # Local simulator
+pnpm run dev        # Local Mini App development server
 pnpm run doctor     # Validate setup
 pnpm test           # Run tests
 pnpm run build      # Production build

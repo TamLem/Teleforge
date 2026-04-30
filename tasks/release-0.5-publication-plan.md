@@ -195,7 +195,7 @@ Create release notes for `v0.5.0` covering:
 - session resource helpers
 - `teleforge doctor`
 - modern `teleforge create`
-- local simulator/dev workflow
+- local development workflow
 - one public framework package
 
 No migration notes required.

@@ -41,7 +41,7 @@ The authoritative bot configuration remains in `teleforge.config.ts`. Keep this 
 
 ## Practical Guidance
 
-- leave `MINI_APP_URL` blank during local simulator work unless you need a fixed public URL
+- leave `MINI_APP_URL` blank during local development unless you need a fixed public URL
 - set `BOT_TOKEN` only when using real Telegram polling or webhooks
 - set `WEBHOOK_SECRET` only when `runtime.bot.delivery` is `"webhook"` and the deployed runtime serves the configured webhook endpoint
 - use `VITE_TELEGRAM_BOT_ID` and `VITE_TELEGRAM_PUBLIC_KEY` only when browser code validates `initData`

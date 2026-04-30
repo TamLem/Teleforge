@@ -41,7 +41,7 @@ Telegram Mini Apps can open in different visual contexts:
 
 Teleforge treats launch mode as runtime context. Screens and guards can inspect that context and decide whether to render, redirect, or fail with a recovery path.
 
-In the local simulator, launch mode is one of the main controls in the right-hand pane.
+In local browser tests, launch mode should be supplied through explicit test fixtures or generated launch context.
 
 ## `web_app_data`
 
@@ -85,16 +85,16 @@ Use it to:
 - configure bot commands
 - optionally configure menu buttons or Mini App entry points
 
-For local Teleforge work, BotFather matters mainly when you want a real Telegram-facing bot instead of simulator-only development.
+For local Teleforge work, BotFather matters mainly when you want a real Telegram-facing bot instead of browser-only Mini App development.
 
 ## How This Maps to Teleforge
 
 The recommended local flow is:
 
 1. Run `teleforge dev`.
-2. Work inside the simulator.
-3. Trigger `/start`, callbacks, screen submissions, and return-to-chat locally.
-4. Move to `teleforge dev --public --live` only when you need real Telegram validation.
+2. Work against the local Mini App development server.
+3. Cover bot commands, callbacks, and return-to-chat behavior with app tests.
+4. Move to `teleforge dev --public --live` when you need real Telegram validation.
 
 You do not need to understand every Telegram detail before starting. You do need the mental model that chat and Mini App are two surfaces in one flow runtime.
 

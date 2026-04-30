@@ -4,18 +4,14 @@ import path from "node:path";
 import qrcodeTerminal from "qrcode-terminal";
 
 import { checkClientManifestDrift } from "../utils/client-manifest-drift.js";
-import { createDevSimulator } from "../utils/dev-simulator.js";
 import { generateClientManifest } from "../utils/generate-manifest.js";
 import { loadManifest } from "../utils/manifest.js";
-import { injectTelegramMock } from "../utils/mock.js";
 import { openBrowser } from "../utils/open.js";
 import { runManagedDevCommand, type SharedCommandFlags } from "../utils/server.js";
 import { type TunnelProvider } from "../utils/tunnel.js";
 import { configureTelegramWebhook } from "../utils/webhook.js";
 
 export interface DevCommandFlags extends SharedCommandFlags {
-  autoloadApp: boolean;
-  mock: boolean;
   open: boolean;
   qr: boolean;
   subdomain?: string;
@@ -61,16 +57,6 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
   const manifest = flags.webhook ? loadedManifest : undefined;
   const webhookSupport =
     flags.webhook && manifest ? await resolveWebhookSupport(flags.cwd) : undefined;
-  const simulator =
-    flags.mock && loadedManifest
-      ? createDevSimulator({
-          autoloadApp: flags.autoloadApp,
-          cwd: flags.cwd,
-          discoveredFlows: loadedState?.discoveredFlows ?? [],
-          env: process.env,
-          manifest: loadedManifest
-        })
-      : undefined;
 
   if (flags.webhook && (!flags.tunnel || !flags.https)) {
     throw new Error(
@@ -82,119 +68,88 @@ export async function runDevCommand(flags: DevCommandFlags): Promise<void> {
     throw new Error(webhookSupport?.message ?? "Webhook mode is not supported by this workspace.");
   }
 
-  try {
-    await runManagedDevCommand({
-      defaultPort: 3000,
-      flags,
-      htmlTransformer:
-        flags.mock && simulator
-          ? (html, requestPath) =>
-              injectTelegramMock(html, {
-                overlay: false,
-                profile:
-                  simulator.appBasePath && requestPath.startsWith(simulator.appBasePath)
-                    ? simulator.getCurrentProfile()
-                    : undefined
-              })
-          : flags.mock
-            ? (html) => injectTelegramMock(html)
-            : undefined,
-      onStarted: async (context) => {
-        console.log("✓ Validated Teleforge app config (Vite Mini App runtime)");
-        console.log("✓ Project environment loaded");
+  await runManagedDevCommand({
+    defaultPort: 3000,
+    flags,
+    onStarted: async (context) => {
+      console.log("✓ Validated Teleforge app config (Vite Mini App runtime)");
+      console.log("✓ Project environment loaded");
 
-        if (context.loadedEnvFiles.includes(".env.local")) {
-          console.log("✓ Loaded env overrides from .env.local");
-        }
+      if (context.loadedEnvFiles.includes(".env.local")) {
+        console.log("✓ Loaded env overrides from .env.local");
+      }
 
-        if (flags.https) {
-          console.log("✓ HTTPS certificates ready (.teleforge/certs)");
-        }
+      if (flags.https) {
+        console.log("✓ HTTPS certificates ready (.teleforge/certs)");
+      }
 
-        if (context.externalPort !== context.requestedPort) {
-          console.log(
-            `✓ Port ${context.requestedPort} unavailable, using ${context.externalPort} instead`
-          );
-        }
-
+      if (context.externalPort !== context.requestedPort) {
         console.log(
-          `✓ ${flags.mock ? "Simulator shell" : `${context.frameworkLabel} dev server`} running on ${context.url}`
+          `✓ Port ${context.requestedPort} unavailable, using ${context.externalPort} instead`
         );
+      }
 
-        if (flags.mock) {
-          console.log("✓ Telegram simulator shell active");
-        }
+      console.log(`✓ ${context.frameworkLabel} dev server running on ${context.url}`);
 
-        if (context.companionServices.length > 0) {
-          console.log(`✓ Companion services active: ${context.companionServices.join(", ")}`);
-        }
+      if (context.companionServices.length > 0) {
+        console.log(`✓ Companion services active: ${context.companionServices.join(", ")}`);
+      }
 
+      if (context.tunnelUrl) {
+        console.log(`✓ Public tunnel active: ${context.tunnelUrl}`);
+      }
+
+      if (flags.qr) {
+        const qrTarget = context.tunnelUrl ?? context.url;
+        console.log("");
+        console.log("Scan with Telegram mobile to test:");
+        qrcodeTerminal.generate(qrTarget, { small: true });
+        console.log(qrTarget);
+      }
+
+      if (flags.webhook) {
         if (context.tunnelUrl) {
-          console.log(`✓ Public tunnel active: ${context.tunnelUrl}`);
-        }
-
-        if (flags.qr) {
-          const qrTarget = context.tunnelUrl ?? context.url;
-          console.log("");
-          console.log("Scan with Telegram mobile to test:");
-          qrcodeTerminal.generate(qrTarget, { small: true });
-          console.log(qrTarget);
-        }
-
-        if (flags.webhook) {
-          if (context.tunnelUrl) {
-            const result = await configureTelegramWebhook({
-              env: context.env,
-              manifest: context.manifest,
-              tunnelUrl: context.tunnelUrl
-            });
-            console.log(
-              result.status === "configured" ? `✓ ${result.message}` : `Warning: ${result.message}`
-            );
-            if (result.warning) {
-              console.log(`Warning: ${result.warning}`);
-            }
-          } else {
-            console.log(
-              "Warning: Tunnel is unavailable, so webhook auto-configuration was skipped."
-            );
+          const result = await configureTelegramWebhook({
+            env: context.env,
+            manifest: context.manifest,
+            tunnelUrl: context.tunnelUrl
+          });
+          console.log(
+            result.status === "configured" ? `✓ ${result.message}` : `Warning: ${result.message}`
+          );
+          if (result.warning) {
+            console.log(`Warning: ${result.warning}`);
           }
+        } else {
+          console.log("Warning: Tunnel is unavailable, so webhook auto-configuration was skipped.");
         }
+      }
 
-        if (flags.open && !browserOpened) {
-          browserOpened = true;
-          void openBrowser(context.url)
-            .then(() => {
-              console.log(`✓ Opened ${context.url} in your browser`);
-            })
-            .catch((error) => {
-              console.log(
-                `Warning: Could not open browser automatically (${error instanceof Error ? error.message : "unknown error"}).`
-              );
-            });
-        }
+      if (flags.open && !browserOpened) {
+        browserOpened = true;
+        void openBrowser(context.url)
+          .then(() => {
+            console.log(`✓ Opened ${context.url} in your browser`);
+          })
+          .catch((error) => {
+            console.log(
+              `Warning: Could not open browser automatically (${error instanceof Error ? error.message : "unknown error"}).`
+            );
+          });
+      }
 
-        console.log("");
-        console.log("Ready for Telegram Mini App development!");
+      console.log("");
+      console.log("Ready for Telegram Mini App development!");
 
-        console.log("");
-        if (context.tunnelWarning) {
-          console.log(`Warning: ${context.tunnelWarning}`);
-        }
-      },
-      proxyMountPath: simulator?.appBasePath,
-      requestHandler: simulator
-        ? (request, response) => {
-            return simulator.handleRequest(request, response);
-          }
-        : undefined,
-      requiredEnv: [],
-      subdomain: flags.subdomain,
-      tunnelProvider: flags.tunnelProvider
-    });
-  } finally {
-    await simulator?.cleanup();
-  }
+      console.log("");
+      if (context.tunnelWarning) {
+        console.log(`Warning: ${context.tunnelWarning}`);
+      }
+    },
+    requiredEnv: [],
+    subdomain: flags.subdomain,
+    tunnelProvider: flags.tunnelProvider
+  });
 }
 
 interface WebhookSupportResult {

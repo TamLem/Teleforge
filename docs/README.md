@@ -55,7 +55,7 @@ Use these when you need a signature, field list, or type shape. These pages do n
 
 Use these when you are running, testing, or deploying.
 
-- [Testing](./testing.md): test layers, type-level contract tests, simulator workflow, and framework test helpers
+- [Testing](./testing.md): test layers, type-level contract tests, local development checks, and framework test helpers
 - [Deployment](./deployment.md): production build, hosting, polling vs webhook, split processes, and rollout checklist
 - [Environment Variables](./environment-variables.md): central reference for app and devtools env vars
 - [Troubleshooting](./troubleshooting.md): common local-dev, validation, route, and server-hook failures

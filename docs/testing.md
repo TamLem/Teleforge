@@ -6,7 +6,7 @@ Most generated and sample tests use:
 
 - Node's built-in test runner
 - `tsx` for TypeScript execution
-- direct rendering or direct runtime invocation instead of deep mocking stacks
+- direct rendering or direct runtime invocation instead of deep framework-specific abstractions
 
 ## What to Test
 
@@ -150,21 +150,16 @@ mock.onEvent("themeChanged", () => {
 });
 ```
 
-## Testing Against the Simulator
+## Local Development Checks
 
 For most day-to-day work:
 
 - use `teleforge dev`
-- trigger commands in the simulator chat
-- use fixtures and Replay Last to reproduce local flows quickly
+- render screens directly in web tests
+- test bot command handlers with Node tests
+- add integration tests when a feature crosses chat and Mini App boundaries
 
-This is the fastest way to validate:
-
-- bot replies
-- callback behavior
-- Mini App route behavior
-- coordination entry and return flows
-- step progression and handoff/resume behavior
+This is the fastest way to validate Mini App route behavior, coordination entry points, and server-backed loader/action flows.
 
 ## Testing Against Real Telegram
 
@@ -182,7 +177,7 @@ That is validation, not your default test loop.
 When adding a feature:
 
 1. add a bot or web smoke test next to the generated examples
-2. validate the flow in the simulator
+2. validate the Mini App locally with `teleforge dev`
 3. add an integration test if the feature crosses chat + Mini App boundaries
 4. add a server-hook bridge test if the feature needs trusted guards/loaders/submits/actions
 5. use live Telegram only for final behavior checks

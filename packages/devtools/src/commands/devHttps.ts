@@ -12,7 +12,6 @@ export async function runDevHttpsCommand(flags: DevHttpsCommandFlags): Promise<v
   await runDevCommand({
     ...flags,
     https: true,
-    mock: typeof flags.mock === "boolean" ? flags.mock : false,
     open: typeof flags.open === "boolean" ? flags.open : false,
     qr: typeof flags.qr === "boolean" ? flags.qr : true,
     tunnel: typeof flags.tunnel === "boolean" ? flags.tunnel : true,

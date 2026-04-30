@@ -15,7 +15,7 @@ A Teleforge app is primarily:
 - `apps/web/src/screens/*.screen.tsx` — Mini App screens registered with `defineScreen()`
 
 The framework discovers flows and screens by convention, generates client-safe Mini App metadata,
-detects manifest drift in development, and wires the bot runtime, action server, and simulator
+detects manifest drift in development, and wires the bot runtime and action server
 automatically.
 
 ## Installation
@@ -110,11 +110,10 @@ export default defineScreen({
 
 ```bash
 teleforge create my-app    # Scaffold a new Teleforge app
-teleforge dev              # Local simulator with chat, Mini App, companion services, and manifest preflight
+teleforge dev              # Local Mini App development server with companion services and manifest preflight
 teleforge start            # Production bootstrap: polling or webhook bot + action server
 teleforge doctor           # Environment, manifest drift, and wiring diagnostics
 teleforge generate client-manifest   # Manually regenerate client-safe flow metadata
-teleforge mock             # Standalone Telegram profile/state server for manual testing
 ```
 
 ## Public import surfaces

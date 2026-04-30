@@ -9,7 +9,7 @@ If you want the broader framework model, read [Developer Guide](./developer-guid
 By the end of this guide you should have:
 
 - a Teleforge app scaffolded or one of the repo examples running
-- a local Mini App open in the browser with the Telegram mock bridge
+- a local Mini App open in the browser
 - an optional live Telegram path through `/start`
 
 ## Background: How Telegram Mini Apps Work
@@ -143,15 +143,13 @@ Teleforge's main local-dev commands are:
 teleforge create my-app
 teleforge dev
 teleforge dev --public --live
-teleforge mock
 teleforge doctor
 ```
 
 Use them like this:
 
-- `teleforge dev`: local Telegram simulator with chat, embedded Mini App, Telegram-like state controls, and any companion `apps/bot` `dev` service
+- `teleforge dev`: local Mini App development server with manifest checks and any companion `apps/bot` `dev` service
 - `teleforge dev --public --live`: HTTPS local development for Telegram-facing testing, using Cloudflare Tunnel by default when public reachability is needed
-- `teleforge mock`: standalone profile/state server for manual Telegram context testing
 - `teleforge doctor`: environment and manifest diagnostics
 
 For first-time local work:
@@ -163,24 +161,10 @@ teleforge dev --open
 You should see:
 
 - Teleforge load and validate `teleforge.config.ts`
-- the simulator shell boot in a normal browser
-- a chat pane and an idle Mini App panel
-- real local bot command handling when `apps/bot/src/index.ts` is present and `apps/bot/src/runtime.ts` exports `createDevBotRuntime()`
-- inline keyboard callback buttons routed back as local `callback_query` updates
-- built-in fixtures for quick fresh-session, dark-mobile, and resume-flow setups
-- a Replay Last action for rerunning the most recent chat, callback, or `web_app_data` step
 - the companion bot dev process start when the workspace defines it
-- Telegram-like theme, viewport, launch, and user state injected into the embedded app
-- a debug panel showing the current mode, latest event, and profile snapshot
-- flow, screen, and server-hook wiring summaries in the simulator diagnostics for discovered apps
-
-If your workspace does not have `apps/bot/src/runtime.ts` exporting `createDevBotRuntime()`, the simulator still works, but chat falls back to default `/start` and `/help` behavior.
-
-By default, the embedded Mini App stays closed until you send `/start`, click a `web_app` button, or press `Open App`. If you want the iframe to load immediately for UI work, run:
-
-```bash
-teleforge dev --open --autoload-app
-```
+- the Mini App dev server open in a normal browser when `--open` is set
+- client manifest drift checked before the server starts
+- companion services listed in the terminal when they are active
 
 For production-style local testing, run the bot with the same high-level bootstrap the framework provides:
 
@@ -302,7 +286,7 @@ The public framework surface is the `teleforge` unified package. Most app code i
 - `teleforge/web`: Mini App shell (`TeleforgeMiniApp`), screen registration (`defineScreen`), and launch coordination
 - `teleforge/bot`: bot runtime types and command handlers for discovered flows
 - `teleforge`: action server hooks (`createActionServerHooksHandler`) for trusted server-side action execution
-- CLI commands such as `teleforge dev`, `teleforge doctor`, and `teleforge mock` from the unified package
+- CLI commands such as `teleforge dev` and `teleforge doctor` from the unified package
 
 Generated contracts are the recommended screen authoring path. See [Generated Mini App Contracts](./generated-miniapp-contracts.md) for how `nav.*`, `actions.*`, and `loaderData` are typed.
 

@@ -93,15 +93,13 @@ Usage:
   teleforge dev [options]
   teleforge start
   teleforge generate <subcommand> [options]
-  teleforge mock [options]
   teleforge doctor [options]
 
 Commands:
   create        Scaffold a new Teleforge app
-  dev           Run the local simulator
+  dev           Run the local development server
   start         Run the production bot/action server bootstrap
   generate      Generate client manifest and typed contracts
-  mock          Run the mock Telegram environment
   doctor        Diagnose configuration, manifest drift, and environment issues
 
 Run \`teleforge create --help\` for scaffold options.

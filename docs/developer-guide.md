@@ -102,7 +102,7 @@ pnpm run dev:public
 pnpm run doctor
 ```
 
-- `pnpm run dev`: local browser development with the mock bridge plus the companion bot process
+- `pnpm run dev`: local browser development plus the companion bot process
 - `pnpm run dev:public`: public HTTPS tunnel for real Telegram sessions
 - `pnpm run doctor`: manifest and environment diagnostics
 
@@ -119,75 +119,31 @@ teleforge dev --public --live
 Use `teleforge dev` when:
 
 - you want fast local browser development
-- you want the integrated Telegram simulator with chat plus the real Mini App
+- you want Teleforge to validate config and manifest state before starting the Mini App
 - you do not need a Telegram-pasteable HTTPS URL yet
 
-If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default. When `apps/bot/src/runtime.ts` exports `createDevBotRuntime()` — a thin simulator bridge for `teleforge dev` — the simulator chat also executes that runtime directly for local `/start`, custom commands, `web_app_data`, and inline-keyboard `callback_query` flows.
+If your workspace has a companion `apps/bot` package with a `dev` script, Teleforge starts it alongside the Mini App so the local command covers more of the stack by default.
 
-The simulator-first workflow is:
+The local workflow is:
 
-- land in a chat-first shell with the Mini App closed by default
-- use built-in fixtures to jump to known Telegram-like states quickly
-- drive commands, callbacks, and `web_app_data` from the chat pane
-- inspect the right-side debug panel for active sessions (flow id, screen id, route), discovered flows, simulator actions, and live profile state
-- use Replay Last to rerun the latest command or callback while iterating on the UI or bot output
+- regenerate the client manifest when drift is detected
+- start the Mini App development server
+- start companion services declared by the workspace
+- open the local URL when `--open` is set
 
-When you want the Mini App iframe to load immediately for fast frontend iteration, use:
-
-```bash
-teleforge dev --autoload-app
-```
-
-When the embedded Mini App itself fails, Teleforge treats that as a first-class dev signal:
+When the Mini App itself fails, Teleforge treats that as a first-class dev signal:
 
 - upstream app `5xx` responses are logged to the terminal with a `[teleforge:dev]` prefix
-- the simulator status panel reports the failing HTTP status for the iframe route
-- request-handler failures inside the simulator shell are also logged instead of only returning a bare `500`
 
 Use `teleforge dev --public --live` when:
 
 - you need HTTPS locally
 - you need a public tunnel for Telegram
-- you want Telegram-facing behavior instead of the mock bridge
+- you want Telegram-facing behavior from a local machine
 
 Cloudflare Tunnel is the default tunnel provider for `teleforge dev --public --live`. Install `cloudflared` for the most stable Telegram-facing local workflow, or override the provider explicitly with `--tunnel-provider`. `teleforge dev:https` is also available.
 
 Polling is the default bot delivery mode for the current scaffold and repo examples. Webhook mode is opt-in and should only be enabled when `runtime.bot.delivery` is `"webhook"` and the deployed `teleforge start` server exposes the configured webhook path over public HTTPS.
-
-### Use the Mock Environment
-
-For standalone Telegram context simulation or headless profile/state work:
-
-```bash
-teleforge mock
-```
-
-`teleforge mock` is useful for:
-
-- switching launch modes
-- testing theme changes
-- simulating viewport and event changes
-- saving and sharing Telegram-like profiles in `~/.teleforge/profiles/`
-
-For most day-to-day local app development, prefer `teleforge dev`; it hosts the primary simulator surface.
-
-To make the simulator run real bot logic instead of manifest fallbacks, expose this file in your app:
-
-```ts
-// apps/bot/src/runtime.ts
-export function createDevBotRuntime(options) {
-  return createMyBotRuntime(options);
-}
-```
-
-Without that file, the simulator provides chat scaffolding at the manifest level.
-
-Known simulator limitations:
-
-- callback and `web_app_data` are covered, but broader Telegram interaction surfaces need additional simulation
-- replay is single-action rather than full scenario-step playback
-- fixture support is generic; app-specific fixture packs need to be added where useful
-- deeper request/trace inspection is lighter than a full debugger
 
 ### Diagnose Environment Issues
 
@@ -396,7 +352,7 @@ If you want the annotated lifecycle instead of the short summary, read [Flow Coo
 
 The short version:
 
-- use simulator-first local testing for most feature work
+- use local browser testing for Mini App feature work
 - add bot and web smoke tests next to the scaffolded examples
 - use integration tests when a feature crosses chat and Mini App boundaries
 - move to real Telegram only for final behavior checks

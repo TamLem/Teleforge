@@ -145,7 +145,7 @@ The repository contains internal packages that implement the framework:
 - `packages/bot`: Telegram update routing and chat primitives
 - `packages/web`: Mini App hooks, flow bridge, and browser runtime helpers
 - `packages/ui`: React UI primitives built on top of the web runtime
-- `packages/devtools`: CLI, simulator, doctor checks, and tunnel support
+- `packages/devtools`: CLI, doctor checks, and tunnel support
 - `packages/teleforge`: the unified public package that composes the layers above
 
 These packages are useful for framework maintainers. App documentation should not ask users to assemble them.
@@ -184,9 +184,8 @@ For the full trust model, the five state-type categories, session resources, and
 
 The `teleforge` CLI provides:
 
-- `teleforge dev` for local Mini App and simulator development
+- `teleforge dev` for local Mini App development
 - `teleforge dev --public --live` for tunnel-backed Telegram testing
-- `teleforge mock` for standalone Telegram context simulation
 - `teleforge doctor` for config and environment checks
 
 The CLI is shipped through the unified `teleforge` package even though its implementation lives in `packages/devtools`.
@@ -212,7 +211,7 @@ Teleforge is not:
 - Keep screen code responsible for presentation and local UI state.
 - Keep durable product state in session resources or domain services.
 - Keep trusted decisions in action handlers.
-- Use the simulator-first local workflow before switching to real Telegram.
+- Use local browser and app tests before switching to real Telegram.
 - Keep public docs and examples on the unified `teleforge` package.
 
 ## Read Next

@@ -128,7 +128,7 @@ These are refreshed automatically before dev, test, and build.
 
 ## Dev Workflow
 
-- \`pnpm run dev\`: local simulator with chat, embedded Mini App, fixtures, and debug panel
+- \`pnpm run dev\`: local Mini App development server with companion services
 - \`pnpm run dev:public\`: public HTTPS tunnel for real Telegram testing
 - \`pnpm test\`: baseline bot and screen smoke tests
 - \`pnpm run doctor\`: config, manifest, and environment diagnostics
