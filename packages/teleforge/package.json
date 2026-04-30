@@ -66,7 +66,9 @@
     "@teleforgex/core": "workspace:0.2.0",
     "@teleforgex/devtools": "workspace:0.2.0",
     "@teleforgex/web": "workspace:0.2.0",
-    "tsx": "^4.20.6"
+    "qrcode-terminal": "^0.12.0",
+    "tsx": "^4.20.6",
+    "zod": "^3.24.1"
   },
   "peerDependencies": {
     "react": "^18.3.1"
@@ -95,6 +97,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/qrcode-terminal": "^0.12.2",
     "@types/react": "^18.3.12",
     "react": "^18.3.1",
     "typescript": "^5.8.3"

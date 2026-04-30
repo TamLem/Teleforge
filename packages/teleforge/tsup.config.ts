@@ -22,10 +22,15 @@ export default defineConfig({
     "test-utils": "src/test-utils.ts",
     web: "src/web.ts"
   },
-  external: ["@teleforgex/devtools"],
+  external: ["qrcode-terminal"],
+  noExternal: ["@teleforgex/core", "@teleforgex/bot", "@teleforgex/web", "@teleforgex/devtools"],
   format: ["esm", "cjs"],
   outDir: "dist",
+  shims: true,
   sourcemap: true,
   splitting: false,
-  target: "node18"
+  target: "node18",
+  banner: {
+    js: "#!/usr/bin/env node"
+  }
 });
