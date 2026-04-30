@@ -667,7 +667,7 @@ test("home screen renders the welcome screen", () => {
     loader: { status: "ready" as const, data: mockLoaderData },
     loaderData: mockLoaderData,
     actions: { acknowledge: async () => ({ data: { acknowledged: true } }) },
-    nav: {},
+    nav: { home: () => {} },
     runAction: async () => ({ data: {} }),
     navigate: () => {},
     transitioning: false
