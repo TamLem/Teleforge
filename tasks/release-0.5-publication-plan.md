@@ -97,7 +97,7 @@ Acceptance checks:
 rg '0\.2\.0|0\.1\.1|workspace:0\.2\.0|\^0\.2\.0' package.json packages pnpm-lock.yaml
 ```
 
-Remaining hits must be intentional historical changelog/test references only.
+Remaining hits must be intentional third-party dependency or test references only.
 
 ## Phase 3: Scaffold Release Readiness
 
@@ -175,9 +175,9 @@ rg '@teleforgex/(core|bot|web|devtools)' README.md docs packages/teleforge/READM
 rg 'npm create teleforge-app|create-teleforge-app@latest' README.md docs packages/teleforge/README.md packages/create-teleforge-app/README.md
 ```
 
-Remaining hits must be intentional low-level adapter or historical changelog references.
+Remaining hits must be intentional low-level adapter references.
 
-## Phase 5: Release Notes And Changelog
+## Phase 5: Release Notes
 
 Goal: GitHub and npm users understand what 0.5 contains.
 
@@ -200,11 +200,10 @@ Create release notes for `v0.5.0` covering:
 
 No migration notes required.
 
-Update changelogs:
+Release notes policy:
 
-- [x] `packages/teleforge/CHANGELOG.md`
-- [x] `packages/create-teleforge-app/CHANGELOG.md` notes that the generator is internal and surfaced through `teleforge create`
-- optionally root release notes file if we want a repo-level source for GitHub release copy
+- Package-level changelogs are intentionally not maintained for this fresh single-package release.
+- Use GitHub release notes as the public release narrative.
 
 ## Phase 6: Verification Matrix
 
