@@ -22,7 +22,8 @@ Release target: `0.5.0`.
 - The release script publishes only `teleforge`.
 - The scaffold is exposed through `teleforge create`.
 - Session deployment safety is included in 0.5: runtime environment/topology is explicit, memory sessions are limited to non-production single-process use, and doctor validates the same rules.
-- Remaining work before publish is final verification, repository publication metadata, tag creation, and npm publish.
+- GitHub release notes are drafted in `.github/releases/v0.5.0.md`.
+- Remaining work before publish is final verification, repository metadata update in GitHub, tag creation, and npm publish.
 
 ## Desired Public Artifacts
 
@@ -170,6 +171,14 @@ Required updates:
   - default branch ready
   - LICENSE present
 
+Local metadata status:
+
+- [x] Root `LICENSE` is present.
+- [x] Root package metadata points at `https://tamlem.github.io/Teleforge/`.
+- [x] Root package repository points at `https://github.com/TamLem/Teleforge`.
+- [x] `teleforge` package metadata points at the same docs homepage and GitHub repository.
+- [ ] GitHub repository description/topics/homepage still need to be set on GitHub.
+
 Acceptance checks:
 
 ```bash
@@ -212,6 +221,10 @@ Release notes policy:
 
 - Package-level changelogs are intentionally not maintained for this fresh single-package release.
 - Use GitHub release notes as the public release narrative.
+
+Status:
+
+- [x] Draft created at `.github/releases/v0.5.0.md`.
 
 ## Phase 6: Verification Matrix
 
@@ -272,6 +285,7 @@ Prerequisites:
 - npm auth available
 - package dry-runs clean
 - GitHub release notes ready
+- use `.github/releases/v0.5.0.md` as the release body
 
 Publish order:
 
@@ -309,6 +323,7 @@ pnpm test
   - bot token presence is not used as the production signal
 - Packed `teleforge` metadata has no `@teleforgex/*`, `workspace:`, or `create-teleforge-app` runtime references.
 - `packages/teleforge/dist/**` has no `@teleforgex/*` runtime references.
+- GitHub release note draft exists at `.github/releases/v0.5.0.md`.
 - Packed install smoke passes for:
   - `teleforge`
   - `teleforge/web`

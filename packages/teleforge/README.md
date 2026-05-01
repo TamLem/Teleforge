@@ -45,6 +45,10 @@ import { defineTeleforgeApp } from "teleforge";
 export default defineTeleforgeApp({
   app: { id: "my-app", name: "My App", version: "1.0.0" },
   flows: { root: "apps/bot/src/flows" },
+  runtime: {
+    environment: process.env.TELEFORGE_ENV === "production" ? "production" : "development",
+    deployment: { topology: "single-process" }
+  },
   bot: { username: "myappbot", tokenEnv: "BOT_TOKEN" },
   miniApp: {
     entry: "apps/web/src/main.tsx",

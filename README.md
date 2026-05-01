@@ -1,7 +1,7 @@
 # Teleforge
 
 Teleforge is a TypeScript framework for Telegram-native products that combine bot chat, Mini Apps,
-action handlers, local simulation, and optional server-side session state.
+action handlers, local development, and optional server-side session state.
 
 ## Quick Start
 
