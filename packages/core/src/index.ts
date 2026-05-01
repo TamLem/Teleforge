@@ -41,7 +41,8 @@ export type {
   TeleforgeAppConfig,
   TeleforgeFlowConventions,
   TeleforgeAppIdentity,
-  TeleforgeMiniAppConfig
+  TeleforgeMiniAppConfig,
+  TeleforgeSessionProviderConfig
 } from "./app/types.js";
 export type {
   CreateSignedPhoneAuthTokenOptions,

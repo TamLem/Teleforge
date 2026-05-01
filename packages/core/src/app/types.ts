@@ -1,3 +1,4 @@
+import type { SessionStorageAdapter } from "../session/types.js";
 import type {
   RouteDefinition,
   TeleforgeManifest,
@@ -10,6 +11,19 @@ export interface TeleforgeAppIdentity {
   name: string;
   version: string;
 }
+
+export type TeleforgeSessionProviderConfig =
+  | {
+      provider: "memory";
+      defaultTTLSeconds?: number;
+      namespace?: string;
+    }
+  | {
+      provider: "custom";
+      storage: SessionStorageAdapter;
+      defaultTTLSeconds?: number;
+      namespace?: string;
+    };
 
 export interface TeleforgeMiniAppConfig extends Omit<TeleforgeManifest["miniApp"], "entryPoint"> {
   entry: string;
@@ -34,6 +48,7 @@ export interface TeleforgeAppConfig {
   routes?: RouteDefinition[];
   runtime: TeleforgeRuntime;
   security?: TeleforgeManifest["security"];
+  session?: TeleforgeSessionProviderConfig;
 }
 
 export function defineTeleforgeApp<TConfig extends TeleforgeAppConfig>(config: TConfig): TConfig {

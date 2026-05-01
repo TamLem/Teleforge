@@ -15,7 +15,6 @@ import {
   type WebAppDataHandler
 } from "@teleforgex/bot";
 import {
-  MemorySessionStorageAdapter,
   SessionManager,
   parseTeleforgeInput,
   validateActionContext,
@@ -23,6 +22,7 @@ import {
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
+import { createSessionManagerFromConfig } from "./runtime-context.js";
 import {
   createFlowCommands,
   createSignForActionContext,
@@ -39,10 +39,10 @@ export interface CreateDiscoveredBotRuntimeOptions {
   cwd?: string;
   flowSecret: string;
   miniAppUrl: string;
+  mode?: "development" | "production";
   phoneAuthSecret?: string;
   services?: unknown;
   sessionManager?: SessionManager;
-  sessionTtlSeconds?: number;
 }
 
 export interface DiscoveredBotRuntime extends BotRuntime {
@@ -58,7 +58,6 @@ export interface StartTeleforgeBotOptions {
   phoneAuthSecret?: string;
   services?: unknown;
   sessionManager?: SessionManager;
-  sessionTtlSeconds?: number;
   token?: string;
 }
 
@@ -75,10 +74,7 @@ export interface CreateTeleforgeWebhookHandlerOptions {
   phoneAuthSecret?: string;
   services?: unknown;
   sessionManager?: SessionManager;
-  sessionTtlSeconds?: number;
 }
-
-const DEFAULT_SESSION_TTL = 900;
 
 export async function createDiscoveredBotRuntime(
   options: CreateDiscoveredBotRuntimeOptions
@@ -97,14 +93,23 @@ export async function createDiscoveredBotRuntime(
     originalBindBot(bot);
   };
 
+  // Determine mode based on whether we're in a real bot context
+  // When called from createTeleforgeWebhookHandler or startTeleforgeBot with token, we're in production
+  const sessionEnabledFlows = flows
+    .filter(({ flow }) => flow.session?.enabled)
+    .map(({ flow }) => flow.id);
+
+  // Auto-detect production mode if not explicitly set: check for real bot token
+  const tokenEnv = app.bot.tokenEnv;
+  const token = readEnv(tokenEnv);
+  const mode = options.mode ?? (token ? "production" : "development");
+
   const sessionManager =
     options.sessionManager ??
-    new SessionManager(
-      new MemorySessionStorageAdapter({
-        defaultTTL: options.sessionTtlSeconds ?? DEFAULT_SESSION_TTL,
-        namespace: app.app.id
-      })
-    );
+    createSessionManagerFromConfig(app.session, app.app.id, {
+      mode,
+      sessionEnabledFlows
+    });
 
   const secret = options.flowSecret;
   const miniAppUrl = options.miniAppUrl;
@@ -191,15 +196,20 @@ export async function createTeleforgeWebhookHandler(
   const flowSecret = options.flowSecret ?? `${app.app.id}-preview-secret`;
   const miniAppUrl = options.miniAppUrl ?? "https://example.ngrok.app";
 
+  // Determine if we're in production mode (token present)
+  const tokenEnv = app.bot.tokenEnv;
+  const token = readEnv(tokenEnv);
+  const mode = token ? "production" : "development";
+
   const runtime = await createDiscoveredBotRuntime({
     app,
     cwd,
     flowSecret,
     miniAppUrl,
+    mode,
     phoneAuthSecret: options.phoneAuthSecret,
     services: options.services,
-    sessionManager: options.sessionManager,
-    sessionTtlSeconds: options.sessionTtlSeconds
+    sessionManager: options.sessionManager
   });
 
   return nodeHttpAdapter(runtime as Pick<BotRuntime, "handle">);
@@ -217,15 +227,18 @@ export async function startTeleforgeBot(
   const flowSecret = options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET") ?? `${app.app.id}-preview-secret`;
   const miniAppUrl = options.miniAppUrl ?? readEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
 
+  // Production mode when we have a real token
+  const mode = token ? "production" : "development";
+
   const runtime = await createDiscoveredBotRuntime({
     app,
     cwd,
     flowSecret,
     miniAppUrl,
+    mode,
     phoneAuthSecret: options.phoneAuthSecret,
     services: options.services,
-    sessionManager: options.sessionManager,
-    sessionTtlSeconds: options.sessionTtlSeconds
+    sessionManager: options.sessionManager
   });
 
   const commands = runtime.getCommands();

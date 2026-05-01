@@ -12,12 +12,24 @@ export interface Product {
   specs: Record<string, string>;
 }
 
+// Session-stored cart line item (reference only, no display fields)
+export interface CartLineItem {
+  productId: string;
+  qty: number;
+}
+
+// Display-ready cart item (resolved from CartLineItem + Product)
 export interface CartItem {
   productId: string;
   name: string;
   price: number;
   quantity: number;
   image: string;
+}
+
+// Session-stored last order reference (reference only)
+export interface LastOrderReference {
+  orderId: string;
 }
 
 export interface Order {
@@ -209,22 +221,41 @@ export function getProductsByCategory(): Record<ProductCategory, Product[]> {
   return grouped;
 }
 
-export function addToCart(items: CartItem[], product: Product, qty = 1): CartItem[] {
-  const existing = items.findIndex((i) => i.productId === product.id);
+// Add a line item to the cart (stores references only)
+export function addLineItem(items: CartLineItem[], productId: string, qty = 1): CartLineItem[] {
+  const existing = items.findIndex((i) => i.productId === productId);
   if (existing >= 0) {
     return items.map((item, idx) =>
-      idx === existing ? { ...item, quantity: item.quantity + qty } : item
+      idx === existing ? { ...item, qty: item.qty + qty } : item
     );
   }
-  return [...items, { productId: product.id, name: product.name, price: product.price, quantity: qty, image: product.image }];
+  return [...items, { productId, qty }];
 }
 
-export function removeFromCart(items: CartItem[], productId: string): CartItem[] {
+// Remove a line item from the cart
+export function removeLineItem(items: CartLineItem[], productId: string): CartLineItem[] {
   return items.flatMap((item) => {
     if (item.productId !== productId) return [item];
-    if (item.quantity <= 1) return [];
-    return [{ ...item, quantity: item.quantity - 1 }];
+    if (item.qty <= 1) return [];
+    return [{ ...item, qty: item.qty - 1 }];
   });
+}
+
+// Resolve cart line items to display-ready cart items
+export function resolveCartItems(lineItems: CartLineItem[]): CartItem[] {
+  return lineItems
+    .map((item) => {
+      const product = getProduct(item.productId);
+      if (!product) return null;
+      return {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: item.qty,
+        image: product.image
+      };
+    })
+    .filter((item): item is CartItem => item !== null);
 }
 
 export function getCartSubtotal(items: CartItem[]): number {
@@ -236,7 +267,7 @@ export function getCartItemCount(items: CartItem[]): number {
 }
 
 export function createOrder(items: CartItem[]): Order {
-  return {
+  const order: Order = {
     id: "ORD-" + Date.now().toString(36).toUpperCase(),
     items: [...items],
     total: getCartSubtotal(items),
@@ -244,4 +275,26 @@ export function createOrder(items: CartItem[]): Order {
     status: "confirmed",
     createdAt: new Date().toISOString()
   };
+
+  // Store in memory for demo purposes.
+  // IMPORTANT: This works because `teleforge start` runs bot and server in the same process.
+  // In production with separate processes, replace with a database or shared service.
+  orderStore.set(order.id, order);
+
+  return order;
+}
+
+// In-memory order store - shared across bot actions and server loaders.
+// Works because teleforge runs both in the same process.
+// In production with horizontally scaled deployments, use a database.
+const orderStore = new Map<string, Order>();
+
+export function getOrder(id: string): Order | undefined {
+  return orderStore.get(id);
+}
+
+// Resolve an order reference to display-ready order data
+export function resolveOrderFromReference(ref: LastOrderReference): Order | undefined {
+  if (!ref.orderId) return undefined;
+  return orderStore.get(ref.orderId);
 }

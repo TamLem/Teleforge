@@ -41,8 +41,9 @@ actions: {
 
       const order = await services.orders.create(ctx.userId, input);
 
-      const orderResource = session.resource("lastOrder", { initialValue: { order: null } });
-      await orderResource.set({ order });
+      // Store only the order reference, not the full order object
+      const orderRef = session.resource("lastOrder", { initialValue: { orderId: "" } });
+      await orderRef.set({ orderId: order.id });
 
       return {
         data: { placed: true, orderId: order.id }
@@ -147,8 +148,9 @@ export default defineFlow({
         const cart = session.resource("cart");
         const { items } = await cart.get();
         const order = await services.orders.create(ctx.userId, items);
-        const orderRes = session.resource("lastOrder", { initialValue: { order: null } });
-        await orderRes.set({ order });
+        // Store only the order reference, not the full order object
+        const orderRef = session.resource("lastOrder", { initialValue: { orderId: "" } });
+        await orderRef.set({ orderId: order.id });
         return { data: { placed: true, orderId: order.id } };
       }
     }

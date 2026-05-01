@@ -1,6 +1,6 @@
 import { createTypedSignForActionContext, defineFlow } from "teleforge";
 
-import type { CartItem } from "@task-shop/types";
+import type { CartLineItem, LastOrderReference } from "@task-shop/types";
 import type { TeleforgeInputSchema, TypedSignHelpers } from "teleforge";
 
 // Shared route map used by both miniApp.routes and typed sign helpers.
@@ -132,7 +132,8 @@ export default defineFlow({
       handler: async ({ input, session, services: _services }) => {
         const {
           getProduct,
-          addToCart: addItem,
+          addLineItem,
+          resolveCartItems,
           getCartItemCount
         } = await import("@task-shop/types");
         const product = getProduct(input.productId);
@@ -140,17 +141,21 @@ export default defineFlow({
 
         if (!session) return { data: { error: "Session required" } };
 
-        const cartRes = session.resource<{ items: CartItem[] }>("cart", {
+        // Store cart as line items (references only)
+        const cartRes = session.resource<{ items: CartLineItem[] }>("cart", {
           initialValue: { items: [] }
         });
         const { items } = await cartRes.get();
-        const newItems = addItem(items, product, input.qty);
-        await cartRes.set({ items: newItems });
+        const newLineItems = addLineItem(items, input.productId, input.qty);
+        await cartRes.set({ items: newLineItems });
+
+        // Resolve to display data for response
+        const displayItems = resolveCartItems(newLineItems);
 
         return {
           data: {
-            items: newItems,
-            itemCount: getCartItemCount(newItems),
+            items: displayItems,
+            itemCount: getCartItemCount(displayItems),
             justAdded: product.name
           }
         };
@@ -161,25 +166,30 @@ export default defineFlow({
       input: removeFromCartSchema,
       handler: async ({ input, session, services: _services }) => {
         const {
-          removeFromCart: removeItem,
+          removeLineItem,
+          resolveCartItems,
           getCartItemCount,
           getCartSubtotal
         } = await import("@task-shop/types");
 
         if (!session) return { data: { error: "Session required" } };
 
-        const cartRes = session.resource<{ items: CartItem[] }>("cart", {
+        // Store cart as line items (references only)
+        const cartRes = session.resource<{ items: CartLineItem[] }>("cart", {
           initialValue: { items: [] }
         });
         const { items } = await cartRes.get();
-        const newItems = removeItem(items, input.productId);
-        await cartRes.set({ items: newItems });
+        const newLineItems = removeLineItem(items, input.productId);
+        await cartRes.set({ items: newLineItems });
+
+        // Resolve to display data for response
+        const displayItems = resolveCartItems(newLineItems);
 
         return {
           data: {
-            items: newItems,
-            itemCount: getCartItemCount(newItems),
-            subtotal: getCartSubtotal(newItems)
+            items: displayItems,
+            itemCount: getCartItemCount(displayItems),
+            subtotal: getCartSubtotal(displayItems)
           },
           redirect: {
             screenId: "cart",
@@ -194,23 +204,27 @@ export default defineFlow({
       handler: async ({ ctx: _ctx, session, sign }) => {
         if (!session) return { data: { error: "Session required" } };
 
-        const { createOrder } = await import("@task-shop/types");
+        const { resolveCartItems, createOrder } = await import("@task-shop/types");
 
-        const cartRes = session.resource<{ items: CartItem[] }>("cart", {
+        // Get cart line items from session
+        const cartRes = session.resource<{ items: CartLineItem[] }>("cart", {
           initialValue: { items: [] }
         });
-        const { items } = await cartRes.get();
+        const { items: lineItems } = await cartRes.get();
 
-        if (items.length === 0) return { data: { error: "Cart is empty" } };
+        if (lineItems.length === 0) return { data: { error: "Cart is empty" } };
 
-        const order = createOrder(items);
+        // Resolve line items to display items for order creation
+        const displayItems = resolveCartItems(lineItems);
+        const order = createOrder(displayItems);
 
-        const orderRes = session.resource<{ order: unknown }>("lastOrder", {
-          initialValue: { order: null }
+        // Store only the order reference in session
+        const orderRefRes = session.resource<LastOrderReference>("lastOrder", {
+          initialValue: { orderId: "" }
         });
-        await orderRes.set({ order });
+        await orderRefRes.set({ orderId: order.id });
 
-        // Clear the cart after a successful order.
+        // Clear the cart after a successful order
         await cartRes.set({ items: [] });
 
         const itemLines = order.items

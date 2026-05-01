@@ -41,7 +41,8 @@ When a flow has `session: { enabled: true }`, handlers and loaders receive a `Se
 with resource access:
 
 ```ts
-const cart = session.resource<{ items: CartItem[] }>("cart", {
+// Store references only, not full display objects
+const cart = session.resource<{ items: Array<{ productId: string; qty: number }> }>("cart", {
   initialValue: { items: [] }
 });
 
@@ -50,11 +51,11 @@ const { items } = await cart.get();
 
 // Mutate
 await cart.update((draft) => {
-  draft.items.push(newItem);
+  draft.items.push({ productId: "iphone-15", qty: 1 });
 });
 
 // Replace
-await cart.set({ items: newItems });
+await cart.set({ items: newLineItems });
 
 // Remove
 await cart.clear();
@@ -63,10 +64,23 @@ await cart.clear();
 Resources are isolated by user and flow. They persist through the session storage adapter
 and are TTL-bound. Use for:
 
-- cart contents
+- cart line items as `{ productId, qty }[]` (references only)
 - draft form data
-- order references
+- order references as `{ orderId: string }` (not full order objects)
 - multi-step wizard progress
+- temporary workflow state
+
+**Do not store in session:**
+
+- selected product/order IDs (use route params or signed subject instead)
+- full product/order display objects (loaders should resolve these from references)
+- UI state like tabs, filters, sort order
+
+**Do store in session:**
+
+- mutable workflow state like cart line items (references only)
+- draft data that hasn't been persisted to a database yet
+- temporary external auth or payment state
 
 ### 3. Screen Runtime Props (mixed trust, framework-injected)
 

@@ -3,6 +3,8 @@ import { X509Certificate } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
+import type { TeleforgeAppConfig } from "@teleforgex/core";
+
 import { checkClientManifestDrift } from "../client-manifest-drift.js";
 import { loadProjectEnv } from "../env.js";
 import { loadManifest, type TeleforgeManifest } from "../manifest.js";
@@ -41,6 +43,7 @@ export interface RunDoctorChecksOptions {
 }
 
 interface ManifestState {
+  appConfig?: TeleforgeAppConfig;
   discoveredFlows?: import("../manifest.js").DiscoveredTeleforgeFlowSummary[];
   error?: string;
   manifest?: TeleforgeManifest;
@@ -87,6 +90,7 @@ export async function runDoctorChecks(options: RunDoctorChecksOptions): Promise<
   checks.push(checkFlowWiring(manifestState));
   checks.push(await checkRuntimeSecrets(env, manifestState));
   checks.push(checkWebhookMode(env, manifestState));
+  checks.push(checkSessionProvider(env, manifestState));
   checks.push(await runClientManifestDriftCheck(options.cwd, manifestState));
 
   const summary = checks.reduce(
@@ -301,8 +305,9 @@ async function checkTeleforgeDependencies(
 
 async function loadManifestState(cwd: string): Promise<ManifestState> {
   try {
-    const { discoveredFlows, manifest, manifestPath } = await loadManifest(cwd);
+    const { appConfig, discoveredFlows, manifest, manifestPath } = await loadManifest(cwd);
     return {
+      appConfig,
       discoveredFlows,
       manifest,
       manifestPath
@@ -871,7 +876,7 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
   }
 
   const flows = manifestState.discoveredFlows ?? [];
-  
+
   if (flows.length === 0) {
     return {
       category: "Configuration",
@@ -1251,6 +1256,111 @@ async function runClientManifestDriftCheck(
     category: "Configuration",
     message: "Client manifest is in sync with discovered flows.",
     name: "client_manifest_drift",
+    status: "pass"
+  };
+}
+
+function checkSessionProvider(
+  env: NodeJS.ProcessEnv,
+  manifestState: ManifestState
+): DoctorCheck {
+  const appConfig = manifestState.appConfig;
+
+  if (!appConfig) {
+    return {
+      category: "Configuration",
+      message: "Session provider check skipped because the app config could not be loaded.",
+      name: "session_provider",
+      status: "warn"
+    };
+  }
+
+  // Check if any flows have sessions enabled
+  const flows = manifestState.discoveredFlows ?? [];
+  const sessionEnabledFlows = flows.filter((flow) => flow.hasSession);
+
+  if (sessionEnabledFlows.length === 0) {
+    return {
+      category: "Configuration",
+      message: "No flows have sessions enabled.",
+      name: "session_provider",
+      status: "pass"
+    };
+  }
+
+  // Check for session config in the app config
+  const sessionConfig = appConfig.session;
+  const hasSessionConfig = typeof sessionConfig === "object" && sessionConfig !== null;
+
+  // Determine if we're in production mode (have a bot token)
+  const tokenEnv = appConfig.bot?.tokenEnv ?? "BOT_TOKEN";
+  const token = env[tokenEnv];
+  const hasToken = hasRealValue(token);
+
+  if (!hasSessionConfig) {
+    // No session config - error in production, warning in dev
+    const flowNames = sessionEnabledFlows.map((f) => f.id).join(", ");
+
+    if (hasToken) {
+      return {
+        category: "Configuration",
+        details: [
+          `Session-enabled flows: ${flowNames}`,
+          "No session provider configured in teleforge.config.ts"
+        ],
+        message: "Session-enabled flows require a session provider in production.",
+        name: "session_provider",
+        remediation:
+          `Add session: { provider: "memory" } to teleforge.config.ts for local-only state, ` +
+          `or configure a durable provider for production.`,
+        status: "error"
+      };
+    }
+
+    return {
+      category: "Configuration",
+      details: [
+        `Session-enabled flows: ${flowNames}`,
+        "No session provider configured - using in-memory defaults for dev/preview"
+      ],
+      message: "Session-enabled flows detected but no session provider configured.",
+      name: "session_provider",
+      remediation:
+        `Add session: { provider: "memory", defaultTTLSeconds: 3600 } to teleforge.config.ts ` +
+        `before deploying to production.`,
+      status: "warn"
+    };
+  }
+
+  // Has session config - check provider type
+  const provider = sessionConfig.provider;
+  const isMemoryProvider = provider === "memory";
+
+  const details = [
+    `Session-enabled flows: ${sessionEnabledFlows.map((f) => f.id).join(", ")}`,
+    `Provider: ${provider ?? "unknown"}`
+  ];
+
+  if (isMemoryProvider && hasToken) {
+    details.push("Memory provider is not durable - sessions will be lost on restart");
+    return {
+      category: "Configuration",
+      details,
+      message: "Session provider is configured (memory - not durable for production).",
+      name: "session_provider",
+      remediation:
+        "Consider using a custom provider with persistent storage (Redis, database) for production deployments.",
+      status: "warn"
+    };
+  }
+
+  return {
+    category: "Configuration",
+    details,
+    message: isMemoryProvider
+      ? "Session provider is configured (memory)."
+      : "Session provider is configured.",
+    name: "session_provider",
     status: "pass"
   };
 }

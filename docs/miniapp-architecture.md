@@ -162,8 +162,9 @@ actions: {
   addToCart: {
     input: addToCartSchema,
     handler: async ({ input, session }) => {
-      const cart = session.resource<{ items: CartItem[] }>("cart", { initialValue: { items: [] } });
-      await cart.update((draft) => { draft.items.push(input); });
+      // Store references only, not full display objects
+      const cart = session.resource<{ items: Array<{ productId: string; qty: number }> }>("cart", { initialValue: { items: [] } });
+      await cart.update((draft) => { draft.items.push({ productId: input.productId, qty: input.qty }); });
       return { data: { added: true } };
     }
   }

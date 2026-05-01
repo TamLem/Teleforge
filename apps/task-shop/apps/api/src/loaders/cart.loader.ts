@@ -1,6 +1,6 @@
 import { defineLoader } from "teleforge";
 
-import type { CartItem } from "@task-shop/types";
+import type { CartLineItem } from "@task-shop/types";
 
 export default defineLoader({
   handler: async ({ session }) => {
@@ -8,17 +8,20 @@ export default defineLoader({
       return { items: [], subtotal: 0, itemCount: 0 };
     }
 
-    const cart = session.resource<{ items: CartItem[] }>("cart", {
+    // Get cart line items from session (references only)
+    const cart = session.resource<{ items: CartLineItem[] }>("cart", {
       initialValue: { items: [] }
     });
-    const { items } = await cart.get();
+    const { items: lineItems } = await cart.get();
 
-    const { getCartSubtotal, getCartItemCount } = await import("@task-shop/types");
+    // Resolve to display data
+    const { resolveCartItems, getCartSubtotal, getCartItemCount } = await import("@task-shop/types");
+    const displayItems = resolveCartItems(lineItems);
 
     return {
-      items,
-      subtotal: getCartSubtotal(items),
-      itemCount: getCartItemCount(items)
+      items: displayItems,
+      subtotal: getCartSubtotal(displayItems),
+      itemCount: getCartItemCount(displayItems)
     };
   }
 });

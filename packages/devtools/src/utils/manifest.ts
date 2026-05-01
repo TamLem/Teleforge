@@ -30,6 +30,7 @@ export interface DiscoveredTeleforgeFlowSummary {
   command?: string;
   filePath?: string;
   hasRuntimeHandlers: boolean;
+  hasSession: boolean;
   hasWiringGaps: boolean;
   id: string;
   route?: string;
@@ -91,6 +92,7 @@ interface DiscoveredTeleforgeScreenSummary {
  * Loads a Teleforge app config from disk and derives the runtime manifest used by devtools.
  */
 export async function loadManifest(cwd: string): Promise<{
+  appConfig: TeleforgeAppConfig;
   discoveredFlows: DiscoveredTeleforgeFlowSummary[];
   manifest: TeleforgeManifest;
   manifestPath: string;
@@ -100,9 +102,10 @@ export async function loadManifest(cwd: string): Promise<{
     throw new Error("No Teleforge project found. Add a teleforge.config.ts file.");
   }
 
-  const { manifest, manifestPath } = configState;
+  const { appConfig, manifest, manifestPath } = configState;
 
   return {
+    appConfig,
     discoveredFlows: configState.discoveredFlows,
     manifest,
     manifestPath
@@ -110,6 +113,7 @@ export async function loadManifest(cwd: string): Promise<{
 }
 
 async function tryLoadTeleforgeConfig(cwd: string): Promise<{
+  appConfig: TeleforgeAppConfig;
   discoveredFlows: DiscoveredTeleforgeFlowSummary[];
   manifest: CoreTeleforgeManifest;
   manifestPath: string;
@@ -146,6 +150,7 @@ async function tryLoadTeleforgeConfig(cwd: string): Promise<{
   }
 
   return {
+    appConfig: hydratedConfig,
     discoveredFlows: summarizeFlows(flowModules, flowRuntimeSummaries, screenSummaries),
     manifest: result.data,
     manifestPath: configPath
@@ -195,7 +200,19 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       throw new Error("teleforge.config must export a default Teleforge app config object.");
     }
 
-    await writeFile(outputPath, JSON.stringify(config));
+    // Extract session summary to avoid serializing custom storage adapters
+    const sessionSummary = config.session
+      ? {
+          provider: config.session.provider,
+          defaultTTLSeconds: config.session.defaultTTLSeconds,
+          namespace: config.session.namespace
+        }
+      : undefined;
+
+    // Strip session from config before serialization
+    const { session: _, ...serializableConfig } = config as unknown as Record<string, unknown>;
+
+    await writeFile(outputPath, JSON.stringify({ config: serializableConfig, sessionSummary }));
   `;
 
   try {
@@ -213,7 +230,21 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       }
     );
 
-    return JSON.parse(await readFile(outputPath, "utf8")) as TeleforgeAppConfig;
+    const { config: parsedConfig, sessionSummary } = JSON.parse(await readFile(outputPath, "utf8")) as {
+      config: TeleforgeAppConfig;
+      sessionSummary?: {
+        provider: "memory" | "custom";
+        defaultTTLSeconds?: number;
+        namespace?: string;
+      };
+    };
+
+    // Reconstruct session config with serializable summary only
+    if (sessionSummary) {
+      (parsedConfig as unknown as Record<string, unknown>).session = sessionSummary;
+    }
+
+    return parsedConfig as TeleforgeAppConfig;
   } catch (error) {
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
@@ -285,6 +316,7 @@ function summarizeFlows(
       ...(flow.command?.command ? { command: flow.command.command } : {}),
       ...(flow.__filePath ? { filePath: flow.__filePath } : {}),
       hasRuntimeHandlers: runtimeSummary?.hasRuntimeHandlers ?? false,
+      hasSession: runtimeSummary?.hasSession ?? false,
       hasWiringGaps: false,
       id: flow.id,
       ...(flow.miniApp?.defaultRoute ? { route: flow.miniApp.defaultRoute } : {}),

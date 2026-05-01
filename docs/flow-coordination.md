@@ -109,8 +109,9 @@ export default defineFlow({
         const cart = session.resource<{ items: string[] }>("cart", { initialValue: { items: [] } });
         const { items } = await cart.get();
         const order = await services.orders.place(ctx.userId, items);
-        const orderRes = session.resource("lastOrder", { initialValue: { order: null } });
-        await orderRes.set({ order });
+        // Store only the order reference, not the full order object
+        const orderRef = session.resource("lastOrder", { initialValue: { orderId: "" } });
+        await orderRef.set({ orderId: order.id });
         return {
           data: { placed: true, orderId: order.id },
           handoff: { message: "Order complete!", closeMiniApp: true },

@@ -29,6 +29,10 @@ export default defineTeleforgeApp({
     defaultMode: "inline",
     capabilities: ["read_access", "write_access", "payments"]
   },
+  session: {
+    provider: "memory",
+    defaultTTLSeconds: 3600
+  },
   dev: {
     services: [
       {

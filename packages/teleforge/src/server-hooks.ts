@@ -1,7 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import {
-  MemorySessionStorageAdapter,
   SessionManager,
   parseTeleforgeInput,
   validateActionContext,
@@ -10,6 +9,7 @@ import {
 } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
+import { createSessionManagerFromConfig } from "./runtime-context.js";
 import { loadActionRegistry, loadScreenLoaders, loadTeleforgeFlows, createSignForActionContext } from "./discovery.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
@@ -30,6 +30,7 @@ export interface CreateActionServerHooksHandlerOptions {
   cwd: string;
   flowSecret: string;
   miniAppUrl?: string;
+  mode?: "development" | "production";
   onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
   loaders?: LoaderRegistry;
@@ -62,14 +63,24 @@ export async function createActionServerHooksHandler(
 
   const basePath = options.basePath ?? "/api/teleforge/actions";
   const services = options.services;
+
+  // Determine mode based on production signals
+  const sessionEnabledFlows = flows
+    .filter(({ flow }) => flow.session?.enabled)
+    .map(({ flow }) => flow.id);
+
+  // Auto-detect production mode if not explicitly set: check for real bot token
+  const tokenEnv = loadedApp.app.bot.tokenEnv;
+  const token = readEnv(tokenEnv);
+  const mode = options.mode ?? (token ? "production" : "development");
+
   const sessionManager =
     options.sessionManager ??
-    new SessionManager(
-      new MemorySessionStorageAdapter({
-        defaultTTL: 900,
-        namespace: loadedApp.app.app.id
-      })
-    );
+    createSessionManagerFromConfig(loadedApp.app.session, loadedApp.app.app.id, {
+      mode,
+      sessionEnabledFlows
+    });
+
   const flowSecret = options.flowSecret;
   const resolvedMiniAppUrl = options.miniAppUrl ?? process.env.MINI_APP_URL ?? "http://localhost:3000";
   const screens = options.screens;
@@ -315,6 +326,7 @@ export interface StartTeleforgeServerOptions {
   flowSecret?: string;
   loaders?: LoaderRegistry;
   miniAppUrl?: string;
+  mode?: "development" | "production";
   onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
   port?: number;
   screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
@@ -345,12 +357,18 @@ export async function startTeleforgeServer(
   const requestedPort = options.port ?? app.runtime.server?.port ?? 3100;
   const additionalRoutes = options.additionalRoutes ?? [];
 
+  // Determine mode: production if we have a real bot token
+  const tokenEnv = app.bot.tokenEnv;
+  const token = readEnv(tokenEnv);
+  const mode = options.mode ?? (token ? "production" : "development");
+
   const hooksHandler = await createActionServerHooksHandler({
     basePath,
     cwd,
     flowSecret,
     loaders: options.loaders,
     miniAppUrl: options.miniAppUrl,
+    mode,
     onChatHandoff: options.onChatHandoff,
     screens: options.screens,
     services: options.services,
@@ -435,6 +453,15 @@ export async function startTeleforgeServer(
     },
     url: `http://localhost:${resolvedPort}`
   };
+}
+
+function readEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function validationError(message: string, details: unknown): ActionServerHookRequestError {

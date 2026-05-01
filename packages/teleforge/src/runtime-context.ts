@@ -1,8 +1,109 @@
 import { MemorySessionStorageAdapter, SessionManager } from "@teleforgex/core";
+import type { SessionStorageAdapter } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
+import { loadTeleforgeFlows } from "./discovery.js";
 
-import type { TeleforgeAppConfig } from "@teleforgex/core";
+import type { TeleforgeAppConfig, TeleforgeSessionProviderConfig } from "@teleforgex/core";
+
+export function createSessionManagerFromConfig(
+  config: TeleforgeSessionProviderConfig | undefined,
+  appId: string,
+  options?: {
+    mode?: "development" | "production";
+    sessionEnabledFlows?: string[];
+  }
+): SessionManager {
+  const mode = options?.mode ?? "development";
+  const sessionEnabledFlows = options?.sessionEnabledFlows ?? [];
+
+  // In production mode, require explicit session config when flows use sessions
+  if (mode === "production" && sessionEnabledFlows.length > 0 && !config) {
+    const flowList = sessionEnabledFlows.length === 1
+      ? `"${sessionEnabledFlows[0]}"`
+      : `${sessionEnabledFlows.slice(0, -1).map(f => `"${f}"`).join(", ")} and "${sessionEnabledFlows[sessionEnabledFlows.length - 1]}"`;
+
+    throw new Error(
+      `Flow ${flowList} enables sessions, but teleforge.config.ts has no session provider. ` +
+      `Add session: { provider: "memory" } for local-only state or configure a durable provider for production.`
+    );
+  }
+
+  if (!config) {
+    return new SessionManager(
+      new MemorySessionStorageAdapter({
+        defaultTTL: 900,
+        namespace: appId
+      })
+    );
+  }
+
+  if (config.provider === "memory") {
+    const defaultTTL = config.defaultTTLSeconds ?? 900;
+    const namespace = config.namespace ?? appId;
+    return new SessionManager(
+      new MemorySessionStorageAdapter({
+        defaultTTL,
+        namespace
+      })
+    );
+  }
+
+  // provider === "custom"
+  // For custom providers: config TTL/namespace override adapter when specified, but fall back to adapter if not
+  const defaultTTL = config.defaultTTLSeconds ?? config.storage.defaultTTL ?? 900;
+
+  // Namespace: config overrides adapter when explicitly specified
+  // If config.namespace is undefined, fall back to adapter.namespace, then appId
+  const configuredNamespace = config.namespace;
+  const namespace = configuredNamespace ?? config.storage.namespace ?? appId;
+
+  // Only let adapter own namespacing if config didn't specify one AND adapter has a namespace
+  const adapterOwnsNamespace = configuredNamespace === undefined && config.storage.namespace !== undefined;
+
+  const wrappedAdapter = createWrappedAdapter(config.storage, defaultTTL, namespace, adapterOwnsNamespace);
+  return new SessionManager(wrappedAdapter);
+}
+
+function createWrappedAdapter(
+  adapter: SessionStorageAdapter,
+  defaultTTL: number,
+  namespace: string,
+  adapterOwnsNamespace: boolean
+): SessionStorageAdapter {
+  // The resolved TTL and namespace already encode config > adapter > framework defaults.
+  return {
+    get defaultTTL() { return defaultTTL; },
+    get namespace() { return namespace; },
+
+    async delete(key: string) {
+      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      return adapter.delete(namespacedKey);
+    },
+
+    async get(key: string) {
+      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      return adapter.get(namespacedKey);
+    },
+
+    async set(key: string, value: string, ttl?: number) {
+      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      return adapter.set(namespacedKey, value, ttl ?? defaultTTL);
+    },
+
+    async touch(key: string, ttl: number) {
+      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      return adapter.touch(namespacedKey, ttl);
+    },
+
+    ...(adapter.compareAndSet ? {
+      async compareAndSet(key: string, expectedRevision: number, value: string, ttl?: number) {
+        const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+        return adapter.compareAndSet!(namespacedKey, expectedRevision, value, ttl ?? defaultTTL);
+      }
+    } : {})
+  };
+}
 
 export interface TeleforgeRuntimeContext {
   app: TeleforgeAppConfig;
@@ -23,7 +124,8 @@ export interface CreateTeleforgeRuntimeContextOptions {
   phoneAuthSecret?: string;
   services?: unknown;
   sessionManager?: SessionManager;
-  sessionTtlSeconds?: number;
+  /** Skip session requirement validation. Defaults to false. */
+  skipSessionValidation?: boolean;
 }
 
 export async function createTeleforgeRuntimeContext(
@@ -80,14 +182,24 @@ export async function createTeleforgeRuntimeContext(
   const phoneAuthSecretEnv = app.runtime.phoneAuth?.secretEnv ?? "PHONE_AUTH_SECRET";
   const phoneAuthSecret = options.phoneAuthSecret ?? readEnv(phoneAuthSecretEnv);
 
+  // Discover session-enabled flows for validation
+  let sessionEnabledFlows: string[] = [];
+  if (!options.skipSessionValidation && app.flows) {
+    const flows = await loadTeleforgeFlows({ app, cwd });
+    sessionEnabledFlows = flows
+      .filter(({ flow }) => flow.session?.enabled)
+      .map(({ flow }) => flow.id);
+  }
+
+  // Determine mode based on whether we have a production token
+  const mode = token ? "production" : "development";
+
   const sessionManager =
     options.sessionManager ??
-    new SessionManager(
-      new MemorySessionStorageAdapter({
-        defaultTTL: options.sessionTtlSeconds ?? 900,
-        namespace: app.app.id
-      })
-    );
+    createSessionManagerFromConfig(app.session, app.app.id, {
+      mode,
+      sessionEnabledFlows
+    });
 
   return {
     app,

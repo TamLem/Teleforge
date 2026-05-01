@@ -48,9 +48,78 @@ export default defineTeleforgeApp({
 | `flows` | `TeleforgeFlowConventions` | No | Flow discovery paths |
 | `routes` | `RouteDefinition[]` | No | Additional route definitions |
 | `runtime` | `TeleforgeRuntime` | No | Runtime delivery mode, ports, secrets |
+| `session` | `TeleforgeSessionProviderConfig` | No | Session storage configuration |
 | `permissions` | `TeleforgePermission[]` | No | App capability declarations |
 | `features` | Object | No | Feature flags (backButton, cloudStorage, etc.) |
 | `security` | Object | No | Security settings (allowedOrigins, etc.) |
+
+### `session` (app-level session provider)
+
+Session configuration is defined at the app level in `teleforge.config.ts`. Flows opt in
+with `session: { enabled: true }`, but storage is owned by the app.
+
+```ts
+type TeleforgeSessionProviderConfig =
+  | {
+      provider: "memory";
+      defaultTTLSeconds?: number;
+      namespace?: string;
+    }
+  | {
+      provider: "custom";
+      storage: SessionStorageAdapter;
+      defaultTTLSeconds?: number;
+      namespace?: string;
+    };
+```
+
+**Memory provider:**
+
+```ts
+export default defineTeleforgeApp({
+  app: { id: "my-app", name: "My App", version: "1.0.0" },
+  session: {
+    provider: "memory",
+    defaultTTLSeconds: 3600
+  },
+  // ...
+});
+```
+
+Memory storage is suitable for development and preview. Data is lost on restart.
+
+**Custom provider:**
+
+```ts
+import { RedisSessionStorageAdapter } from "./my-redis-adapter";
+
+export default defineTeleforgeApp({
+  app: { id: "my-app", name: "My App", version: "1.0.0" },
+  session: {
+    provider: "custom",
+    storage: new RedisSessionStorageAdapter({ url: process.env.REDIS_URL }),
+    defaultTTLSeconds: 86400
+  },
+  // ...
+});
+```
+
+Custom providers receive a `SessionStorageAdapter` instance directly. This requires
+loading the config in-process (the default for TypeScript configs).
+
+**TTL and namespace behavior:**
+
+- For `memory` providers: `defaultTTLSeconds` defaults to `900` if not specified.
+- For `custom` providers: `defaultTTLSeconds` is optional. If specified, it overrides
+  the adapter's `defaultTTL`. If omitted, the adapter's own `defaultTTL` is used.
+  This allows custom adapters to define their own sensible defaults.
+- `namespace` works similarly: config overrides adapter namespace when specified.
+
+**Production requirement:**
+
+If any flow has `session.enabled = true` and the app is running with a bot token
+(production mode), the app config must include a `session` provider. The runtime
+will throw a clear error if a session-enabled flow is missing the provider.
 
 ---
 
@@ -277,7 +346,7 @@ type ActionEffect =
   | { type: "custom"; kind: string; payload: unknown };
 ```
 
-### `session` (optional)
+### `session` (flow-level opt-in)
 
 ```ts
 interface ActionFlowSessionDefinition {
@@ -287,7 +356,15 @@ interface ActionFlowSessionDefinition {
 }
 ```
 
-Sessions are opt-in. Only flows that declare `session.enabled = true` create
+Flows opt in to sessions with `session: { enabled: true }`. Storage is configured at the
+app level (see `session` in `TeleforgeAppConfig` above). Flow-level config only controls:
+
+- Whether this flow uses session state
+- Optional TTL override for this flow's sessions
+- Optional initial state
+
+**Production requirement:** If a flow enables sessions, the app config must include a
+`session` provider when running with a bot token.
 server-side session state.
 
 ---
