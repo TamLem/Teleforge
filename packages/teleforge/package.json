@@ -1,7 +1,7 @@
 {
   "name": "teleforge",
   "version": "0.5.0",
-  "description": "Unified TypeScript framework package for Telegram-native apps.",
+  "description": "TypeScript framework for Telegram-native bots and Mini Apps.",
   "homepage": "https://tamlem.github.io/Teleforge/",
   "type": "module",
   "main": "./dist/index.cjs",
