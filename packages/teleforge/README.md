@@ -77,9 +77,7 @@ export default defineFlow({
 
       await ctx.reply("Welcome! Open the Mini App to get started.", {
         reply_markup: {
-          inline_keyboard: [[
-            { text: "Open App", web_app: { url: launch } }
-          ]]
+          inline_keyboard: [[{ text: "Open App", web_app: { url: launch } }]]
         }
       });
     }
@@ -122,12 +120,12 @@ teleforge generate client-manifest   # Manually regenerate client-safe flow meta
 
 ## Public import surfaces
 
-| Import path | Purpose |
-|---|---|
-| `teleforge` | App config (`defineTeleforgeApp`), flow definitions (`defineFlow`), and high-level bootstrap (`startTeleforgeBot`, `startTeleforgeServer`) |
-| `teleforge/web` | Mini App shell (`TeleforgeMiniApp`), screen registration (`defineScreen`), and launch coordination hooks |
-| `teleforge/bot` | Bot runtime types, command handlers, and lower-level primitives for custom routing |
-| `teleforge/test` | Framework test helpers |
+| Import path      | Purpose                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `teleforge`      | App config (`defineTeleforgeApp`), flow definitions (`defineFlow`), and high-level bootstrap (`startTeleforgeBot`, `startTeleforgeServer`) |
+| `teleforge/web`  | Mini App shell (`TeleforgeMiniApp`), screen registration (`defineScreen`), and launch coordination hooks                                   |
+| `teleforge/bot`  | Bot runtime types, command handlers, and lower-level primitives for custom routing                                                         |
+| `teleforge/test` | Framework test helpers                                                                                                                     |
 
 ## Default path vs escape hatches
 

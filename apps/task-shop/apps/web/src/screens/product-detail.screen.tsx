@@ -59,11 +59,7 @@ function ProductDetailScreen({
   return (
     <main className="shell">
       <div className="product-hero-image">
-        <ProductImage
-          className="large"
-          image={product.image}
-          alt={product.name}
-        />
+        <ProductImage className="large" image={product.image} alt={product.name} />
       </div>
 
       <header className="hero">

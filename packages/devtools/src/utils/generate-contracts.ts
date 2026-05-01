@@ -105,13 +105,8 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
   return options.outputPath;
 }
 
-export function formatContracts(
-  manifest: ClientFlowManifestLike,
-  outputPath?: string
-): string {
-  const eligibleFlows = manifest.flows.filter(
-    (flow) => flow.miniApp && flow.screens.length > 0
-  );
+export function formatContracts(manifest: ClientFlowManifestLike, outputPath?: string): string {
+  const eligibleFlows = manifest.flows.filter((flow) => flow.miniApp && flow.screens.length > 0);
 
   // Detect per-screen prop alias name collisions across flows.
   const screenAliasUsage = new Map<string, number>();
@@ -266,9 +261,7 @@ function formatFlow(
       `export type ${flowPascal}Actions = TypedActionHelpers<${flowPascal}ActionPayloads>;`
     );
   } else {
-    lines.push(
-      `export type ${flowPascal}ActionPayloads = Readonly<Record<never, never>>;`
-    );
+    lines.push(`export type ${flowPascal}ActionPayloads = Readonly<Record<never, never>>;`);
     lines.push(
       `export type ${flowPascal}Actions = TypedActionHelpers<${flowPascal}ActionPayloads>;`
     );
@@ -294,20 +287,12 @@ function formatFlow(
         .map(({ helper, type }) => `  ${helper}: ${type};`)
         .join("\n")}\n};`
     );
-    lines.push(
-      `export type ${flowPascal}Nav = TypedNavigationHelpers<${flowPascal}RouteParams>;`
-    );
-    lines.push(
-      `export type ${flowPascal}Sign = TypedSignHelpers<${flowPascal}RouteParams>;`
-    );
+    lines.push(`export type ${flowPascal}Nav = TypedNavigationHelpers<${flowPascal}RouteParams>;`);
+    lines.push(`export type ${flowPascal}Sign = TypedSignHelpers<${flowPascal}RouteParams>;`);
   } else {
     lines.push(`export type ${flowPascal}RouteParams = Record<string, never>;`);
-    lines.push(
-      `export type ${flowPascal}Nav = TypedNavigationHelpers<${flowPascal}RouteParams>;`
-    );
-    lines.push(
-      `export type ${flowPascal}Sign = TypedSignHelpers<${flowPascal}RouteParams>;`
-    );
+    lines.push(`export type ${flowPascal}Nav = TypedNavigationHelpers<${flowPascal}RouteParams>;`);
+    lines.push(`export type ${flowPascal}Sign = TypedSignHelpers<${flowPascal}RouteParams>;`);
   }
 
   // Per-screen prop aliases.
@@ -324,9 +309,7 @@ function formatFlow(
         ? "Readonly<Record<never, never>>"
         : `{ ${entry.params.map((name) => `${name}: string`).join("; ")} }`;
 
-    const loaderDataType = useOverrides
-      ? `LoaderDataFor<"${flow.id}", "${screen.id}">`
-      : "unknown";
+    const loaderDataType = useOverrides ? `LoaderDataFor<"${flow.id}", "${screen.id}">` : "unknown";
 
     lines.push(
       `export type ${alias} = Omit<

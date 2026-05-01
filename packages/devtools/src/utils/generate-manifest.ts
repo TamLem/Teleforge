@@ -15,10 +15,13 @@ export interface GenerateClientManifestOptions {
   contractsOutputPath?: string;
 }
 
-export async function generateClientManifest(options: GenerateClientManifestOptions): Promise<string> {
+export async function generateClientManifest(
+  options: GenerateClientManifestOptions
+): Promise<string> {
   const cwd = options.cwd;
   const outputPath =
-    options.outputPath ?? path.join(cwd, "apps", "web", "src", "teleforge-generated", "client-flow-manifest.ts");
+    options.outputPath ??
+    path.join(cwd, "apps", "web", "src", "teleforge-generated", "client-flow-manifest.ts");
   const contractsOutputPath =
     options.contractsOutputPath ?? path.join(path.dirname(outputPath), "contracts.ts");
 

@@ -123,17 +123,14 @@ export function validateSessionDeployment(
         `Session-enabled flows: ${sessionEnabledFlows.join(", ")}`,
         `Runtime environment: ${input.environment}`
       ],
-      message:
-        `Flow ${flowList} uses sessions with provider "memory", but runtime.environment is "production".`,
+      message: `Flow ${flowList} uses sessions with provider "memory", but runtime.environment is "production".`,
       remediation:
         `Memory sessions are not durable and cannot be used for production deployments. ` +
         `Configure a durable custom session provider.`
     });
   }
 
-  return issues.length === 0
-    ? { ok: true, issues: [] }
-    : { ok: false, issues };
+  return issues.length === 0 ? { ok: true, issues: [] } : { ok: false, issues };
 }
 
 function formatFlowList(flowIds: readonly string[]): string {
@@ -141,5 +138,8 @@ function formatFlowList(flowIds: readonly string[]): string {
     return `"${flowIds[0]}"`;
   }
 
-  return `${flowIds.slice(0, -1).map((id) => `"${id}"`).join(", ")} and "${flowIds[flowIds.length - 1]}"`;
+  return `${flowIds
+    .slice(0, -1)
+    .map((id) => `"${id}"`)
+    .join(", ")} and "${flowIds[flowIds.length - 1]}"`;
 }

@@ -35,7 +35,7 @@ export function buildProjectFiles(options: BuildProjectFilesOptions): Record<str
     "apps/bot/src/flows/start.flow.ts": botStartFlowTs(options.appName, packageNames),
     "apps/bot/src/index.ts": botIndexTs(),
     "apps/bot/src/runtime.ts": botRuntimeTs(),
-    "apps/bot/test/start.test.ts": botStartTestTs(options.appName),
+    "apps/bot/test/start.test.ts": botStartTestTs(),
     "apps/bot/tsconfig.json": botTsconfig(),
     "packages/types/package.json": generatedTypesPackageJson(packageNames),
     "packages/types/src/index.ts": generatedTypesIndexTs(),
@@ -435,7 +435,7 @@ export default defineFlow({
 `;
 }
 
-function botStartTestTs(appName: string): string {
+function botStartTestTs(): string {
   return `import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -485,7 +485,7 @@ function generatedWebFiles(
     "apps/web/src/screens/home.screen.tsx": homeScreenTsx(),
     "apps/web/src/teleforge-contract-overrides.ts": contractOverridesTs(),
     "apps/web/src/styles.css": webStylesCss(),
-    "apps/web/test/home.test.tsx": homePageTestTs(options.appName),
+    "apps/web/test/home.test.tsx": homePageTestTs(),
     "apps/web/tsconfig.json": stringifyJson({
       extends: "../../tsconfig.base.json",
       compilerOptions: {
@@ -645,7 +645,7 @@ export interface TeleforgeLoaderDataOverrides {
 `;
 }
 
-function homePageTestTs(appName: string): string {
+function homePageTestTs(): string {
   return `import assert from "node:assert/strict";
 import test from "node:test";
 import React from "react";

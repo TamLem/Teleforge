@@ -10,10 +10,7 @@ export {
   resolveScreenLoaderRoot
 } from "./discovery.js";
 
-export type {
-  DiscoverScreenLoaderFilesOptions,
-  LoadScreenLoadersOptions
-} from "./discovery.js";
+export type { DiscoverScreenLoaderFilesOptions, LoadScreenLoadersOptions } from "./discovery.js";
 
 export type {
   CreateActionServerHooksHandlerOptions,

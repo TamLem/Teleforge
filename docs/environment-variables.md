@@ -6,15 +6,15 @@ Teleforge configuration lives in `teleforge.config.ts`. Environment variables sh
 
 ## Common Variables
 
-| Variable                | Purpose                                       | Typical Usage                                 |
-| ----------------------- | --------------------------------------------- | --------------------------------------------- |
-| `BOT_TOKEN`             | Telegram bot token                            | live polling, webhook handling, Bot API calls |
-| `MINI_APP_URL`          | public Mini App URL override                  | production or public tunnel launch URLs       |
-| `WEBHOOK_SECRET`        | Telegram webhook secret                       | webhook deployments                           |
-| `TELEFORGE_PUBLIC_URL`  | explicit public URL for doctor/dev validation | local tunnels, staging, and deployment checks |
-| `TELEFORGE_DEV_PORT`    | preferred local dev port                      | `teleforge dev` local runtime                 |
-| `TELEFORGE_DEV_HTTPS`   | force HTTPS expectation in doctor/dev checks  | local HTTPS or tunnel validation              |
-| `TELEFORGE_FLOW_SECRET` | flow context signing secret                   | trusted flow launch/session payloads          |
+| Variable                | Purpose                                       | Typical Usage                                     |
+| ----------------------- | --------------------------------------------- | ------------------------------------------------- |
+| `BOT_TOKEN`             | Telegram bot token                            | live polling, webhook handling, Bot API calls     |
+| `MINI_APP_URL`          | public Mini App URL override                  | production or public tunnel launch URLs           |
+| `WEBHOOK_SECRET`        | Telegram webhook secret                       | webhook deployments                               |
+| `TELEFORGE_PUBLIC_URL`  | explicit public URL for doctor/dev validation | local tunnels, staging, and deployment checks     |
+| `TELEFORGE_DEV_PORT`    | preferred local dev port                      | `teleforge dev` local runtime                     |
+| `TELEFORGE_DEV_HTTPS`   | force HTTPS expectation in doctor/dev checks  | local HTTPS or tunnel validation                  |
+| `TELEFORGE_FLOW_SECRET` | flow context signing secret                   | trusted flow launch/session payloads              |
 | `TELEFORGE_ENV`         | runtime environment fallback                  | `development`, `preview`, `staging`, `production` |
 
 ## Client Validation Variables

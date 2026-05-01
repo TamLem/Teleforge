@@ -1,10 +1,6 @@
 import type { DoctorCheck, DoctorRunResult } from "./checks.js";
 
-const categoryOrder: DoctorCheck["category"][] = [
-  "Environment",
-  "Configuration",
-  "Connectivity"
-];
+const categoryOrder: DoctorCheck["category"][] = ["Environment", "Configuration", "Connectivity"];
 
 export function formatDoctorReport(result: DoctorRunResult, options: { verbose: boolean }): string {
   const lines = [`Teleforge Doctor`, `Project: ${result.cwd}`, ""];

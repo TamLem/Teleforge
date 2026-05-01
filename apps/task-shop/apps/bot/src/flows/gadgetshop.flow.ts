@@ -130,12 +130,8 @@ export default defineFlow({
     addToCart: {
       input: addToCartSchema,
       handler: async ({ input, session, services: _services }) => {
-        const {
-          getProduct,
-          addLineItem,
-          resolveCartItems,
-          getCartItemCount
-        } = await import("@task-shop/types");
+        const { getProduct, addLineItem, resolveCartItems, getCartItemCount } =
+          await import("@task-shop/types");
         const product = getProduct(input.productId);
         if (!product) return { data: { error: "Product not found" } };
 
@@ -165,12 +161,8 @@ export default defineFlow({
     removeFromCart: {
       input: removeFromCartSchema,
       handler: async ({ input, session, services: _services }) => {
-        const {
-          removeLineItem,
-          resolveCartItems,
-          getCartItemCount,
-          getCartSubtotal
-        } = await import("@task-shop/types");
+        const { removeLineItem, resolveCartItems, getCartItemCount, getCartSubtotal } =
+          await import("@task-shop/types");
 
         if (!session) return { data: { error: "Session required" } };
 

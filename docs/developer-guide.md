@@ -223,9 +223,13 @@ export default defineScreen({
   component({ state, submit }) {
     const isValid = !!(state.name && state.phone);
 
-    useCoordinatedMainButton("Save Profile", async () => {
-      await submit({ type: "sender_profile", name: state.name, phone: state.phone });
-    }, { isVisible: isValid });
+    useCoordinatedMainButton(
+      "Save Profile",
+      async () => {
+        await submit({ type: "sender_profile", name: state.name, phone: state.phone });
+      },
+      { isVisible: isValid }
+    );
 
     return <form>...</form>;
   }
@@ -244,7 +248,9 @@ export function ThemedScreen() {
 
   return (
     <main style={{ background: theme.bgColor, color: theme.textColor, minHeight: "100vh" }}>
-      <section style={{ background: theme.secondaryBgColor, padding: "1rem", borderRadius: "1rem" }}>
+      <section
+        style={{ background: theme.secondaryBgColor, padding: "1rem", borderRadius: "1rem" }}
+      >
         <h1 style={{ color: theme.textColor }}>Telegram-aware UI</h1>
         <p style={{ color: theme.hintColor }}>Use theme hooks directly for custom styling.</p>
       </section>

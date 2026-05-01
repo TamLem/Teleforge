@@ -19,9 +19,7 @@ export type {
   TeleforgeValidationErrorBody,
   WebhookEffect
 } from "./types.js";
-export {
-  parseTeleforgeInput
-} from "./types.js";
+export { parseTeleforgeInput } from "./types.js";
 export {
   SIGNED_ACTION_CONTEXT_PREFIX,
   createSignedActionContext,

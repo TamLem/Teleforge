@@ -82,7 +82,7 @@ export async function readClientManifestFlowIds(manifestPath: string): Promise<s
   if (!manifest) {
     return null;
   }
-  return manifest.flows.map(f => f.id);
+  return manifest.flows.map((f) => f.id);
 }
 
 export async function checkClientManifestDrift(options: {
@@ -105,7 +105,7 @@ export async function checkClientManifestDrift(options: {
   }
 
   const discoveredFlowIds = new Set(discoveredFlows.map((flow) => flow.id));
-  const manifestFlowIdSet = new Set(manifest.flows.map(f => f.id));
+  const manifestFlowIdSet = new Set(manifest.flows.map((f) => f.id));
 
   const details: string[] = [];
 
@@ -125,23 +125,23 @@ export async function checkClientManifestDrift(options: {
 
   // Deep comparison: routes, screens, actions
   for (const discoveredFlow of discoveredFlows) {
-    const manifestFlow = manifest.flows.find(f => f.id === discoveredFlow.id);
+    const manifestFlow = manifest.flows.find((f) => f.id === discoveredFlow.id);
     if (!manifestFlow) continue; // Already checked above
 
     // Use discovered flow as source of truth for whether to compare Mini App routes/actions
     const discoveredRoutes = new Set(discoveredFlow.routes ?? []);
     const hasDiscoveredMiniApp = discoveredRoutes.size > 0;
-    
+
     if (hasDiscoveredMiniApp) {
       // Compare routes against manifest (even if manifest is missing miniApp)
       const manifestRoutes = new Set(Object.keys(manifestFlow.miniApp?.routes ?? {}));
-      
+
       for (const route of discoveredRoutes) {
         if (!manifestRoutes.has(route)) {
           details.push(`Flow "${discoveredFlow.id}": route "${route}" missing from manifest`);
         }
       }
-      
+
       for (const route of manifestRoutes) {
         if (!discoveredRoutes.has(route)) {
           details.push(`Flow "${discoveredFlow.id}": stale route "${route}" in manifest`);
@@ -149,10 +149,8 @@ export async function checkClientManifestDrift(options: {
       }
 
       // Compare actions for flows with Mini App screens
-      const discoveredActions = new Set(discoveredFlow.actions?.map(a => a.id) ?? []);
-      const manifestActions = new Set(
-        manifestFlow.screens.flatMap(s => s.actions ?? [])
-      );
+      const discoveredActions = new Set(discoveredFlow.actions?.map((a) => a.id) ?? []);
+      const manifestActions = new Set(manifestFlow.screens.flatMap((s) => s.actions ?? []));
 
       for (const actionId of discoveredActions) {
         if (!manifestActions.has(actionId)) {
@@ -169,16 +167,13 @@ export async function checkClientManifestDrift(options: {
   }
 
   // Check for contracts.ts presence
-  const contractsPath = path.join(
-    path.dirname(manifestPath),
-    "contracts.ts"
-  );
-  
+  const contractsPath = path.join(path.dirname(manifestPath), "contracts.ts");
+
   try {
     await stat(contractsPath);
   } catch {
-    return { 
-      isStale: true, 
+    return {
+      isStale: true,
       reason: "contracts.ts file is missing alongside client manifest",
       details
     };

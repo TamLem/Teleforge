@@ -297,7 +297,9 @@ async function spawnCompanionServices(options: {
         : { command: null, args: [] };
 
     if (!command) {
-      console.log(`Warning: No command runner available for companion service ${definition.label}. Skipping.`);
+      console.log(
+        `Warning: No command runner available for companion service ${definition.label}. Skipping.`
+      );
       continue;
     }
 
@@ -311,7 +313,9 @@ async function spawnCompanionServices(options: {
     if (definition.health) {
       const healthy = await pollHealthEndpoint(definition.health, definition.label, 15_000);
       if (!healthy) {
-        console.log(`Warning: Companion service ${definition.label} health check failed (${definition.health}). Service may still be starting.`);
+        console.log(
+          `Warning: Companion service ${definition.label} health check failed (${definition.health}). Service may still be starting.`
+        );
       } else {
         console.log(`✓ Companion service ${definition.label} is healthy (${definition.health})`);
       }
@@ -420,13 +424,9 @@ async function pollHealthEndpoint(
   while (Date.now() - startedAt < timeoutMs) {
     try {
       const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
-        const req = requestModule.request(
-          target,
-          { method: "GET", timeout: 2_000 },
-          (res) => {
-            resolve(res);
-          }
-        );
+        const req = requestModule.request(target, { method: "GET", timeout: 2_000 }, (res) => {
+          resolve(res);
+        });
         req.on("error", reject);
         req.on("timeout", () => {
           req.destroy();

@@ -15,7 +15,8 @@ export default defineLoader({
     const { items: lineItems } = await cart.get();
 
     // Resolve to display data
-    const { resolveCartItems, getCartSubtotal, getCartItemCount } = await import("@task-shop/types");
+    const { resolveCartItems, getCartSubtotal, getCartItemCount } =
+      await import("@task-shop/types");
     const displayItems = resolveCartItems(lineItems);
 
     return {

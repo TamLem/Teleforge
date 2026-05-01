@@ -251,7 +251,7 @@ test("checkClientManifestDrift detects missing route in manifest", async () => {
     `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n  {\n    "flows": [\n      { "id": "start", "screens": [], "miniApp": { "routes": { "/old": "old-screen" } } }\n    ]\n  }\n);\n`,
     "utf8"
   );
-  
+
   await writeFile(contractsPath, "// contracts\n", "utf8");
 
   const drift = await checkClientManifestDrift({
@@ -260,7 +260,7 @@ test("checkClientManifestDrift detects missing route in manifest", async () => {
   });
 
   assert.equal(drift.isStale, true);
-  assert.ok(drift.details?.some(d => d.includes("missing from manifest")));
+  assert.ok(drift.details?.some((d) => d.includes("missing from manifest")));
 });
 
 test("checkClientManifestDrift detects stale route in manifest", async () => {
@@ -273,7 +273,7 @@ test("checkClientManifestDrift detects stale route in manifest", async () => {
     `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n  {\n    "flows": [\n      { "id": "start", "screens": [], "miniApp": { "routes": { "/old": "screen", "/stale": "screen" } } }\n    ]\n  }\n);\n`,
     "utf8"
   );
-  
+
   await writeFile(contractsPath, "// contracts\n", "utf8");
 
   const drift = await checkClientManifestDrift({
@@ -282,7 +282,7 @@ test("checkClientManifestDrift detects stale route in manifest", async () => {
   });
 
   assert.equal(drift.isStale, true);
-  assert.ok(drift.details?.some(d => d.includes("stale route")));
+  assert.ok(drift.details?.some((d) => d.includes("stale route")));
 });
 
 test("checkClientManifestDrift detects missing action in manifest", async () => {
@@ -295,16 +295,18 @@ test("checkClientManifestDrift detects missing action in manifest", async () => 
     `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n  {\n    "flows": [\n      { "id": "start", "miniApp": { "routes": { "/": "screen" } }, "screens": [{ "id": "screen", "actions": ["old-action"] }] }\n    ]\n  }\n);\n`,
     "utf8"
   );
-  
+
   await writeFile(contractsPath, "// contracts\n", "utf8");
 
   const drift = await checkClientManifestDrift({
-    discoveredFlows: [{ id: "start", routes: ["/"], actions: [{ id: "new-action" }, { id: "old-action" }] }],
+    discoveredFlows: [
+      { id: "start", routes: ["/"], actions: [{ id: "new-action" }, { id: "old-action" }] }
+    ],
     manifestPath
   });
 
   assert.equal(drift.isStale, true);
-  assert.ok(drift.details?.some(d => d.includes("missing from manifest")));
+  assert.ok(drift.details?.some((d) => d.includes("missing from manifest")));
 });
 
 test("checkClientManifestDrift detects stale action in manifest", async () => {
@@ -317,7 +319,7 @@ test("checkClientManifestDrift detects stale action in manifest", async () => {
     `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n  {\n    "flows": [\n      { "id": "start", "miniApp": { "routes": { "/": "screen" } }, "screens": [{ "id": "screen", "actions": ["old-action", "stale-action"] }] }\n    ]\n  }\n);\n`,
     "utf8"
   );
-  
+
   await writeFile(contractsPath, "// contracts\n", "utf8");
 
   const drift = await checkClientManifestDrift({
@@ -326,7 +328,7 @@ test("checkClientManifestDrift detects stale action in manifest", async () => {
   });
 
   assert.equal(drift.isStale, true);
-  assert.ok(drift.details?.some(d => d.includes("stale action")));
+  assert.ok(drift.details?.some((d) => d.includes("stale action")));
 });
 
 test("checkClientManifestDrift detects missing contracts.ts file", async () => {
@@ -358,7 +360,7 @@ test("checkClientManifestDrift ignores actions for chat-only flows", async () =>
     `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n  {\n    "flows": [\n      { "id": "chat-flow", "screens": [] }\n    ]\n  }\n);\n`,
     "utf8"
   );
-  
+
   await writeFile(contractsPath, "// contracts\n", "utf8");
 
   // Chat-only flow with actions but no routes

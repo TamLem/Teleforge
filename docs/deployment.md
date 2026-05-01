@@ -58,6 +58,7 @@ teleforge start
 ```
 
 This calls the framework-owned `startTeleforgeBot()` which:
+
 - loads `teleforge.config.ts` and discovers flows
 - resolves secrets from the environment
 - starts polling automatically when `runtime.bot.delivery` is omitted or set to `"polling"`
@@ -68,10 +69,10 @@ When implementing custom polling, request both `message` and `callback_query` up
 
 ```ts
 // ✅ Receive both message and callback_query updates
-allowed_updates: ["callback_query", "message"]
+allowed_updates: ["callback_query", "message"];
 
 // ❌ Only messages — inline keyboard callbacks are dropped
-allowed_updates: ["message"]
+allowed_updates: ["message"];
 ```
 
 For advanced use cases, the lower-level `createDiscoveredBotRuntime()` escape hatch is available.
@@ -123,12 +124,12 @@ The storage adapter is intentionally small: `get`, `set`, `delete`, `touch`, and
 
 ## Production Runtime Matrix
 
-| Runtime need | Default path | Required config | Required environment |
-| ------------ | ------------ | --------------- | -------------------- |
-| Polling bot | `teleforge start` | `bot.username`, `bot.tokenEnv`; `runtime.bot.delivery` omitted or `"polling"` | `BOT_TOKEN`; `MINI_APP_URL` for live Mini App launches |
-| Webhook bot | `teleforge start` | `runtime.bot.delivery: "webhook"` plus `bot.webhook.path` and `bot.webhook.secretEnv` | `BOT_TOKEN`, `MINI_APP_URL`, `TELEFORGE_FLOW_SECRET`, webhook secret env |
-| Server hooks | `teleforge start` discovers hooks by convention | `flows.serverHooksRoot` if not using the default derived path | `TELEFORGE_FLOW_SECRET` for trusted flow payloads |
-| Static Mini App hosting | Deploy `apps/web` build to HTTPS host | `miniApp.entry` and production launch URL or env override | `MINI_APP_URL` when the runtime should override checked-in URL |
+| Runtime need            | Default path                                    | Required config                                                                       | Required environment                                                     |
+| ----------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Polling bot             | `teleforge start`                               | `bot.username`, `bot.tokenEnv`; `runtime.bot.delivery` omitted or `"polling"`         | `BOT_TOKEN`; `MINI_APP_URL` for live Mini App launches                   |
+| Webhook bot             | `teleforge start`                               | `runtime.bot.delivery: "webhook"` plus `bot.webhook.path` and `bot.webhook.secretEnv` | `BOT_TOKEN`, `MINI_APP_URL`, `TELEFORGE_FLOW_SECRET`, webhook secret env |
+| Server hooks            | `teleforge start` discovers hooks by convention | `flows.serverHooksRoot` if not using the default derived path                         | `TELEFORGE_FLOW_SECRET` for trusted flow payloads                        |
+| Static Mini App hosting | Deploy `apps/web` build to HTTPS host           | `miniApp.entry` and production launch URL or env override                             | `MINI_APP_URL` when the runtime should override checked-in URL           |
 
 ## Server Hooks
 

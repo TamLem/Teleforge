@@ -26,9 +26,7 @@ export interface CreateActionCallbackOptions {
   userId: string;
 }
 
-export function createSignedActionContextToken(
-  options: CreateActionContextOptions
-): string {
+export function createSignedActionContextToken(options: CreateActionContextOptions): string {
   const now = Math.floor(Date.now() / 1000);
   const ttl = options.ttlSeconds ?? 900;
 
@@ -47,9 +45,7 @@ export function createSignedActionContextToken(
   return createSignedActionContext(token, options.secret);
 }
 
-export function createActionCallbackData(
-  options: CreateActionCallbackOptions
-): string {
+export function createActionCallbackData(options: CreateActionCallbackOptions): string {
   const token = createSignedActionContextToken({
     allowedActions: options.allowedActions ?? [options.actionId],
     appId: options.appId,

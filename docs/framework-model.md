@@ -17,14 +17,14 @@ need a durable custom session provider.
 
 ## Core Concepts
 
-| Concept      | Meaning                                                                 |
-| ------------ | ----------------------------------------------------------------------- |
-| `Flow`       | Complete user journey such as checkout, onboarding, or phone auth       |
-| `Screen`     | Frontend UI bound to a Mini App route                                   |
-| `Action`     | Named server-side handler producing results and effects                 |
-| `Handler`    | Application logic in commands, contact/location handlers, and actions   |
-| `Effect`     | Side effect produced by an action (chat message, navigation, handoff)   |
-| `Session`    | Optional server-side state for drafts, multi-step wizards, external waits |
+| Concept   | Meaning                                                                   |
+| --------- | ------------------------------------------------------------------------- |
+| `Flow`    | Complete user journey such as checkout, onboarding, or phone auth         |
+| `Screen`  | Frontend UI bound to a Mini App route                                     |
+| `Action`  | Named server-side handler producing results and effects                   |
+| `Handler` | Application logic in commands, contact/location handlers, and actions     |
+| `Effect`  | Side effect produced by an action (chat message, navigation, handoff)     |
+| `Session` | Optional server-side state for drafts, multi-step wizards, external waits |
 
 ## Example Shape
 
@@ -50,9 +50,7 @@ export default defineFlow({
 
       await ctx.reply("What would you like to order?", {
         reply_markup: {
-          inline_keyboard: [[
-            { text: "Open catalog", web_app: { url: launch } }
-          ]]
+          inline_keyboard: [[{ text: "Open catalog", web_app: { url: launch } }]]
         }
       });
     }
@@ -71,9 +69,12 @@ export default defineFlow({
     selectProduct: {
       input: schema({ productId: String, quantity: Number }),
       handler: async ({ input, session }) => {
-        const cart = session.resource<{ items: Array<{ productId: string; qty: number }> }>("cart", {
-          initialValue: { items: [] }
-        });
+        const cart = session.resource<{ items: Array<{ productId: string; qty: number }> }>(
+          "cart",
+          {
+            initialValue: { items: [] }
+          }
+        );
         await cart.update((draft) => {
           draft.items.push({ productId: input.productId, qty: input.quantity });
         });
@@ -174,13 +175,13 @@ Validates signed context tokens and executes flow action handlers. This is the t
 
 Screens receive framework-injected props that make the trust boundary explicit. Each prop has a clear source and owner:
 
-| Prop | Source | Trust |
-|---|---|---|
-| `scopeData` | Signed context `subject` — server-issued IDs/capabilities | Server |
-| `routeParams` | Extracted from matched route pattern | Framework |
-| `routeData` | `navigate({ data })` — ephemeral handoff | Client |
-| `loader` / `loaderData` | Server loader result | Server |
-| `appState` | React context | Client |
+| Prop                    | Source                                                    | Trust     |
+| ----------------------- | --------------------------------------------------------- | --------- |
+| `scopeData`             | Signed context `subject` — server-issued IDs/capabilities | Server    |
+| `routeParams`           | Extracted from matched route pattern                      | Framework |
+| `routeData`             | `navigate({ data })` — ephemeral handoff                  | Client    |
+| `loader` / `loaderData` | Server loader result                                      | Server    |
+| `appState`              | React context                                             | Client    |
 
 For the full trust model, the five state-type categories, session resources, and storage architecture, see [State Boundaries](./state-boundaries.md). For how props travel through the runtime chain, see [Runtime Wiring](./runtime-wiring.md).
 

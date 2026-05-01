@@ -35,9 +35,7 @@ export default defineFlow({
 
       await ctx.reply("Open recent orders.", {
         reply_markup: {
-          inline_keyboard: [[
-            { text: "Open Orders", web_app: { url: launch } }
-          ]]
+          inline_keyboard: [[{ text: "Open Orders", web_app: { url: launch } }]]
         }
       });
     }
@@ -98,7 +96,9 @@ function OrdersScreen({ loader, loaderData, actions, nav }: OrdersScreenProps) {
       <h2>Recent Orders</h2>
       {orders.map((o) => (
         <div key={o.id}>
-          <span>Order #{o.id} — ${o.total}</span>
+          <span>
+            Order #{o.id} — ${o.total}
+          </span>
           <button onClick={() => nav.done()}>View Details</button>
         </div>
       ))}
@@ -162,7 +162,7 @@ import doneScreen from "./screens/done.screen.js";
   flowManifest={flowManifest}
   screens={[catalogScreen, ordersScreen, doneScreen]}
   serverBridge={serverBridge}
-/>
+/>;
 ```
 
 ## 6. Regenerate The Manifest

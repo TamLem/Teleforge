@@ -55,7 +55,9 @@ export async function transmitResult(
     });
 
     if (!response.ok) {
-      throw new Error(`Return-to-chat server-bridge request failed with status ${response.status}.`);
+      throw new Error(
+        `Return-to-chat server-bridge request failed with status ${response.status}.`
+      );
     }
 
     return {

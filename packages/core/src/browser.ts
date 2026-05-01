@@ -67,10 +67,7 @@ export type {
 } from "./coordination/types.js";
 export type { ValidationError, ValidationResult } from "./coordination/validate.js";
 
-export type {
-  ActionContextToken,
-  ActionResult
-} from "./action/index.js";
+export type { ActionContextToken, ActionResult } from "./action/index.js";
 export type {
   ClientFlowManifest,
   ClientFlowManifestEntry,

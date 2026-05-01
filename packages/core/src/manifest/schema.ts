@@ -4,7 +4,12 @@ const launchModeSchema = z.enum(["inline", "compact", "fullscreen"]);
 const semverSchema = z.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
 const kebabCaseSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const runtimeEnvironmentSchema = z.enum(["development", "preview", "staging", "production"]);
-const deploymentTopologySchema = z.enum(["single-process", "split-process", "serverless", "multi-instance"]);
+const deploymentTopologySchema = z.enum([
+  "single-process",
+  "split-process",
+  "serverless",
+  "multi-instance"
+]);
 
 const commandSchema = z.object({
   command: z.string().min(1),

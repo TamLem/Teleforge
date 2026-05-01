@@ -13,15 +13,31 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function TrackingScreen({ loader, loaderData, nav }: TrackingScreenProps) {
-  if (loader.status === "loading") return <main className="shell"><div className="card"><h2>Loading...</h2></div></main>;
-  if (loader.status === "error") return <main className="shell"><div className="card"><h2>Failed to load order</h2></div></main>;
+  if (loader.status === "loading")
+    return (
+      <main className="shell">
+        <div className="card">
+          <h2>Loading...</h2>
+        </div>
+      </main>
+    );
+  if (loader.status === "error")
+    return (
+      <main className="shell">
+        <div className="card">
+          <h2>Failed to load order</h2>
+        </div>
+      </main>
+    );
 
   const order = loaderData?.order;
 
   if (!order) {
     return (
       <main className="shell">
-        <div className="card"><h2>Order not found</h2></div>
+        <div className="card">
+          <h2>Order not found</h2>
+        </div>
       </main>
     );
   }
@@ -38,7 +54,12 @@ function TrackingScreen({ loader, loaderData, nav }: TrackingScreenProps) {
         <p className="eyebrow">Order Tracking</p>
         <h1>Order #{order.id}</h1>
         <p className="lede">
-          {new Date(createdAt).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          {new Date(createdAt).toLocaleDateString(undefined, {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+          })}
         </p>
       </header>
 
@@ -66,10 +87,21 @@ function TrackingScreen({ loader, loaderData, nav }: TrackingScreenProps) {
       <div className="card">
         <h2>Order Summary</h2>
         {items.map((item) => (
-          <div key={item.productId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", padding: "0.25rem 0" }}>
+          <div
+            key={item.productId}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "0.75rem",
+              padding: "0.25rem 0"
+            }}
+          >
             <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
               <ProductImage className="mini-thumb" image={item.image} alt={item.name} />
-              <span>{item.name} × {item.quantity}</span>
+              <span>
+                {item.name} × {item.quantity}
+              </span>
             </span>
             <span>${(item.price * item.quantity).toFixed(2)}</span>
           </div>

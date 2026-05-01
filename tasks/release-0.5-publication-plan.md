@@ -88,7 +88,7 @@ Update:
 - [x] Update scaffold template dependency:
 
 ```ts
-teleforge: "^0.5.0"
+teleforge: "^0.5.0";
 ```
 
 - Update package lock after metadata changes.
@@ -313,6 +313,11 @@ pnpm test
 ## Local Verification Completed
 
 - `pnpm --filter teleforge build` passes.
+- `pnpm check` passes after fixing:
+  - root test/build ordering so `teleforge` no longer races internal package `dist` cleanup
+  - stale Task Shop test command pointing at removed legacy test files
+  - doctor config-loader eval script using TypeScript-only syntax
+  - lint/format drift in release changes
 - `pnpm docs:build` passes.
 - `pnpm run publish:dry-run` publishes only `teleforge@0.5.0` in dry-run mode.
 - Session deployment topology validation has been implemented for runtime and doctor:
@@ -348,8 +353,6 @@ pnpm test
 
 ## Current External Release Blockers
 
-- npm publish token is not present in this shell. Set one of:
-  - `TELEFORGE_NPM_TOKEN`
-  - `NPM_TOKEN`
-  - `NODE_AUTH_TOKEN`
-- GitHub network fetch failed locally with DNS resolution for `github.com`; retry before pushing the release branch, tag, or GitHub release.
+- `main` has been updated locally and pushed to GitHub.
+- npm auth is available through the user npm config.
+- npm publish reaches the registry, but npm requires a one-time password (`EOTP`) before `teleforge@0.5.0` can be published.

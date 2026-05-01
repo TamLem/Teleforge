@@ -19,11 +19,7 @@ export function MiniAppStateProvider(props: { children: ReactNode }) {
     clear: () => setValue({})
   };
 
-  return (
-    <AppStateContext.Provider value={state}>
-      {props.children}
-    </AppStateContext.Provider>
-  );
+  return <AppStateContext.Provider value={state}>{props.children}</AppStateContext.Provider>;
 }
 
 export function useAppState<T = Record<string, unknown>>(): MiniAppState<T> {

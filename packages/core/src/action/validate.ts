@@ -4,10 +4,7 @@ import type { ActionContextToken } from "./types.js";
 
 export const SIGNED_ACTION_CONTEXT_PREFIX = "tfp2";
 
-export function createSignedActionContext(
-  data: ActionContextToken,
-  secret: string
-): string {
+export function createSignedActionContext(data: ActionContextToken, secret: string): string {
   if (!secret) {
     throw new Error("A non-empty secret is required for action context signing.");
   }
@@ -36,9 +33,7 @@ export function verifySignedActionContext(
   return decodeActionContextToken(signedPayload);
 }
 
-export function decodeActionContextToken(
-  signedPayload: string
-): ActionContextToken | null {
+export function decodeActionContextToken(signedPayload: string): ActionContextToken | null {
   const [prefix, payload] = signedPayload.split(".");
 
   if (prefix !== SIGNED_ACTION_CONTEXT_PREFIX || !payload) {
@@ -115,12 +110,7 @@ function parseJsonRecord(value: string): Record<string, unknown> | null {
   }
 }
 
-function verifySignature(
-  value: string,
-  signature: string,
-  secret: string,
-  length = 32
-): boolean {
+function verifySignature(value: string, signature: string, secret: string, length = 32): boolean {
   const received = decodeBase64Url(signature);
   const expected = hmacTag(value, secret, length);
 
@@ -135,9 +125,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isActionContextRecord(
-  value: Record<string, unknown>
-): value is ActionContextToken {
+function isActionContextRecord(value: Record<string, unknown>): value is ActionContextToken {
   return (
     typeof value.appId === "string" &&
     typeof value.flowId === "string" &&

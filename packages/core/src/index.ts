@@ -5,10 +5,7 @@
  */
 export { ManifestValidationError } from "./errors/ManifestValidationError.js";
 export { defineTeleforgeApp, teleforgeAppToManifest } from "./app/types.js";
-export {
-  resolveRuntimeDeployment,
-  validateSessionDeployment
-} from "./app/session-deployment.js";
+export { resolveRuntimeDeployment, validateSessionDeployment } from "./app/session-deployment.js";
 export { createSignedPhoneAuthToken, verifySignedPhoneAuthToken } from "./auth/phone.js";
 export { normalizePhoneNumber } from "./utils/phone.js";
 export { EventErrorCodes, TeleforgeEventError } from "./events/errors.js";
@@ -152,10 +149,7 @@ export type {
 } from "./validation/types.js";
 export { validateInitDataBotToken } from "./validation/botToken.js";
 export { validateInitDataEd25519 } from "./validation/ed25519.js";
-export {
-  SessionManager,
-  MemorySessionStorageAdapter
-} from "./session/index.js";
+export { SessionManager, MemorySessionStorageAdapter } from "./session/index.js";
 export type {
   SessionHandle,
   SessionResourceHandle,

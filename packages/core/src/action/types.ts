@@ -7,14 +7,10 @@ export interface TeleforgeSchema<T = unknown> {
 }
 
 export interface TeleforgeSafeSchema<T = unknown> {
-  safeParse(input: unknown):
-    | { success: true; data: T }
-    | { success: false; error: unknown };
+  safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown };
 }
 
-export type TeleforgeInputSchema<T = unknown> =
-  | TeleforgeSchema<T>
-  | TeleforgeSafeSchema<T>;
+export type TeleforgeInputSchema<T = unknown> = TeleforgeSchema<T> | TeleforgeSafeSchema<T>;
 
 export interface TeleforgeValidationErrorBody {
   error: {
@@ -29,7 +25,10 @@ export function parseTeleforgeInput<T>(
   input: unknown
 ): { ok: true; data: T } | { ok: false; error: string } {
   try {
-    if ("safeParse" in schema && typeof (schema as TeleforgeSafeSchema<T>).safeParse === "function") {
+    if (
+      "safeParse" in schema &&
+      typeof (schema as TeleforgeSafeSchema<T>).safeParse === "function"
+    ) {
       const result = (schema as TeleforgeSafeSchema<T>).safeParse(input);
       return result.success
         ? { ok: true, data: result.data }
@@ -45,7 +44,11 @@ export function parseTeleforgeInput<T>(
 function formatSchemaError(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
-  try { return JSON.stringify(error); } catch { return "Unknown validation error"; }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown validation error";
+  }
 }
 
 export interface ActionContextToken extends Record<string, unknown> {
@@ -80,16 +83,9 @@ export interface ActionResult {
   };
 }
 
-export type ClientEffect =
-  | { type: "toast"; message: string }
-  | { type: "closeMiniApp" };
+export type ClientEffect = { type: "toast"; message: string } | { type: "closeMiniApp" };
 
-export type ActionEffectType =
-  | "chatMessage"
-  | "openMiniApp"
-  | "navigate"
-  | "webhook"
-  | "custom";
+export type ActionEffectType = "chatMessage" | "openMiniApp" | "navigate" | "webhook" | "custom";
 
 export interface ActionEffect {
   type: ActionEffectType;
@@ -101,7 +97,9 @@ export interface ChatMessageEffect extends ActionEffect {
   text: string;
   chatId?: string;
   replyMarkup?: {
-    inline_keyboard?: Array<Array<{ text: string; url?: string; web_app?: { url: string }; callback_data?: string }>>;
+    inline_keyboard?: Array<
+      Array<{ text: string; url?: string; web_app?: { url: string }; callback_data?: string }>
+    >;
   };
 }
 

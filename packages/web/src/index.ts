@@ -8,10 +8,7 @@ export {
   returnToChat,
   type ReturnToChatOptions
 } from "./coordination/return.js";
-export {
-  useLaunchCoordination,
-  type UseLaunchCoordinationReturn
-} from "./coordination/hooks.js";
+export { useLaunchCoordination, type UseLaunchCoordinationReturn } from "./coordination/hooks.js";
 export {
   transmitResult,
   type TransmitConfig,

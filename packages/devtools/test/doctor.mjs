@@ -252,10 +252,7 @@ test("doctor warns when client manifest is missing but flows are discovered", as
 
   const names = new Map(result.checks.map((check) => [check.name, check]));
   assert.equal(names.get("client_manifest_drift")?.status, "warn");
-  assert.match(
-    names.get("client_manifest_drift")?.message ?? "",
-    /missing/
-  );
+  assert.match(names.get("client_manifest_drift")?.message ?? "", /missing/);
 });
 
 test("doctor passes when client manifest is in sync with discovered flows", async () => {
@@ -409,17 +406,13 @@ async function createDoctorFixture(options = {}) {
         },
         runtime: manifest.runtime,
         bot: manifest.bot,
-        ...(options.flowsDir || options.extraFlow
-          ? { flows: { root: "apps/bot/src/flows" } }
-          : {}),
+        ...(options.flowsDir || options.extraFlow ? { flows: { root: "apps/bot/src/flows" } } : {}),
         miniApp: {
           ...manifest.miniApp,
           entry: manifest.miniApp.entryPoint
         },
         // Only include explicit routes when NOT using flows
-        ...(options.flowsDir || options.extraFlow
-          ? {}
-          : { routes: manifest.routes })
+        ...(options.flowsDir || options.extraFlow ? {} : { routes: manifest.routes })
       },
       null,
       minifiedManifest ? undefined : 2
@@ -453,7 +446,7 @@ async function createDoctorFixture(options = {}) {
 
   if (options.flowsDir) {
     await mkdir(path.join(tempRoot, "apps", "bot", "src", "flows"), { recursive: true });
-    
+
     // Create 0.2-style flow with miniApp routes and actions
     await writeFile(
       path.join(tempRoot, "apps", "bot", "src", "flows", "start.flow.mjs"),
@@ -479,14 +472,14 @@ async function createDoctorFixture(options = {}) {
 
   if (options.extraFlow) {
     await mkdir(path.join(tempRoot, "apps", "api", "src", "loaders"), { recursive: true });
-    
+
     // Create loader file
     await writeFile(
       path.join(tempRoot, "apps", "api", "src", "loaders", "extra.loader.ts"),
       `export async function loader() { return { data: "test" }; }\n`,
       "utf8"
     );
-    
+
     // Create extra flow with route params
     await writeFile(
       path.join(tempRoot, "apps", "bot", "src", "flows", "extra.flow.mjs"),
@@ -510,10 +503,12 @@ async function createDoctorFixture(options = {}) {
   }
 
   if (options.clientManifest) {
-    await mkdir(path.join(tempRoot, "apps", "web", "src", "teleforge-generated"), { recursive: true });
-    
+    await mkdir(path.join(tempRoot, "apps", "web", "src", "teleforge-generated"), {
+      recursive: true
+    });
+
     // Generate 0.2-style manifest with flows object shape
-    const flows = options.staleManifest 
+    const flows = options.staleManifest
       ? [
           {
             id: "start",
@@ -551,39 +546,41 @@ async function createDoctorFixture(options = {}) {
               }
             ]
           },
-          ...(options.extraFlow 
-            ? [{
-                id: "extra",
-                miniApp: {
-                  routes: { "/extra": "extra", "/extra/:id": "extra-detail" },
-                  defaultRoute: "/extra"
-                },
-                screens: [
-                  {
-                    id: "extra",
-                    route: "/extra",
-                    actions: ["process-extra"],
-                    title: "Extra",
-                    requiresSession: false
+          ...(options.extraFlow
+            ? [
+                {
+                  id: "extra",
+                  miniApp: {
+                    routes: { "/extra": "extra", "/extra/:id": "extra-detail" },
+                    defaultRoute: "/extra"
                   },
-                  {
-                    id: "extra-detail",
-                    route: "/extra/:id",
-                    actions: [],
-                    title: "Extra Detail",
-                    requiresSession: true
-                  }
-                ]
-              }]
+                  screens: [
+                    {
+                      id: "extra",
+                      route: "/extra",
+                      actions: ["process-extra"],
+                      title: "Extra",
+                      requiresSession: false
+                    },
+                    {
+                      id: "extra-detail",
+                      route: "/extra/:id",
+                      actions: [],
+                      title: "Extra Detail",
+                      requiresSession: true
+                    }
+                  ]
+                }
+              ]
             : [])
         ];
-    
+
     await writeFile(
       path.join(tempRoot, "apps", "web", "src", "teleforge-generated", "client-flow-manifest.ts"),
       `import { defineClientFlowManifest } from "teleforge/web";\n\nexport const flowManifest = defineClientFlowManifest(\n${JSON.stringify({ flows }, null, 2)}\n);\n`,
       "utf8"
     );
-    
+
     // Also create contracts.ts file
     await writeFile(
       path.join(tempRoot, "apps", "web", "src", "teleforge-generated", "contracts.ts"),

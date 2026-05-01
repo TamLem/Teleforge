@@ -10,7 +10,10 @@ import {
   validateManifest
 } from "../dist/index.js";
 
-const fixtureDir = path.join(import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname), "fixtures");
+const fixtureDir = path.join(
+  import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
+  "fixtures"
+);
 
 test("validates a current-shape manifest fixture", async () => {
   const raw = await readFixture("valid-manifest.json");

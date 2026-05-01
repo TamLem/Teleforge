@@ -100,7 +100,7 @@ The client flow manifest (`apps/web/src/teleforge-generated/client-flow-manifest
         defaultRoute: "/"
       }
     }
-  ]
+  ];
 }
 ```
 
@@ -122,17 +122,17 @@ If no route matches, the runtime shows a not-found screen. If the screen is not 
 
 A Teleforge screen does not receive arbitrary React props. It receives a strict set of framework-injected props that make the trust boundary explicit.
 
-| Prop | Source | Trust | Purpose |
-|---|---|---|---|
-| `scopeData` | Signed context `subject` | **Server** | Immutable IDs and scope from the signed token |
-| `routeParams` | Matched route pattern | **Framework** | URL params like `{ id: "iphone-15" }` from `/product/:id` |
-| `routeData` | `navigate({ data })` | **Client** | Ephemeral data passed during screen transition |
-| `loader` | Server loader result | **Server** | `{ status, data, error }` discriminated lifecycle |
-| `loaderData` | `loader.data` when ready | **Server** | Typed convenience accessor for the loader result |
-| `appState` | React context | **Client** | Cross-screen ephemeral state |
-| `actions` | Runtime helpers | **Framework** | `actions.addToCart(payload)` sends to action server |
-| `nav` | Runtime helpers | **Framework** | `nav.cart()` changes screen client-side |
-| `transitioning` | Runtime flag | **Framework** | True while an action or navigation is in flight |
+| Prop            | Source                   | Trust         | Purpose                                                   |
+| --------------- | ------------------------ | ------------- | --------------------------------------------------------- |
+| `scopeData`     | Signed context `subject` | **Server**    | Immutable IDs and scope from the signed token             |
+| `routeParams`   | Matched route pattern    | **Framework** | URL params like `{ id: "iphone-15" }` from `/product/:id` |
+| `routeData`     | `navigate({ data })`     | **Client**    | Ephemeral data passed during screen transition            |
+| `loader`        | Server loader result     | **Server**    | `{ status, data, error }` discriminated lifecycle         |
+| `loaderData`    | `loader.data` when ready | **Server**    | Typed convenience accessor for the loader result          |
+| `appState`      | React context            | **Client**    | Cross-screen ephemeral state                              |
+| `actions`       | Runtime helpers          | **Framework** | `actions.addToCart(payload)` sends to action server       |
+| `nav`           | Runtime helpers          | **Framework** | `nav.cart()` changes screen client-side                   |
+| `transitioning` | Runtime flag             | **Framework** | True while an action or navigation is in flight           |
 
 ### Why injected props are good practice here
 
@@ -198,7 +198,7 @@ if (loader.status === "ready") {
 
 Actions are server-side handlers defined in the flow file. The screen calls them through runtime helpers.
 
-### How actions.* delegates to the server
+### How actions.\* delegates to the server
 
 When a screen calls `actions.addToCart({ productId, qty })`:
 
@@ -213,7 +213,7 @@ When a screen calls `actions.addToCart({ productId, qty })`:
 6. The server returns an `ActionResult`.
 7. The runtime applies any effects, handoff, or redirect from the result.
 
-### Where actions.* comes from
+### Where actions.\* comes from
 
 The Mini App runtime inspects the flow's `actions` definition (for direct flow boot) or the union of per-screen `actions` arrays in the client manifest (for manifest boot). It constructs a frozen object where each key is an action ID and each value is a closure that sends the action to the server bridge.
 
@@ -225,7 +225,7 @@ This is why typed contracts work: the generator knows the action IDs from the fl
 
 `nav.*` helpers are runtime-generated functions that change the Mini App screen client-side.
 
-### How nav.* is built
+### How nav.\* is built
 
 The runtime reads the route map from the client manifest. For each screen ID, it finds the first route that maps to that ID and builds a helper:
 
@@ -233,12 +233,13 @@ The runtime reads the route map from the client manifest. For each screen ID, it
 - Dynamic route (`/product/:id` -> `"product-detail"`): `nav.productDetail({ id })` requires the param.
 
 When called, the helper:
+
 1. Substitutes params into the route pattern.
 2. Updates the browser URL.
 3. Triggers the new screen's loader.
 4. Renders the new screen.
 
-### Why nav.* is generated
+### Why nav.\* is generated
 
 The generator knows the route patterns at build time. It can make `nav.productDetail({ id })` require exactly the params the route pattern needs. The runtime constructs the actual URL path at call time. Both sides agree on the route map because they both read from the same client manifest.
 
@@ -248,19 +249,19 @@ The generator knows the route patterns at build time. It can make `nav.productDe
 
 Teleforge mixes generated metadata with convention-discovered modules. The boundary between them is important: generated files are overwritten, discovered files are authored.
 
-| Thing | Created by | Lives where | Used by | Regenerate? |
-|---|---|---|---|---|
-| Flow definitions | App author | `apps/bot/src/flows/*.flow.ts` | Bot runtime, action server, manifest generator | No |
-| Screen definitions | App author | `apps/web/src/screens/*.screen.tsx` | Mini App runtime | No |
-| Loader definitions | App author | `apps/api/src/loaders/*.loader.ts` | Action server loader bridge | No |
-| Client flow manifest | Generator | `apps/web/src/teleforge-generated/client-flow-manifest.ts` | Mini App runtime (browser-safe) | Yes, after flow/route changes |
-| Type contracts | Generator | `apps/web/src/teleforge-generated/contracts.ts` | Screen authoring (type-only) | Yes, after flow/route/action changes |
-| Override types | App author | `apps/web/src/teleforge-contract-overrides.ts` | Generator (type-only import) | No |
-| Signed URL | `sign()` | Runtime value in bot handler | Telegram Mini App launch | Runtime |
-| Signed context token | `sign()` / core signer | URL start parameter | Server validation on every request | Runtime |
-| `actions.*` helpers | Mini App runtime | Screen props | Screen components calling server actions | Runtime |
-| `nav.*` helpers | Mini App runtime | Screen props | Screen components navigating screens | Runtime |
-| `loader` / `loaderData` | Mini App runtime + server bridge | Screen props | Screen rendering | Runtime |
+| Thing                   | Created by                       | Lives where                                                | Used by                                        | Regenerate?                          |
+| ----------------------- | -------------------------------- | ---------------------------------------------------------- | ---------------------------------------------- | ------------------------------------ |
+| Flow definitions        | App author                       | `apps/bot/src/flows/*.flow.ts`                             | Bot runtime, action server, manifest generator | No                                   |
+| Screen definitions      | App author                       | `apps/web/src/screens/*.screen.tsx`                        | Mini App runtime                               | No                                   |
+| Loader definitions      | App author                       | `apps/api/src/loaders/*.loader.ts`                         | Action server loader bridge                    | No                                   |
+| Client flow manifest    | Generator                        | `apps/web/src/teleforge-generated/client-flow-manifest.ts` | Mini App runtime (browser-safe)                | Yes, after flow/route changes        |
+| Type contracts          | Generator                        | `apps/web/src/teleforge-generated/contracts.ts`            | Screen authoring (type-only)                   | Yes, after flow/route/action changes |
+| Override types          | App author                       | `apps/web/src/teleforge-contract-overrides.ts`             | Generator (type-only import)                   | No                                   |
+| Signed URL              | `sign()`                         | Runtime value in bot handler                               | Telegram Mini App launch                       | Runtime                              |
+| Signed context token    | `sign()` / core signer           | URL start parameter                                        | Server validation on every request             | Runtime                              |
+| `actions.*` helpers     | Mini App runtime                 | Screen props                                               | Screen components calling server actions       | Runtime                              |
+| `nav.*` helpers         | Mini App runtime                 | Screen props                                               | Screen components navigating screens           | Runtime                              |
+| `loader` / `loaderData` | Mini App runtime + server bridge | Screen props                                               | Screen rendering                               | Runtime                              |
 
 ### What should be regenerated after flow/action changes
 
@@ -271,10 +272,12 @@ npx teleforge generate client-manifest
 ```
 
 This regenerates:
+
 - `client-flow-manifest.ts` (route maps, screen IDs, action lists)
 - `contracts.ts` (typed nav, actions, loader data, screen props)
 
 It never overwrites:
+
 - `teleforge-contract-overrides.ts` (app-owned types)
 
 Use `teleforge doctor` to detect when the manifest is stale.

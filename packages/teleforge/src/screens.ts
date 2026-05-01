@@ -1,7 +1,12 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
 import type { MiniAppState } from "./miniapp-state.js";
-import type { ActionContextToken, ActionResult, SessionHandle, TeleforgeInputSchema } from "@teleforgex/core";
+import type {
+  ActionContextToken,
+  ActionResult,
+  SessionHandle,
+  TeleforgeInputSchema
+} from "@teleforgex/core";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;
@@ -134,13 +139,12 @@ export interface TypedSignOptions {
  * });
  * ```
  */
-export type TypedSignHelpers<
-  TRoutes extends Record<string, Record<string, string> | undefined>
-> = Readonly<{
-  [THelper in keyof TRoutes & string]: TRoutes[THelper] extends undefined
-    ? (options?: TypedSignOptions & { params?: never }) => Promise<string>
-    : (options: TypedSignOptions & { params: TRoutes[THelper] }) => Promise<string>;
-}>;
+export type TypedSignHelpers<TRoutes extends Record<string, Record<string, string> | undefined>> =
+  Readonly<{
+    [THelper in keyof TRoutes & string]: TRoutes[THelper] extends undefined
+      ? (options?: TypedSignOptions & { params?: never }) => Promise<string>
+      : (options: TypedSignOptions & { params: TRoutes[THelper] }) => Promise<string>;
+  }>;
 
 /**
  * Broad runtime-compatible bound for typed sign helpers. Generated per-flow
@@ -177,9 +181,7 @@ export type TeleforgeScreenGuardResult = boolean | TeleforgeScreenGuardBlock;
 
 export interface TeleforgeScreenDefinition {
   component: ComponentType<TeleforgeScreenComponentProps>;
-  guard?: (
-    context: TeleforgeScreenComponentProps
-  ) => MaybePromise<TeleforgeScreenGuardResult>;
+  guard?: (context: TeleforgeScreenComponentProps) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
   title?: string;
 }
@@ -243,18 +245,14 @@ export interface TeleforgeScreenDefinitionInput<
   TProps extends RuntimeCompatibleScreenProps = TeleforgeScreenComponentProps
 > {
   component: ComponentType<TProps>;
-  guard?: (
-    context: TeleforgeScreenComponentProps
-  ) => MaybePromise<TeleforgeScreenGuardResult>;
+  guard?: (context: TeleforgeScreenComponentProps) => MaybePromise<TeleforgeScreenGuardResult>;
   id: string;
   title?: string;
 }
 
 export function defineScreen<
   TProps extends RuntimeCompatibleScreenProps = TeleforgeScreenComponentProps
->(
-  screen: TeleforgeScreenDefinitionInput<TProps>
-): Readonly<TeleforgeScreenDefinition> {
+>(screen: TeleforgeScreenDefinitionInput<TProps>): Readonly<TeleforgeScreenDefinition> {
   if (typeof screen.id !== "string" || screen.id.trim().length === 0) {
     throw new Error("Screen id must be a non-empty string.");
   }
@@ -346,9 +344,7 @@ export function createRouteRegistry(
 
     for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
       if (routes.has(route)) {
-        throw new Error(
-          `Duplicate Mini App route "${route}" discovered across flows.`
-        );
+        throw new Error(`Duplicate Mini App route "${route}" discovered across flows.`);
       }
 
       routes.set(route, { flowId: flow.id, screenId });
@@ -364,10 +360,7 @@ function normalizeDiscoveredFlows(
   return Array.from(flows, (entry) => ("flow" in entry ? entry.flow : entry));
 }
 
-function resolveScreenIdFromPath(
-  flow: AnyFlowDefinition,
-  pathname: string
-): string | null {
+function resolveScreenIdFromPath(flow: AnyFlowDefinition, pathname: string): string | null {
   const routes = flow.miniApp?.routes;
   if (!routes) return null;
 
@@ -461,10 +454,7 @@ export function findRoutePattern(
   return candidates[0] ?? null;
 }
 
-export function extractRouteParams(
-  pattern: string,
-  pathname: string
-): Record<string, string> {
+export function extractRouteParams(pattern: string, pathname: string): Record<string, string> {
   const params: Record<string, string> = {};
   const patternParts = pattern.split("/").filter(Boolean);
   const pathnameParts = pathname.split("/").filter(Boolean);
@@ -511,9 +501,7 @@ export function toHelperName(id: string): string {
 
 export function extractRequiredRouteParams(pattern: string): string[] {
   const parts = pattern.split("/").filter(Boolean);
-  return parts
-    .filter((p) => p.startsWith(":"))
-    .map((p) => p.slice(1));
+  return parts.filter((p) => p.startsWith(":")).map((p) => p.slice(1));
 }
 
 export function validateRouteParams(pattern: string, params?: Record<string, string>): void {
@@ -522,8 +510,6 @@ export function validateRouteParams(pattern: string, params?: Record<string, str
 
   const missing = required.filter((name) => !params || !(name in params));
   if (missing.length > 0) {
-    throw new Error(
-      `Navigation requires params [${missing.join(", ")}] for route "${pattern}".`
-    );
+    throw new Error(`Navigation requires params [${missing.join(", ")}] for route "${pattern}".`);
   }
 }

@@ -135,7 +135,7 @@ async function loadFlowModulesForConfig(cwd: string, root: string): Promise<Load
   await import(tsxUrl);
 
   for (const file of files) {
-    const loaded = await import(pathToFileURL(file).href) as Record<string, unknown>;
+    const loaded = (await import(pathToFileURL(file).href)) as Record<string, unknown>;
     const candidate = loaded.default ?? loaded.flow;
     const flow = resolveFlowExport(candidate);
 
@@ -182,7 +182,12 @@ async function collectFlowFiles(directory: string): Promise<string[]> {
       entries = await readdir(dir, { withFileTypes: true });
     } catch (error) {
       // Ignore missing directories, but re-throw other errors (permissions, etc.)
-      if (error && typeof error === "object" && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
         return;
       }
       throw error;

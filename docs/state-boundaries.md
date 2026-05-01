@@ -23,7 +23,7 @@ interface ActionContextToken {
   flowId: string;
   screenId?: string;
   userId: string;
-  subject?: Record<string, unknown>;  // IDs and scope only
+  subject?: Record<string, unknown>; // IDs and scope only
   allowedActions?: string[];
   issuedAt: number;
   expiresAt: number;
@@ -89,17 +89,17 @@ deployments need a durable custom session provider. Use sessions for:
 Screens receive explicit props that make the trust boundary clear. The Mini App runtime
 injects these — they are not passed by parent components or parsed from the URL by hand.
 
-| Prop | Source | Trust | Purpose |
-|---|---|---|---|
-| `scopeData` | Signed context `subject` | **Server** | Immutable IDs and scope from the signed token |
-| `routeParams` | Matched route pattern | **Framework** | URL params like `{ id: "iphone-15" }` from `/product/:id` |
-| `routeData` | `navigate({ data })` | **Client** | Ephemeral data passed during screen transition |
-| `loader` | Server loader result | **Server** | `{ status, data, error }` discriminated lifecycle |
-| `loaderData` | `loader.data` when ready | **Server** | Typed convenience accessor for the loader result |
-| `appState` | React context | **Client** | Cross-screen ephemeral state |
-| `actions` | Runtime helpers | **Framework** | `actions.addToCart(payload)` sends to action server |
-| `nav` | Runtime helpers | **Framework** | `nav.cart()` changes screen client-side |
-| `transitioning` | Runtime flag | **Framework** | True while an action or navigation is in flight |
+| Prop            | Source                   | Trust         | Purpose                                                   |
+| --------------- | ------------------------ | ------------- | --------------------------------------------------------- |
+| `scopeData`     | Signed context `subject` | **Server**    | Immutable IDs and scope from the signed token             |
+| `routeParams`   | Matched route pattern    | **Framework** | URL params like `{ id: "iphone-15" }` from `/product/:id` |
+| `routeData`     | `navigate({ data })`     | **Client**    | Ephemeral data passed during screen transition            |
+| `loader`        | Server loader result     | **Server**    | `{ status, data, error }` discriminated lifecycle         |
+| `loaderData`    | `loader.data` when ready | **Server**    | Typed convenience accessor for the loader result          |
+| `appState`      | React context            | **Client**    | Cross-screen ephemeral state                              |
+| `actions`       | Runtime helpers          | **Framework** | `actions.addToCart(payload)` sends to action server       |
+| `nav`           | Runtime helpers          | **Framework** | `nav.cart()` changes screen client-side                   |
+| `transitioning` | Runtime flag             | **Framework** | True while an action or navigation is in flight           |
 
 **Rules:**
 
@@ -117,13 +117,13 @@ For why props are injected and how they travel through the runtime, see [Runtime
 
 Within the screen and session boundaries, keep these scopes separate:
 
-| Type | Scope | Examples |
-|---|---|---|
-| **Domain state** | Persistent, in database or services | user profile, product catalog, order history |
-| **Local UI state** | Ephemeral, screen-only | open modals, unsaved inputs, temporary filters, loading flags |
-| **Session state** | Optional, server-side, `session.resource` | cart items, drafts, external wait state |
-| **App state** | Mini App-local, cross-screen, ephemeral | selections, filters, UI preferences |
-| **Derived view state** | Computed, usually not persisted | formatted prices, filtered lists, sort order |
+| Type                   | Scope                                     | Examples                                                      |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| **Domain state**       | Persistent, in database or services       | user profile, product catalog, order history                  |
+| **Local UI state**     | Ephemeral, screen-only                    | open modals, unsaved inputs, temporary filters, loading flags |
+| **Session state**      | Optional, server-side, `session.resource` | cart items, drafts, external wait state                       |
+| **App state**          | Mini App-local, cross-screen, ephemeral   | selections, filters, UI preferences                           |
+| **Derived view state** | Computed, usually not persisted           | formatted prices, filtered lists, sort order                  |
 
 **Rules:**
 
@@ -157,14 +157,14 @@ Session keys follow the pattern `session:{userId}:{flowId}:{sessionId}`.
 
 ## Security Properties
 
-| Property | Mechanism |
-|---|---|
-| Request authenticity | HMAC-signed `tfp2` token |
-| Expiry | Token `expiresAt` checked on every request |
-| Action authorization | `allowedActions` enforced server-side |
-| Screen authorization | `screenId` validated against flow routes |
-| Input validation | Optional `input` schema before handler runs |
-| Resource isolation | Resources keyed by user + flow within session |
+| Property             | Mechanism                                     |
+| -------------------- | --------------------------------------------- |
+| Request authenticity | HMAC-signed `tfp2` token                      |
+| Expiry               | Token `expiresAt` checked on every request    |
+| Action authorization | `allowedActions` enforced server-side         |
+| Screen authorization | `screenId` validated against flow routes      |
+| Input validation     | Optional `input` schema before handler runs   |
+| Resource isolation   | Resources keyed by user + flow within session |
 
 ---
 

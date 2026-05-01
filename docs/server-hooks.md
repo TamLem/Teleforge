@@ -94,7 +94,9 @@ Actions live in the flow file. Loaders live in separate files under the loader r
 ```ts
 import { defineFlow } from "teleforge";
 
-function schema<T>(s: { safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown } }) {
+function schema<T>(s: {
+  safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown };
+}) {
   return s;
 }
 
@@ -130,16 +132,24 @@ export default defineFlow({
     addToCart: {
       input: schema<{ productId: string; qty: number }>({
         safeParse(input) {
-          if (typeof input !== "object" || input === null) return { success: false, error: "invalid" };
+          if (typeof input !== "object" || input === null)
+            return { success: false, error: "invalid" };
           const obj = input as Record<string, unknown>;
-          if (typeof obj.productId !== "string") return { success: false, error: "productId required" };
-          return { success: true, data: { productId: obj.productId, qty: (obj.qty as number) ?? 1 } };
+          if (typeof obj.productId !== "string")
+            return { success: false, error: "productId required" };
+          return {
+            success: true,
+            data: { productId: obj.productId, qty: (obj.qty as number) ?? 1 }
+          };
         }
       }),
       handler: async ({ input, ctx, session, services }) => {
-        const cart = session.resource<{ items: Array<{ productId: string; qty: number }> }>("cart", {
-          initialValue: { items: [] }
-        });
+        const cart = session.resource<{ items: Array<{ productId: string; qty: number }> }>(
+          "cart",
+          {
+            initialValue: { items: [] }
+          }
+        );
         await cart.update((draft) => {
           draft.items.push({ productId: input.productId, qty: input.qty });
         });
@@ -213,7 +223,8 @@ import type { TeleforgeInputSchema } from "teleforge";
 
 const schema: TeleforgeInputSchema<{ id: string }> = {
   safeParse(input) {
-    if (typeof input !== "object" || input === null) return { success: false, error: { message: "invalid" } };
+    if (typeof input !== "object" || input === null)
+      return { success: false, error: { message: "invalid" } };
     const obj = input as Record<string, unknown>;
     if (typeof obj.id !== "string") return { success: false, error: { message: "id required" } };
     return { success: true, data: { id: obj.id } };

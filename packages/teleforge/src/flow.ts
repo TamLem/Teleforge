@@ -1,7 +1,4 @@
-export {
-  defineFlow,
-  resolveFlowAction
-} from "./flow-definition.js";
+export { defineFlow, resolveFlowAction } from "./flow-definition.js";
 
 export type {
   ActionFlowActionDefinition,

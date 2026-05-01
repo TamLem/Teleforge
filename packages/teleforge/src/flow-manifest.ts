@@ -1,7 +1,10 @@
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowDefinition } from "./flow-definition.js";
-import type { ClientFlowManifest, ClientFlowManifestEntry, ClientScreenManifestEntry } from "@teleforgex/core";
-
+import type {
+  ClientFlowManifest,
+  ClientFlowManifestEntry,
+  ClientScreenManifestEntry
+} from "@teleforgex/core";
 
 export type TeleforgeClientFlowManifest = ClientFlowManifest;
 
@@ -21,9 +24,7 @@ export function defineClientFlowManifest(
                 })
               }
             : {}),
-          screens: Object.freeze(
-            entry.screens.map((screen) => Object.freeze({ ...screen }))
-          )
+          screens: Object.freeze(entry.screens.map((screen) => Object.freeze({ ...screen })))
         })
       )
     )
@@ -67,9 +68,7 @@ function createManifestEntry(
       }
       seen.add(screenId);
 
-      const screenActions = flow.actions
-        ? Object.keys(flow.actions)
-        : undefined;
+      const screenActions = flow.actions ? Object.keys(flow.actions) : undefined;
 
       screens.push({
         actions: screenActions,

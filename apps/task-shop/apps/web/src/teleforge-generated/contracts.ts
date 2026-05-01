@@ -5,7 +5,10 @@
 // These contracts make `nav.*` helpers, screen IDs, action IDs, and
 // per-screen props compile-time safe.
 
-import type { TeleforgeActionPayloadOverrides, TeleforgeLoaderDataOverrides } from "../teleforge-contract-overrides";
+import type {
+  TeleforgeActionPayloadOverrides,
+  TeleforgeLoaderDataOverrides
+} from "../teleforge-contract-overrides";
 import type {
   TeleforgeScreenComponentProps,
   TypedActionHelpers,
@@ -37,10 +40,12 @@ type FlowLoaderDataOverrides<TFlowId extends string> =
       : {}
     : {};
 
-type LoaderDataFor<TFlowId extends string, TScreenId extends string> =
-  TScreenId extends keyof FlowLoaderDataOverrides<TFlowId>
-    ? FlowLoaderDataOverrides<TFlowId>[TScreenId]
-    : unknown;
+type LoaderDataFor<
+  TFlowId extends string,
+  TScreenId extends string
+> = TScreenId extends keyof FlowLoaderDataOverrides<TFlowId>
+  ? FlowLoaderDataOverrides<TFlowId>[TScreenId]
+  : unknown;
 
 // =====================================================================
 // Flow: gadgetshop
@@ -53,15 +58,12 @@ export type GadgetshopScreenId =
   | "confirmation"
   | "tracking";
 
-export type GadgetshopActionId =
-  | "addToCart"
-  | "removeFromCart"
-  | "placeOrder";
+export type GadgetshopActionId = "addToCart" | "removeFromCart" | "placeOrder";
 
 type GadgetshopDefaultActionPayloads = {
-  "addToCart": unknown;
-  "removeFromCart": unknown;
-  "placeOrder": unknown;
+  addToCart: unknown;
+  removeFromCart: unknown;
+  placeOrder: unknown;
 };
 
 export type GadgetshopActionPayloads = ApplyActionPayloadOverrides<

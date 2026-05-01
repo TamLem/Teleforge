@@ -143,13 +143,7 @@ const pages = [
   }
 ];
 
-const sectionOrder = [
-  "Learn",
-  "Build",
-  "Reference",
-  "Operate",
-  "Examples"
-];
+const sectionOrder = ["Learn", "Build", "Reference", "Operate", "Examples"];
 const sourceToPage = new Map();
 
 for (const page of pages) {

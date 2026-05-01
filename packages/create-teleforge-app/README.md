@@ -62,7 +62,7 @@ pnpm run build      # Production build
 ## Recommended Reading
 
 - [Runtime Wiring](https://teleforge.dev/docs/runtime-wiring)
-- [State Boundaries](https://teleforge.dev/docs/state-boundaries)  
+- [State Boundaries](https://teleforge.dev/docs/state-boundaries)
 - [Generated Mini App Contracts](https://teleforge.dev/docs/generated-miniapp-contracts)
 - [Server Loaders](https://teleforge.dev/docs/server-hooks)
 

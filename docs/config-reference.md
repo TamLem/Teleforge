@@ -42,18 +42,18 @@ export default defineTeleforgeApp({
 
 ### `TeleforgeAppConfig`
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `app` | `TeleforgeAppIdentity` | Yes | App identity (id, name, version) |
-| `bot` | `TeleforgeBotConfig` | Yes | Bot username, token env var, webhook config |
-| `miniApp` | `TeleforgeMiniAppConfig` | Yes | Mini App entry, screens root, launch modes |
-| `flows` | `TeleforgeFlowConventions` | No | Flow discovery paths |
-| `routes` | `RouteDefinition[]` | No | Additional route definitions |
-| `runtime` | `TeleforgeRuntime` | No | Runtime delivery mode, ports, secrets |
-| `session` | `TeleforgeSessionProviderConfig` | No | Session storage configuration |
-| `permissions` | `TeleforgePermission[]` | No | App capability declarations |
-| `features` | Object | No | Feature flags (backButton, cloudStorage, etc.) |
-| `security` | Object | No | Security settings (allowedOrigins, etc.) |
+| Field         | Type                             | Required | Description                                    |
+| ------------- | -------------------------------- | -------- | ---------------------------------------------- |
+| `app`         | `TeleforgeAppIdentity`           | Yes      | App identity (id, name, version)               |
+| `bot`         | `TeleforgeBotConfig`             | Yes      | Bot username, token env var, webhook config    |
+| `miniApp`     | `TeleforgeMiniAppConfig`         | Yes      | Mini App entry, screens root, launch modes     |
+| `flows`       | `TeleforgeFlowConventions`       | No       | Flow discovery paths                           |
+| `routes`      | `RouteDefinition[]`              | No       | Additional route definitions                   |
+| `runtime`     | `TeleforgeRuntime`               | No       | Runtime delivery mode, ports, secrets          |
+| `session`     | `TeleforgeSessionProviderConfig` | No       | Session storage configuration                  |
+| `permissions` | `TeleforgePermission[]`          | No       | App capability declarations                    |
+| `features`    | Object                           | No       | Feature flags (backButton, cloudStorage, etc.) |
+| `security`    | Object                           | No       | Security settings (allowedOrigins, etc.)       |
 
 ### `runtime.environment` and `runtime.deployment`
 
@@ -117,7 +117,7 @@ export default defineTeleforgeApp({
   session: {
     provider: "memory",
     defaultTTLSeconds: 3600
-  },
+  }
   // ...
 });
 ```
@@ -136,7 +136,7 @@ export default defineTeleforgeApp({
     provider: "custom",
     storage: new RedisSessionStorageAdapter({ url: process.env.REDIS_URL }),
     defaultTTLSeconds: 86400
-  },
+  }
   // ...
 });
 ```
@@ -171,7 +171,9 @@ definition via `export default defineFlow({...})`.
 ```ts
 import { defineFlow } from "teleforge";
 
-function schema<T>(s: { safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown } }) {
+function schema<T>(s: {
+  safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown };
+}) {
   return s;
 }
 
@@ -192,9 +194,7 @@ export default defineFlow({
 
       await ctx.reply("Welcome! Tap below to continue.", {
         reply_markup: {
-          inline_keyboard: [[
-            { text: "Open Mini App", web_app: { url: launch } }
-          ]]
+          inline_keyboard: [[{ text: "Open Mini App", web_app: { url: launch } }]]
         }
       });
     }
@@ -210,9 +210,7 @@ export default defineFlow({
 
       await ctx.reply("Phone verified. Continue in the Mini App.", {
         reply_markup: {
-          inline_keyboard: [[
-            { text: "Open Profile", web_app: { url: launch } }
-          ]]
+          inline_keyboard: [[{ text: "Open Profile", web_app: { url: launch } }]]
         }
       });
     },
@@ -220,7 +218,9 @@ export default defineFlow({
     onLocation: async ({ ctx, location, sign }) => {
       const launch = await sign({
         screenId: "nearby",
-        subject: { resource: { type: "location", lat: location.latitude, lng: location.longitude } },
+        subject: {
+          resource: { type: "location", lat: location.latitude, lng: location.longitude }
+        },
         allowedActions: ["viewResult"]
       });
 
@@ -244,7 +244,8 @@ export default defineFlow({
     submitForm: {
       input: schema<{ formData: string }>({
         safeParse(input) {
-          if (typeof input !== "object" || input === null) return { success: false, error: "invalid" };
+          if (typeof input !== "object" || input === null)
+            return { success: false, error: "invalid" };
           return { success: true, data: input as { formData: string } };
         }
       }),
@@ -269,14 +270,14 @@ export default defineFlow({
 
 ### `ActionFlowDefinition`
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `id` | `string` | Yes | Unique flow identifier |
-| `command` | `ActionFlowCommandDefinition` | No | Bot slash command registration |
-| `handlers` | `ActionFlowHandlers` | No | Bot event handlers (onContact, onLocation, etc.) |
-| `miniApp` | `ActionFlowMiniAppDefinition` | No | Mini App route/screen mapping |
-| `actions` | `Record<string, ActionFlowActionDefinition>` | No | Server-side action handlers |
-| `session` | `ActionFlowSessionDefinition` | No | Opt-in session state configuration |
+| Field      | Type                                         | Required | Description                                      |
+| ---------- | -------------------------------------------- | -------- | ------------------------------------------------ |
+| `id`       | `string`                                     | Yes      | Unique flow identifier                           |
+| `command`  | `ActionFlowCommandDefinition`                | No       | Bot slash command registration                   |
+| `handlers` | `ActionFlowHandlers`                         | No       | Bot event handlers (onContact, onLocation, etc.) |
+| `miniApp`  | `ActionFlowMiniAppDefinition`                | No       | Mini App route/screen mapping                    |
+| `actions`  | `Record<string, ActionFlowActionDefinition>` | No       | Server-side action handlers                      |
+| `session`  | `ActionFlowSessionDefinition`                | No       | Opt-in session state configuration               |
 
 ### `command`
 
@@ -321,6 +322,7 @@ interface ActionFlowLocationHandlerContext {
 ```
 
 **Collision rules:**
+
 - Only one flow may define an `onContact` handler across all flows.
 - Only one flow may define an `onLocation` handler across all flows.
 - Duplicate `command` names across flows cause a registration error.
@@ -372,12 +374,27 @@ interface ActionResult {
   data?: Record<string, unknown>;
   handoff?: { message?: string; closeMiniApp?: boolean };
   effects?: ActionEffect[];
-  redirect?: { screenId: string; params?: Record<string, string>; data?: Record<string, unknown>; replace?: boolean; reason?: string };
+  redirect?: {
+    screenId: string;
+    params?: Record<string, string>;
+    data?: Record<string, unknown>;
+    replace?: boolean;
+    reason?: string;
+  };
   clientEffects?: ClientEffect[];
 }
 
 type ActionEffect =
-  | { type: "chatMessage"; text: string; chatId?: string; replyMarkup?: { inline_keyboard?: Array<Array<{ text: string; url?: string; web_app?: { url: string }; callback_data?: string }>> } }
+  | {
+      type: "chatMessage";
+      text: string;
+      chatId?: string;
+      replyMarkup?: {
+        inline_keyboard?: Array<
+          Array<{ text: string; url?: string; web_app?: { url: string }; callback_data?: string }>
+        >;
+      };
+    }
   | { type: "openMiniApp"; launchUrl: string }
   | { type: "navigate"; screenId: string; params?: Record<string, unknown> }
   | { type: "webhook"; url: string; payload: unknown }
@@ -429,7 +446,8 @@ import type { TeleforgeInputSchema } from "teleforge";
 
 const input: TeleforgeInputSchema<{ id: string }> = {
   safeParse(input) {
-    if (typeof input !== "object" || input === null) return { success: false, error: { message: "invalid" } };
+    if (typeof input !== "object" || input === null)
+      return { success: false, error: { message: "invalid" } };
     const obj = input as Record<string, unknown>;
     if (typeof obj.id !== "string") return { success: false, error: { message: "id required" } };
     return { success: true, data: { id: obj.id } };
@@ -448,8 +466,8 @@ export default defineLoader({
 
 ```ts
 interface ServerLoaderContext<TInput = unknown> {
-  ctx: ActionContextToken;      // Signed action context
-  input: TInput;                 // Validated input (from schema or raw route params)
+  ctx: ActionContextToken; // Signed action context
+  input: TInput; // Validated input (from schema or raw route params)
   params: Record<string, string>; // Raw route params
   services: unknown;
   session?: SessionHandle;
@@ -472,12 +490,12 @@ export default defineScreen({
 
 ### `TeleforgeScreenDefinition`
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `id` | `string` | Yes | Unique screen identifier |
-| `component` | `ComponentType<TeleforgeScreenComponentProps>` | Yes | React component |
-| `title` | `string` | No | Screen title |
-| `guard` | `(ctx) => MaybePromise<boolean \| { allow: false; reason?: string }>` | No | Client-side access guard |
+| Field       | Type                                                                  | Required | Description              |
+| ----------- | --------------------------------------------------------------------- | -------- | ------------------------ |
+| `id`        | `string`                                                              | Yes      | Unique screen identifier |
+| `component` | `ComponentType<TeleforgeScreenComponentProps>`                        | Yes      | React component          |
+| `title`     | `string`                                                              | No       | Screen title             |
+| `guard`     | `(ctx) => MaybePromise<boolean \| { allow: false; reason?: string }>` | No       | Client-side access guard |
 
 ### Screen component props (recommended path)
 
@@ -511,14 +529,17 @@ for the full authoring model.
 
 ```ts
 interface TeleforgeScreenComponentProps {
-  scopeData?: Record<string, unknown>;         // Signed context subject (server-issued scope)
-  routeParams: Record<string, string>;          // Route params from matched pattern
-  routeData?: Record<string, unknown>;          // Ephemeral data from navigate()
+  scopeData?: Record<string, unknown>; // Signed context subject (server-issued scope)
+  routeParams: Record<string, string>; // Route params from matched pattern
+  routeData?: Record<string, unknown>; // Ephemeral data from navigate()
   loader: { status: "loading" | "ready" | "error" | "idle"; data?: unknown; error?: Error };
-  loaderData?: unknown;                         // loader.data when ready
-  appState?: MiniAppState;                      // Client-session state (React context)
+  loaderData?: unknown; // loader.data when ready
+  appState?: MiniAppState; // Client-session state (React context)
   actions: Record<string, (payload?: unknown) => Promise<ActionResult>>;
-  nav: Record<string, (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => void>;
+  nav: Record<
+    string,
+    (params?: Record<string, string>, options?: { data?: Record<string, unknown> }) => void
+  >;
   runAction: (actionId: string, payload?: unknown) => Promise<ActionResult>;
   navigate: (screenIdOrRoute: string, options?: NavigateOptions) => void;
   transitioning: boolean;
@@ -600,7 +621,7 @@ type SignContextFn = (params: {
   subject?: Record<string, unknown>;
   allowedActions?: string[];
   ttlSeconds?: number;
-}) => Promise<string>;  // Returns signed Mini App URL
+}) => Promise<string>; // Returns signed Mini App URL
 ```
 
 ---
@@ -621,9 +642,9 @@ const { url, port, stop } = await startTeleforgeServer({
 
 ### Server endpoints
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/teleforge/actions` | POST | Action execution hub (`runAction`, `loadScreenContext`, `handoff`) |
+| Endpoint                 | Method | Purpose                                                            |
+| ------------------------ | ------ | ------------------------------------------------------------------ |
+| `/api/teleforge/actions` | POST   | Action execution hub (`runAction`, `loadScreenContext`, `handoff`) |
 
 ### Request shapes
 
@@ -667,9 +688,7 @@ interface TeleforgeSchema<T> {
 }
 
 interface TeleforgeSafeSchema<T> {
-  safeParse(input: unknown):
-    | { success: true; data: T }
-    | { success: false; error: unknown };
+  safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown };
 }
 ```
 
@@ -678,7 +697,8 @@ Zod schemas satisfy this interface directly. You can also write inline validator
 ```ts
 const mySchema: TeleforgeInputSchema<{ id: string }> = {
   safeParse(input) {
-    if (typeof input !== "object" || input === null) return { success: false, error: { message: "invalid" } };
+    if (typeof input !== "object" || input === null)
+      return { success: false, error: { message: "invalid" } };
     const obj = input as Record<string, unknown>;
     if (typeof obj.id !== "string") return { success: false, error: { message: "id required" } };
     return { success: true, data: { id: obj.id } };

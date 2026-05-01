@@ -14,7 +14,7 @@
     "format:fix": "prettier --write .",
     "lint": "eslint . --ext .ts,.tsx,.mjs,.cjs",
     "lint:fix": "eslint . --fix --ext .ts,.tsx,.mjs,.cjs",
-    "test": "pnpm run build && node --import tsx --test apps/bot/test/gadgetshop.test.ts"
+    "test": "pnpm --filter @task-shop/web typecheck && pnpm --filter @task-shop/api typecheck && pnpm --filter @task-shop/bot typecheck"
   },
   "dependencies": {
     "@task-shop/types": "workspace:*"

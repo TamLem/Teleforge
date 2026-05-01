@@ -210,7 +210,7 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       : undefined;
 
     // Strip session from config before serialization
-    const { session: _, ...serializableConfig } = config as unknown as Record<string, unknown>;
+    const { session: _, ...serializableConfig } = config;
 
     await writeFile(outputPath, JSON.stringify({ config: serializableConfig, sessionSummary }));
   `;
@@ -230,7 +230,9 @@ async function loadConfigModule(configPath: string, cwd: string): Promise<Telefo
       }
     );
 
-    const { config: parsedConfig, sessionSummary } = JSON.parse(await readFile(outputPath, "utf8")) as {
+    const { config: parsedConfig, sessionSummary } = JSON.parse(
+      await readFile(outputPath, "utf8")
+    ) as {
       config: TeleforgeAppConfig;
       sessionSummary?: {
         provider: "memory" | "custom";
@@ -607,7 +609,9 @@ async function loadFlowRuntimeSummaries(options: {
       }
     );
 
-    return createDiagnosticSummaries(JSON.parse(await readFile(outputPath, "utf8")) as RuntimeFlowSummary[]);
+    return createDiagnosticSummaries(
+      JSON.parse(await readFile(outputPath, "utf8")) as RuntimeFlowSummary[]
+    );
   } catch (error) {
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
@@ -763,7 +767,7 @@ function formatManifestValidationErrors(
         ? [
             "No Mini App routes could be derived from discovered flows.",
             `Flows with Mini App screens but no flow-level miniApp.routes: ${flowIdsWithoutMiniAppRoutes.join(", ")}.`,
-            "Add `miniApp: { routes: { \"/\": \"screenId\" } }` to each flow that owns Mini App screens."
+            'Add `miniApp: { routes: { "/": "screenId" } }` to each flow that owns Mini App screens.'
           ]
         : [
             "No Mini App routes were found.",

@@ -1,8 +1,4 @@
-import type {
-  UpdateContext,
-  CallbackQueryContext,
-  WebAppDataContext
-} from "@teleforgex/bot";
+import type { UpdateContext, CallbackQueryContext, WebAppDataContext } from "@teleforgex/bot";
 import type {
   ActionContextToken,
   ActionHandlerDefinition,
@@ -73,8 +69,10 @@ export interface ActionFlowSessionDefinition {
   initialState?: Record<string, unknown>;
 }
 
-export interface ActionFlowActionDefinition<TContext = unknown, TInput = unknown>
-  extends ActionHandlerDefinition<TContext, TInput> {
+export interface ActionFlowActionDefinition<
+  TContext = unknown,
+  TInput = unknown
+> extends ActionHandlerDefinition<TContext, TInput> {
   handler: (ctx: ActionFlowActionHandlerContext<TContext, TInput>) => MaybePromise<ActionResult>;
   input?: TeleforgeInputSchema<TInput>;
 }
@@ -136,10 +134,7 @@ export function defineFlow<TContext = unknown>(
       throw new Error(`Flow "${flow.id}" miniApp must define at least one route.`);
     }
 
-    if (
-      flow.miniApp.defaultRoute &&
-      !routes.includes(flow.miniApp.defaultRoute)
-    ) {
+    if (flow.miniApp.defaultRoute && !routes.includes(flow.miniApp.defaultRoute)) {
       throw new Error(
         `Flow "${flow.id}" miniApp defaultRoute "${flow.miniApp.defaultRoute}" is not a defined route.`
       );
@@ -147,24 +142,15 @@ export function defineFlow<TContext = unknown>(
   }
 
   if (flow.session?.enabled) {
-    if (
-      flow.session.ttlSeconds !== undefined &&
-      flow.session.ttlSeconds <= 0
-    ) {
-      throw new Error(
-        `Flow "${flow.id}" session ttlSeconds must be greater than zero.`
-      );
+    if (flow.session.ttlSeconds !== undefined && flow.session.ttlSeconds <= 0) {
+      throw new Error(`Flow "${flow.id}" session ttlSeconds must be greater than zero.`);
     }
   }
 
   return Object.freeze({
     ...flow,
-    ...(flow.command
-      ? { command: Object.freeze({ ...flow.command }) }
-      : {}),
-    ...(flow.handlers
-      ? { handlers: Object.freeze({ ...flow.handlers }) }
-      : {}),
+    ...(flow.command ? { command: Object.freeze({ ...flow.command }) } : {}),
+    ...(flow.handlers ? { handlers: Object.freeze({ ...flow.handlers }) } : {}),
     ...(flow.miniApp
       ? {
           miniApp: Object.freeze({
@@ -176,12 +162,8 @@ export function defineFlow<TContext = unknown>(
           })
         }
       : {}),
-    ...(flow.actions
-      ? { actions: Object.freeze({ ...flow.actions }) }
-      : {}),
-    ...(flow.session
-      ? { session: Object.freeze({ ...flow.session }) }
-      : {})
+    ...(flow.actions ? { actions: Object.freeze({ ...flow.actions }) } : {}),
+    ...(flow.session ? { session: Object.freeze({ ...flow.session }) } : {})
   });
 }
 

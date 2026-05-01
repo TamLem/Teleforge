@@ -7,9 +7,7 @@ export interface CreateMiniAppLaunchUrlOptions extends CreateActionContextOption
   requestWriteAccess?: boolean;
 }
 
-export function createMiniAppLaunchUrl(
-  options: CreateMiniAppLaunchUrlOptions
-): string {
+export function createMiniAppLaunchUrl(options: CreateMiniAppLaunchUrlOptions): string {
   const token = createSignedActionContextToken({
     allowedActions: options.allowedActions,
     appId: options.appId,
@@ -31,10 +29,7 @@ export function createMiniAppLaunchUrl(
   return url.toString();
 }
 
-export function createMiniAppLaunchButton(options: {
-  text: string;
-  url: string;
-}) {
+export function createMiniAppLaunchButton(options: { text: string; url: string }) {
   return {
     text: options.text,
     web_app: { url: options.url }

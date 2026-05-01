@@ -253,7 +253,9 @@ function toDoctorFlags(flags: Record<string, string | boolean>): Omit<DoctorComm
   };
 }
 
-function toGenerateFlags(flags: Record<string, string | boolean>): Omit<GenerateCommandFlags, "cwd"> {
+function toGenerateFlags(
+  flags: Record<string, string | boolean>
+): Omit<GenerateCommandFlags, "cwd"> {
   return {
     outputPath:
       typeof flags.output === "string" && flags.output.length > 0 ? flags.output : undefined

@@ -1,6 +1,7 @@
 import process from "node:process";
 
 import { generateProject } from "../../create-teleforge-app/src/generator.js";
+
 import {
   createTeleforgeRuntimeContext,
   createTeleforgeWebhookHandler,
@@ -156,7 +157,9 @@ async function runStartCommand(): Promise<void> {
   let stopServer: (() => void) | undefined;
 
   if (needsServer) {
-    const additionalRoutes: NonNullable<Parameters<typeof startTeleforgeServer>[0]>["additionalRoutes"] = [];
+    const additionalRoutes: NonNullable<
+      Parameters<typeof startTeleforgeServer>[0]
+    >["additionalRoutes"] = [];
 
     if (delivery === "webhook") {
       const webhookPath = context.app.bot.webhook?.path;

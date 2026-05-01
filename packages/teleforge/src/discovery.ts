@@ -2,19 +2,22 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { extractRequiredRouteParams, toHelperName } from "./screens.js";
+
 import type {
   ActionFlowActionDefinition,
   ActionFlowDefinition,
   ActionFlowMiniAppDefinition
 } from "./flow-definition.js";
-import type { DiscoveredScreenModule, LoaderRegistry, LoaderRegistryEntry, ServerLoaderContext, ServerLoaderDefinition } from "./screens.js";
-import { extractRequiredRouteParams, toHelperName } from "./screens.js";
-import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
 import type {
-  ActionContextToken,
-  RouteDefinition,
-  SignContextFn
-} from "@teleforgex/core";
+  DiscoveredScreenModule,
+  LoaderRegistry,
+  LoaderRegistryEntry,
+  ServerLoaderContext,
+  ServerLoaderDefinition
+} from "./screens.js";
+import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
+import type { RouteDefinition, SignContextFn } from "@teleforgex/core";
 
 type AnyFlowDefinition = ActionFlowDefinition;
 type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
@@ -136,7 +139,9 @@ export interface CreateFlowRuntimeSummaryOptions {
 export interface CreateFlowCommandsOptions {
   appId: string;
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>;
-  miniAppUrl: string | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
+  miniAppUrl:
+    | string
+    | ((context: CommandContext, flow: AnyFlowDefinition) => Promise<string> | string);
   secret: string;
   services?: unknown;
   sessionManager?: unknown;
@@ -313,7 +318,9 @@ export function createFlowCommands(options: CreateFlowCommandsOptions): BotComma
   return commands;
 }
 
-export function createFlowRoutes(options: CreateFlowRoutesOptions): Array<{ path: string; flowId: string; screenId: string }> {
+export function createFlowRoutes(
+  options: CreateFlowRoutesOptions
+): Array<{ path: string; flowId: string; screenId: string }> {
   const result: Array<{ path: string; flowId: string; screenId: string }> = [];
 
   for (const flow of normalizeDiscoveredFlows(options.flows)) {
@@ -365,7 +372,9 @@ export function createFlowRuntimeSummaries(
   flows: Iterable<AnyFlowDefinition | DiscoveredFlowModule>,
   options?: CreateFlowRuntimeSummaryOptions
 ): DiscoveredFlowRuntimeSummary[] {
-  return Array.from(normalizeDiscoveredFlows(flows), (flow) => createFlowRuntimeSummary(flow, options));
+  return Array.from(normalizeDiscoveredFlows(flows), (flow) =>
+    createFlowRuntimeSummary(flow, options)
+  );
 }
 
 export interface DiscoveredFlowRuntimeDebugState {
@@ -418,9 +427,7 @@ export function loadRouteRegistry(
 
     for (const [route, screenId] of Object.entries(flow.miniApp.routes)) {
       if (routes.has(route)) {
-        throw new Error(
-          `Duplicate Mini App route "${route}" discovered across flows.`
-        );
+        throw new Error(`Duplicate Mini App route "${route}" discovered across flows.`);
       }
 
       routes.set(route, { flowId: flow.id, screenId });
@@ -517,10 +524,7 @@ async function collectFlowFiles(absoluteRoot: string): Promise<string[]> {
   return collectFilesBySuffix(absoluteRoot, FLOW_FILE_SUFFIXES);
 }
 
-function stripKnownExtension(
-  filename: string,
-  suffixes: readonly string[]
-): string {
+function stripKnownExtension(filename: string, suffixes: readonly string[]): string {
   for (const suffix of suffixes) {
     if (filename.endsWith(suffix)) {
       return filename.slice(0, -suffix.length);
@@ -563,10 +567,7 @@ async function resolveCommandValue<T>(
   return value;
 }
 
-export function substituteRouteParams(
-  pattern: string,
-  params: Record<string, string>
-): string {
+export function substituteRouteParams(pattern: string, params: Record<string, string>): string {
   return pattern
     .split("/")
     .map((part) => {
@@ -574,9 +575,7 @@ export function substituteRouteParams(
       const name = part.slice(1);
       const value = params[name];
       if (value === undefined) {
-        throw new Error(
-          `Missing required route param "${name}" for pattern "${pattern}".`
-        );
+        throw new Error(`Missing required route param "${name}" for pattern "${pattern}".`);
       }
       return encodeURIComponent(value);
     })
@@ -612,9 +611,7 @@ export function createTypedSignForActionContext(options: {
       const params = (opts as Record<string, unknown>).params as Record<string, string> | undefined;
 
       if (requiredParams.length > 0) {
-        const missing = requiredParams.filter(
-          (name) => !params || !(name in params)
-        );
+        const missing = requiredParams.filter((name) => !params || !(name in params));
         if (missing.length > 0) {
           throw new Error(
             `Sign helper "${helperName}" requires params [${missing.join(", ")}] for route "${pattern}".`
@@ -623,9 +620,7 @@ export function createTypedSignForActionContext(options: {
       }
 
       const route =
-        requiredParams.length > 0 && params
-          ? substituteRouteParams(pattern, params)
-          : pattern;
+        requiredParams.length > 0 && params ? substituteRouteParams(pattern, params) : pattern;
 
       const url = await options.sign({
         screenId,
@@ -693,7 +688,9 @@ export async function discoverScreenLoaderFiles(
   }
 }
 
-export async function loadScreenLoaders(options: LoadScreenLoadersOptions): Promise<LoaderRegistry> {
+export async function loadScreenLoaders(
+  options: LoadScreenLoadersOptions
+): Promise<LoaderRegistry> {
   const files = await discoverScreenLoaderFiles(options);
   const registry = new Map<string, LoaderRegistryEntry>();
 
@@ -708,7 +705,8 @@ export async function loadScreenLoaders(options: LoadScreenLoadersOptions): Prom
 
     if (isLoaderDefinition(exported)) {
       registry.set(screenId, {
-        handler: async (ctx: ServerLoaderContext) => exported.handler(ctx as ServerLoaderContext<unknown>),
+        handler: async (ctx: ServerLoaderContext) =>
+          exported.handler(ctx as ServerLoaderContext<unknown>),
         input: exported.input
       });
     } else if (typeof exported === "function") {

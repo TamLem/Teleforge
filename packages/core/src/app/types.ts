@@ -1,10 +1,10 @@
-import type { SessionStorageAdapter } from "../session/types.js";
 import type {
   RouteDefinition,
   TeleforgeManifest,
   TeleforgePermission,
   TeleforgeRuntime
 } from "../manifest/types.js";
+import type { SessionStorageAdapter } from "../session/types.js";
 
 export interface TeleforgeAppIdentity {
   id: string;

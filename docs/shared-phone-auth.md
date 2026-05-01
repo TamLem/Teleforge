@@ -40,9 +40,7 @@ export default defineFlow({
           : "Phone verified. Complete your profile in the Mini App.",
         {
           reply_markup: {
-            inline_keyboard: [[
-              { text: "Open Profile", web_app: { url: launch } }
-            ]]
+            inline_keyboard: [[{ text: "Open Profile", web_app: { url: launch } }]]
           }
         }
       );
@@ -73,6 +71,7 @@ export default defineFlow({
 ```
 
 The framework handles:
+
 - rendering a reply-keyboard contact request button
 - accepting only self-shared contacts from the sending Telegram user
 - normalizing the phone number before passing it to the handler
@@ -89,10 +88,7 @@ pass the verified phone to other flows.
 When using `teleforge/bot` directly without a flow definition:
 
 ```ts
-import {
-  createPhoneNumberRequestMarkup,
-  extractSharedPhoneContact
-} from "teleforge/bot";
+import { createPhoneNumberRequestMarkup, extractSharedPhoneContact } from "teleforge/bot";
 
 router.command("login", async (context) => {
   await context.reply("Share the phone number tied to your account.", {
@@ -104,7 +100,10 @@ router.command("login", async (context) => {
 
 router.use(async (context, next) => {
   const shared = extractSharedPhoneContact(context.update);
-  if (!shared) { await next(); return; }
+  if (!shared) {
+    await next();
+    return;
+  }
 
   // For direct bot use, construct the signed URL manually
   const { createSignedActionContext } = await import("teleforge");

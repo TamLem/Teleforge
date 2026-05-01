@@ -10,18 +10,27 @@ import {
 
 import { loadTeleforgeApp } from "./config.js";
 import {
+  createSignForActionContext,
+  loadActionRegistry,
+  loadScreenLoaders,
+  loadTeleforgeFlows
+} from "./discovery.js";
+import {
   assertSessionDeployment,
   createSessionManagerFromConfig,
   resolveTeleforgeRuntimeDeployment
 } from "./runtime-context.js";
-import { loadActionRegistry, loadScreenLoaders, loadTeleforgeFlows, createSignForActionContext } from "./discovery.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
 import type { LoaderRegistry, ServerLoaderContext, TeleforgeScreenDefinition } from "./screens.js";
 import type { SessionHandle, TeleforgeAppConfig } from "@teleforgex/core";
 
-export { createFetchMiniAppServerBridge, DEFAULT_SERVER_HOOKS_PATH, TeleforgeActionServerBridgeError } from "./server-bridge.js";
+export {
+  createFetchMiniAppServerBridge,
+  DEFAULT_SERVER_HOOKS_PATH,
+  TeleforgeActionServerBridgeError
+} from "./server-bridge.js";
 
 type MaybePromise<T> = Promise<T> | T;
 
@@ -35,7 +44,11 @@ export interface CreateActionServerHooksHandlerOptions {
   cwd: string;
   flowSecret: string;
   miniAppUrl?: string;
-  onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
+  onChatHandoff?: (input: {
+    message: string;
+    context: ActionContextToken;
+    replyMarkup?: Record<string, unknown>;
+  }) => MaybePromise<void>;
   screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
   loaders?: LoaderRegistry;
   services?: unknown;
@@ -61,9 +74,7 @@ export interface ActionServerHookTrustContext {
 export async function createActionServerHooksHandler(
   options: CreateActionServerHooksHandlerOptions
 ): Promise<TeleforgeActionServerHooksHandler> {
-  const loadedApp = options.app
-    ? { app: options.app }
-    : await loadTeleforgeApp(options.cwd);
+  const loadedApp = options.app ? { app: options.app } : await loadTeleforgeApp(options.cwd);
   const flows = await loadTeleforgeFlows({ app: loadedApp.app, cwd: options.cwd });
   const actions = loadActionRegistry(flows);
 
@@ -76,7 +87,8 @@ export async function createActionServerHooksHandler(
   const runtimeDeployment = resolveTeleforgeRuntimeDeployment(loadedApp.app);
   assertSessionDeployment({
     ...runtimeDeployment,
-    sessionConfig: loadedApp.app.session ?? (options.sessionManager ? { provider: "custom" } : undefined),
+    sessionConfig:
+      loadedApp.app.session ?? (options.sessionManager ? { provider: "custom" } : undefined),
     sessionEnabledFlows
   });
 
@@ -89,9 +101,11 @@ export async function createActionServerHooksHandler(
     });
 
   const flowSecret = options.flowSecret;
-  const resolvedMiniAppUrl = options.miniAppUrl ?? process.env.MINI_APP_URL ?? "http://localhost:3000";
+  const resolvedMiniAppUrl =
+    options.miniAppUrl ?? process.env.MINI_APP_URL ?? "http://localhost:3000";
   const screens = options.screens;
-  const loaders = options.loaders ?? await loadScreenLoaders({ app: loadedApp.app, cwd: options.cwd });
+  const loaders =
+    options.loaders ?? (await loadScreenLoaders({ app: loadedApp.app, cwd: options.cwd }));
   const trust = options.trust ?? {};
   const onChatHandoff = options.onChatHandoff;
   const appId = loadedApp.app.app.id;
@@ -141,8 +155,19 @@ export async function createActionServerHooksHandler(
 }
 
 type ActionServerHookRequest =
-  | { kind: "loadScreenContext"; input: { flowId: string; screenId: string; signedContext: string; params?: Record<string, string> } }
-  | { kind: "runAction"; input: { flowId: string; actionId: string; signedContext: string; payload?: unknown } }
+  | {
+      kind: "loadScreenContext";
+      input: {
+        flowId: string;
+        screenId: string;
+        signedContext: string;
+        params?: Record<string, string>;
+      };
+    }
+  | {
+      kind: "runAction";
+      input: { flowId: string; actionId: string; signedContext: string; payload?: unknown };
+    }
   | { kind: "handoff"; input: { signedContext: string; message: string } };
 
 interface ExecuteActionServerHookOptions {
@@ -152,7 +177,11 @@ interface ExecuteActionServerHookOptions {
   flows: readonly DiscoveredFlowModule[];
   loaders?: LoaderRegistry;
   miniAppUrl: string;
-  onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
+  onChatHandoff?: (input: {
+    message: string;
+    context: ActionContextToken;
+    replyMarkup?: Record<string, unknown>;
+  }) => MaybePromise<void>;
   payload: ActionServerHookRequest;
   request: Request;
   screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
@@ -161,9 +190,7 @@ interface ExecuteActionServerHookOptions {
   trust: ActionServerHookTrustOptions;
 }
 
-async function executeActionServerHook(
-  options: ExecuteActionServerHookOptions
-): Promise<unknown> {
+async function executeActionServerHook(options: ExecuteActionServerHookOptions): Promise<unknown> {
   switch (options.payload.kind) {
     case "loadScreenContext": {
       const { flowId, screenId, signedContext } = options.payload.input;
@@ -187,7 +214,10 @@ async function executeActionServerHook(
       }
 
       if (!flow.miniApp?.routes || !Object.values(flow.miniApp.routes).includes(screenId)) {
-        throw new ActionServerHookRequestError(`Screen "${screenId}" is not a member of flow "${flowId}".`, 404);
+        throw new ActionServerHookRequestError(
+          `Screen "${screenId}" is not a member of flow "${flowId}".`,
+          404
+        );
       }
 
       await options.trust.validate?.({
@@ -333,7 +363,11 @@ export interface StartTeleforgeServerOptions {
   flowSecret?: string;
   loaders?: LoaderRegistry;
   miniAppUrl?: string;
-  onChatHandoff?: (input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) => MaybePromise<void>;
+  onChatHandoff?: (input: {
+    message: string;
+    context: ActionContextToken;
+    replyMarkup?: Record<string, unknown>;
+  }) => MaybePromise<void>;
   port?: number;
   screens?: ReadonlyMap<string, TeleforgeScreenDefinition>;
   services?: unknown;
@@ -440,9 +474,7 @@ export async function startTeleforgeServer(
       const address = server.address();
       const actualPort =
         typeof address === "object" && address !== null ? address.port : requestedPort;
-      console.log(
-        `[teleforge:server] hooks server listening on ${basePath} at port ${actualPort}`
-      );
+      console.log(`[teleforge:server] hooks server listening on ${basePath} at port ${actualPort}`);
       resolve(actualPort);
     });
   });

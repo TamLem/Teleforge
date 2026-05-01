@@ -47,7 +47,9 @@ export interface TeleforgeActionServerHandoffInput {
 
 export interface TeleforgeActionServerBridge {
   handoff(input: TeleforgeActionServerHandoffInput): Promise<void>;
-  loadScreenContext(input: TeleforgeActionServerLoadInput): Promise<TeleforgeActionServerLoadResult>;
+  loadScreenContext(
+    input: TeleforgeActionServerLoadInput
+  ): Promise<TeleforgeActionServerLoadResult>;
   runAction(input: TeleforgeActionServerRunActionInput): Promise<void | ActionResult>;
 }
 
@@ -74,12 +76,24 @@ export function createFetchMiniAppServerBridge(
       await postBridge(fetchImpl, basePath, { input, kind: "handoff" }, resolveHeaders);
     },
 
-    loadScreenContext: async (input: TeleforgeActionServerLoadInput): Promise<TeleforgeActionServerLoadResult> => {
-      return postBridge(fetchImpl, basePath, { input, kind: "loadScreenContext" }, resolveHeaders) as Promise<TeleforgeActionServerLoadResult>;
+    loadScreenContext: async (
+      input: TeleforgeActionServerLoadInput
+    ): Promise<TeleforgeActionServerLoadResult> => {
+      return postBridge(
+        fetchImpl,
+        basePath,
+        { input, kind: "loadScreenContext" },
+        resolveHeaders
+      ) as Promise<TeleforgeActionServerLoadResult>;
     },
 
     runAction: async (input: TeleforgeActionServerRunActionInput): Promise<ActionResult> => {
-      const response = await postBridge(fetchImpl, basePath, { input, kind: "runAction" }, resolveHeaders);
+      const response = await postBridge(
+        fetchImpl,
+        basePath,
+        { input, kind: "runAction" },
+        resolveHeaders
+      );
       return (response ?? { data: {} }) as ActionResult;
     }
   });
@@ -130,8 +144,9 @@ async function postBridge(
     } catch {
       // not JSON, use raw text
     }
-    const message = errorMessage
-      ?? (typeof body === "object" && body !== null && "message" in body
+    const message =
+      errorMessage ??
+      (typeof body === "object" && body !== null && "message" in body
         ? String((body as Record<string, unknown>).message)
         : typeof body === "string" && body.length > 0
           ? body

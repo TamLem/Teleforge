@@ -7,5 +7,12 @@ export { runDevHttpsCommand, type DevHttpsCommandFlags } from "./commands/devHtt
 export { runDoctorCommand, type DoctorCommandFlags } from "./commands/doctor.js";
 export { runGenerateCommand, type GenerateCommandFlags } from "./commands/generate.js";
 export { loadManifest, type TeleforgeManifest } from "./utils/manifest.js";
-export { generateClientManifest, type GenerateClientManifestOptions } from "./utils/generate-manifest.js";
-export { generateContracts, formatContracts, type GenerateContractsOptions } from "./utils/generate-contracts.js";
+export {
+  generateClientManifest,
+  type GenerateClientManifestOptions
+} from "./utils/generate-manifest.js";
+export {
+  generateContracts,
+  formatContracts,
+  type GenerateContractsOptions
+} from "./utils/generate-contracts.js";

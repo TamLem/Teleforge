@@ -4,11 +4,11 @@ import {
   resolveRuntimeDeployment,
   validateSessionDeployment
 } from "@teleforgex/core";
-import type { SessionStorageAdapter } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import { loadTeleforgeFlows } from "./discovery.js";
 
+import type { SessionStorageAdapter } from "@teleforgex/core";
 import type {
   TeleforgeAppConfig,
   TeleforgeDeploymentTopology,
@@ -70,9 +70,15 @@ export function createSessionManagerFromConfig(
   const namespace = configuredNamespace ?? config.storage.namespace ?? appId;
 
   // Only let adapter own namespacing if config didn't specify one AND adapter has a namespace
-  const adapterOwnsNamespace = configuredNamespace === undefined && config.storage.namespace !== undefined;
+  const adapterOwnsNamespace =
+    configuredNamespace === undefined && config.storage.namespace !== undefined;
 
-  const wrappedAdapter = createWrappedAdapter(config.storage, defaultTTL, namespace, adapterOwnsNamespace);
+  const wrappedAdapter = createWrappedAdapter(
+    config.storage,
+    defaultTTL,
+    namespace,
+    adapterOwnsNamespace
+  );
   return new SessionManager(wrappedAdapter);
 }
 
@@ -94,11 +100,7 @@ export function assertSessionDeployment(input: {
     return;
   }
 
-  throw new Error(
-    result.issues
-      .map((issue) => `${issue.message} ${issue.remediation}`)
-      .join("\n")
-  );
+  throw new Error(result.issues.map((issue) => `${issue.message} ${issue.remediation}`).join("\n"));
 }
 
 function createWrappedAdapter(
@@ -109,35 +111,50 @@ function createWrappedAdapter(
 ): SessionStorageAdapter {
   // The resolved TTL and namespace already encode config > adapter > framework defaults.
   return {
-    get defaultTTL() { return defaultTTL; },
-    get namespace() { return namespace; },
+    get defaultTTL() {
+      return defaultTTL;
+    },
+    get namespace() {
+      return namespace;
+    },
 
     async delete(key: string) {
-      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      const namespacedKey = adapterOwnsNamespace ? key : namespace ? `${namespace}:${key}` : key;
       return adapter.delete(namespacedKey);
     },
 
     async get(key: string) {
-      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      const namespacedKey = adapterOwnsNamespace ? key : namespace ? `${namespace}:${key}` : key;
       return adapter.get(namespacedKey);
     },
 
     async set(key: string, value: string, ttl?: number) {
-      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      const namespacedKey = adapterOwnsNamespace ? key : namespace ? `${namespace}:${key}` : key;
       return adapter.set(namespacedKey, value, ttl ?? defaultTTL);
     },
 
     async touch(key: string, ttl: number) {
-      const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
+      const namespacedKey = adapterOwnsNamespace ? key : namespace ? `${namespace}:${key}` : key;
       return adapter.touch(namespacedKey, ttl);
     },
 
-    ...(adapter.compareAndSet ? {
-      async compareAndSet(key: string, expectedRevision: number, value: string, ttl?: number) {
-        const namespacedKey = adapterOwnsNamespace ? key : (namespace ? `${namespace}:${key}` : key);
-        return adapter.compareAndSet!(namespacedKey, expectedRevision, value, ttl ?? defaultTTL);
-      }
-    } : {})
+    ...(adapter.compareAndSet
+      ? {
+          async compareAndSet(key: string, expectedRevision: number, value: string, ttl?: number) {
+            const namespacedKey = adapterOwnsNamespace
+              ? key
+              : namespace
+                ? `${namespace}:${key}`
+                : key;
+            return adapter.compareAndSet!(
+              namespacedKey,
+              expectedRevision,
+              value,
+              ttl ?? defaultTTL
+            );
+          }
+        }
+      : {})
   };
 }
 
@@ -181,14 +198,10 @@ export async function createTeleforgeRuntimeContext(
     const webhookPath = app.bot.webhook?.path;
     const webhookSecretEnv = app.bot.webhook?.secretEnv;
     if (!webhookPath) {
-      throw new Error(
-        "Webhook delivery requires bot.webhook.path in teleforge.config.ts."
-      );
+      throw new Error("Webhook delivery requires bot.webhook.path in teleforge.config.ts.");
     }
     if (!webhookSecretEnv) {
-      throw new Error(
-        "Webhook delivery requires bot.webhook.secretEnv in teleforge.config.ts."
-      );
+      throw new Error("Webhook delivery requires bot.webhook.secretEnv in teleforge.config.ts.");
     }
     if (!rawFlowSecret) {
       throw new Error(

@@ -23,16 +23,16 @@ import {
 
 import { loadTeleforgeApp } from "./config.js";
 import {
-  assertSessionDeployment,
-  createSessionManagerFromConfig,
-  resolveTeleforgeRuntimeDeployment
-} from "./runtime-context.js";
-import {
   createFlowCommands,
   createSignForActionContext,
   loadActionRegistry,
   loadTeleforgeFlows
 } from "./discovery.js";
+import {
+  assertSessionDeployment,
+  createSessionManagerFromConfig,
+  resolveTeleforgeRuntimeDeployment
+} from "./runtime-context.js";
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
@@ -50,7 +50,11 @@ export interface CreateDiscoveredBotRuntimeOptions {
 
 export interface DiscoveredBotRuntime extends BotRuntime {
   getSessionManager(): SessionManager;
-  handleChatHandoff(input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }): Promise<void>;
+  handleChatHandoff(input: {
+    message: string;
+    context: ActionContextToken;
+    replyMarkup?: Record<string, unknown>;
+  }): Promise<void>;
 }
 
 export interface StartTeleforgeBotOptions {
@@ -180,20 +184,26 @@ export async function createDiscoveredBotRuntime(
 
     getSessionManager: () => sessionManager,
 
-    async handleChatHandoff(input: { message: string; context: ActionContextToken; replyMarkup?: Record<string, unknown> }) {
+    async handleChatHandoff(input: {
+      message: string;
+      context: ActionContextToken;
+      replyMarkup?: Record<string, unknown>;
+    }) {
       if (!boundBot) {
         throw new Error("Bot instance has not been bound.");
       }
       await boundBot.sendMessage(input.context.userId, input.message, {
-        reply_markup: input.replyMarkup as Parameters<typeof boundBot.sendMessage>[2] extends { reply_markup?: infer R } ? R : undefined
+        reply_markup: input.replyMarkup as Parameters<typeof boundBot.sendMessage>[2] extends {
+          reply_markup?: infer R;
+        }
+          ? R
+          : undefined
       });
     }
   };
 }
 
-export async function createTeleforgeWebhookHandler(
-  options: CreateTeleforgeWebhookHandlerOptions
-) {
+export async function createTeleforgeWebhookHandler(options: CreateTeleforgeWebhookHandlerOptions) {
   const cwd = options.cwd ?? process.cwd();
   const app = options.app ?? (await loadTeleforgeApp(cwd)).app;
   const flowSecret = options.flowSecret ?? `${app.app.id}-preview-secret`;
@@ -221,7 +231,8 @@ export async function startTeleforgeBot(
   const tokenEnv = app.bot.tokenEnv;
   const token = options.token ?? readEnv(tokenEnv);
 
-  const flowSecret = options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET") ?? `${app.app.id}-preview-secret`;
+  const flowSecret =
+    options.flowSecret ?? readEnv("TELEFORGE_FLOW_SECRET") ?? `${app.app.id}-preview-secret`;
   const miniAppUrl = options.miniAppUrl ?? readEnv("MINI_APP_URL") ?? "https://example.ngrok.app";
 
   const runtime = await createDiscoveredBotRuntime({
@@ -257,7 +268,10 @@ export async function startTeleforgeBot(
   try {
     await bot.setCommands(commands);
   } catch (err) {
-    console.error("[teleforge:bot] failed to register bot commands:", err instanceof Error ? err.message : err);
+    console.error(
+      "[teleforge:bot] failed to register bot commands:",
+      err instanceof Error ? err.message : err
+    );
   }
 
   console.log(`[teleforge:bot] polling Telegram (${commands.length} commands registered)`);
@@ -282,7 +296,12 @@ export async function startTeleforgeBot(
 
   poll();
 
-  return { runtime, stop: () => { stopped = true; } };
+  return {
+    runtime,
+    stop: () => {
+      stopped = true;
+    }
+  };
 }
 
 // Phone contact middleware
@@ -296,9 +315,7 @@ interface PhoneContactMiddlewareOptions {
   sessionManager: SessionManager;
 }
 
-function createPhoneContactMiddleware(
-  options: PhoneContactMiddlewareOptions
-): Middleware {
+function createPhoneContactMiddleware(options: PhoneContactMiddlewareOptions): Middleware {
   const handlersByFlow = collectContactHandlers(options.flows);
 
   return async (ctx, next) => {
@@ -311,7 +328,9 @@ function createPhoneContactMiddleware(
 
     const shared = extractSharedPhoneContact(ctx.update);
     if (!shared) {
-      console.log("[bot:contact] extractSharedPhoneContact returned null — not self-shared or invalid");
+      console.log(
+        "[bot:contact] extractSharedPhoneContact returned null — not self-shared or invalid"
+      );
       return next();
     }
 
@@ -344,7 +363,10 @@ function createPhoneContactMiddleware(
         reply_markup: { remove_keyboard: true }
       });
     } catch (err) {
-      console.error("[bot:contact] failed to dismiss keyboard:", err instanceof Error ? err.message : err);
+      console.error(
+        "[bot:contact] failed to dismiss keyboard:",
+        err instanceof Error ? err.message : err
+      );
     }
 
     const sign = createSignForActionContext({
@@ -399,9 +421,7 @@ interface LocationMiddlewareOptions {
   sessionManager: SessionManager;
 }
 
-function createLocationMiddleware(
-  options: LocationMiddlewareOptions
-): Middleware {
+function createLocationMiddleware(options: LocationMiddlewareOptions): Middleware {
   const handlersByFlow = collectLocationHandlers(options.flows);
 
   return async (ctx, next) => {
@@ -489,9 +509,7 @@ interface CallbackHandlerOptions {
   sessionManager: SessionManager;
 }
 
-function createActionCallbackHandler(
-  options: CallbackHandlerOptions
-): CallbackQueryHandler {
+function createActionCallbackHandler(options: CallbackHandlerOptions): CallbackQueryHandler {
   return async (ctx) => {
     const data = ctx.update.callback_query?.data;
     if (!data) {
@@ -598,9 +616,7 @@ interface WebAppDataHandlerOptions {
   sessionManager: SessionManager;
 }
 
-function createWebAppDataHandler(
-  options: WebAppDataHandlerOptions
-): WebAppDataHandler {
+function createWebAppDataHandler(options: WebAppDataHandlerOptions): WebAppDataHandler {
   return async (ctx) => {
     const webAppData = ctx.update.message?.web_app_data;
     if (!webAppData) {
@@ -626,7 +642,9 @@ function createWebAppDataHandler(
         }
 
         const actionFlowId = context.flowId;
-        const flow = options.flows.find((f) => ("flow" in f ? f.flow : f).id === actionFlowId)?.flow;
+        const flow = options.flows.find(
+          (f) => ("flow" in f ? f.flow : f).id === actionFlowId
+        )?.flow;
 
         let session = undefined;
         if (flow?.session?.enabled) {
@@ -646,7 +664,10 @@ function createWebAppDataHandler(
             context.userId
           );
           if (!handle) {
-            console.error("[teleforge:bot] webapp data action requires session but none found for", key);
+            console.error(
+              "[teleforge:bot] webapp data action requires session but none found for",
+              key
+            );
             return;
           }
           session = handle;
@@ -656,7 +677,10 @@ function createWebAppDataHandler(
         if (action.input) {
           const inputResult = parseTeleforgeInput(action.input, parsed.payload ?? {});
           if (!inputResult.ok) {
-            console.error("[teleforge:bot] webapp data action validation failed:", inputResult.error);
+            console.error(
+              "[teleforge:bot] webapp data action validation failed:",
+              inputResult.error
+            );
             return;
           }
           validatedInput = inputResult.data;
@@ -689,10 +713,7 @@ function createWebAppDataHandler(
 function collectContactHandlers(
   flows: readonly DiscoveredFlowModule[]
 ): Map<string, NonNullable<ActionFlowDefinition["handlers"]>["onContact"]> {
-  const handlers = new Map<
-    string,
-    NonNullable<ActionFlowDefinition["handlers"]>["onContact"]
-  >();
+  const handlers = new Map<string, NonNullable<ActionFlowDefinition["handlers"]>["onContact"]>();
   for (const { flow } of flows) {
     if (flow.handlers?.onContact) {
       if (handlers.size > 0) {
@@ -709,10 +730,7 @@ function collectContactHandlers(
 function collectLocationHandlers(
   flows: readonly DiscoveredFlowModule[]
 ): Map<string, NonNullable<ActionFlowDefinition["handlers"]>["onLocation"]> {
-  const handlers = new Map<
-    string,
-    NonNullable<ActionFlowDefinition["handlers"]>["onLocation"]
-  >();
+  const handlers = new Map<string, NonNullable<ActionFlowDefinition["handlers"]>["onLocation"]>();
   for (const { flow } of flows) {
     if (flow.handlers?.onLocation) {
       if (handlers.size > 0) {
@@ -760,7 +778,10 @@ function createTeleforgePollingBot(token: string): PollingBot {
     },
     async setCommands(commands) {
       await callTelegramApi(baseUrl, "setMyCommands", {
-        commands: Array.from(commands, (c) => ({ command: c.command, description: c.description ?? c.command }))
+        commands: Array.from(commands, (c) => ({
+          command: c.command,
+          description: c.description ?? c.command
+        }))
       });
     }
   };
@@ -779,7 +800,10 @@ function createTeleforgeWebhookBot(token: string): TelegramApiBot {
     },
     async setCommands(commands) {
       await callTelegramApi(baseUrl, "setMyCommands", {
-        commands: Array.from(commands, (c) => ({ command: c.command, description: c.description ?? c.command }))
+        commands: Array.from(commands, (c) => ({
+          command: c.command,
+          description: c.description ?? c.command
+        }))
       });
     }
   };
@@ -796,7 +820,11 @@ function createPreviewBot(): BotInstance {
   };
 }
 
-function callTelegramApi<T>(baseUrl: string, method: string, body: Record<string, unknown>): Promise<T> {
+function callTelegramApi<T>(
+  baseUrl: string,
+  method: string,
+  body: Record<string, unknown>
+): Promise<T> {
   const url = `${baseUrl}/${method}`;
   const payload = JSON.stringify(body);
   const target = new URL(url);
@@ -807,7 +835,10 @@ function callTelegramApi<T>(baseUrl: string, method: string, body: Record<string
     const req = https.request(
       {
         family: 4,
-        headers: { "content-length": Buffer.byteLength(payload), "content-type": "application/json" },
+        headers: {
+          "content-length": Buffer.byteLength(payload),
+          "content-type": "application/json"
+        },
         hostname: target.hostname,
         method: "POST",
         path: `${target.pathname}${target.search}`,
@@ -816,22 +847,35 @@ function callTelegramApi<T>(baseUrl: string, method: string, body: Record<string
       (response) => {
         let body = "";
         response.setEncoding("utf8");
-        response.on("data", (chunk: string) => { body += chunk; });
+        response.on("data", (chunk: string) => {
+          body += chunk;
+        });
         response.on("end", () => {
           try {
             const parsed = JSON.parse(body) as { description?: string; ok: boolean; result: T };
             if (response.statusCode! < 200 || response.statusCode! >= 300 || !parsed.ok) {
-              throw new Error(parsed.description ?? `Telegram API request failed (${response.statusCode}) while calling ${method}.`);
+              throw new Error(
+                parsed.description ??
+                  `Telegram API request failed (${response.statusCode}) while calling ${method}.`
+              );
             }
             resolve(parsed.result);
           } catch (error) {
-            reject(error instanceof Error ? error : new Error(`Telegram API ${method} returned unparseable response.`));
+            reject(
+              error instanceof Error
+                ? error
+                : new Error(`Telegram API ${method} returned unparseable response.`)
+            );
           }
         });
       }
     );
-    req.setTimeout(timeoutMs, () => { req.destroy(new Error(`Telegram API request timed out after ${timeoutMs}ms.`)); });
-    req.on("error", (error) => { reject(error); });
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Telegram API request timed out after ${timeoutMs}ms.`));
+    });
+    req.on("error", (error) => {
+      reject(error);
+    });
     req.write(payload);
     req.end();
   });

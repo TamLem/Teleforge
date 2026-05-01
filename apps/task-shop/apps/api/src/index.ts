@@ -17,5 +17,11 @@ const { url, stop } = await startTeleforgeServer({
 
 console.log(`[api] GadgetShop action server listening at ${url}`);
 
-process.on("SIGINT", () => { stop(); process.exit(0); });
-process.on("SIGTERM", () => { stop(); process.exit(0); });
+process.on("SIGINT", () => {
+  stop();
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  stop();
+  process.exit(0);
+});

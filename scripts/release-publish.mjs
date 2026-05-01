@@ -14,9 +14,7 @@ const npmToken =
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const releasePackages = [
-  { dir: "packages/teleforge", name: "teleforge" }
-];
+const releasePackages = [{ dir: "packages/teleforge", name: "teleforge" }];
 
 async function main() {
   if (!dryRun && !npmToken) {

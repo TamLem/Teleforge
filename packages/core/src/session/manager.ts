@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
 
-import type { SessionHandle, SessionResourceHandle, SessionStorageAdapter, TeleforgeSession } from "./types.js";
+import type {
+  SessionHandle,
+  SessionResourceHandle,
+  SessionStorageAdapter,
+  TeleforgeSession
+} from "./types.js";
 
 const RESOURCES_KEY = "__resources";
 
@@ -127,9 +132,7 @@ export class SessionManager {
     return this.createHandle<TState>(key);
   }
 
-  private createHandle<TState = Record<string, unknown>>(
-    key: string
-  ): SessionHandle<TState> {
+  private createHandle<TState = Record<string, unknown>>(key: string): SessionHandle<TState> {
     const storage = this.storage;
     const requireSession = this.requireSession.bind(this);
 
@@ -200,7 +203,7 @@ export class SessionManager {
           if (options?.initialValue !== undefined) {
             return typeof options.initialValue === "function"
               ? await (options.initialValue as () => TValue | Promise<TValue>)()
-              : options.initialValue as TValue;
+              : (options.initialValue as TValue);
           }
           return {} as TValue;
         }
@@ -217,17 +220,22 @@ export class SessionManager {
 
           set: async (value: TValue) => {
             const state = (await readRawState()) as Record<string, unknown>;
-            const resources = structuredClone((state[RESOURCES_KEY] ?? {}) as Record<string, unknown>);
+            const resources = structuredClone(
+              (state[RESOURCES_KEY] ?? {}) as Record<string, unknown>
+            );
             resources[resourceKey] = value;
             await writeRawState({ ...state, [RESOURCES_KEY]: resources } as unknown as TState);
           },
 
           update: async (mutator) => {
             const state = (await readRawState()) as Record<string, unknown>;
-            const resources = structuredClone((state[RESOURCES_KEY] ?? {}) as Record<string, unknown>);
-            const current = resourceKey in resources
-              ? structuredClone(resources[resourceKey]) as TValue
-              : await resolveInitial();
+            const resources = structuredClone(
+              (state[RESOURCES_KEY] ?? {}) as Record<string, unknown>
+            );
+            const current =
+              resourceKey in resources
+                ? (structuredClone(resources[resourceKey]) as TValue)
+                : await resolveInitial();
             const draft = structuredClone(current) as TValue;
             const result = await mutator(draft);
             const next = result !== undefined ? result : draft;
@@ -238,7 +246,9 @@ export class SessionManager {
 
           clear: async () => {
             const state = (await readRawState()) as Record<string, unknown>;
-            const resources = structuredClone((state[RESOURCES_KEY] ?? {}) as Record<string, unknown>);
+            const resources = structuredClone(
+              (state[RESOURCES_KEY] ?? {}) as Record<string, unknown>
+            );
             delete resources[resourceKey];
             await writeRawState({ ...state, [RESOURCES_KEY]: resources } as unknown as TState);
           }
@@ -247,9 +257,7 @@ export class SessionManager {
     };
   }
 
-  private async requireSession<TState>(
-    key: string
-  ): Promise<TeleforgeSession<TState>> {
+  private async requireSession<TState>(key: string): Promise<TeleforgeSession<TState>> {
     const raw = await this.storage.get(key);
 
     if (!raw) {

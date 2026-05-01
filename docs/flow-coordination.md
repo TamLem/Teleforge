@@ -47,7 +47,9 @@ For the full runtime chain — how `sign()` builds the token, how the manifest r
 ```ts
 import { defineFlow } from "teleforge";
 
-function schema<T>(s: { safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown } }) {
+function schema<T>(s: {
+  safeParse(input: unknown): { success: true; data: T } | { success: false; error: unknown };
+}) {
   return s;
 }
 
@@ -70,9 +72,7 @@ export default defineFlow({
 
       await ctx.reply("Open checkout to continue.", {
         reply_markup: {
-          inline_keyboard: [[
-            { text: "Open checkout", web_app: { url: launch } }
-          ]]
+          inline_keyboard: [[{ text: "Open checkout", web_app: { url: launch } }]]
         }
       });
     }
@@ -91,7 +91,8 @@ export default defineFlow({
     selectItem: {
       input: schema<{ itemId: string }>({
         safeParse(input) {
-          if (typeof input !== "object" || input === null) return { success: false, error: "invalid" };
+          if (typeof input !== "object" || input === null)
+            return { success: false, error: "invalid" };
           const obj = input as Record<string, unknown>;
           if (typeof obj.itemId !== "string") return { success: false, error: "itemId required" };
           return { success: true, data: { itemId: obj.itemId } };
@@ -99,7 +100,9 @@ export default defineFlow({
       }),
       handler: async ({ input, session }) => {
         const cart = session.resource<{ items: string[] }>("cart", { initialValue: { items: [] } });
-        await cart.update((d) => { d.items.push(input.itemId); });
+        await cart.update((d) => {
+          d.items.push(input.itemId);
+        });
         return { data: { added: true } };
       }
     },
@@ -240,7 +243,7 @@ completeOrder: {
       handoff: { message: "Returning to chat...", closeMiniApp: true },
       effects: [{ type: "chatMessage", text: "Order placed." }]
     };
-  }
+  };
 }
 ```
 
@@ -259,12 +262,10 @@ handlers: {
 
     await ctx.reply("Phone verified. Continue in the Mini App.", {
       reply_markup: {
-        inline_keyboard: [[
-          { text: "Open App", web_app: { url: launch } }
-        ]]
+        inline_keyboard: [[{ text: "Open App", web_app: { url: launch } }]]
       }
     });
-  }
+  };
 }
 ```
 
@@ -280,11 +281,12 @@ handlers: {
     });
 
     await ctx.reply("Location received. Opening nearby results.");
-  }
+  };
 }
 ```
 
 **Collision rules:**
+
 - Only one flow may define an `onContact` handler across all flows.
 - Only one flow may define an `onLocation` handler across all flows.
 - Duplicate command names across flows cause a registration error.

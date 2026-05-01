@@ -92,12 +92,8 @@ function CatalogScreen({ loader, loaderData, actions, nav, transitioning }: Cata
       {products.map((p) => (
         <div key={p.id}>
           <span>{p.name}</span>
-          <button onClick={() => actions.addToCart({ productId: p.id, qty: 1 })}>
-            Add
-          </button>
-          <button onClick={() => nav.productDetail({ id: p.id })}>
-            Details
-          </button>
+          <button onClick={() => actions.addToCart({ productId: p.id, qty: 1 })}>Add</button>
+          <button onClick={() => nav.productDetail({ id: p.id })}>Details</button>
         </div>
       ))}
     </div>

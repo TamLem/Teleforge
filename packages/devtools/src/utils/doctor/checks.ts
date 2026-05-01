@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { X509Certificate } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
@@ -187,8 +186,7 @@ async function checkPackageManager(options: {
       category: "Environment",
       message: "Package manager could not be determined.",
       name: "package_manager",
-      remediation:
-        "Add a root package.json with a `packageManager` field and commit a lockfile.",
+      remediation: "Add a root package.json with a `packageManager` field and commit a lockfile.",
       status: "warn"
     };
   }
@@ -892,7 +890,6 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
 
   const details: string[] = [];
   let errorCount = 0;
-  let warnCount = 0;
 
   // Track duplicate routes across flows
   const routeUsage = new Map<string, string[]>();
@@ -914,7 +911,7 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
     // Summary details
     details.push(
       `Flow "${flow.id}": ${flow.routeCount} routes, ${flow.actionCount} actions, ` +
-      `${flow.hasRuntimeHandlers ? "handlers present" : "no handlers"}`
+        `${flow.hasRuntimeHandlers ? "handlers present" : "no handlers"}`
     );
   }
 
@@ -932,20 +929,8 @@ function checkFlowWiring(manifestState: ManifestState): DoctorCheck {
       details,
       message: `${errorCount} flow wiring error${errorCount === 1 ? "" : "s"} found across ${flows.length} flow${flows.length === 1 ? "" : "s"}.`,
       name: "flow_wiring",
-      remediation:
-        "Fix duplicate routes and ensure all routes map to valid screens.",
+      remediation: "Fix duplicate routes and ensure all routes map to valid screens.",
       status: "error"
-    };
-  }
-
-  if (warnCount > 0) {
-    return {
-      category: "Configuration",
-      details,
-      message: `${warnCount} flow wiring warning${warnCount === 1 ? "" : "s"} found across ${flows.length} flow${flows.length === 1 ? "" : "s"}.`,
-      name: "flow_wiring",
-      remediation: "Add handlers for actions and ensure route mappings are correct.",
-      status: "warn"
     };
   }
 
@@ -1044,7 +1029,8 @@ async function checkRuntimeSecrets(
       issues.push("TELEFORGE_FLOW_SECRET is required in live mode (when BOT_TOKEN is set).");
     }
 
-    const miniAppUrl = trimToUndefined(env.MINI_APP_URL) ?? trimToUndefined(env.TELEFORGE_PUBLIC_URL);
+    const miniAppUrl =
+      trimToUndefined(env.MINI_APP_URL) ?? trimToUndefined(env.TELEFORGE_PUBLIC_URL);
     if (!miniAppUrl) {
       issues.push("MINI_APP_URL or TELEFORGE_PUBLIC_URL is required in live mode.");
     }
@@ -1108,10 +1094,7 @@ async function hasPhoneAuthUsage(manifestState: ManifestState): Promise<boolean>
   return false;
 }
 
-function checkWebhookMode(
-  env: NodeJS.ProcessEnv,
-  manifestState: ManifestState
-): DoctorCheck {
+function checkWebhookMode(env: NodeJS.ProcessEnv, manifestState: ManifestState): DoctorCheck {
   const manifest = manifestState.manifest;
 
   if (!manifest) {
@@ -1166,7 +1149,8 @@ function checkWebhookMode(
       details: ["bot.webhook.secretEnv is not set in teleforge.config.ts."],
       message: "Webhook mode is enabled but no webhook secret env is configured.",
       name: "webhook_mode",
-      remediation: "Add bot.webhook.secretEnv to teleforge.config.ts for webhook signature validation.",
+      remediation:
+        "Add bot.webhook.secretEnv to teleforge.config.ts for webhook signature validation.",
       status: "warn"
     };
   }
@@ -1251,7 +1235,8 @@ async function runClientManifestDriftCheck(
         ? "Client manifest is missing. Flows are discovered but no checked-in manifest was found."
         : "Client manifest is out of sync with discovered flows.",
       name: "client_manifest_drift",
-      remediation: "Run `teleforge generate client-manifest` to regenerate the client-safe flow metadata.",
+      remediation:
+        "Run `teleforge generate client-manifest` to regenerate the client-safe flow metadata.",
       status: "warn"
     };
   }
@@ -1264,10 +1249,7 @@ async function runClientManifestDriftCheck(
   };
 }
 
-function checkSessionProvider(
-  env: NodeJS.ProcessEnv,
-  manifestState: ManifestState
-): DoctorCheck {
+function checkSessionProvider(env: NodeJS.ProcessEnv, manifestState: ManifestState): DoctorCheck {
   const appConfig = manifestState.appConfig;
 
   if (!appConfig) {
@@ -1360,9 +1342,10 @@ function checkSessionProvider(
   return {
     category: "Configuration",
     details,
-    message: provider === "memory"
-      ? "Session provider is configured for local single-process memory sessions."
-      : "Session provider is configured.",
+    message:
+      provider === "memory"
+        ? "Session provider is configured for local single-process memory sessions."
+        : "Session provider is configured.",
     name: "session_provider",
     status: "pass"
   };

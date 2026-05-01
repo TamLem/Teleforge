@@ -108,7 +108,7 @@ Routing should be based on:
 - screen identity
 
 The primary navigation path is always:
-**signed context → route match → screen → loader → actions.* / nav.***
+**signed context → route match → screen → loader → actions._ / nav._**
 
 For the full chain, see [Runtime Wiring](./runtime-wiring.md).
 
@@ -148,9 +148,9 @@ export default defineScreen({
 
 ## 9. Flow Definitions Own Behavior; Screens Own Presentation
 
-| Layer      | Defines                                                                         |
-| ---------- | ------------------------------------------------------------------------------- |
-| **Flow**   | routes, actions, action handlers, session config                                |
+| Layer      | Defines                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------- |
+| **Flow**   | routes, actions, action handlers, session config                                                    |
 | **Screen** | UI rendering, local interaction behavior, input collection, action invocation, navigation decisions |
 
 Screens use `actions.*` for server-side work and `nav.*` to move between screens.
@@ -297,23 +297,23 @@ The frontend architecture must work whether the system is deployed as:
 
 ## Quick Reference
 
-| Principle                   | One-liner                                          |
-| --------------------------- | --------------------------------------------------- |
-| 1. Not a monolithic SPA     | Small bundles, no eager whole-app hydration         |
-| 2. Screen runtime           | Screen is the primary unit, not the page            |
-| 3. Hybrid rendering         | Server entry + client transitions + lazy screens    |
-| 4. Thin shell               | Shell bootstraps only; screens load on demand       |
-| 5. Split by screen          | Each screen independently loadable                  |
-| 6. Route-aware routing      | Routes deliver screens; flows define behavior       |
-| 7. Client manifest          | Generated, browser-safe, no server imports          |
-| 8. Screen registry          | Real components, registered by ID                   |
-| 9. Behavior vs presentation | Flow = behavior, screen = UI                        |
-| 10. Data boundaries         | scopeData/routeParams/routeData/loader/appState     |
-| 11. Telegram adapter        | SDK calls behind hooks, not scattered                |
-| 12. First useful paint      | Small entry, low parse cost, fast visibility        |
-| 13. Client after boot       | Server entry, client continuation                   |
-| 14. Transport ≠ abstraction | Build tool delivers; flow defines behavior          |
-| 15. API ≠ UI owner          | Server validates; client renders                    |
-| 16. Untrusted frontend      | Server is authority for operations                  |
-| 17. Explicit contracts      | No implicit coupling                                |
-| 18. Deployment flexible     | Works in any topology                               |
+| Principle                   | One-liner                                        |
+| --------------------------- | ------------------------------------------------ |
+| 1. Not a monolithic SPA     | Small bundles, no eager whole-app hydration      |
+| 2. Screen runtime           | Screen is the primary unit, not the page         |
+| 3. Hybrid rendering         | Server entry + client transitions + lazy screens |
+| 4. Thin shell               | Shell bootstraps only; screens load on demand    |
+| 5. Split by screen          | Each screen independently loadable               |
+| 6. Route-aware routing      | Routes deliver screens; flows define behavior    |
+| 7. Client manifest          | Generated, browser-safe, no server imports       |
+| 8. Screen registry          | Real components, registered by ID                |
+| 9. Behavior vs presentation | Flow = behavior, screen = UI                     |
+| 10. Data boundaries         | scopeData/routeParams/routeData/loader/appState  |
+| 11. Telegram adapter        | SDK calls behind hooks, not scattered            |
+| 12. First useful paint      | Small entry, low parse cost, fast visibility     |
+| 13. Client after boot       | Server entry, client continuation                |
+| 14. Transport ≠ abstraction | Build tool delivers; flow defines behavior       |
+| 15. API ≠ UI owner          | Server validates; client renders                 |
+| 16. Untrusted frontend      | Server is authority for operations               |
+| 17. Explicit contracts      | No implicit coupling                             |
+| 18. Deployment flexible     | Works in any topology                            |

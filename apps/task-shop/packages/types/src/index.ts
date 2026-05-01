@@ -61,7 +61,7 @@ export const products: Product[] = [
     image: "/products/iphone-15.webp",
     category: "Phones",
     inStock: true,
-    specs: { "Display": "6.1\" OLED", "Chip": "A17 Pro", "Storage": "256GB", "Camera": "48MP" }
+    specs: { Display: '6.1" OLED', Chip: "A17 Pro", Storage: "256GB", Camera: "48MP" }
   },
   {
     id: "samsung-s24",
@@ -72,7 +72,7 @@ export const products: Product[] = [
     image: "/products/samsung-s24.webp",
     category: "Phones",
     inStock: true,
-    specs: { "Display": "6.8\" AMOLED", "Chip": "Snapdragon 8 Gen 3", "Storage": "512GB", "Camera": "200MP" }
+    specs: { Display: '6.8" AMOLED', Chip: "Snapdragon 8 Gen 3", Storage: "512GB", Camera: "200MP" }
   },
   {
     id: "pixel-8",
@@ -83,7 +83,7 @@ export const products: Product[] = [
     image: "/products/pixel-8.webp",
     category: "Phones",
     inStock: true,
-    specs: { "Display": "6.7\" LTPO OLED", "Chip": "Tensor G3", "Storage": "256GB", "Camera": "50MP" }
+    specs: { Display: '6.7" LTPO OLED', Chip: "Tensor G3", Storage: "256GB", Camera: "50MP" }
   },
   {
     id: "macbook-air",
@@ -94,18 +94,18 @@ export const products: Product[] = [
     image: "/products/macbook-air.webp",
     category: "Laptops",
     inStock: true,
-    specs: { "Display": "13.6\" Liquid Retina", "Chip": "M3", "RAM": "16GB", "Storage": "512GB SSD" }
+    specs: { Display: '13.6" Liquid Retina', Chip: "M3", RAM: "16GB", Storage: "512GB SSD" }
   },
   {
     id: "thinkpad-x1",
     name: "Lenovo ThinkPad X1 Carbon Gen 12",
-    description: "Intel Core Ultra. 14\" 2.8K OLED. MIL-STD durability.",
+    description: 'Intel Core Ultra. 14" 2.8K OLED. MIL-STD durability.',
     price: 1649,
     currency: "USD",
     image: "/products/thinkpad-x1.webp",
     category: "Laptops",
     inStock: true,
-    specs: { "Display": "14\" 2.8K OLED", "Chip": "Intel Core Ultra 7", "RAM": "32GB", "Storage": "1TB SSD" }
+    specs: { Display: '14" 2.8K OLED', Chip: "Intel Core Ultra 7", RAM: "32GB", Storage: "1TB SSD" }
   },
   {
     id: "dell-xps",
@@ -116,7 +116,7 @@ export const products: Product[] = [
     image: "/products/dell-xps.webp",
     category: "Laptops",
     inStock: false,
-    specs: { "Display": "14.5\" OLED", "Chip": "Intel Core Ultra 7", "RAM": "16GB", "Storage": "512GB SSD" }
+    specs: { Display: '14.5" OLED', Chip: "Intel Core Ultra 7", RAM: "16GB", Storage: "512GB SSD" }
   },
   {
     id: "airpods-pro",
@@ -127,7 +127,7 @@ export const products: Product[] = [
     image: "/products/airpods-pro.webp",
     category: "Audio",
     inStock: true,
-    specs: { "Type": "In-ear", "ANC": "Yes", "Battery": "6h + 30h case", "Connectivity": "Bluetooth 5.3" }
+    specs: { Type: "In-ear", ANC: "Yes", Battery: "6h + 30h case", Connectivity: "Bluetooth 5.3" }
   },
   {
     id: "sony-xm5",
@@ -138,7 +138,7 @@ export const products: Product[] = [
     image: "/products/sony-xm5.webp",
     category: "Audio",
     inStock: true,
-    specs: { "Type": "Over-ear", "ANC": "Yes", "Battery": "30h", "Connectivity": "Bluetooth 5.2" }
+    specs: { Type: "Over-ear", ANC: "Yes", Battery: "30h", Connectivity: "Bluetooth 5.2" }
   },
   {
     id: "bose-qc",
@@ -149,18 +149,18 @@ export const products: Product[] = [
     image: "/products/bose-qc.webp",
     category: "Audio",
     inStock: true,
-    specs: { "Type": "Over-ear", "ANC": "Yes", "Battery": "24h", "Connectivity": "Bluetooth 5.3" }
+    specs: { Type: "Over-ear", ANC: "Yes", Battery: "24h", Connectivity: "Bluetooth 5.3" }
   },
   {
     id: "ipad-air",
     name: "iPad Air M2",
-    description: "M2 chip. 11\" Liquid Retina. Apple Pencil Pro support.",
+    description: 'M2 chip. 11" Liquid Retina. Apple Pencil Pro support.',
     price: 599,
     currency: "USD",
     image: "/products/ipad-air.webp",
     category: "Tablets",
     inStock: true,
-    specs: { "Display": "11\" Liquid Retina", "Chip": "M2", "Storage": "128GB", "Connectivity": "Wi-Fi 6E" }
+    specs: { Display: '11" Liquid Retina', Chip: "M2", Storage: "128GB", Connectivity: "Wi-Fi 6E" }
   },
   {
     id: "galaxy-tab",
@@ -171,7 +171,12 @@ export const products: Product[] = [
     image: "/products/galaxy-tab.webp",
     category: "Tablets",
     inStock: true,
-    specs: { "Display": "11\" AMOLED", "Chip": "Snapdragon 8 Gen 2", "Storage": "256GB", "Connectivity": "5G" }
+    specs: {
+      Display: '11" AMOLED',
+      Chip: "Snapdragon 8 Gen 2",
+      Storage: "256GB",
+      Connectivity: "5G"
+    }
   },
   {
     id: "magsafe-charger",
@@ -182,7 +187,7 @@ export const products: Product[] = [
     image: "/products/magsafe-charger.webp",
     category: "Accessories",
     inStock: true,
-    specs: { "Type": "Wireless", "Power": "15W", "Compatibility": "iPhone 12+", "Cable": "1m USB-C" }
+    specs: { Type: "Wireless", Power: "15W", Compatibility: "iPhone 12+", Cable: "1m USB-C" }
   },
   {
     id: "usb-c-hub",
@@ -193,7 +198,7 @@ export const products: Product[] = [
     image: "/products/usb-c-hub.webp",
     category: "Accessories",
     inStock: true,
-    specs: { "Ports": "HDMI, USB-C, USB-A x3, SD, Ethernet", "Power": "100W PD", "Resolution": "4K@60Hz" }
+    specs: { Ports: "HDMI, USB-C, USB-A x3, SD, Ethernet", Power: "100W PD", Resolution: "4K@60Hz" }
   },
   {
     id: "mech-keyboard",
@@ -204,7 +209,12 @@ export const products: Product[] = [
     image: "/products/mech-keyboard.webp",
     category: "Accessories",
     inStock: true,
-    specs: { "Layout": "TKL", "Switches": "Gateron G Pro", "Connectivity": "Bluetooth 5.1 / USB-C", "Battery": "4000mAh" }
+    specs: {
+      Layout: "TKL",
+      Switches: "Gateron G Pro",
+      Connectivity: "Bluetooth 5.1 / USB-C",
+      Battery: "4000mAh"
+    }
   }
 ];
 
@@ -225,9 +235,7 @@ export function getProductsByCategory(): Record<ProductCategory, Product[]> {
 export function addLineItem(items: CartLineItem[], productId: string, qty = 1): CartLineItem[] {
   const existing = items.findIndex((i) => i.productId === productId);
   if (existing >= 0) {
-    return items.map((item, idx) =>
-      idx === existing ? { ...item, qty: item.qty + qty } : item
-    );
+    return items.map((item, idx) => (idx === existing ? { ...item, qty: item.qty + qty } : item));
   }
   return [...items, { productId, qty }];
 }
