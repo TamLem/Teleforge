@@ -21,6 +21,7 @@ Release target: `0.5.0`.
 - Runtime dependencies on `@teleforgex/*` have been removed from the published `teleforge` package metadata.
 - The release script publishes only `teleforge`.
 - The scaffold is exposed through `teleforge create`.
+- Session deployment safety is included in 0.5: runtime environment/topology is explicit, memory sessions are limited to non-production single-process use, and doctor validates the same rules.
 - Remaining work before publish is final verification, repository publication metadata, tag creation, and npm publish.
 
 ## Desired Public Artifacts
@@ -120,6 +121,8 @@ Required implementation:
   - default polling mode
   - no webhook/env noise
   - no legacy step-machine language
+- [x] Generated config includes explicit `runtime.environment` and `runtime.deployment.topology`.
+- [x] Generated `.env.example` includes `TELEFORGE_ENV=development`.
 
 Acceptance checks:
 
@@ -193,6 +196,11 @@ Create release notes for `v0.5.0` covering:
   - loader data
   - sign helpers
 - session resource helpers
+- session deployment safety:
+  - explicit `runtime.environment`
+  - explicit `runtime.deployment.topology`
+  - memory sessions limited to non-production single-process runtime
+  - durable custom providers required for production, split-process, serverless, and multi-instance deployments
 - `teleforge doctor`
 - modern `teleforge create`
 - local development workflow
@@ -224,6 +232,19 @@ pnpm --filter teleforge build
 npm pack --dry-run --workspace packages/teleforge
 pnpm run publish:dry-run
 ```
+
+Run session deployment safety checks:
+
+```bash
+rg -n "BOT_TOKEN.*production|production.*BOT_TOKEN|token.*production|production.*token" packages apps docs -g '*.{ts,tsx,md,mjs}' -g '!packages/teleforge/dist-dts/**'
+rg -n "runtime:.*environment|deployment:.*topology|TELEFORGE_ENV" packages apps docs
+```
+
+Expected result:
+
+- no source/docs imply bot token presence decides production/session safety
+- scaffold and Task Shop expose explicit environment/topology config
+- doctor reports session provider errors from environment/topology, not bot token presence
 
 Run install smoke from packed artifacts:
 
@@ -280,6 +301,12 @@ pnpm test
 - `pnpm --filter teleforge build` passes.
 - `pnpm docs:build` passes.
 - `pnpm run publish:dry-run` publishes only `teleforge@0.5.0` in dry-run mode.
+- Session deployment topology validation has been implemented for runtime and doctor:
+  - missing provider on session-enabled flows is an error
+  - memory provider with production environment is an error
+  - memory provider with split/serverless/multi-instance topology is an error
+  - custom provider is valid for deployment topologies
+  - bot token presence is not used as the production signal
 - Packed `teleforge` metadata has no `@teleforgex/*`, `workspace:`, or `create-teleforge-app` runtime references.
 - `packages/teleforge/dist/**` has no `@teleforgex/*` runtime references.
 - Packed install smoke passes for:
