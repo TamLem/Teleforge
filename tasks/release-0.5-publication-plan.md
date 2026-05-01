@@ -164,7 +164,7 @@ Required updates:
 - [x] Docs index and getting started
   - ensure first path is scaffold -> generated contracts -> runtime wiring
   - no migration/deprecation section for older APIs
-- [ ] GitHub repo metadata
+- [x] GitHub repo metadata
   - description: TypeScript framework for Telegram-native bots and Mini Apps
   - topics: `telegram`, `mini-app`, `bot`, `typescript`, `framework`
   - homepage: published docs URL
@@ -177,7 +177,7 @@ Local metadata status:
 - [x] Root package metadata points at `https://tamlem.github.io/Teleforge/`.
 - [x] Root package repository points at `https://github.com/TamLem/Teleforge`.
 - [x] `teleforge` package metadata points at the same docs homepage and GitHub repository.
-- [ ] GitHub repository description/topics/homepage still need to be set on GitHub.
+- [x] GitHub repository description/topics/homepage have been set on GitHub.
 
 Acceptance checks:
 
@@ -324,6 +324,10 @@ pnpm test
 - Packed `teleforge` metadata has no `@teleforgex/*`, `workspace:`, or `create-teleforge-app` runtime references.
 - `packages/teleforge/dist/**` has no `@teleforgex/*` runtime references.
 - GitHub release note draft exists at `.github/releases/v0.5.0.md`.
+- GitHub repository metadata has been updated:
+  - description: TypeScript framework for Telegram-native bots and Mini Apps
+  - topics: `telegram`, `mini-app`, `bot`, `typescript`, `framework`
+  - homepage: `https://tamlem.github.io/Teleforge/`
 - Packed install smoke passes for:
   - `teleforge`
   - `teleforge/web`
@@ -341,3 +345,11 @@ pnpm test
   - `pnpm run doctor` with live-mode placeholder env values
 - Default scaffold doctor correctly reports missing real `BOT_TOKEN` when `.env` still contains placeholder values.
 - Temporary smoke directories, tarballs, ignored generated output, and empty untracked directories were cleaned.
+
+## Current External Release Blockers
+
+- npm publish token is not present in this shell. Set one of:
+  - `TELEFORGE_NPM_TOKEN`
+  - `NPM_TOKEN`
+  - `NODE_AUTH_TOKEN`
+- GitHub network fetch failed locally with DNS resolution for `github.com`; retry before pushing the release branch, tag, or GitHub release.
