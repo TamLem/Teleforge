@@ -37,10 +37,12 @@ export {
 export { validateCoordinationConfig } from "./coordination/validate.js";
 export type {
   RouteDefinition,
+  TeleforgeDeploymentTopology,
   TeleforgeManifest,
   TeleforgePermission,
   TeleforgeRouteCapability,
-  TeleforgeRuntime
+  TeleforgeRuntime,
+  TeleforgeRuntimeEnvironment
 } from "./manifest/types.js";
 export type {
   ButtonMapping,

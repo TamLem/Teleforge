@@ -15,6 +15,7 @@ Teleforge configuration lives in `teleforge.config.ts`. Environment variables sh
 | `TELEFORGE_DEV_PORT`    | preferred local dev port                      | `teleforge dev` local runtime                 |
 | `TELEFORGE_DEV_HTTPS`   | force HTTPS expectation in doctor/dev checks  | local HTTPS or tunnel validation              |
 | `TELEFORGE_FLOW_SECRET` | flow context signing secret                   | trusted flow launch/session payloads          |
+| `TELEFORGE_ENV`         | runtime environment fallback                  | `development`, `preview`, `staging`, `production` |
 
 ## Client Validation Variables
 
@@ -43,17 +44,20 @@ The authoritative bot configuration remains in `teleforge.config.ts`. Keep this 
 
 - leave `MINI_APP_URL` blank during local development unless you need a fixed public URL
 - set `BOT_TOKEN` only when using real Telegram polling or webhooks
+- set `TELEFORGE_ENV=production` for deployed runtime environments
+- having a bot token does not imply the runtime environment
 - set `WEBHOOK_SECRET` only when `runtime.bot.delivery` is `"webhook"` and the deployed runtime serves the configured webhook endpoint
 - use `VITE_TELEGRAM_BOT_ID` and `VITE_TELEGRAM_PUBLIC_KEY` only when browser code validates `initData`
 - use server hooks for trusted work that needs secrets, identity resolution, or durable writes
 
 ## Example Setups
 
-### Local Simulator
+### Local Development
 
 ```env
 BOT_TOKEN=
 MINI_APP_URL=
+TELEFORGE_ENV=development
 ```
 
 ### Local Telegram-Facing Testing
@@ -61,6 +65,7 @@ MINI_APP_URL=
 ```env
 BOT_TOKEN=123456:real-token
 MINI_APP_URL=https://your-tunnel.example.com
+TELEFORGE_ENV=development
 ```
 
 ### Webhook Deployment
@@ -70,4 +75,5 @@ BOT_TOKEN=123456:real-token
 WEBHOOK_SECRET=production-secret
 MINI_APP_URL=https://your-app.example.com
 TELEFORGE_FLOW_SECRET=long-random-secret
+TELEFORGE_ENV=production
 ```

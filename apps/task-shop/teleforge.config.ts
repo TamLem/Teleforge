@@ -10,6 +10,10 @@ export default defineTeleforgeApp({
     root: "apps/bot/src/flows"
   },
   runtime: {
+    environment: process.env.TELEFORGE_ENV === "production" ? "production" : "development",
+    deployment: {
+      topology: "single-process"
+    },
     build: {
       outDir: "dist",
       basePath: "/"

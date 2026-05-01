@@ -23,6 +23,10 @@ Use action handlers for work the browser must not control:
 - managing session state for draft flows
 
 Keep simple local UI state in the screen. Keep durable product state in domain services or session resources.
+If a flow uses sessions, configure the app-level session provider in `teleforge.config.ts`.
+Memory sessions are only valid when bot actions and server hooks/loaders share one
+single-process runtime; split/API/serverless/production deployments need a durable custom
+provider.
 
 ## Action Handler Types
 

@@ -1,32 +1,43 @@
-import { MemorySessionStorageAdapter, SessionManager } from "@teleforgex/core";
+import {
+  MemorySessionStorageAdapter,
+  SessionManager,
+  resolveRuntimeDeployment,
+  validateSessionDeployment
+} from "@teleforgex/core";
 import type { SessionStorageAdapter } from "@teleforgex/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import { loadTeleforgeFlows } from "./discovery.js";
 
-import type { TeleforgeAppConfig, TeleforgeSessionProviderConfig } from "@teleforgex/core";
+import type {
+  TeleforgeAppConfig,
+  TeleforgeDeploymentTopology,
+  TeleforgeRuntimeDeployment,
+  TeleforgeRuntimeEnvironment,
+  TeleforgeSessionProviderConfig
+} from "@teleforgex/core";
 
 export function createSessionManagerFromConfig(
   config: TeleforgeSessionProviderConfig | undefined,
   appId: string,
   options?: {
-    mode?: "development" | "production";
+    environment?: TeleforgeRuntimeEnvironment;
+    skipValidation?: boolean;
     sessionEnabledFlows?: string[];
+    topology?: TeleforgeDeploymentTopology;
   }
 ): SessionManager {
-  const mode = options?.mode ?? "development";
+  const environment = options?.environment ?? "development";
   const sessionEnabledFlows = options?.sessionEnabledFlows ?? [];
+  const topology = options?.topology ?? "single-process";
 
-  // In production mode, require explicit session config when flows use sessions
-  if (mode === "production" && sessionEnabledFlows.length > 0 && !config) {
-    const flowList = sessionEnabledFlows.length === 1
-      ? `"${sessionEnabledFlows[0]}"`
-      : `${sessionEnabledFlows.slice(0, -1).map(f => `"${f}"`).join(", ")} and "${sessionEnabledFlows[sessionEnabledFlows.length - 1]}"`;
-
-    throw new Error(
-      `Flow ${flowList} enables sessions, but teleforge.config.ts has no session provider. ` +
-      `Add session: { provider: "memory" } for local-only state or configure a durable provider for production.`
-    );
+  if (!options?.skipValidation) {
+    assertSessionDeployment({
+      environment,
+      sessionConfig: config,
+      sessionEnabledFlows,
+      topology
+    });
   }
 
   if (!config) {
@@ -63,6 +74,31 @@ export function createSessionManagerFromConfig(
 
   const wrappedAdapter = createWrappedAdapter(config.storage, defaultTTL, namespace, adapterOwnsNamespace);
   return new SessionManager(wrappedAdapter);
+}
+
+export function resolveTeleforgeRuntimeDeployment(
+  app: TeleforgeAppConfig,
+  env: Record<string, string | undefined> = process.env
+): TeleforgeRuntimeDeployment {
+  return resolveRuntimeDeployment(app.runtime, { env });
+}
+
+export function assertSessionDeployment(input: {
+  environment: TeleforgeRuntimeEnvironment;
+  sessionConfig?: Pick<TeleforgeSessionProviderConfig, "provider">;
+  sessionEnabledFlows: readonly string[];
+  topology: TeleforgeDeploymentTopology;
+}): void {
+  const result = validateSessionDeployment(input);
+  if (result.ok) {
+    return;
+  }
+
+  throw new Error(
+    result.issues
+      .map((issue) => `${issue.message} ${issue.remediation}`)
+      .join("\n")
+  );
 }
 
 function createWrappedAdapter(
@@ -191,14 +227,21 @@ export async function createTeleforgeRuntimeContext(
       .map(({ flow }) => flow.id);
   }
 
-  // Determine mode based on whether we have a production token
-  const mode = token ? "production" : "development";
+  const runtimeDeployment = resolveTeleforgeRuntimeDeployment(app);
+  if (!options.skipSessionValidation) {
+    assertSessionDeployment({
+      ...runtimeDeployment,
+      sessionConfig: app.session ?? (options.sessionManager ? { provider: "custom" } : undefined),
+      sessionEnabledFlows
+    });
+  }
 
   const sessionManager =
     options.sessionManager ??
     createSessionManagerFromConfig(app.session, app.app.id, {
-      mode,
-      sessionEnabledFlows
+      ...runtimeDeployment,
+      sessionEnabledFlows,
+      skipValidation: true
     });
 
   return {

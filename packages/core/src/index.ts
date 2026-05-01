@@ -5,6 +5,10 @@
  */
 export { ManifestValidationError } from "./errors/ManifestValidationError.js";
 export { defineTeleforgeApp, teleforgeAppToManifest } from "./app/types.js";
+export {
+  resolveRuntimeDeployment,
+  validateSessionDeployment
+} from "./app/session-deployment.js";
 export { createSignedPhoneAuthToken, verifySignedPhoneAuthToken } from "./auth/phone.js";
 export { normalizePhoneNumber } from "./utils/phone.js";
 export { EventErrorCodes, TeleforgeEventError } from "./events/errors.js";
@@ -44,6 +48,14 @@ export type {
   TeleforgeMiniAppConfig,
   TeleforgeSessionProviderConfig
 } from "./app/types.js";
+export type {
+  ResolveRuntimeDeploymentOptions,
+  TeleforgeRuntimeDeployment,
+  TeleforgeSessionDeploymentInput,
+  TeleforgeSessionDeploymentIssue,
+  TeleforgeSessionDeploymentIssueCode,
+  TeleforgeSessionDeploymentValidationResult
+} from "./app/session-deployment.js";
 export type {
   CreateSignedPhoneAuthTokenOptions,
   PhoneAuthTokenPayload,
@@ -123,10 +135,12 @@ export type {
 export { validateManifest } from "./manifest/validate.js";
 export type {
   RouteDefinition,
+  TeleforgeDeploymentTopology,
   TeleforgeManifest,
   TeleforgePermission,
   TeleforgeRouteCapability,
-  TeleforgeRuntime
+  TeleforgeRuntime,
+  TeleforgeRuntimeEnvironment
 } from "./manifest/types.js";
 
 export type {

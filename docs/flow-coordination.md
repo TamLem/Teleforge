@@ -220,8 +220,10 @@ Bot, Mini App, and action server communicate through framework contracts rather 
 - signed action context: HMAC-signed tokens carrying flow id, screen id, user id, allowed actions, and expiry
 - Telegram webhook or polling updates as transport input, not application state
 
-In local development these pieces can run in one process. In production they can run as split processes
-as long as both sides share the same signing secret.
+In local development these pieces can run in one process. Split-process, serverless,
+multi-instance, and production deployments need shared signing secrets and a durable custom
+session provider when any flow uses `session: { enabled: true }`. Memory sessions are only
+valid for non-production `single-process` runtime.
 
 For how each request shape travels through the runtime, see [Runtime Wiring](./runtime-wiring.md).
 

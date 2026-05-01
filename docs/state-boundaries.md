@@ -62,7 +62,9 @@ await cart.clear();
 ```
 
 Resources are isolated by user and flow. They persist through the session storage adapter
-and are TTL-bound. Use for:
+and are TTL-bound. Memory-backed resources only work when bot actions and server
+hooks/loaders run in the same process; split, serverless, multi-instance, and production
+deployments need a durable custom session provider. Use sessions for:
 
 - cart line items as `{ productId, qty }[]` (references only)
 - draft form data

@@ -32,6 +32,8 @@ export default defineTeleforgeApp({
     root: "apps/bot/src/flows"
   },
   runtime: {
+    environment: process.env.TELEFORGE_ENV === "production" ? "production" : "development",
+    deployment: { topology: "single-process" },
     server: { port: 3100 },
     phoneAuth: { secretEnv: "PHONE_AUTH_SECRET" }
   }
@@ -52,6 +54,36 @@ export default defineTeleforgeApp({
 | `permissions` | `TeleforgePermission[]` | No | App capability declarations |
 | `features` | Object | No | Feature flags (backButton, cloudStorage, etc.) |
 | `security` | Object | No | Security settings (allowedOrigins, etc.) |
+
+### `runtime.environment` and `runtime.deployment`
+
+Runtime environment and topology are explicit app configuration. Teleforge does not use
+`BOT_TOKEN` to infer the runtime environment; a real bot token can exist in local
+development, staging, CI, or deployed environments.
+
+```ts
+runtime: {
+  environment: process.env.TELEFORGE_ENV === "production" ? "production" : "development",
+  deployment: {
+    topology: "single-process"
+  }
+}
+```
+
+```ts
+type TeleforgeRuntimeEnvironment = "development" | "preview" | "staging" | "production";
+type TeleforgeDeploymentTopology =
+  | "single-process"
+  | "split-process"
+  | "serverless"
+  | "multi-instance";
+```
+
+`memory` sessions are only valid for `single-process` non-production runtime. Use a custom
+durable session provider for split bot/API processes, serverless, multi-instance, or
+production deployments.
+
+---
 
 ### `session` (app-level session provider)
 
@@ -78,6 +110,10 @@ type TeleforgeSessionProviderConfig =
 ```ts
 export default defineTeleforgeApp({
   app: { id: "my-app", name: "My App", version: "1.0.0" },
+  runtime: {
+    environment: "development",
+    deployment: { topology: "single-process" }
+  },
   session: {
     provider: "memory",
     defaultTTLSeconds: 3600
@@ -86,7 +122,8 @@ export default defineTeleforgeApp({
 });
 ```
 
-Memory storage is suitable for development and preview. Data is lost on restart.
+Memory storage is suitable only for local single-process development and preview. Data is
+lost on restart, and separate bot/API processes cannot share it.
 
 **Custom provider:**
 
@@ -115,11 +152,12 @@ loading the config in-process (the default for TypeScript configs).
   This allows custom adapters to define their own sensible defaults.
 - `namespace` works similarly: config overrides adapter namespace when specified.
 
-**Production requirement:**
+**Deployment requirement:**
 
-If any flow has `session.enabled = true` and the app is running with a bot token
-(production mode), the app config must include a `session` provider. The runtime
-will throw a clear error if a session-enabled flow is missing the provider.
+If any flow has `session.enabled = true`, the app config must include a `session` provider.
+`provider: "memory"` is rejected for production and for any topology other than
+`single-process`. Configure a durable custom provider for split/API/serverless/production
+deployments.
 
 ---
 
@@ -363,9 +401,9 @@ app level (see `session` in `TeleforgeAppConfig` above). Flow-level config only 
 - Optional TTL override for this flow's sessions
 - Optional initial state
 
-**Production requirement:** If a flow enables sessions, the app config must include a
-`session` provider when running with a bot token.
-server-side session state.
+**Deployment requirement:** If a flow enables sessions, the app config must include a
+`session` provider. Memory providers are accepted only for non-production
+`single-process` runtime.
 
 ---
 

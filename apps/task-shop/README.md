@@ -48,15 +48,19 @@ If you only want local browser development without a tunnel, use:
 pnpm run dev:local
 ```
 
-In local simulator mode, `teleforge dev` also executes `/start`, `/tasks`, and `web_app_data` through `apps/bot/src/runtime.ts`, so most bot-and-Mini-App flow work can happen without Telegram.
-
-If `BOT_TOKEN` is not configured, the bot stays in preview mode and logs simulated `/start`, `/tasks`, and order-handling output so the command wiring can still be inspected locally.
+If `BOT_TOKEN` is not configured, the bot stays in preview mode so command wiring can
+still be inspected locally.
 
 ## Environment
 
 - `BOT_TOKEN`: Telegram bot token for live polling
 - `MINI_APP_URL`: optional override for the `/start` button URL. When omitted, Teleforge injects the current local or tunneled dev URL.
+- `TELEFORGE_ENV`: runtime environment (`development` locally, `production` when deployed)
 - `VITE_TELEGRAM_BOT_ID`: bot ID for Ed25519 initData verification in the client
 - `VITE_TELEGRAM_PUBLIC_KEY`: Telegram environment public key for Ed25519 verification
+
+Task Shop uses memory sessions for the local single-process sample. Replace the session
+provider with durable storage before running it with `TELEFORGE_ENV=production` or as split
+bot/API processes.
 
 Use Telegram's production Ed25519 public key by default unless you are testing against Telegram's test environment.

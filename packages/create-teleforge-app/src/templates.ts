@@ -192,6 +192,10 @@ export default defineTeleforgeApp({
     root: "apps/bot/src/flows"
   },
   runtime: {
+    environment: process.env.TELEFORGE_ENV === "production" ? "production" : "development",
+    deployment: {
+      topology: "single-process"
+    },
     build: {
       outDir: "dist",
       basePath: "/"
@@ -242,6 +246,7 @@ BOT_TOKEN=your_bot_token_here
 TELEGRAM_BOT_USERNAME=your_bot_username
 MINI_APP_URL=
 TELEFORGE_FLOW_SECRET=
+TELEFORGE_ENV=development
 
 # Optional: Development
 TELEFORGE_DEV_PORT=3000

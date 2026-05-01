@@ -11,6 +11,9 @@ The public authoring model is:
 - let Teleforge wire bot launch, Mini App runtime, server bridge, and optional session state
 
 The developer should start from the product journey, not from package boundaries or runtime topology.
+When a journey uses sessions, deployment topology matters: memory sessions are local and
+single-process only; split bot/API, serverless, multi-instance, and production deployments
+need a durable custom session provider.
 
 ## Core Concepts
 

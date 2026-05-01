@@ -1,13 +1,20 @@
 export {
   defineTeleforgeApp,
   parseTeleforgeInput,
+  resolveRuntimeDeployment,
   teleforgeAppToManifest,
+  validateSessionDeployment,
   type TeleforgeAppConfig,
   type TeleforgeAppIdentity,
   type TeleforgeInputSchema,
   type TeleforgeMiniAppConfig,
   type TeleforgeSafeSchema,
   type TeleforgeSchema,
+  type TeleforgeRuntimeDeployment,
+  type TeleforgeSessionDeploymentInput,
+  type TeleforgeSessionDeploymentIssue,
+  type TeleforgeSessionDeploymentIssueCode,
+  type TeleforgeSessionDeploymentValidationResult,
   type TeleforgeSessionProviderConfig,
   type TeleforgeValidationErrorBody,
   type SessionResourceHandle
@@ -15,9 +22,11 @@ export {
 
 export type {
   RouteDefinition,
+  TeleforgeDeploymentTopology,
   TeleforgePermission,
   TeleforgeRouteCapability,
-  TeleforgeRuntime
+  TeleforgeRuntime,
+  TeleforgeRuntimeEnvironment
 } from "@teleforgex/core";
 
 export {
@@ -60,7 +69,10 @@ export type {
 } from "./bot-runtime.js";
 
 export {
-  createTeleforgeRuntimeContext
+  assertSessionDeployment,
+  createTeleforgeRuntimeContext,
+  createSessionManagerFromConfig,
+  resolveTeleforgeRuntimeDeployment
 } from "./runtime-context.js";
 export type {
   CreateTeleforgeRuntimeContextOptions,

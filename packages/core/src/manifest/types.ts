@@ -3,9 +3,25 @@ import type { RouteCoordinationMetadata } from "../coordination/types.js";
 /**
  * Describes the runtime behavior and framework wiring for a Teleforge application.
  */
+export type TeleforgeRuntimeEnvironment =
+  | "development"
+  | "preview"
+  | "staging"
+  | "production";
+
+export type TeleforgeDeploymentTopology =
+  | "single-process"
+  | "split-process"
+  | "serverless"
+  | "multi-instance";
+
 export interface TeleforgeRuntime {
   apiPrefix?: string;
   apiRoutes?: string;
+  deployment?: {
+    topology?: TeleforgeDeploymentTopology;
+  };
+  environment?: TeleforgeRuntimeEnvironment;
   build?: {
     basePath?: string;
     outDir?: string;

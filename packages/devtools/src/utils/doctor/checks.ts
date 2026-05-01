@@ -3,7 +3,11 @@ import { X509Certificate } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-import type { TeleforgeAppConfig } from "@teleforgex/core";
+import {
+  resolveRuntimeDeployment,
+  validateSessionDeployment,
+  type TeleforgeAppConfig
+} from "@teleforgex/core";
 
 import { checkClientManifestDrift } from "../client-manifest-drift.js";
 import { loadProjectEnv } from "../env.js";
@@ -1275,90 +1279,89 @@ function checkSessionProvider(
     };
   }
 
-  // Check if any flows have sessions enabled
   const flows = manifestState.discoveredFlows ?? [];
   const sessionEnabledFlows = flows.filter((flow) => flow.hasSession);
+  const sessionEnabledFlowIds = sessionEnabledFlows.map((flow) => flow.id);
 
-  if (sessionEnabledFlows.length === 0) {
+  let deployment: ReturnType<typeof resolveRuntimeDeployment>;
+  try {
+    deployment = resolveRuntimeDeployment(appConfig.runtime, { env });
+  } catch (error) {
     return {
       category: "Configuration",
-      message: "No flows have sessions enabled.",
+      message: "Runtime environment or deployment topology is invalid.",
       name: "session_provider",
-      status: "pass"
+      remediation:
+        "Set runtime.environment to development, preview, staging, or production, and runtime.deployment.topology to single-process, split-process, serverless, or multi-instance.",
+      status: "error",
+      details: [formatErrorMessage(error)]
     };
   }
 
-  // Check for session config in the app config
   const sessionConfig = appConfig.session;
-  const hasSessionConfig = typeof sessionConfig === "object" && sessionConfig !== null;
+  const provider = sessionConfig?.provider;
 
-  // Determine if we're in production mode (have a bot token)
-  const tokenEnv = appConfig.bot?.tokenEnv ?? "BOT_TOKEN";
-  const token = env[tokenEnv];
-  const hasToken = hasRealValue(token);
-
-  if (!hasSessionConfig) {
-    // No session config - error in production, warning in dev
-    const flowNames = sessionEnabledFlows.map((f) => f.id).join(", ");
-
-    if (hasToken) {
+  if (sessionEnabledFlows.length === 0) {
+    if (provider === "memory") {
       return {
         category: "Configuration",
         details: [
-          `Session-enabled flows: ${flowNames}`,
-          "No session provider configured in teleforge.config.ts"
+          `Runtime environment: ${deployment.environment}`,
+          `Deployment topology: ${deployment.topology}`,
+          "No flows have sessions enabled."
         ],
-        message: "Session-enabled flows require a session provider in production.",
+        message: "Memory session provider is configured, but no flows use sessions.",
         name: "session_provider",
-        remediation:
-          `Add session: { provider: "memory" } to teleforge.config.ts for local-only state, ` +
-          `or configure a durable provider for production.`,
-        status: "error"
+        remediation: "Remove the session provider unless a flow needs server-owned workflow state.",
+        status: "warn"
       };
     }
 
     return {
       category: "Configuration",
       details: [
-        `Session-enabled flows: ${flowNames}`,
-        "No session provider configured - using in-memory defaults for dev/preview"
+        `Runtime environment: ${deployment.environment}`,
+        `Deployment topology: ${deployment.topology}`
       ],
-      message: "Session-enabled flows detected but no session provider configured.",
+      message: "No flows have sessions enabled.",
       name: "session_provider",
-      remediation:
-        `Add session: { provider: "memory", defaultTTLSeconds: 3600 } to teleforge.config.ts ` +
-        `before deploying to production.`,
-      status: "warn"
+      status: "pass"
     };
   }
 
-  // Has session config - check provider type
-  const provider = sessionConfig.provider;
-  const isMemoryProvider = provider === "memory";
+  const validation = validateSessionDeployment({
+    ...deployment,
+    sessionConfig: provider ? { provider } : undefined,
+    sessionEnabledFlows: sessionEnabledFlowIds
+  });
 
-  const details = [
-    `Session-enabled flows: ${sessionEnabledFlows.map((f) => f.id).join(", ")}`,
-    `Provider: ${provider ?? "unknown"}`
-  ];
-
-  if (isMemoryProvider && hasToken) {
-    details.push("Memory provider is not durable - sessions will be lost on restart");
+  if (!validation.ok) {
     return {
       category: "Configuration",
-      details,
-      message: "Session provider is configured (memory - not durable for production).",
+      details: [
+        `Runtime environment: ${deployment.environment}`,
+        `Deployment topology: ${deployment.topology}`,
+        ...validation.issues.flatMap((issue) => [issue.message, ...issue.details])
+      ],
+      message: "Session deployment configuration is invalid.",
       name: "session_provider",
-      remediation:
-        "Consider using a custom provider with persistent storage (Redis, database) for production deployments.",
-      status: "warn"
+      remediation: validation.issues.map((issue) => issue.remediation).join(" "),
+      status: "error"
     };
   }
+
+  const details = [
+    `Runtime environment: ${deployment.environment}`,
+    `Deployment topology: ${deployment.topology}`,
+    `Session-enabled flows: ${sessionEnabledFlowIds.join(", ")}`,
+    `Provider: ${provider}`
+  ];
 
   return {
     category: "Configuration",
     details,
-    message: isMemoryProvider
-      ? "Session provider is configured (memory)."
+    message: provider === "memory"
+      ? "Session provider is configured for local single-process memory sessions."
       : "Session provider is configured.",
     name: "session_provider",
     status: "pass"

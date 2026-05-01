@@ -8,9 +8,10 @@ Telegram-facing deployments need:
 
 - a public HTTPS URL for the Mini App
 - `BOT_TOKEN` in the bot runtime environment
+- `TELEFORGE_ENV=production`
 - either a long-running bot worker or an HTTPS webhook endpoint
 - `teleforge.config.ts` committed with the production app shape
-- server-side storage for any flow state that must survive process restarts
+- a durable custom session provider for any flow with `session: { enabled: true }`
 
 ## Build the App
 
@@ -51,7 +52,9 @@ The bot can receive updates by polling or webhook.
 Use `teleforge start` for the simplest production deployment:
 
 ```bash
-BOT_TOKEN=123456:token teleforge start
+export TELEFORGE_ENV=production
+export BOT_TOKEN=123456:token
+teleforge start
 ```
 
 This calls the framework-owned `startTeleforgeBot()` which:
@@ -72,6 +75,11 @@ allowed_updates: ["message"]
 ```
 
 For advanced use cases, the lower-level `createDiscoveredBotRuntime()` escape hatch is available.
+
+If any deployed flow uses sessions, configure `runtime.deployment.topology` and a durable
+custom `session` provider in `teleforge.config.ts`. `provider: "memory"` is only for
+non-production single-process development and is rejected for production or split/serverless
+topologies.
 
 Webhook delivery is supported by `teleforge start`. When `runtime.bot.delivery` is `"webhook"`:
 
