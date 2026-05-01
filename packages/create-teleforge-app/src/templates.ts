@@ -382,12 +382,11 @@ function botRuntimeTs(): string {
   return `import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { startTeleforgeBot } from "teleforge";
-import { type BotRuntime } from "teleforge/bot";
+import { startTeleforgeBot, type DiscoveredBotRuntime } from "teleforge";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-export async function createDevBotRuntime(options?: { miniAppUrl?: string }): Promise<BotRuntime> {
+export async function createDevBotRuntime(options?: { miniAppUrl?: string }): Promise<DiscoveredBotRuntime> {
   const { runtime } = await startTeleforgeBot({
     cwd: projectRoot,
     miniAppUrl: options?.miniAppUrl
