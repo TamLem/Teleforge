@@ -11,7 +11,8 @@ export default defineConfig({
       "server-hooks": "src/server-hooks-entry.ts",
       "test-utils": "src/test-utils.ts",
       web: "src/web.ts"
-    }
+    },
+    resolve: [/^@teleforge\//]
   },
   entry: {
     bot: "src/bot.ts",
@@ -23,7 +24,7 @@ export default defineConfig({
     web: "src/web.ts"
   },
   external: ["qrcode-terminal"],
-  noExternal: ["@teleforgex/core", "@teleforgex/bot", "@teleforgex/web", "@teleforgex/devtools"],
+  noExternal: ["@teleforge/core", "@teleforge/bot", "@teleforge/web", "@teleforge/devtools"],
   format: ["esm", "cjs"],
   outDir: "dist",
   shims: true,

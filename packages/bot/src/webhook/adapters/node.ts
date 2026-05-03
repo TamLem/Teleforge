@@ -1,12 +1,14 @@
 import { createWebhookHandler, getDefaultMaxBodySize, normalizeHeaders } from "../handler.js";
 
 import type { BotWebhookRuntime, WebhookConfig } from "../types.js";
-import type { IncomingMessage, ServerResponse } from "node:http";
 
 export function nodeHttpAdapter(
   runtime: BotWebhookRuntime,
   config: WebhookConfig = {}
-): (request: IncomingMessage, response: ServerResponse) => Promise<void> {
+): (
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse
+) => Promise<void> {
   const handler = createWebhookHandler(runtime, config);
   const maxBodySize = getDefaultMaxBodySize(config.maxBodySize);
 
@@ -33,7 +35,7 @@ export function nodeHttpAdapter(
 }
 
 async function readRequestBody(
-  request: IncomingMessage,
+  request: import("node:http").IncomingMessage,
   maxBodySize: number
 ): Promise<string | null> {
   if (request.method?.toUpperCase() === "GET") {
@@ -54,7 +56,7 @@ async function readRequestBody(
 }
 
 function sendJson(
-  response: ServerResponse,
+  response: import("node:http").ServerResponse,
   body: {
     description?: string;
     ok: boolean;

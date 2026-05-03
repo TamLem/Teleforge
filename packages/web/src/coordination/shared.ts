@@ -1,6 +1,6 @@
 import { getTelegramWebApp, hasWindow } from "../utils/ssr.js";
 
-import type { FlowContext } from "@teleforgex/core/browser";
+import type { FlowContext } from "@teleforge/core/browser";
 
 export function getLaunchFlowContext(): string | null {
   if (!hasWindow()) {

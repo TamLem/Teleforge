@@ -1,5 +1,5 @@
 {
-  "name": "@teleforgex/web",
+  "name": "@teleforge/web",
   "version": "0.5.0",
   "description": "React hooks and types for Telegram WebApp integration.",
   "homepage": "https://tamlem.github.io/Teleforge/",
@@ -29,7 +29,7 @@
     "test": "pnpm run build && node --test test/*.mjs"
   },
   "dependencies": {
-    "@teleforgex/core": "workspace:0.5.0"
+    "@teleforge/core": "workspace:0.5.0"
   },
   "peerDependencies": {
     "react": "^18.3.1"
@@ -65,5 +65,6 @@
     "react-dom": "^18.3.1",
     "react-test-renderer": "^18.3.1",
     "typescript": "^5.8.3"
-  }
+  },
+  "private": true
 }

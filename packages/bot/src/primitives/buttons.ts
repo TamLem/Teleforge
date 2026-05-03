@@ -1,4 +1,4 @@
-import { generateMiniAppLink } from "@teleforgex/core";
+import { generateMiniAppLink } from "@teleforge/core";
 
 import type { TelegramInlineKeyboardButton } from "../router/types.js";
 

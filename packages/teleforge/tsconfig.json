@@ -8,7 +8,15 @@
     "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@teleforge/core": ["../core/dist/index.d.ts"],
+      "@teleforge/core/browser": ["../core/dist/browser.d.ts"],
+      "@teleforge/bot": ["../bot/dist/index.d.ts"],
+      "@teleforge/web": ["../web/dist/index.d.ts"],
+      "@teleforge/devtools": ["../devtools/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "test/*.mjs"]
 }

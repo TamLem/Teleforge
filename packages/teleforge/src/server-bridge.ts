@@ -1,4 +1,4 @@
-import type { ActionResult } from "@teleforgex/core";
+import type { ActionResult } from "@teleforge/core";
 
 type MaybePromise<T> = Promise<T> | T;
 

@@ -9,8 +9,8 @@ Release target: `0.5.0`.
 - This is a fresh release line. Do not preserve compatibility with previous public package layouts.
 - App authors install one framework package: `teleforge`.
 - App authors scaffold through the framework CLI: `teleforge create`.
-- Do not require users to install or understand `@teleforgex/*` implementation packages.
-- Do not publish `@teleforgex/core`, `@teleforgex/bot`, `@teleforgex/web`, or `@teleforgex/devtools` as separate public release artifacts for this release.
+- Do not require users to install or understand `@teleforge/*` implementation packages.
+- Do not publish `@teleforge/core`, `@teleforge/bot`, `@teleforge/web`, or `@teleforge/devtools` as separate public release artifacts for this release.
 - Do not publish `create-teleforge-app` separately. It remains an internal scaffold generator used by `teleforge create`.
 - Keep internal package folders only if they remain useful as monorepo source/build organization.
 - Release docs should describe the current 0.5 model only. No migration or deprecation guidance is needed.
@@ -18,7 +18,7 @@ Release target: `0.5.0`.
 ## Current Release Status
 
 - `teleforge` has been made self-contained from npm's point of view.
-- Runtime dependencies on `@teleforgex/*` have been removed from the published `teleforge` package metadata.
+- Runtime dependencies on `@teleforge/*` have been removed from the published `teleforge` package metadata.
 - The release script publishes only `teleforge`.
 - The scaffold is exposed through `teleforge create`.
 - Session deployment safety is included in 0.5: runtime environment/topology is explicit, memory sessions are limited to non-production single-process use, and doctor validates the same rules.
@@ -33,11 +33,11 @@ Publish:
 
 Do not publish:
 
-- `@teleforgex/core`
-- `@teleforgex/bot`
-- `@teleforgex/web`
-- `@teleforgex/devtools`
-- `@teleforgex/ui`
+- `@teleforge/core`
+- `@teleforge/bot`
+- `@teleforge/web`
+- `@teleforge/devtools`
+- `@teleforge/ui`
 - `create-teleforge-app`
 
 ## Phase 1: Package Topology
@@ -46,9 +46,9 @@ Goal: `teleforge` installs and runs without separately published internal packag
 
 Required implementation:
 
-- [x] Update `packages/teleforge` build/package setup so runtime output does not depend on unresolved `@teleforgex/*` packages.
-- [x] Bundle or internalize `@teleforgex/core`, `@teleforgex/bot`, `@teleforgex/web`, and `@teleforgex/devtools` into the `teleforge` published artifact.
-- [x] Remove `@teleforgex/*` runtime dependencies from `packages/teleforge/package.json`.
+- [x] Update `packages/teleforge` build/package setup so runtime output does not depend on unresolved `@teleforge/*` packages.
+- [x] Bundle or internalize `@teleforge/core`, `@teleforge/bot`, `@teleforge/web`, and `@teleforge/devtools` into the `teleforge` published artifact.
+- [x] Remove `@teleforge/*` runtime dependencies from `packages/teleforge/package.json`.
 - [x] Keep `react` as a peer dependency.
 - [x] Keep `tsx` only if the published CLI/runtime still needs it.
 - [x] Verify public subpath exports still work:
@@ -69,11 +69,11 @@ Acceptance checks:
 
 ```bash
 pnpm --filter teleforge build
-rg '@teleforgex/' packages/teleforge/dist
+rg '@teleforge/' packages/teleforge/dist
 npm pack --dry-run --workspace packages/teleforge
 ```
 
-Expected result: no runtime-blocking `@teleforgex/*` imports remain in the packed `teleforge` artifact.
+Expected result: no runtime-blocking `@teleforge/*` imports remain in the packed `teleforge` artifact.
 
 ## Phase 2: Version And Dependency Metadata
 
@@ -109,7 +109,7 @@ Required implementation:
 
 - [x] Generated apps depend on `teleforge@^0.5.0`.
 - [x] Generated code imports only public `teleforge` surfaces.
-- [x] Generated code must not import `@teleforgex/*`.
+- [x] Generated code must not import `@teleforge/*`.
 - [x] Generated README says `0.5`, not `0.2`.
 - [x] Scaffold is exposed through `teleforge create`.
 - [x] `create-teleforge-app` is private/internal.
@@ -183,7 +183,7 @@ Acceptance checks:
 
 ```bash
 rg '0\.2 Teleforge|0\.2 action|0\.2-style|Old \(0\.1|deprecated|migration' README.md docs packages/teleforge packages/create-teleforge-app
-rg '@teleforgex/(core|bot|web|devtools)' README.md docs packages/teleforge/README.md packages/create-teleforge-app/README.md
+rg '@teleforge/(core|bot|web|devtools)' README.md docs packages/teleforge/README.md packages/create-teleforge-app/README.md
 rg 'npm create teleforge-app|create-teleforge-app@latest' README.md docs packages/teleforge/README.md packages/create-teleforge-app/README.md
 ```
 
@@ -306,7 +306,7 @@ pnpm test
 
 ## Open Questions
 
-- Should `@teleforgex/ui` remain private/internal-only for this release? Answer: yes.
+- Should `@teleforge/ui` remain private/internal-only for this release? Answer: yes.
 - Should internal package folders keep independent package names after 0.5? Answer: keep only as monorepo implementation details.
 - Should release automation use Changesets or the custom `scripts/release-publish.mjs`? Answer: use the custom script for the single public artifact.
 
@@ -326,8 +326,8 @@ pnpm test
   - memory provider with split/serverless/multi-instance topology is an error
   - custom provider is valid for deployment topologies
   - bot token presence is not used as the production signal
-- Packed `teleforge` metadata has no `@teleforgex/*`, `workspace:`, or `create-teleforge-app` runtime references.
-- `packages/teleforge/dist/**` has no `@teleforgex/*` runtime references.
+- Packed `teleforge` metadata has no `@teleforge/*`, `workspace:`, or `create-teleforge-app` runtime references.
+- `packages/teleforge/dist/**` has no `@teleforge/*` runtime references.
 - GitHub release note draft exists at `.github/releases/v0.5.0.md`.
 - GitHub repository metadata has been updated:
   - description: TypeScript framework for Telegram-native bots and Mini Apps

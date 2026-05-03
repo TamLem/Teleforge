@@ -18,7 +18,7 @@ export {
   type TeleforgeSessionProviderConfig,
   type TeleforgeValidationErrorBody,
   type SessionResourceHandle
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 export type {
   RouteDefinition,
@@ -27,7 +27,7 @@ export type {
   TeleforgeRouteCapability,
   TeleforgeRuntime,
   TeleforgeRuntimeEnvironment
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 export { defineFlow, resolveFlowAction } from "./flow-definition.js";
 

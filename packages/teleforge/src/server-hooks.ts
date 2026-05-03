@@ -6,7 +6,7 @@ import {
   validateActionContext,
   type ActionContextToken,
   type TeleforgeValidationErrorBody
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import {
@@ -24,7 +24,7 @@ import {
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
 import type { LoaderRegistry, ServerLoaderContext, TeleforgeScreenDefinition } from "./screens.js";
-import type { SessionHandle, TeleforgeAppConfig } from "@teleforgex/core";
+import type { SessionHandle, TeleforgeAppConfig } from "@teleforge/core";
 
 export {
   createFetchMiniAppServerBridge,

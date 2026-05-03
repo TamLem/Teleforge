@@ -5,7 +5,7 @@ import {
   type TeleforgeManifest,
   type WebAppInitData,
   type WebAppUser
-} from "@teleforgex/core/browser";
+} from "@teleforge/core/browser";
 import { useEffect, useRef, useState } from "react";
 
 import { hasWindow } from "../utils/ssr.js";

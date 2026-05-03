@@ -1,1 +1,1 @@
-export * from "@teleforgex/bot";
+export * from "@teleforge/bot";

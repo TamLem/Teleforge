@@ -1,4 +1,4 @@
-import { useBackButton, useTelegram } from "@teleforgex/web";
+import { useBackButton, useTelegram } from "@teleforge/web";
 import React, { useEffect } from "react";
 
 import { useThemeColors } from "../hooks/useThemeColors.js";

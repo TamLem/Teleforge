@@ -1,5 +1,5 @@
 {
-  "name": "@teleforgex/benchmark",
+  "name": "@teleforge/benchmark",
   "private": true,
   "type": "module",
   "scripts": {

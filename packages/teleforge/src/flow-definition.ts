@@ -1,4 +1,4 @@
-import type { UpdateContext, CallbackQueryContext, WebAppDataContext } from "@teleforgex/bot";
+import type { UpdateContext, CallbackQueryContext, WebAppDataContext } from "@teleforge/bot";
 import type {
   ActionContextToken,
   ActionHandlerDefinition,
@@ -7,7 +7,7 @@ import type {
   SessionHandle,
   SignContextFn,
   TeleforgeInputSchema
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 type MaybePromise<T> = Promise<T> | T;
 

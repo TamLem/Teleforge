@@ -1,4 +1,4 @@
-import { useLaunchCoordination } from "@teleforgex/web";
+import { useLaunchCoordination } from "@teleforge/web";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { MiniAppStateProvider, useAppState } from "./miniapp-state.js";
@@ -25,8 +25,8 @@ import type {
   UnresolvedMiniAppScreen
 } from "./screens.js";
 import type { TeleforgeActionServerBridge } from "./server-bridge.js";
-import type { ActionResult } from "@teleforgex/core";
-import type { FlowContext } from "@teleforgex/core/browser";
+import type { ActionResult } from "@teleforge/core";
+import type { FlowContext } from "@teleforge/core/browser";
 import type { ReactNode } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;

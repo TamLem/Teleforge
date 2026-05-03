@@ -4,7 +4,7 @@ import type {
   ClientFlowManifest,
   ClientFlowManifestEntry,
   ClientScreenManifestEntry
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 export type TeleforgeClientFlowManifest = ClientFlowManifest;
 

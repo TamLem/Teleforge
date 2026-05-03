@@ -31,7 +31,7 @@ export interface MockWebApp {
 export async function validateDiscoveredWiring(
   cwd: string
 ): Promise<{ flows: number; steps: number }> {
-  const devtools = (await import("@teleforgex/devtools")) as unknown as {
+  const devtools = (await import("@teleforge/devtools")) as unknown as {
     loadManifest: (cwd: string) => Promise<{ discoveredFlows: DiscoveredFlowSummary[] }>;
   };
   const { discoveredFlows } = await devtools.loadManifest(cwd);

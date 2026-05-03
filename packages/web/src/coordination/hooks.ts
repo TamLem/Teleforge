@@ -5,7 +5,7 @@ import { useLaunch } from "../hooks/useLaunch.js";
 import { parseResumeParam } from "./parseResumeParam.js";
 import { getLaunchFlowContext, inferStateKey, parseFlowContext } from "./shared.js";
 
-import type { FlowContext } from "@teleforgex/core/browser";
+import type { FlowContext } from "@teleforge/core/browser";
 
 export interface UseLaunchCoordinationReturn {
   entryRoute: string | null;

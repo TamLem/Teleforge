@@ -1,4 +1,4 @@
-import type { LaunchCapabilities, LaunchContext } from "@teleforgex/core/browser";
+import type { LaunchCapabilities, LaunchContext } from "@teleforge/core/browser";
 
 export function hasCapability(
   capability: string,

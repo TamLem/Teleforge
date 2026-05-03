@@ -1,5 +1,5 @@
-export type { MiniAppLinkOptions } from "@teleforgex/core";
-export { generateMiniAppLink } from "@teleforgex/core";
+export type { MiniAppLinkOptions } from "@teleforge/core";
+export { generateMiniAppLink } from "@teleforge/core";
 export type { MiniAppButtonOptions } from "./buttons.js";
 export { createMiniAppButton } from "./buttons.js";
 export type { FlowCallbackData, FlowCallbackOptions, FlowCallbackSource } from "./callbacks.js";

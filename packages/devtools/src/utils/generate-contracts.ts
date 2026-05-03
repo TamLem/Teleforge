@@ -3,7 +3,7 @@ import path from "node:path";
 
 // Inlined helpers must stay in lock-step with `packages/teleforge/src/screens.ts`
 // (`toHelperName` and `extractRequiredRouteParams`). Keeping them inlined here
-// avoids a circular dependency: `teleforge` depends on `@teleforgex/devtools`,
+// avoids a circular dependency: `teleforge` depends on `@teleforge/devtools`,
 // so devtools cannot import from `teleforge`.
 
 function toHelperName(id: string): string {

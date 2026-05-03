@@ -1,4 +1,4 @@
-# `@teleforgex/bot`
+# `@teleforge/bot`
 
 Internal Teleforge implementation layer for Telegram bot routing and chat primitives.
 

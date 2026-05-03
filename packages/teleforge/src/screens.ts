@@ -6,7 +6,7 @@ import type {
   ActionResult,
   SessionHandle,
   TeleforgeInputSchema
-} from "@teleforgex/core";
+} from "@teleforge/core";
 import type { ComponentType } from "react";
 
 type AnyFlowDefinition = ActionFlowDefinition;

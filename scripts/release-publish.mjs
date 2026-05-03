@@ -107,7 +107,7 @@ async function createNpmAuthConfig(token) {
     };
   }
 
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), "teleforgex-npmrc-"));
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "teleforge-npmrc-"));
   const userConfigPath = path.join(tempDir, ".npmrc");
 
   try {

@@ -70,7 +70,7 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforgex/core':
+      '@teleforge/core':
         specifier: link:../../../../packages/core
         version: link:../../../../packages/core
       dotenv:
@@ -95,7 +95,7 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforgex/ui':
+      '@teleforge/ui':
         specifier: link:../../../../packages/ui
         version: link:../../../../packages/ui
       react:

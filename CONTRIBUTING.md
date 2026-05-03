@@ -45,8 +45,8 @@ apps/
 
 ```bash
 pnpm test
-pnpm --filter @teleforgex/core test
-pnpm --filter @teleforgex/web test
+pnpm --filter @teleforge/core test
+pnpm --filter @teleforge/web test
 pnpm --dir apps/task-shop test
 pnpm --dir apps/task-shop test:integration
 ```

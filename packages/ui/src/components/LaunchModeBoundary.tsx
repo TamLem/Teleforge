@@ -1,4 +1,4 @@
-import { useLaunch, useTelegram } from "@teleforgex/web";
+import { useLaunch, useTelegram } from "@teleforge/web";
 import React, { useEffect, useMemo, useRef } from "react";
 
 import { useLaunchMode, type LaunchMode } from "../hooks/useLaunchMode.js";

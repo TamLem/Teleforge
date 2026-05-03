@@ -1,1 +1,1 @@
-export * from "@teleforgex/core/browser";
+export * from "@teleforge/core/browser";

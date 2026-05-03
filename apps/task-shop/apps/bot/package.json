@@ -20,7 +20,7 @@
   "dependencies": {
     "@task-shop/api": "workspace:*",
     "@task-shop/types": "workspace:*",
-    "@teleforgex/core": "link:../../../../packages/core",
+    "@teleforge/core": "link:../../../../packages/core",
     "dotenv": "^16.6.1",
     "teleforge": "link:../../../../packages/teleforge"
   },

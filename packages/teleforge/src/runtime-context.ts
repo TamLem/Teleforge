@@ -3,19 +3,19 @@ import {
   SessionManager,
   resolveRuntimeDeployment,
   validateSessionDeployment
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import { loadTeleforgeFlows } from "./discovery.js";
 
-import type { SessionStorageAdapter } from "@teleforgex/core";
+import type { SessionStorageAdapter } from "@teleforge/core";
 import type {
   TeleforgeAppConfig,
   TeleforgeDeploymentTopology,
   TeleforgeRuntimeDeployment,
   TeleforgeRuntimeEnvironment,
   TeleforgeSessionProviderConfig
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 export function createSessionManagerFromConfig(
   config: TeleforgeSessionProviderConfig | undefined,

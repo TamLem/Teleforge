@@ -1,4 +1,4 @@
-import { createSignedPhoneAuthToken, normalizePhoneNumber } from "@teleforgex/core";
+import { createSignedPhoneAuthToken, normalizePhoneNumber } from "@teleforge/core";
 
 import type {
   TelegramContact,

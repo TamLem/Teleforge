@@ -1,4 +1,4 @@
-import type { TeleforgeManifest } from "@teleforgex/core";
+import type { TeleforgeManifest } from "@teleforge/core";
 
 export interface TelegramChat {
   id: number | string;

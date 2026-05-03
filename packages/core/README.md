@@ -1,4 +1,4 @@
-# `@teleforgex/core`
+# `@teleforge/core`
 
 Internal Teleforge implementation layer for shared contracts, action context signing, session storage, launch parsing, and validation.
 

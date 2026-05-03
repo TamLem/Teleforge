@@ -16,8 +16,8 @@ import type {
   ServerLoaderContext,
   ServerLoaderDefinition
 } from "./screens.js";
-import type { BotCommandDefinition, CommandContext } from "@teleforgex/bot";
-import type { RouteDefinition, SignContextFn } from "@teleforgex/core";
+import type { BotCommandDefinition, CommandContext } from "@teleforge/bot";
+import type { RouteDefinition, SignContextFn } from "@teleforge/core";
 
 type AnyFlowDefinition = ActionFlowDefinition;
 type DiscoveredHandlerFunction = (...args: unknown[]) => unknown;
@@ -647,7 +647,7 @@ export function createSignForActionContext(options: {
   userId: string;
 }): SignContextFn {
   return async (params) => {
-    const { createSignedActionContext } = await import("@teleforgex/core");
+    const { createSignedActionContext } = await import("@teleforge/core");
     const now = Math.floor(Date.now() / 1000);
     const ttl = params.ttlSeconds ?? 900;
     const token = createSignedActionContext(

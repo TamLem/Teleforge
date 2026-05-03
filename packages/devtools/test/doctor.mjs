@@ -196,7 +196,7 @@ test("doctor reports conflicting Teleforge dependency majors", async () => {
   const projectDir = await createDoctorFixture({
     dependencyVersions: {
       teleforge: "^0.1.0",
-      "@teleforgex/web": "^2.0.0"
+      "@teleforge/web": "^2.0.0"
     }
   });
 

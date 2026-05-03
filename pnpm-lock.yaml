@@ -11,16 +11,16 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.7
         version: 2.30.0(@types/node@24.12.0)
-      '@teleforgex/bot':
+      '@teleforge/bot':
         specifier: workspace:0.5.0
         version: link:packages/bot
-      '@teleforgex/core':
+      '@teleforge/core':
         specifier: workspace:0.5.0
         version: link:packages/core
-      '@teleforgex/devtools':
+      '@teleforge/devtools':
         specifier: workspace:0.5.0
         version: link:packages/devtools
-      '@teleforgex/web':
+      '@teleforge/web':
         specifier: workspace:0.5.0
         version: link:packages/web
       '@typescript-eslint/eslint-plugin':
@@ -121,7 +121,7 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforgex/core':
+      '@teleforge/core':
         specifier: link:../../../../packages/core
         version: link:../../../../packages/core
       dotenv:
@@ -146,7 +146,7 @@ importers:
       '@task-shop/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@teleforgex/ui':
+      '@teleforge/ui':
         specifier: link:../../../../packages/ui
         version: link:../../../../packages/ui
       react:
@@ -200,7 +200,7 @@ importers:
 
   packages/bot:
     dependencies:
-      '@teleforgex/core':
+      '@teleforge/core':
         specifier: workspace:0.5.0
         version: link:../core
     devDependencies:
@@ -241,7 +241,7 @@ importers:
 
   packages/devtools:
     dependencies:
-      '@teleforgex/core':
+      '@teleforge/core':
         specifier: workspace:0.5.0
         version: link:../core
       http-proxy:
@@ -303,7 +303,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@teleforgex/web':
+      '@teleforge/web':
         specifier: workspace:0.5.0
         version: link:../web
     devDependencies:
@@ -331,7 +331,7 @@ importers:
 
   packages/web:
     dependencies:
-      '@teleforgex/core':
+      '@teleforge/core':
         specifier: workspace:0.5.0
         version: link:../core
     devDependencies:

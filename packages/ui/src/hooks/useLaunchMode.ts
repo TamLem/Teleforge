@@ -1,4 +1,4 @@
-import { useLaunch } from "@teleforgex/web";
+import { useLaunch } from "@teleforge/web";
 
 export type LaunchMode = "inline" | "compact" | "fullscreen";
 

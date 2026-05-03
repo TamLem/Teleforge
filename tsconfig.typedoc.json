@@ -9,17 +9,17 @@
     "moduleResolution": "NodeNext",
     "noEmit": true,
     "paths": {
-      "@teleforgex/bot": ["packages/bot/src/index.ts"],
-      "@teleforgex/core": ["packages/core/src/index.ts"],
-      "@teleforgex/core/browser": ["packages/core/src/browser.ts"],
-      "@teleforgex/core/react": ["packages/core/src/events/react.ts"],
-      "@teleforgex/core/validation/ed25519": ["packages/core/src/validation/ed25519.ts"],
-      "@teleforgex/ui": ["packages/ui/src/index.ts"],
+      "@teleforge/bot": ["packages/bot/src/index.ts"],
+      "@teleforge/core": ["packages/core/src/index.ts"],
+      "@teleforge/core/browser": ["packages/core/src/browser.ts"],
+      "@teleforge/core/react": ["packages/core/src/events/react.ts"],
+      "@teleforge/core/validation/ed25519": ["packages/core/src/validation/ed25519.ts"],
+      "@teleforge/ui": ["packages/ui/src/index.ts"],
       "teleforge": ["packages/teleforge/src/index.ts"],
       "teleforge/bot": ["packages/teleforge/src/bot.ts"],
       "teleforge/core": ["packages/teleforge/src/core.ts"],
       "teleforge/web": ["packages/teleforge/src/web.ts"],
-      "@teleforgex/web": ["packages/web/src/index.ts"]
+      "@teleforge/web": ["packages/web/src/index.ts"]
     }
   },
   "include": [

@@ -1,4 +1,4 @@
-export * from "@teleforgex/web";
+export * from "@teleforge/web";
 export { createFetchMiniAppServerBridge } from "./server-bridge.js";
 export { createClientFlowManifest, defineClientFlowManifest } from "./flow-manifest.js";
 export {

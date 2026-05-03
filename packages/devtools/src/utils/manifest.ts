@@ -14,7 +14,7 @@ import {
   type RouteDefinition,
   type TeleforgeAppConfig,
   type TeleforgeManifest as CoreTeleforgeManifest
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 const execFileAsync = promisify(execFile);
 const configCandidates = [

@@ -8,7 +8,7 @@ const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const forbiddenTerms = [
   { term: "teleforge.app.json", message: "Use teleforge.config.ts as the default config path" },
-  { term: "@teleforgex/", message: "Use the unified teleforge package for public app code" },
+  { term: "@teleforge/", message: "Use the unified teleforge package for public app code" },
   { term: "BFF mode", message: "BFF is not a public product mode" },
   { term: "SPA mode", message: "SPA is not a user-facing framework choice" },
   { term: "Next.js mode", message: "Next.js is not a user-facing framework choice" }

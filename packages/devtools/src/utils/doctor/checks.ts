@@ -6,7 +6,7 @@ import {
   resolveRuntimeDeployment,
   validateSessionDeployment,
   type TeleforgeAppConfig
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 import { checkClientManifestDrift } from "../client-manifest-drift.js";
 import { loadProjectEnv } from "../env.js";
@@ -234,7 +234,7 @@ async function checkTeleforgeDependencies(
   }
 
   const legacyPackages = [...discoveredPackages.keys()].filter((name) =>
-    name.startsWith("@teleforgex/")
+    name.startsWith("@teleforge/")
   );
   if (legacyPackages.length > 0) {
     return {
@@ -828,7 +828,7 @@ async function loadPackageManifestSummaries(cwd: string): Promise<PackageManifes
 
       for (const [name, version] of Object.entries(section)) {
         if (
-          (name !== "teleforge" && !name.startsWith("@teleforgex/")) ||
+          (name !== "teleforge" && !name.startsWith("@teleforge/")) ||
           typeof version !== "string"
         ) {
           continue;

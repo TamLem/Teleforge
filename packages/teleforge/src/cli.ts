@@ -233,7 +233,7 @@ async function main(): Promise<void> {
   }
 
   // @ts-expect-error — devtools/cli has no types
-  await import("@teleforgex/devtools/cli");
+  await import("@teleforge/devtools/cli");
 }
 
 main().catch((error: unknown) => {

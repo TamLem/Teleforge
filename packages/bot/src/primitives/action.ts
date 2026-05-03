@@ -1,6 +1,6 @@
-import { createSignedActionContext, validateActionContext } from "@teleforgex/core";
+import { createSignedActionContext, validateActionContext } from "@teleforge/core";
 
-import type { ActionContextToken } from "@teleforgex/core";
+import type { ActionContextToken } from "@teleforge/core";
 
 export interface CreateActionContextOptions {
   appId: string;
@@ -88,7 +88,7 @@ export function verifyActionCallback(
   }
 }
 
-export { validateActionContext } from "@teleforgex/core";
+export { validateActionContext } from "@teleforge/core";
 
 function randomNonce(): string {
   const bytes = new Uint8Array(8);

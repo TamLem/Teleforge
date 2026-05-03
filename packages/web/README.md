@@ -1,4 +1,4 @@
-# `@teleforgex/web`
+# `@teleforge/web`
 
 Internal Teleforge implementation layer for the Mini App runtime.
 

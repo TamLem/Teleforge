@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createFlowRoutes } from "./discovery.js";
 
 import type { ActionFlowDefinition } from "./flow-definition.js";
-import type { TeleforgeAppConfig } from "@teleforgex/core";
+import type { TeleforgeAppConfig } from "@teleforge/core";
 
 const configCandidates = [
   "teleforge.config.ts",

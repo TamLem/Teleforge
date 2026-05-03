@@ -13,13 +13,13 @@ import {
   type TelegramMessage,
   type TelegramUpdate,
   type WebAppDataHandler
-} from "@teleforgex/bot";
+} from "@teleforge/bot";
 import {
   SessionManager,
   parseTeleforgeInput,
   validateActionContext,
   type ActionContextToken
-} from "@teleforgex/core";
+} from "@teleforge/core";
 
 import { loadTeleforgeApp } from "./config.js";
 import {
@@ -36,7 +36,7 @@ import {
 
 import type { DiscoveredFlowModule } from "./discovery.js";
 import type { ActionFlowActionDefinition, ActionFlowDefinition } from "./flow-definition.js";
-import type { TeleforgeAppConfig } from "@teleforgex/core";
+import type { TeleforgeAppConfig } from "@teleforge/core";
 
 export interface CreateDiscoveredBotRuntimeOptions {
   app?: TeleforgeAppConfig;
